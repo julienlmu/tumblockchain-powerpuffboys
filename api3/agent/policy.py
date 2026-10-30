@@ -1,7 +1,8 @@
 """The agent's decisions, as a pure function of chain state, ledger and config.
 
 plan() returns what to do this tick, in priority order (docs/SUPPLIERPULSE_PLUS.md §6.3):
-  P1 refund   a held order whose grace period is over: return the money to the buyer
+  P0 stop     the supplier's register status failed on another order: hold this order too (no fetch)
+  P1 refund   a held order after its grace period, or the no-data exit: return the money to the buyer
   P2 release  a due milestone with a valid permit and the buyer's approval: pay it
   P3 due      a milestone due within the lead time without a permit that covers it: fetch and submit
   P4 monitor  a supplier not checked for its tier's interval: fetch and submit to its nearest order
@@ -41,8 +42,13 @@ def plan(snap: Snapshot, ledger: Ledger, cfg: Config) -> Plan:
     out = Plan()
     due: List[Action] = []
     for o in snap.orders:
-        if o.state == HELD and o.auto_refund_at and now >= o.auto_refund_at and o.remaining > 0:
-            out.actions.append(Action("refund", o.id, o.supplier, "grace period over"))
+        sup = snap.suppliers.get(o.supplier_key)
+        failed_at = sup.last_base_failure_at if sup else 0
+        if o.state == ACTIVE and failed_at > o.last_check and not ledger.is_quarantined(o.id):
+            out.actions.append(Action("stop", o.id, o.supplier, "supplier failed on another order"))
+        elif o.auto_refund_at and now >= o.auto_refund_at and o.remaining > 0:
+            reason = "grace period over" if o.state == HELD else "no verified data since the due date"
+            out.actions.append(Action("refund", o.id, o.supplier, reason))
         elif o.state == ACTIVE and o.next_due_date and o.permit_valid and o.next_approved and now >= o.next_due_date:
             out.actions.append(Action("release", o.id, o.supplier, "milestone due"))
         elif needs_due_check(o, now, cfg) and not ledger.is_quarantined(o.id):

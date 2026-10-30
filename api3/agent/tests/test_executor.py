@@ -41,21 +41,29 @@ class ExecutorTest(unittest.TestCase):
         self.agent.tick()
         held = self.entries(orderId=1, action="submitEvidence")[0]
         self.assertEqual(held["outcome"], "held")
-        self.assertEqual(held["labels"], ["registry status not active", "insolvency history", "accounts overdue"])
+        self.assertEqual(held["labels"], ["registry status not active", "accounts overdue"])
         self.assertEqual(self.entries(orderId=0, action="submitEvidence")[0]["outcome"], "clean")
         self.assertAlmostEqual(self.ledger.spent(self.chain.now()), 0.03)  # 3 fetches: the cap per tick
 
     def test_full_simulated_run(self):
         self.run_ticks(45)  # 22.5 simulated minutes: every milestone of the local test chain is due
         states = {oid: o["state"] for oid, o in self.chain.orders.items()}
-        # order 0's last milestone is not approved by the buyer (§4.8), so it waits
-        self.assertEqual(states, {0: ACTIVE, 1: CLOSED, 2: CLOSED, 3: CLOSED})
+        # order 0's last milestone is not approved by the buyer (§4.8), so it waits; all others are settled
+        self.assertEqual(states, {0: ACTIVE, 1: CLOSED, 2: CLOSED, 3: CLOSED, 4: CLOSED, 5: CLOSED})
+        # order 4 shares order 1's supplier: held by the supplier-wide stop, with a single fetch for both
+        self.assertEqual(self.entries(orderId=4, action="applySupplierFailure")[0]["outcome"], "Held (supplier-wide stop)")
+        self.assertEqual(self.fetcher.calls.count("ch:07654321"), 1)
+        self.assertEqual(self.chain.orders[4]["paid"], 0)
+        # order 5 never had data: the money went back through the no-data exit
+        refund5 = self.entries(orderId=5, action="refundRemaining")[0]
+        self.assertTrue(refund5["noDataExit"])
         self.assertEqual(self.chain.orders[0]["paid"], 1500)
         self.assertEqual(self.chain.orders[1]["paid"], 0)  # held at the first check, then refunded
-        self.assertEqual(len(self.entries(action="refundRemaining", outcome="Refunded")), 2)
+        self.assertEqual(len(self.entries(action="refundRemaining", outcome="Refunded")), 4)
         self.assertTrue(self.entries(action="tier"))
         self.assertLessEqual(self.ledger.spent(self.chain.now()), self.cfg.daily_budget_usd)
-        self.assertFalse(self.entries(outcome="alert"))
+        # the only alert: three failed fetches for the supplier without data (order 5), as specified
+        self.assertEqual({e["orderId"] for e in self.entries(outcome="alert")}, {5})
 
         spent = self.ledger.spent(self.chain.now())
         self.run_ticks(10)  # past due and unapproved: no paid checks while the buyer decides
@@ -116,6 +124,37 @@ class ExecutorTest(unittest.TestCase):
         self.agent.tick()
         self.assertEqual(self.entries(orderId=0, action="submitEvidence")[0]["outcome"], "retry")
         self.assertIn("StaleResponse", self.entries(orderId=0, action="submitEvidence")[0]["error"])
+
+    def test_an_older_permit_is_not_paid_after_the_supplier_failed(self):
+        chain = fakes.FakeChain()
+        a = chain.add_order(0, "01234567", 0x06, [500, 500], [600, 1200], approved=[0, 1])
+        b = chain.add_order(0, "01234567", 0x06, [500], [5000], approved=[0])
+        fetcher = fakes.FakeFetcher(chain.now)
+        agent = Executor(chain, fetcher, self.ledger, self.journal, self.cfg)
+        agent.tick()  # monitoring: a gets a permit for its first milestone
+        self.assertTrue(chain.snapshot().order(a).permit_valid)
+        fetcher.registry["ch:01234567"] = {"accounts_overdue": False, "confirmation_overdue": False, "status": "liquidation"}
+        chain.advance(30)
+        chain.send("submitEvidence", b, *fetcher.fetch("ch", "01234567").args)  # someone checks b: liquidation
+        chain.advance(600)  # a's milestone is due and its old permit is still valid
+        with self.assertRaises(Exception) as ctx:
+            chain.simulate("release", a)
+        self.assertEqual(str(ctx.exception).split("(")[0], "SupplierFailed")
+        agent.tick()  # the agent holds a instead of paying it
+        self.assertEqual(chain.orders[a]["state"], HELD)
+        self.assertEqual(chain.orders[a]["paid"], 0)
+
+    def test_history_only_moves_forward(self):
+        chain = fakes.FakeChain()
+        a = chain.add_order(0, "01234567", 0x06, [500], [5000], approved=[0])
+        b = chain.add_order(0, "01234567", 0x06, [500], [5000], approved=[0])
+        fetcher = fakes.FakeFetcher(chain.now)
+        old = fetcher.fetch("ch", "01234567")  # signed now, used later
+        chain.advance(60)
+        chain.send("submitEvidence", a, *fetcher.fetch("ch", "01234567").args)
+        checked = chain.suppliers["key:0:01234567"]["last_check_at"]
+        chain.send("submitEvidence", b, *old.args)  # valid for order b, but older than the history
+        self.assertEqual(chain.suppliers["key:0:01234567"]["last_check_at"], checked)
 
     def test_high_gas_price_skips_all_writes(self):
         self.chain.gas_gwei = 500

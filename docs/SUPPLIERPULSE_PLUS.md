@@ -938,7 +938,7 @@ After C2 (22:00) there are no breaking changes unless the whole team agrees.
   git push
   ```
 
-- **`main`.** Julien (the repo owner) merges into `main` at C6/C7.
+- **`main`.** It stays identical to `supplierpulse-plus`: every change that can affect someone else's code is merged to `main` right away (Julien's rule, 30 Oct). You can base your branch on either.
 - **Repo root check.** Before any `git add`, `git rev-parse --show-toplevel` must print the repo root (CLAUDE.md §7). Never run `git add .` outside it.
 
 ### 5.2 Secrets, wallets, money
@@ -1131,7 +1131,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
 
-**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. Next on `julien/plus-agent`: the v1.1 changes (supplier-wide stop, no-data exit, verification history) and the v1 hedge mode.
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass.
 
 **Modules (`api3/agent/`):**
 

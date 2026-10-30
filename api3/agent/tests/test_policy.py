@@ -20,7 +20,7 @@ def cfg(**overrides):
 
 
 def order(oid=0, **kw):
-    base = dict(id=oid, source=0, supplier_id="0000000%d" % oid, supplier_key="k%d" % oid, rules=7, state=ACTIVE,
+    base = dict(id=oid, source=0, supplier_id="0000000%d" % oid, supplier_key="k%d" % oid, rules=6, state=ACTIVE,
                 remaining=1000, permit_valid=False, permit_valid_until=0, next_due_date=NOW + 5000,
                 next_approved=True, auto_refund_at=0, tier=0)
     base.update(kw)
@@ -148,6 +148,23 @@ class PolicyTest(unittest.TestCase):
         p = plan(snapshot(*orders), self.ledger, cfg(max_fetches_per_tick=3))
         self.assertEqual(len(p.actions), 3)
         self.assertEqual([r for _, r in p.skipped], ["fetch cap per tick"])
+
+    def test_a_supplier_failure_on_another_order_holds_this_one_without_a_fetch(self):
+        o = order(next_due_date=NOW + 100, last_check=NOW - 50)
+        snap = Snapshot(NOW, [o], {"k0": Supplier("k0", 0, NOW - 10, last_base_failure_at=NOW - 10)})
+        p = plan(snap, self.ledger, cfg())
+        self.assertEqual(self.kinds(p), [("stop", 0)])  # no due check: the stop needs no data
+
+    def test_an_older_failure_does_not_stop_a_newer_check(self):
+        o = order(next_due_date=NOW + 9000, last_check=NOW - 5)
+        snap = Snapshot(NOW, [o], {"k0": Supplier("k0", 0, NOW - 5, last_base_failure_at=NOW - 60)})
+        self.assertEqual(plan(snap, self.ledger, cfg()).actions, [])
+
+    def test_no_data_exit_refunds_an_active_order(self):
+        o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        p = plan(snapshot(o), self.ledger, cfg())
+        self.assertEqual(self.kinds(p), [("refund", 0)])
+        self.assertEqual(p.actions[0].reason, "no verified data since the due date")
 
     def test_refunds_and_releases_come_before_fetches(self):
         held = order(0, state=HELD, auto_refund_at=NOW)

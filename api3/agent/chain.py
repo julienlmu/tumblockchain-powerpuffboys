@@ -21,13 +21,15 @@ SIGNATURES = {
     "orderInfo": "orderInfo(uint256)(address,address,uint8,string,bytes32,bytes32,uint64,uint8)",
     "orderStatus": "orderStatus(uint256)(uint8,uint256,uint256,uint256,uint256,uint64,bool,uint256)",
     "orderSchedule": "orderSchedule(uint256)(uint64,bool,uint8,uint64,uint64,uint8)",
-    "supplierRecord": "supplierRecord(bytes32)(uint32,uint32,uint32,uint64,uint64,uint8)",
+    "supplierRecord": "supplierRecord(bytes32)(uint32,uint32,uint32,uint64,uint64,uint64,uint8)",
     "supplierKeyOf": "supplierKeyOf(uint8,string)(bytes32)",
     "submitEvidence": "submitEvidence(uint256,bytes32,uint256,bytes,bytes)(bool)",
     "checkAndRelease": "checkAndRelease(uint256,bytes32,uint256,bytes,bytes)(uint8)",
     "release": "release(uint256)",
+    "applySupplierFailure": "applySupplierFailure(uint256)",
     "refundRemaining": "refundRemaining(uint256)",
 }
+OUTCOME_NAMES = {0: "Paid", 1: "AwaitingApproval", 2: "NotDue", 3: "Held"}
 
 # 4-byte selectors of every error the contract and its libraries can raise (cast sig "Name(types)")
 ERROR_SELECTORS = {
@@ -42,8 +44,11 @@ ERROR_SELECTORS = {
     "0x676e2fd4": "NotApproved",
     "0x39c32aeb": "NotDue",
     "0x1d61e8ee": "NotActive",
-    "0x845eadf1": "NotHeld",
+    "0x845eadf1": "NotHeld",  # v1 only
+    "0x3742d1f6": "NotRefundable",
     "0x3ea8fb25": "RefundNotYet",
+    "0x4c9c8ee2": "SupplierFailed",
+    "0x98788583": "NoNewerFailure",
     "0x98c2c368": "BadOrder",
     "0x7bbdd1c9": "BadSource",
     "0xe7a46501": "BadSupplierId",
@@ -115,6 +120,9 @@ def _run(cmd: List[str]) -> subprocess.CompletedProcess:
 
 
 class Chain:
+    signatures = SIGNATURES
+    outcome_names = OUTCOME_NAMES
+
     def __init__(self, contract: str, rpc_urls: List[str], private_key: str = "",
                  runner: Optional[Callable[[List[str]], subprocess.CompletedProcess]] = None, workers: int = 4):
         self.contract = contract
@@ -179,15 +187,15 @@ class Chain:
         return self._address
 
     def call(self, name: str, *args) -> list:
-        return self._cast(["call", self.contract, SIGNATURES[name]] + [str(a) for a in args])
+        return self._cast(["call", self.contract, self.signatures[name]] + [str(a) for a in args])
 
     def simulate(self, name: str, *args) -> list:
         """eth_call as the agent: the result the transaction would have, or Reverted."""
-        return self._cast(["call", "--from", self.address, self.contract, SIGNATURES[name]] + [str(a) for a in args])
+        return self._cast(["call", "--from", self.address, self.contract, self.signatures[name]] + [str(a) for a in args])
 
     def send(self, name: str, *args) -> str:
         receipt = self._cast(["send", "--private-key", self._key, self.contract,
-                              input_signature(SIGNATURES[name])] + [str(a) for a in args])
+                              input_signature(self.signatures[name])] + [str(a) for a in args])
         if isinstance(receipt, dict) and "data" in receipt and "transactionHash" not in receipt:
             receipt = receipt["data"]
         if not isinstance(receipt, dict) or str(receipt.get("status")).lower() not in ("0x1", "1", "true"):
@@ -232,6 +240,7 @@ class Chain:
                 ))
             supplier_keys = sorted({o.supplier_key for o in orders})
             records = dict(zip(supplier_keys, pool.map(lambda k: self.call("supplierRecord", k), supplier_keys)))
-        suppliers = {k: Supplier(key=k, tier=_int(r[5]), last_check_at=_int(r[4]), clean_streak=_int(r[0]))
+        suppliers = {k: Supplier(key=k, tier=_int(r[6]), last_check_at=_int(r[4]), clean_streak=_int(r[0]),
+                              last_base_failure_at=_int(r[5]))
                      for k, r in records.items()}
         return Snapshot(now, orders, suppliers)

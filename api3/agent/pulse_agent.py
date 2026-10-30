@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 import config
 from chain import Chain
+from chain_v1 import ChainV1
 from evidence import Fetcher
 from executor import Executor
 from journal import Journal, report
@@ -36,7 +37,7 @@ def build(args):
         chain, fetcher = fakes.local_world()
     else:
         cfg = config.load(profile=args.profile)
-        chain = Chain(cfg.contract, cfg.rpc_urls, cfg.agent_key)
+        chain = (ChainV1 if cfg.contract_version == "v1" else Chain)(cfg.contract, cfg.rpc_urls, cfg.agent_key)
         fetcher = Fetcher(cfg.fetch_cmd, cwd=config.REPO_ROOT)
     ledger = Ledger(cfg.state_dir / "state.json")
     journal = Journal(cfg.state_dir / "cycles.jsonl", echo=None if args.quiet else print)
@@ -45,7 +46,8 @@ def build(args):
 
 def banner(cfg, chain, fake: bool) -> None:
     hosts = ", ".join(urlparse(u).netloc or u for u in cfg.rpc_urls) or "-"  # never print full URLs (may hold keys)
-    print("SupplierPulse+ agent | profile %s | %s" % (cfg.profile, "FAKE chain and registry" if fake else "contract " + cfg.contract))
+    target = "FAKE chain and registry" if fake else "%s contract %s" % (cfg.contract_version, cfg.contract)
+    print("SupplierPulse+ agent | profile %s | %s" % (cfg.profile, target))
     if not fake:
         print("agent %s | rpc %s | fetch %s" % (chain.address, hosts, " ".join(cfg.fetch_cmd)))
     print("tick %ss | due lead %ss | re-check %s s by tier | budget $%.2f/day (reserve $%.2f) | max %d fetches/tick"

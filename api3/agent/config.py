@@ -48,6 +48,7 @@ class Config:
     profile: str
     contract: str
     rpc_urls: List[str]
+    contract_version: str = "v2"  # v2 = SupplierPulsePlus; v1 = the live SupplierPulse (hedge run, §6.3)
     agent_key: str = ""  # never logged or printed
     fetch_cmd: Tuple[str, ...] = ("api3/scripts/fetch-evidence.sh",)
     fetch_cost_usd: float = 0.01
@@ -92,18 +93,23 @@ def load(env: Optional[dict] = None, profile: Optional[str] = None, require_chai
     def num(key, cast, default):
         return cast(env[key]) if env.get(key, "") != "" else default
 
+    version = env.get("AGENT_CONTRACT_VERSION", "v2")
+    if version not in ("v1", "v2"):
+        raise ValueError("AGENT_CONTRACT_VERSION must be v1 or v2")
     rpc = env.get("EVM_RPC_URLS") or env.get("EVM_RPC_URL", "")
     rpc_urls = [u.strip() for u in rpc.split(",") if u.strip()]
-    fetch_cmd = tuple(shlex.split(env.get("FETCH_CMD") or "api3/scripts/fetch-evidence.sh"))
+    default_fetch = "api3/agent/fetch-v1.sh" if version == "v1" else "api3/scripts/fetch-evidence.sh"
+    fetch_cmd = tuple(shlex.split(env.get("FETCH_CMD") or default_fetch))
     local_fetch = any("fetch-local" in part for part in fetch_cmd)
     cfg = Config(
         profile=name,
         contract=env.get("PULSE_PLUS_ADDRESS", ""),
         rpc_urls=rpc_urls,
+        contract_version=version,
         agent_key=env.get("AGENT_PRIVATE_KEY") or env.get("EVM_PRIVATE_KEY", ""),
         fetch_cmd=fetch_cmd,
         fetch_cost_usd=num("FETCH_COST_USD", float, 0.0 if local_fetch else 0.01),
-        state_dir=Path(env.get("STATE_DIR") or AGENT_DIR / "state"),
+        state_dir=Path(env.get("STATE_DIR") or AGENT_DIR / ("state/v1" if version == "v1" else "state")),
         tick_seconds=num("TICK_SECONDS", int, base["tick_seconds"]),
         due_lead_seconds=num("DUE_LEAD_SECONDS", int, base["due_lead_seconds"]),
         monitor_seconds=(

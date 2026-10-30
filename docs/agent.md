@@ -19,7 +19,8 @@ The agent works in priority order, every tick:
 
 | Priority | When | What the agent does | Costs |
 |---|---|---|---|
-| 1 | A held order's refund grace period is over | `refundRemaining`: the remaining balance goes back to the buyer | gas |
+| 0 | The supplier's register status failed on another order, more recently than this order's last check | `applySupplierFailure`: holds this order too. The failure is already verified on chain, so no new fetch is needed | gas |
+| 1 | A held order's refund grace period is over, or the no-data exit applies (an approved milestone is overdue by the grace period without a permit) | `refundRemaining`: the remaining balance goes back to the buyer | gas |
 | 2 | A milestone is due, the permit is valid and the buyer has approved | `release`: the milestone is paid to the supplier | gas |
 | 3 | A milestone is due within the lead time and no permit covers the due date | Fetch a fresh signed record, then `submitEvidence` (before the due date) or `checkAndRelease` (once due) | $0.01 + gas |
 | 4 | A supplier was not checked for its tier's interval | Fetch a fresh signed record and submit it to that supplier's order with the nearest due date. A failing supplier is held *before* its next payment is due | $0.01 + gas |
@@ -32,7 +33,10 @@ The agent works in priority order, every tick:
 | Lead time before a due date | 5 min | 1 day |
 | Re-check interval: Standard / Trusted / Premium tier | 10 / 30 / 60 min | 1 / 3 / 7 days |
 
-The trust tier comes from the contract. It is computed from the supplier's history of verified records, so the agent cannot raise it, and a supplier with a clean record costs fewer paid checks. The freshness window (`maxAge`, 300 s) never depends on the tier.
+The tier comes from the contract's **verification history**: the supplier's verified register status over time. Only the base status counts, and the history only moves forward, so the agent cannot raise it. A supplier with a long clean history costs fewer paid re-checks.
+- **Permits are never extended by the tier.**
+- The freshness window (`maxAge`, 300 s) never depends on the tier.
+- It is a history of register checks, not a credit score.
 
 **Rules the schedule follows:**
 - **No paid check while a due milestone waits for the buyer's approval.** The check before the due date already issued a permit. When the buyer approves while that permit is still valid, the agent pays with `release` and no new check.
@@ -63,7 +67,8 @@ The trust tier comes from the contract. It is computed from the supplier's histo
 | The contract says `StaleResponse` / `FutureResponse` | Fetches a fresh record next tick (counts as an attempt) |
 | The contract says `Replayed` / `NotNewer` | Drops the record; the order already has newer evidence |
 | The contract says `WrongRequest` / `WrongSigner` | **Quarantines the order**: it stops acting on it and logs it. This means a configuration mismatch or tampering, so a human looks |
-| The contract says `NotActive` / `NotDue` / `NotApproved` | Expected. The next tick reads the new state |
+| The contract says `NotActive` / `NotDue` / `NotApproved` / `NotRefundable` / `NoNewerFailure` | Expected. The next tick reads the new state |
+| The contract says `SupplierFailed` | Expected: the supplier failed on another order. The next tick holds this order (priority 0) instead of paying it |
 | RPC error | Tries the next RPC in `EVM_RPC_URLS`; otherwise retries next tick |
 | Crash or restart | The supervised loop restarts it. Spend, retries and quarantine come back from `state.json` |
 
@@ -90,13 +95,15 @@ Every action is one JSON line in `api3/agent/state/cycles.jsonl`:
 
 ```sh
 cd api3/agent
-python3 -m unittest discover -s tests                   # 48 tests, no network
+python3 -m unittest discover -s tests                   # 54 tests, no network
 python3 pulse_agent.py run --fake --ticks 45            # whole flow against an in-memory contract, simulated clock
 python3 pulse_agent.py report --fake
 
 source ../.local/plus-local.env                         # local test chain (api3/scripts/plus-local.sh)
 python3 pulse_agent.py run
 
+AGENT_CONTRACT_VERSION=v1 PULSE_PLUS_ADDRESS=0x91d7dbae109029b2b1245179a68ac362799674d7 python3 pulse_agent.py run
+                                                        # hedge: the live v1 contract (status-only fetch via fetch-v1.sh)
 cp .env.example .env                                    # Sepolia: fill in the address and keys, then
 python3 pulse_agent.py plan                             # what the next tick would do, without acting
 while true; do python3 pulse_agent.py run; sleep 5; done   # supervised loop
@@ -105,6 +112,7 @@ while true; do python3 pulse_agent.py run; sleep 5; done   # supervised loop
 | Setting | Meaning |
 |---|---|
 | `AGENT_PROFILE` | `demo` or `prod` (the tables above) |
+| `AGENT_CONTRACT_VERSION` | `v2` (SupplierPulsePlus, default) or `v1` (the live v1 contract: no due dates, no tiers, no agent refunds; logs go to `state/v1/`) |
 | `PULSE_PLUS_ADDRESS` | the SupplierPulsePlus contract |
 | `EVM_RPC_URLS` | comma-separated RPCs, tried in order |
 | `AGENT_PRIVATE_KEY` | the agent wallet: gas only. It is not the buyer |

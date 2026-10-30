@@ -17,12 +17,11 @@ STATE_NAMES = {ACTIVE: "Active", HELD: "Held", CLOSED: "Closed"}
 OUTCOME_NAMES = {0: "Paid", 1: "AwaitingApproval", 2: "NotDue", 3: "Held"}
 TIER_NAMES = {0: "Standard", 1: "Trusted", 2: "Premium"}
 
-# §4.3: rule bits, plus 0x80 when the base status check failed
+# §4.3 (v1.1): rule bits, plus 0x80 when the base status check failed. 0x01 is reserved.
 RULE_LABELS = {
-    0x01: "insolvency history",
     0x02: "accounts overdue",
     0x04: "confirmation statement overdue",
-    0x08: "LEI registration not issued",
+    0x08: "LEI renewal overdue",
 }
 BASE_LABELS = {0: "registry status not active", 1: "LEI entity not active"}
 FAIL_BASE = 0x80
@@ -40,7 +39,7 @@ def evaluate(source: int, rules: int, raw: str) -> int:
     if source == 0:
         if fields.get("status") != "active":
             failed |= FAIL_BASE
-        for bit, key in ((0x01, "insolvency"), (0x02, "accounts_overdue"), (0x04, "confirmation_overdue")):
+        for bit, key in ((0x02, "accounts_overdue"), (0x04, "confirmation_overdue")):
             if rules & bit and fields.get(key) is not False:
                 failed |= bit
     else:
@@ -81,6 +80,7 @@ class Supplier:
     tier: int
     last_check_at: int
     clean_streak: int = 0
+    last_base_failure_at: int = 0  # a verified base-status failure stops every order of the supplier (§2.4a)
 
 
 @dataclass
@@ -114,7 +114,7 @@ class Evidence:
 
 @dataclass
 class Action:
-    kind: str  # refund | release | due_check | monitor
+    kind: str  # stop | refund | release | due_check | monitor
     order_id: int
     supplier: str
     reason: str

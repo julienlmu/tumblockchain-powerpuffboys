@@ -13,13 +13,15 @@ from config import Config
 from evidence import FetchFailed, PaymentFailed, VerificationFailed
 from journal import Journal
 from ledger import Ledger
-from model import OUTCOME_NAMES, SOURCES, TIER_NAMES, Action, Evidence, Order, Snapshot, evaluate, failed_labels
+from model import ACTIVE, OUTCOME_NAMES, SOURCES, TIER_NAMES, Action, Evidence, Order, Snapshot, evaluate, failed_labels
 
 RETRY_REVERTS = {"StaleResponse", "FutureResponse"}
 DROP_REVERTS = {"Replayed", "NotNewer"}
 QUARANTINE_REVERTS = {"WrongRequest", "WrongSigner", "InvalidSigner", "InvalidSignatureS",
                       "InvalidSignatureV", "InvalidSignatureLength"}
-EXPECTED_REVERTS = {"NotActive", "NotDue", "NotApproved", "NoValidPermit", "PermitExpired", "RefundNotYet", "NotHeld"}
+EXPECTED_REVERTS = {"NotActive", "NotDue", "NotApproved", "NoValidPermit", "PermitExpired", "RefundNotYet", "NotHeld",
+                    "NotRefundable", "SupplierFailed", "NoNewerFailure"}
+WRITE_ONLY = {"stop": "applySupplierFailure", "refund": "refundRemaining", "release": "release"}
 
 
 class Executor:
@@ -78,8 +80,8 @@ class Executor:
         order = snap.order(action.order_id)
         base = dict(cycle=cycle, reason=action.reason, orderId=order.id, supplier=order.supplier,
                     tier=TIER_NAMES.get(order.tier))
-        if action.kind in ("refund", "release"):
-            fn = "refundRemaining" if action.kind == "refund" else "release"
+        if action.kind in WRITE_ONLY:
+            fn = WRITE_ONLY[action.kind]
             try:
                 self.chain.simulate(fn, order.id)
                 tx = self.chain.send(fn, order.id)
@@ -90,7 +92,10 @@ class Executor:
             except ChainError as e:
                 self.journal.write(action=fn, outcome="error", error=str(e)[:300], **base)
                 return
-            self.journal.write(action=fn, outcome="Refunded" if fn == "refundRemaining" else "Paid", tx=tx, **base)
+            outcome = {"applySupplierFailure": "Held (supplier-wide stop)", "release": "Paid",
+                       "refundRemaining": "Refunded"}[fn]
+            no_data_exit = fn == "refundRemaining" and order.state == ACTIVE
+            self.journal.write(action=fn, outcome=outcome, tx=tx, noDataExit=no_data_exit or None, **base)
             return
 
         evidence = self._fetch(order, snap.now, base)
@@ -110,7 +115,7 @@ class Executor:
             self.journal.write(outcome="error", error=str(e)[:300], **entry)
             return
         self.ledger.clear_failures(order.id)
-        outcome = self._outcome(fn, result)
+        outcome = self._outcome(fn, result, getattr(self.chain, "outcome_names", OUTCOME_NAMES))
         labels = None
         if outcome in ("Held", "held") and evidence.raw:
             labels = failed_labels(order.source, evaluate(order.source, order.rules, evidence.raw))
@@ -152,8 +157,8 @@ class Executor:
         self.journal.write(outcome=outcome, error=str(r), **entry)
 
     @staticmethod
-    def _outcome(fn: str, result) -> str:
+    def _outcome(fn: str, result, names: dict) -> str:
         value = result[0] if isinstance(result, list) and result else result
         if fn == "checkAndRelease":
-            return OUTCOME_NAMES.get(int(str(value).split()[0]), str(value))
+            return names.get(int(str(value).split()[0]), str(value))
         return "clean" if value is True or str(value).lower() == "true" else "held"

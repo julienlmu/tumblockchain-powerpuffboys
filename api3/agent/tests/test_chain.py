@@ -9,6 +9,7 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from chain import ERROR_SELECTORS, Chain, ChainError, Reverted, input_signature, revert_from_text  # noqa: E402
+from chain_v1 import ChainV1  # noqa: E402
 
 # recorded from cast 1.8.7 against Sepolia (v1 contract), 30 Oct 2026
 REVERT_ENVELOPE = json.dumps({"schema_version": 1, "success": False, "data": None, "errors": [
@@ -24,7 +25,7 @@ FULL_SIGNATURES = [
     "WrongSigner(address)", "WrongRequest(bytes32,bytes32)", "StaleResponse(uint256,uint256)",
     "FutureResponse(uint256,uint256)", "Replayed(bytes32)", "NotNewer(uint256,uint256)", "NoValidPermit(uint256)",
     "PermitExpired(uint256,uint256)", "NotApproved(uint256)", "NotDue(uint256,uint256)", "NotActive(uint8)",
-    "NotHeld()", "RefundNotYet(uint256)", "BadOrder()", "BadSource()", "BadSupplierId()", "BadRules()",
+    "NotHeld()", "NotRefundable()", "RefundNotYet(uint256)", "SupplierFailed(uint256)", "NoNewerFailure()", "BadOrder()", "BadSource()", "BadSupplierId()", "BadRules()",
     "NotAuthorized()", "TransferFailed()", "InvalidSignatureLength()", "InvalidSignatureS()", "InvalidSignatureV()",
     "InvalidSigner()", "KeyNotFound()", "NoNumber()", "NoString()", "NoBool()",
 ]
@@ -121,7 +122,8 @@ class ChainTest(unittest.TestCase):
                                       "1800003600", i == "0", "1799999990"],
             "orderSchedule": lambda i: ["1800000300", True, 0 if i == "0" else 136, "0", "1800000120" if i == "1" else "0",
                                         2 if i == "0" else 0],
-            "supplierRecord": lambda k: [6 if k == "0xkey0" else 0, 9, 0, "1799999000", "1799999990", 2 if k == "0xkey0" else 0],
+            "supplierRecord": lambda k: [6 if k == "0xkey0" else 0, 9, 0, "1799999000", "1799999990",
+                                         "0" if k == "0xkey0" else "1799999500", 2 if k == "0xkey0" else 0],
         }
         runner = ScriptedRunner(answers)
         snap = Chain("0xc", ["http://a"], runner=runner).snapshot()
@@ -133,6 +135,7 @@ class ChainTest(unittest.TestCase):
         self.assertEqual((first.next_due_date, first.tier, first.remaining), (1800000300, 2, 2500000000000000))
         self.assertEqual((second.state, second.auto_refund_at, second.last_failed_rules), (1, 1800000120, 136))
         self.assertEqual(snap.suppliers["0xkey0"].clean_streak, 6)
+        self.assertEqual(snap.suppliers["0xkey1"].last_base_failure_at, 1799999500)
 
     def test_static_data_is_read_once(self):
         answers = {
@@ -141,7 +144,7 @@ class ChainTest(unittest.TestCase):
             "supplierKeyOf": ["0xkey0"],
             "orderStatus": [0, "0", "1", "0", "1", "0", False, "0"],
             "orderSchedule": ["1800000300", True, 0, "0", "0", 0],
-            "supplierRecord": [0, 0, 0, "0", "0", 0],
+            "supplierRecord": [0, 0, 0, "0", "0", "0", 0],
         }
         runner = ScriptedRunner(answers)
         chain = Chain("0xc", ["http://a"], runner=runner)
@@ -150,6 +153,26 @@ class ChainTest(unittest.TestCase):
         chain.snapshot()
         called = [c for c, _ in runner.calls]
         self.assertEqual(called.count("call"), 4)  # ordersLength, orderStatus, orderSchedule, supplierRecord
+
+    def test_v1_snapshot_maps_the_live_contract(self):
+        # recorded from the live v1 contract on Sepolia (0x91d7...74d7), 30 Oct 2026
+        answers = {
+            "ordersLength": ["2"],
+            "companyNumberOf": lambda i: ["09729896" if i == "0" else "07418033"],
+            "orderStatus": lambda i: [0, "500000000000", "1500000000000", "1", "2", "1793372468", True, "active", "1793368868"]
+            if i == "0" else [1, "0", "2000000000000", "0", "2", "0", False, "liquidation", "1793368852"],
+            "orderInfo": lambda i: ["0xEb3EB6da882798062b30CeC11AAaDe306287ce41", "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+                                    "0xcae416f2dce5fb6bb595eafe8c5f11ce9df4b33f8664042e10f8f776739fab48" if i == "0" else "0xother",
+                                    "0x66a5", "86400", ["500000000000", "1500000000000"],
+                                    [True, False] if i == "0" else [True, False]],
+        }
+        snap = ChainV1("0xv1", ["http://a"], runner=ScriptedRunner(answers)).snapshot()
+        active, held = snap.orders
+        self.assertEqual((active.supplier_id, active.rules, active.next_due_date, active.next_approved), ("09729896", 0, 0, False))
+        self.assertTrue(active.permit_valid)
+        self.assertEqual((held.state, held.last_failed_rules, held.auto_refund_at), (1, 0x80, 0))  # no agent refunds on v1
+        self.assertEqual(snap.suppliers[active.supplier_key].last_check_at, 1793368868)
+        self.assertEqual(ChainV1.outcome_names[2], "Held")  # v1's Outcome enum has no NotDue
 
     @unittest.skipUnless(shutil.which("cast"), "cast not installed")
     def test_selector_table_matches_cast_sig(self):
