@@ -135,14 +135,14 @@
   .cmd-line { display: flex; gap: 6px; align-items: flex-start; margin-top: 4px; }
   .cmd-line code { flex: 1 1 auto; min-width: 0; }
   .cmd-line .copy { margin-left: 0; flex: none; }
-  .attacks button { min-height: 40px; padding: 5px 7px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
+  .attacks button { min-height: 40px; padding: 4px 7px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
   .attacks button .l { display: flex; gap: 5px; align-items: flex-start; }
   .attacks button .l .i { margin-top: 0.05em; }
   .attacks button .d { color: var(--muted); font-weight: 400; font-size: var(--t-1); }
-  /* the key and the contract's expected answer are on the button, not only in the guide */
-  .attacks button { position: relative; }
-  .attacks button .d.exp { padding-right: 14px; } /* the key badge reaches 12 px into the content box */
-  .attacks button .kb { position: absolute; bottom: 5px; right: 5px; font-size: 10px; padding: 1px 4px; color: var(--muted); }
+  /* the key and the contract's expected answer are on the button, not only in the guide; the key badge ends the
+     button's text, as on every other button (here the expected-answer line) */
+  .attacks button .d.exp { display: flex; align-items: center; gap: 0; }
+  .attacks button .d.exp .kb-k { margin-left: auto; flex: none; }
   .attacks button .d.exp .mono { font-size: 12px; color: var(--text); }
   /* neutral buttons: colour only marks the kind (green = the valid record, red marker = an attack); filled colour is kept for results */
   .attacks button .l .i { color: var(--hold); }
@@ -156,8 +156,11 @@
   .blk-note > span { display: flex; gap: 6px; align-items: flex-start; }
   .blk-note > span > .i { margin-top: 0.15em; }
   .blk-note .mono { font-size: 12px; }
+  .blk-note kbd { font-size: 11px; padding: 1px 4px; }
   .attacks button .l .blk-ic { margin-left: auto; flex: none; display: inline-flex; }
   .attacks button .l .blk-ic .i { color: var(--wait); }
+  .attacks button .d.blk { color: var(--wait); font-weight: 600; }
+  .attacks button .d.blk .i { color: var(--wait); }
   /* the expected answer's arrow is the icon set's, not a text glyph */
   .attacks button .d .i { width: 0.9em; height: 0.9em; vertical-align: -0.1em; margin-right: 2px; }
 
@@ -264,8 +267,8 @@
   button.link { background: none; border: none; padding: 0; min-height: 0; color: var(--accent); font-size: var(--t-1); align-self: flex-start; text-align: left; justify-content: flex-start; }
   button.link:hover { background: none; text-decoration: underline; }
   button.link:disabled { background: none; border: none; }
-  @media (hover: none) { .kb-k, .attacks button .kb { display: none; } }
-  body.keys-off .kb-k, body.keys-off .attacks button .kb { display: none; }
+  @media (hover: none) { .kb-k { display: none; } }
+  body.keys-off .kb-k { display: none; }
   @media (min-width: 1100px) {
     /* the header controls share the title row and the tagline runs under both: step 3 stays inside a 1280×720 frame */
     header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s5); align-items: center; }
@@ -373,7 +376,7 @@
   <div id="banner" role="status" aria-live="polite"></div>
 
   <div class="layout">
-    <section class="panel" aria-label="Attack controls">
+    <section class="panel" id="attack-panel" aria-label="Attack controls">
       <div class="group">
         <h2><span class="step" aria-hidden="true">1</span>Pick an order</h2>
         <select id="order" aria-label="Order to attack"><option>Reading the orders…</option></select>
@@ -402,17 +405,17 @@
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
-          <button type="button" class="valid" data-mode="asis" data-what="The loaded record, untouched"><kbd class="kb" aria-hidden="true">1</kbd><span class="l" data-icon="check">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span></span></button>
-          <button type="button" class="atk" data-mode="value" data-what="One value inside the signed data is edited; the signature stays"><kbd class="kb" aria-hidden="true">2</kbd><span class="l" data-icon="target">(a) Edit value</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
-          <button type="button" class="atk" data-mode="stale" data-what="The signed time is moved 1 h earlier"><kbd class="kb" aria-hidden="true">3</kbd><span class="l" data-icon="target">(b) Too old</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
-          <button type="button" class="atk" data-mode="request" data-what="The request hash of another company"><kbd class="kb" aria-hidden="true">4</kbd><span class="l" data-icon="target">(c) Different request</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
-          <button type="button" class="atk" data-mode="key" data-what="The untouched record, re-signed by a random key"><kbd class="kb" aria-hidden="true">5</kbd><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
-          <button type="button" class="atk" data-mode="replay" data-what="The same record a second time, after it was sent for real"><kbd class="kb" aria-hidden="true">6</kbd><span class="l" data-icon="target">Replay</span><span class="d exp" data-icon="arrow-right"><span class="mono">Replayed</span></span></button>
+          <button type="button" class="valid" data-mode="asis" data-what="The loaded record, untouched"><span class="l" data-icon="check">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span><kbd class="kb-k" aria-hidden="true">1</kbd></span></button>
+          <button type="button" class="atk" data-mode="value" data-what="One value inside the signed data is edited; the signature stays"><span class="l" data-icon="target">(a) Edit value</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span><kbd class="kb-k" aria-hidden="true">2</kbd></span></button>
+          <button type="button" class="atk" data-mode="stale" data-what="The signed time is moved 1 h earlier"><span class="l" data-icon="target">(b) Too old</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span><kbd class="kb-k" aria-hidden="true">3</kbd></span></button>
+          <button type="button" class="atk" data-mode="request" data-what="The request hash of another company"><span class="l" data-icon="target">(c) Different request</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span><kbd class="kb-k" aria-hidden="true">4</kbd></span></button>
+          <button type="button" class="atk" data-mode="key" data-what="The untouched record, re-signed by a random key"><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span><kbd class="kb-k" aria-hidden="true">5</kbd></span></button>
+          <button type="button" class="atk" data-mode="replay" data-what="The same record a second time, after it was sent for real"><span class="l" data-icon="target">Replay</span><span class="d exp" data-icon="arrow-right"><span class="mono">Replayed</span><kbd class="kb-k" aria-hidden="true">6</kbd></span></button>
         </div></div>
         <div class="ag"><div class="ag-head">Real, untouched records</div>
         <div class="attacks real-grid" role="group" aria-label="Real inputs: untouched records genuinely signed by the Airnode">
-          <button type="button" class="atk real" data-mode="realOld" data-what="A genuine, untouched record of this supplier, signed earlier (bundled with the page)"><kbd class="kb" aria-hidden="true">7</kbd><span class="l" data-icon="file">(b) Real old record</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
-          <button type="button" class="atk real" data-mode="realOther" data-what="A genuine, untouched record of another company (bundled with the page)"><kbd class="kb" aria-hidden="true">8</kbd><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
+          <button type="button" class="atk real" data-mode="realOld" data-what="A genuine, untouched record of this supplier, signed earlier (bundled with the page)"><span class="l" data-icon="file">(b) Real old record</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span><kbd class="kb-k" aria-hidden="true">7</kbd></span></button>
+          <button type="button" class="atk real" data-mode="realOther" data-what="A genuine, untouched record of another company (bundled with the page)"><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span><kbd class="kb-k" aria-hidden="true">8</kbd></span></button>
         </div></div>
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
@@ -639,10 +642,13 @@
     other: { why: "record of another company", modes: all(["asis", "value", "stale", "key", "replay"], "WrongRequest") },
     stale: { why: "record too old", modes: all(["asis", "value", "key", "replay"], "StaleResponse") },
     used: { why: "already sent", modes: { asis: "Replayed", value: "NotNewer", key: "Replayed" } },
+    // presentation only: the record is not on chain yet, so a replay of it is a first submission (no contract call)
+    notSent: { why: "tests only after a real send", modes: { replay: "" }, solo: "after a real send (S)" },
   };
   const listOf = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
-  // One cause is said once, above the buttons, with the attempts it stops and the error they answer instead; each
-  // stopped button carries only an amber mark (its words for screen readers, and in its tip).
+  // A cause that stops several attempts is said once, above the buttons, with the attempts it stops and the error they
+  // answer instead; each of those buttons carries only an amber mark (its words for screen readers, and in its tip).
+  // A cause of one attempt only (Replay before a real send) is said on that button.
   let marked = null;
   function markAttacks() {
     const box = $("resp");
@@ -650,6 +656,7 @@
       !box.value.trim() && "empty", box.value.trim() && box.getAttribute("aria-invalid") === "true" && "invalid",
       order.info && order.info.state !== 0 && "held",
       recordTs !== null && recordOther && "other", recordTs !== null && recordUsed !== null && "used", isStale() && "stale",
+      recordTs !== null && recordUsed === null && "notSent",
     ].filter(Boolean);
     const key = reasons.join();
     if (key === marked) return;
@@ -658,12 +665,13 @@
     const buttons = document.querySelectorAll(".attacks [data-mode]");
     for (const b of buttons) {
       const m = b.dataset.mode;
-      for (const old of b.querySelectorAll(".blk-ic, .blk-sr")) old.remove();
+      for (const old of b.querySelectorAll(".blk-ic, .blk-sr, .d.blk")) old.remove();
       delete b.dataset.blk;
       const why = reasons.find((r) => m in BLOCKED[r].modes);
       if (!why) continue;
       const ans = BLOCKED[why].modes[m];
       b.dataset.blk = `${BLOCKED[why].why}${ans ? `: answers <span class="mono">${ans}</span>` : ""}`;
+      if (BLOCKED[why].solo) { b.querySelector(".d.exp").insertAdjacentHTML("afterend", `<span class="d blk">${P.icon("alert")} ${BLOCKED[why].solo}</span>`); continue; }
       b.querySelector(".l").insertAdjacentHTML("beforeend", `<span class="blk-ic">${P.icon("alert")}</span><span class="sr-only blk-sr">With this record: ${b.dataset.blk}</span>`);
       if (!hits.has(why)) hits.set(why, new Map());
       const byAns = hits.get(why);
@@ -732,10 +740,11 @@
     await selectOrder(want);
   }
 
-  async function selectOrder(id) {
+  async function selectOrder(id, seq = 0) {
     const info = await readOrder(id);
     const source = info.source;
     const airnode = await airnodeFor(source);
+    if (seq && seq !== orderSeq) return false; // a later pick wins
     order.id = id; order.info = info; order.airnode = airnode;
     const s = P.SOURCES[source];
     const failedNow = info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : "";
@@ -774,15 +783,33 @@
     sel.setAttribute("aria-describedby", "order-msg");
     $("order-msg").innerHTML = `<span class="bad">${P.icon("alert")} Could not read order #${id}. ${esc(P.friendlyError(err, { rpc: cfg.rpc }).text)}${order.id !== null && order.id !== id ? ` Still on order #${order.id}.` : ""}</span> <button type="button" class="link" id="order-retry" data-order="${id}">Try again</button>`;
   }
-  // picking an order: the URL keeps it once it is read (order=…)
+  // Picking an order: while it is read, the summary says so and the attempts rest, so none can start against the
+  // previous order while the select already shows the new one. The URL keeps it once it is read (order=…).
+  let orderSeq = 0, orderBusy = false;
+  const ORDER_WAIT = "[data-mode], #suite, #fresh";
+  function orderLoading(on, id) {
+    orderBusy = on;
+    $("attack-panel").setAttribute("aria-busy", String(on));
+    for (const b of document.querySelectorAll(ORDER_WAIT)) b.disabled = on || attemptBusy || (noOrder && b.matches(ORDER_CONTROLS));
+    if (on) $("order-sum").innerHTML = `<span class="waiting">${P.icon("loader", "spin")}Reading order #${id}…</span>`;
+  }
   function pickOrder(id) {
-    return selectOrder(id).then(() => {
+    const seq = ++orderSeq, before = $("order-sum").innerHTML;
+    orderLoading(true, id);
+    return selectOrder(id, seq).then((done) => {
+      if (done === false) return;
+      orderLoading(false);
       $("order").value = String(id);
       const q = new URLSearchParams(location.search);
       q.set("order", id);
       history.replaceState(null, "", "?" + q);
       orderError(null);
-    }, (err) => orderError(err, id));
+    }, (err) => {
+      if (seq !== orderSeq) return;
+      orderLoading(false);
+      $("order-sum").innerHTML = before; // still the order the attacks target
+      orderError(err, id);
+    });
   }
 
   // ---------------------------------------------------------------- the run
@@ -1477,7 +1504,7 @@
     try { await run(mode); reveal(); }
     finally {
       attemptBusy = false;
-      for (const b of btns) b.disabled = noOrder && b.matches(ORDER_CONTROLS);
+      for (const b of btns) b.disabled = orderBusy || (noOrder && b.matches(ORDER_CONTROLS));
       if (from && from.isConnected && (!document.activeElement || document.activeElement === document.body)) from.focus({ preventScroll: true });
     }
   }
