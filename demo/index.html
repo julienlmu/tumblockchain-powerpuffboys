@@ -37,8 +37,16 @@
 
   .toolbar { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; margin-top: var(--s3); font-size: var(--t-1); color: var(--muted); }
   .toolbar b { color: var(--text); font-weight: 600; }
-  .toolbar .keys { margin: 0 0 0 auto; }
+  .toolbar .keys { margin-left: auto; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
   .toolbar .keys kbd { font-size: 10.5px; }
+  /* a term that opens its entry in the guide */
+  .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 0; min-height: 0; display: inline; cursor: help;
+    text-decoration: underline dotted; text-underline-offset: 3px; }
+  .term:hover { background: none; color: var(--text); text-decoration-style: solid; }
+  .guide-body table td:first-child { white-space: nowrap; }
+  .glossary dt { font-weight: 600; color: var(--text); }
+  .guide [tabindex="-1"]:focus { outline: none; }
+  .guide [tabindex="-1"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .jump { display: none; }
   @media (max-width: 640px) {
     .toolbar .keys { display: none; } /* no keyboard on a phone */
@@ -184,7 +192,7 @@
   <header>
     <div>
       <h1>SupplierPulse<span class="plus">+</span></h1>
-      <p class="tagline">Your supplier was approved last month. That should not approve today's payment. Every milestone below pays only with a <dfn>payment permit</dfn>: the contract's short-lived go-ahead, given after it checked a fresh, signed register record.</p>
+      <p class="tagline">Every milestone pays only with a <button type="button" class="term" data-guide="g-permit">payment permit</button>: the contract's short-lived go-ahead after a fresh, signed register check.</p>
     </div>
     <div class="head-links">
       <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
@@ -193,6 +201,28 @@
   </header>
   <div class="meta-row">
   <div class="meta" id="meta"></div>
+  <details class="cfg-box guide" id="guide">
+    <summary aria-keyshortcuts="?">How this page works</summary>
+    <div class="guide-body">
+      <p>Your supplier was approved last month. That should not approve today's payment. Each card is one purchase order: its money stays
+        locked in the contract and a milestone pays only when the buyer approved it, it is due, and a fresh signed register record passed the
+        order's rules. The agent fetches those records on its own and sends the transactions under <b>Agent activity</b>; this page only reads.</p>
+      <table><thead><tr><th>State</th><th>What it means</th><th>What you can do</th></tr></thead><tbody id="guide-states"></tbody></table>
+      <dl class="defs glossary">
+        <dt id="g-permit" tabindex="-1">Payment permit</dt><dd>The contract's go-ahead to pay one milestone. A record that passes every rule gives one. It is valid for the order's permit time (in each card's Details; 30 min on the demo orders) from the record's signed time, and the payment uses it up. A tier never extends it.</dd>
+        <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (Contract details: max age), and only once.</dd>
+        <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (Contract details: trusted signers).</dd>
+        <dt>Rules</dt><dd>The register status check always runs; per order the buyer can add accounts filed, confirmation statement filed or LEI renewed.</dd>
+        <dt id="g-stop" tabindex="-1">Supplier-wide stop</dt><dd>A failed register status on any order stops payments on every order of that supplier. The agent then holds the others without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
+        <dt id="g-grace" tabindex="-1">Grace period, no-data exit</dt><dd>After a hold the buyer can refund at once, and anyone can once the grace period passed. When an approved milestone is overdue and no valid record came within the grace period (the no-data exit), anyone can send the rest back to the buyer. The money only ever goes to the buyer.</dd>
+        <dt id="g-tiers" tabindex="-1">Verification history</dt><dd>Standard (0 to 2 clean checks in a row), Trusted (3 to 5), Premium (6 or more). Only the register status counts, at most once per tier gap; a failed status resets it to 0. A tier only changes how often the agent re-checks between due dates. It is not a credit score.</dd>
+        <dt>Tokens</dt><dd id="g-unit"></dd>
+        <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
+      </dl>
+      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order · <kbd>0</kbd> or <kbd>Esc</kbd> all orders · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>T</kbd> theme · <kbd>?</kbd> this guide, <kbd>Esc</kbd> closes it.</p>
+      <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · <a href="judge.html" id="judge-link3">Try to break it</a></p>
+    </div>
+  </details>
   <details class="cfg-box" id="details-box">
     <summary>Contract details</summary>
     <div class="guide-body"><dl class="defs" id="details"></dl></div>
@@ -216,7 +246,7 @@
   <div class="states" id="states" role="group" aria-label="Filter orders by verification state"></div>
   <div class="toolbar" id="toolbar"><span id="shown-note" role="status" aria-live="polite"></span>
     <button type="button" class="link-order" id="expand-all" hidden>Expand all details</button>
-    <p class="keys" id="keys">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter · <kbd>0</kbd> all · <kbd>J</kbd> <kbd>K</kbd> next, previous order · <kbd>T</kbd> theme</p></div>
+    <button type="button" class="link-order keys" data-guide="g-keys"><kbd>?</kbd> keyboard shortcuts</button></div>
   <nav class="jump" id="jump" aria-label="Go to order"></nav>
   <div class="grid" id="orders" aria-live="off"><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
   <footer>
@@ -765,13 +795,13 @@
   // The contract's constants, each with what it means for the buyer.
   function renderDetails(d) {
     const row = (k, v, what) => `<dt>${k}</dt><dd><b>${v}</b> <span class="small-muted">${what}</span></dd>`;
-    $("details").innerHTML = [
+    setHTML($("details"), [
       d.contract ? row("Contract", `${addr(d.contract)}${P.copyBtn(d.contract)}`, "SupplierPulse+ v1.1") : "",
       d.airnodes ? row("Trusted signers", `CH ${addr(d.airnodes[0])} · GLEIF ${addr(d.airnodes[1])}`, "the Airnodes whose signatures the contract accepts, one per register") : "",
       row("Max age", `${d.maxAge} s`, `a signed record is accepted only if it is at most ${duration(d.maxAge)} old`),
       row("Tier gap", duration(d.tierCountGap), `the verification history counts at most one clean check per ${duration(d.tierCountGap)}`),
       row("Refund grace", duration(d.refundGrace), `after a hold, or an approved milestone overdue without data, the refund opens to anyone after ${duration(d.refundGrace)}`),
-    ].join("");
+    ].join(""));
   }
   // ---------------------------------------------------------------- read status (the meta line)
 
@@ -994,6 +1024,31 @@
     if (/^\d+$/.test(f.get("order") || "")) goTo(Number(f.get("order")), { flash: false });
   });
 
+  // ---------------------------------------------------------------- the guide ("How this page works")
+
+  const DO = {
+    ok: "Approve the next milestone once the work is delivered (api3/scripts/plus-approve.sh); the agent pays it when it is due.",
+    rule: "Refund the rest from the buyer's wallet now, or let anyone (the agent) do it after the grace period.",
+    nodata: "Wait for the grace period; then anyone can send the rest back to you. Nothing bad is known about the supplier.",
+    pending: "Nothing: the agent fetches a fresh record before the due date.",
+    paid: "Nothing.",
+    closed: "Nothing; the audit trail shows who triggered the refund.",
+  };
+  $("guide-states").innerHTML = STATE_KEYS.map((k, i) => `<tr><td><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span> <kbd>${i + 1}</kbd></td><td>${STATES[k].def}</td><td>${DO[k]}</td></tr>`).join("");
+  $("g-unit").textContent = `Amounts are in tokens of test ETH: 1 token = ${UNIT.toLocaleString("en")} wei${UNIT === 10n ** 12n ? " (10¹²), so 1,000,000 tokens are 1 ETH" : `, set by the unit parameter (default 10¹²)`}.`;
+  function openGuide(targetId) {
+    const g = $("guide");
+    g.open = true;
+    const el = (targetId && $(targetId)) || g.querySelector("summary");
+    el.scrollIntoView({ block: targetId ? "center" : "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    el.focus({ preventScroll: true });
+  }
+  function closeGuide() { $("guide").open = false; $("guide").querySelector("summary").focus(); }
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest && e.target.closest("[data-guide]");
+    if (t) openGuide(t.dataset.guide);
+  });
+
   // Expand all: every card's details and audit trail, or back to closed.
   const cardDetails = () => [...document.querySelectorAll("#orders details.more, #orders details.trail")];
   function syncExpandLabel() {
@@ -1009,12 +1064,14 @@
   });
   $("orders").addEventListener("toggle", syncExpandLabel, true);
 
-  // Keyboard accelerators, never while typing: 1–6 filter, 0 or Esc all, J/K next or previous order, T theme.
+  // Keyboard accelerators, never while typing: 1–6 filter, 0 or Esc all, J/K next or previous order, T theme, ? guide.
   $("theme-btn").setAttribute("aria-keyshortcuts", "T");
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest("input, textarea, select, [contenteditable]"))) return;
     const k = e.key;
     if (/^[1-6]$/.test(k)) { e.preventDefault(); setFilter(STATE_KEYS[Number(k) - 1]); }
+    else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(); }
+    else if (k === "Escape" && $("guide").open) { e.preventDefault(); closeGuide(); }
     else if (k === "0" || (k === "Escape" && filter)) { e.preventDefault(); setFilter(null); }
     else if (k === "j" || k === "J" || k === "k" || k === "K") {
       const cards = [...document.querySelectorAll("#orders article.card")];
@@ -1053,7 +1110,7 @@
   const judgeQs = new URLSearchParams();
   if (cfg.contract) judgeQs.set("contract", cfg.contract);
   if (cfg.rpc !== P.DEFAULT_RPC) judgeQs.set("rpc", cfg.rpc);
-  for (const id of ["judge-link", "judge-link2"]) $(id).href = "judge.html" + (judgeQs.toString() ? "?" + judgeQs : "");
+  for (const id of ["judge-link", "judge-link2", "judge-link3"]) $(id).href = "judge.html" + (judgeQs.toString() ? "?" + judgeQs : "");
 
   // Countdowns, "ago" values and the next-read note move every second without a re-render.
   const moveClocks = () => {
@@ -1121,7 +1178,7 @@
       const q = new URLSearchParams({ contract: addrFound });
       if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
       history.replaceState(null, "", "?" + q + (cfg.orders ? "&orders=" + cfg.orders : "") + location.hash); // a shareable URL
-      for (const id of ["judge-link", "judge-link2"]) $(id).href = "judge.html?" + q;
+      for (const id of ["judge-link", "judge-link2", "judge-link3"]) $(id).href = "judge.html?" + q;
       startLive();
     } else if (Number(net.chainId) === 11155111) {
       notConfigured(`SupplierPulse+ v2 is not deployed on Sepolia yet. The live v1 contract: <a href="v1.html?contract=${P.V1_SEPOLIA}&orders=0,1">v1 screen</a> · <a href="judge.html">try to break v1</a> · or the <a href="?sample=1">sample data</a>.`);
