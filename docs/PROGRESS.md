@@ -75,6 +75,7 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 ### 2026-10-30 · Batu
 - Changed: added `docs/decision-sheet.md` (ideas #0–#5 compared, facts vs inferences) and `docs/status/batu.md`. Docs only, branch `batu/decision-sheet`.
 - Next: Julien picks the idea and API3 scope. After that: README, Devfolio text, video script, pitch.
+- Team split (tentative, not yet confirmed by everyone): Batu + Orhun on API3, Ulaş + Julien on Cardano.
 - Notes:
   - Re Julien's proposal 1 (refund when the seller never submits): the Masumi refunds doc lists "no response before the deadline" as grounds for the buyer's `POST /purchase/request-refund`, but the seller must then `authorize-refund`, or it escalates to the Masumi team. Safer: our agent calls `POST /payment/authorize-refund` itself when the condition fails by the deadline. Confirm with Masumi. Source: https://www.masumi.network/dev/masumi/core-concepts/refunds-and-disputes.md
   - AirnodeHub: Nodary ETH/USD is free and first-party. The CoinGecko `simplePrice` used in `fetch-eth-usd.sh` costs $0.02 aUSD (x402).
