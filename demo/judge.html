@@ -30,6 +30,7 @@
   .panel .group + .group { border-top: 1px solid var(--line); padding-top: var(--s3); }
   .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
   select, textarea { width: 100%; }
+  textarea[aria-invalid="true"] { border-color: var(--hold); }
   textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: 68px; min-height: 52px; resize: vertical; display: block; }
   .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
   .row select { width: auto; flex: 1 1 200px; }
@@ -100,6 +101,9 @@
   .kit code { background: var(--bg); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
   .kit ul { margin: 0; padding-left: 18px; font-size: var(--t-1); display: flex; flex-direction: column; gap: var(--s2); max-width: 110ch; }
   .msg { font-size: var(--t-1); }
+  .msg .warn { color: var(--wait); } .msg .bad { color: var(--hold); } .msg .okc { color: var(--ok); }
+  .note { margin: 0; font-size: var(--t-1); padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--wait-bg); color: var(--wait); display: flex; gap: var(--s2); align-items: flex-start; }
+  .note .i { margin-top: 0.15em; }
 
   /* tamper test tiles: state by icon + words, not colour alone */
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s2); }
@@ -188,6 +192,7 @@
           <button type="button" class="atk real" data-mode="realOld" data-icon="file" title="A genuine signed record of this order's supplier, fetched earlier">(b) Real old record</button>
           <button type="button" class="atk real" data-mode="realOther" data-icon="file" title="A genuine signed record of another company">(c) Real, other company</button>
         </div>
+        <p class="note" id="attack-note" role="status" hidden></p>
         <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons send real inputs: untouched records genuinely signed by the Airnode, nothing edited (§4.7).</p>
       </div>
     </section>
@@ -268,6 +273,8 @@
   let version = 2; // 1 = the live v1 contract (status only), the fallback of §7 while v2 is not deployed
   let iface = new ethers.Interface(P.ABI);
   const order = { id: null, info: null };
+  let noOrder = false, maxAgeVal = null;
+  const ORDER_CONTROLS = "[data-mode], #suite, #fresh, #sample, #upload-btn, #resp";
   let lastCandidate = null;
 
   // One order model for v1 and v2: { source, supplierId, requestHash, rules, state, lastCheck, nextMilestone, lastFailedRules }
@@ -309,17 +316,49 @@
     try { obj = JSON.parse(text); } catch { throw new Error("The record is not valid JSON. Paste the whole file from fetch-evidence.sh, or load a sample."); }
     return P.normalizeRecord(obj, order.info ? Number(order.info.source) : 0);
   }
-  function setRecord(r) {
+  function setRecord(r, note = "") {
     $("resp").value = JSON.stringify(r, null, 2);
-    respMsg("");
+    checkRecordInput(note);
+  }
+  // Checks the record while it is typed or loaded, before any button is pressed: JSON, fields, age and supplier.
+  function checkRecordInput(note = "") {
+    const text = $("resp").value.trim();
+    if (!text) { respMsg(note); return; }
+    let r;
+    try { r = readRecord(); } catch (e) { $("resp").setAttribute("aria-invalid", "true"); respMsg(esc(e.message), true); return; }
+    $("resp").removeAttribute("aria-invalid");
+    const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
+    const age = nowSec() - Number(r.timestamp);
+    const parts = [`<span class="okc">${P.icon("check")} Signed record</span>: ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, signed ${age >= 0 ? P.ago(age) : "in the future"}.`];
+    if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Get a fresh one (Judge kit, below)"} to test each check.</span>`);
+    if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
+      parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>: attempts stop at "Request matches the order".</span>`);
+    $("resp-msg").innerHTML = (note ? `<span>${note}</span> ` : "") + parts.join(" ");
   }
 
   // ---------------------------------------------------------------- order
 
+  // Without an order there is nothing to attack: the controls are off and the page says what to do instead.
+  function setNoOrder(on, html) {
+    noOrder = on;
+    for (const b of document.querySelectorAll(ORDER_CONTROLS)) b.disabled = on;
+    document.querySelector("details.order-more").hidden = on;
+    $("attack-note").hidden = !on;
+    $("attack-note").innerHTML = on ? `${P.icon("info")}<span>${html}</span>` : "";
+  }
+
   async function loadOrders() {
     const count = Number(await contract.ordersLength());
     const sel = $("order");
-    if (!count) { sel.innerHTML = "<option>No orders on this contract</option>"; return; }
+    if (!count) {
+      sel.innerHTML = "<option>No orders on this contract yet</option>";
+      sel.disabled = true;
+      setNoOrder(true, "No order to attack yet. A buyer creates one with <code>api3/scripts/plus-create-order.sh</code>; reload this page afterwards.");
+      renderKit();
+      return;
+    }
+    sel.disabled = false;
+    setNoOrder(false);
     const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
     sel.innerHTML = infos.map((o, i) => `<option value="${i}">#${i} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`).join("");
     const want = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : 0;
@@ -345,6 +384,7 @@
       <tr><th>Trusted signer</th><td>${addr(airnode)}${signerName(airnode)}</td></tr>`;
     $("fresh").hidden = chainId !== 31337 || version !== 2;
     renderKit();
+    checkRecordInput();
   }
 
   // ---------------------------------------------------------------- the run
@@ -529,7 +569,7 @@
   const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
   function lockButtons(on) {
     suiteRunning = on;
-    for (const b of document.querySelectorAll("[data-mode], #suite, #fresh, #result button")) b.disabled = on;
+    for (const b of document.querySelectorAll("[data-mode], #suite, #fresh, #result button")) b.disabled = on || (noOrder && b.matches(ORDER_CONTROLS));
     const sb = $("suite");
     sb.setAttribute("aria-busy", String(on));
     sb.innerHTML = on ? `${P.icon("loader", "spin")}Running the tamper test…` : `${P.icon("play")}Run the full tamper test`;
@@ -637,8 +677,8 @@
     const requestHash = P.requestHashFor(source, id);
     const w = new ethers.Wallet(LOCAL.signer[source]);
     const signature = await w.signMessage(ethers.getBytes(P.digestOf(requestHash, ts, data)));
-    setRecord({ source: P.SOURCES[source].key, supplierId: id, airnode: w.address, requestHash, timestamp: ts, data, raw, signature, paymentTx: null, priceUsd: "0", fetchedAt: new Date().toISOString() });
-    respMsg(`Signed now with the local ${P.SOURCES[source].name} test key. Valid for ${Number(await contract.maxAge())} s.`);
+    setRecord({ source: P.SOURCES[source].key, supplierId: id, airnode: w.address, requestHash, timestamp: ts, data, raw, signature, paymentTx: null, priceUsd: "0", fetchedAt: new Date().toISOString() },
+      `Signed now with the local ${P.SOURCES[source].name} test key; valid for ${Number(await contract.maxAge())} s.`);
   }
 
   // ---------------------------------------------------------------- judge kit
@@ -681,17 +721,19 @@
   $("sample").innerHTML += (window.PULSE_SAMPLE_RESPONSES || []).map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join("");
   $("sample").addEventListener("change", (e) => {
     const s = (window.PULSE_SAMPLE_RESPONSES || [])[Number(e.target.value)];
-    if (s) { setRecord(s.record); respMsg("Sample loaded. It is old on purpose, so the contract rejects it as stale."); }
+    if (s) setRecord(s.record, "Sample loaded, old on purpose.");
     e.target.value = "";
   });
   $("upload-btn").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    try { const obj = JSON.parse(await f.text()); setRecord(obj); respMsg(`Loaded ${esc(f.name)}.`); }
+    try { const obj = JSON.parse(await f.text()); setRecord(obj, `Loaded ${esc(f.name)}.`); }
     catch { respMsg(`${esc(f.name)} is not valid JSON. Upload the .json record written by fetch-evidence.sh.`, true); }
     e.target.value = "";
   });
+  let typing = null;
+  $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
   $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => banner("error", esc(err.message))));
   const runFailed = (e) => { lockButtons(false); $("result").removeAttribute("aria-busy"); $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(e.shortMessage || e.message)}. Check the RPC URL in Settings and press the button again.</div></div>`; };
@@ -712,6 +754,7 @@
       $("cfg-box").open = true;
       renderMeta([["Mode", "not connected"]]);
       banner("error", `${P.icon("alert")}<span>That contract address is not valid: it must be 0x followed by 40 hex characters. Fix it in Settings.</span>`);
+      setNoOrder(true, "Connect a contract in Settings first.");
       return;
     }
     provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
@@ -728,6 +771,7 @@
         $("cfg-box").open = true;
         renderMeta([["Mode", "not connected"]]);
         banner("sample", `${P.icon("info")}<span>No SupplierPulse+ contract found on this network. Enter its address in Settings.</span>`);
+        setNoOrder(true, "Connect a contract in Settings first.");
         return;
       }
     }
@@ -739,6 +783,8 @@
     if (version === 1) banner("sample", `<b>SupplierPulse v1</b> (Companies House, status only)${found === "v1 fallback" ? ": v2 is not deployed on Sepolia yet, so this page uses the live v1 contract" : ""}. Same checks, same attacks.`);
     else if (found) banner("", "");
     const maxAge = await contract.maxAge();
+    maxAgeVal = Number(maxAge);
+    renderKit();
     renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], ["Contract", `${addr(cfg.contract)}${found && version === 2 ? " (found automatically)" : ""}`],
       ["Version", version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1"], ["Max age", `${maxAge} s`], ["Simulated from", `<span class="mono">${short(P.DEAD)}</span>`]]);
     const dq = new URLSearchParams({ contract: cfg.contract });
