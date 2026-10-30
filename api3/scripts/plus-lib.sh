@@ -59,7 +59,8 @@ plus_error() {
            "SupplierFailed(uint256)" "NoNewerFailure()" \
            "BadOrder()" "BadSource()" "BadSupplierId()" "BadRules()" "NotAuthorized()" "TransferFailed()" \
            "InvalidSignatureLength()" "InvalidSignatureS()" "InvalidSignatureV()" "InvalidSigner()" \
-           "KeyNotFound()" "NoNumber()" "NoString()" "NoBool()"; do
+           "KeyNotFound()" "NoNumber()" "NoString()" "NoBool()" \
+           "DocumentLocked(uint256)" "BadDocumentHash()" "BadAmendSignature(address,address)"; do
     [[ "$(cast sig "$e")" == "$sel" ]] && name="$e"
   done
   echo "$name"

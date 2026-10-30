@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {TestBase} from "./utils/Vm.sol";
+import {IOrderDocuments} from "../src/IOrderDocuments.sol";
 import {ISupplierPulsePlus} from "../src/ISupplierPulsePlus.sol";
 import {SupplierPulsePlus} from "../src/SupplierPulsePlus.sol";
 import {AirnodeVerifier} from "../src/AirnodeVerifier.sol";
@@ -805,6 +806,140 @@ contract SupplierPulsePlusTest is TestBase {
         assertTrue(stored == ref, "stored as given");
         doc[25] = "6"; // 500 -> 600 units
         assertTrue(keccak256(abi.encodePacked(salt, doc)) != stored, "an edited document does not match");
+    }
+
+    // ---------------------------------------------------------------- order documents (locked / amendable)
+
+    uint256 constant DOC_BUYER_KEY = 0xB0B;
+    uint256 constant DOC_SUPPLIER_KEY = 0x5EED;
+    bytes32 constant DOC_V0 = keccak256("salted hash of the agreed PO");
+    bytes32 constant DOC_V1 = keccak256("salted hash of the amended PO");
+
+    function _docOrder(bool amendable) internal returns (uint256 id) {
+        address buyer = vm.addr(DOC_BUYER_KEY);
+        vm.deal(buyer, 10 ether);
+        vm.prank(buyer);
+        if (amendable) {
+            id = pulse.createAmendableOrder{value: 3 ether}(
+                0, CH_ID, payable(vm.addr(DOC_SUPPLIER_KEY)), DOC_V0, _amounts(2), _dues(2, NOW + 100, 100), TTL, 0x06
+            );
+        } else {
+            id = pulse.createOrder{value: 3 ether}(
+                0, CH_ID, payable(vm.addr(DOC_SUPPLIER_KEY)), DOC_V0, _amounts(2), _dues(2, NOW + 100, 100), TTL, 0x06
+            );
+        }
+    }
+
+    function _signDigest(uint256 key, bytes32 d) internal pure returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, AirnodeVerifier.ethSignedHash(d));
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _amend(uint256 id, bytes32 newHash, uint256 buyerKey, uint256 supplierKey) internal {
+        bytes32 d = pulse.amendmentDigest(id, newHash);
+        pulse.amendDocument(id, newHash, _signDigest(buyerKey, d), _signDigest(supplierKey, d));
+    }
+
+    function test_docLockedByDefault() public {
+        uint256 id = _docOrder(false);
+        (uint8 mode, bytes32 current, uint256 version) = pulse.documentOf(id);
+        assertTrue(mode == 0 && current == DOC_V0 && version == 0, "locked, version 0");
+        bytes32 d = pulse.amendmentDigest(id, DOC_V1);
+        bytes memory b = _signDigest(DOC_BUYER_KEY, d);
+        bytes memory sup = _signDigest(DOC_SUPPLIER_KEY, d);
+        vm.expectRevert(abi.encodeWithSelector(IOrderDocuments.DocumentLocked.selector, id));
+        pulse.amendDocument(id, DOC_V1, b, sup); // even with both signatures
+    }
+
+    function test_docAmendWithBothSignatures() public {
+        uint256 id = _docOrder(true);
+        (uint8 mode,,) = pulse.documentOf(id);
+        assertEq(mode, 1, "amendable");
+        vmE.expectEmit(true, false, false, true, address(pulse));
+        emit IOrderDocuments.DocumentAmended(id, 1, DOC_V0, DOC_V1);
+        vm.prank(stranger); // anyone may submit the two signatures
+        _amend(id, DOC_V1, DOC_BUYER_KEY, DOC_SUPPLIER_KEY);
+        (, bytes32 current, uint256 version) = pulse.documentOf(id);
+        assertTrue(current == DOC_V1 && version == 1, "version 1");
+        bytes32[] memory h = pulse.documentHistory(id);
+        assertTrue(h.length == 2 && h[0] == DOC_V0 && h[1] == DOC_V1, "history keeps the original");
+        (,,,,, bytes32 ref,,) = pulse.orderInfo(id);
+        assertTrue(ref == DOC_V0, "orderRef never changes");
+
+        bytes32 v2 = keccak256("second amendment");
+        _amend(id, v2, DOC_BUYER_KEY, DOC_SUPPLIER_KEY);
+        h = pulse.documentHistory(id);
+        assertTrue(h.length == 3 && h[2] == v2, "appended");
+    }
+
+    function test_docAmendNeedsBothParties() public {
+        uint256 id = _docOrder(true);
+        bytes32 d = pulse.amendmentDigest(id, DOC_V1);
+        bytes memory b = _signDigest(DOC_BUYER_KEY, d);
+        bytes memory sup = _signDigest(DOC_SUPPLIER_KEY, d);
+        bytes memory bad = _signDigest(ATTACKER_KEY, d);
+        vm.expectRevert(
+            abi.encodeWithSelector(IOrderDocuments.BadAmendSignature.selector, vm.addr(ATTACKER_KEY), vm.addr(DOC_SUPPLIER_KEY))
+        );
+        pulse.amendDocument(id, DOC_V1, b, bad); // buyer alone
+        vm.expectRevert(
+            abi.encodeWithSelector(IOrderDocuments.BadAmendSignature.selector, vm.addr(ATTACKER_KEY), vm.addr(DOC_BUYER_KEY))
+        );
+        pulse.amendDocument(id, DOC_V1, bad, sup); // supplier alone
+        vm.expectRevert(
+            abi.encodeWithSelector(IOrderDocuments.BadAmendSignature.selector, vm.addr(DOC_SUPPLIER_KEY), vm.addr(DOC_BUYER_KEY))
+        );
+        pulse.amendDocument(id, DOC_V1, sup, b); // swapped roles
+    }
+
+    function test_docAmendSignaturesCannotBeReused() public {
+        uint256 id = _docOrder(true);
+        bytes32 d = pulse.amendmentDigest(id, DOC_V1);
+        bytes memory b = _signDigest(DOC_BUYER_KEY, d);
+        bytes memory sup = _signDigest(DOC_SUPPLIER_KEY, d);
+        pulse.amendDocument(id, DOC_V1, b, sup);
+        // same signatures again (e.g. to roll back after a later change): the digest now names version 2
+        try pulse.amendDocument(id, DOC_V1, b, sup) {
+            revert("replayed amendment accepted");
+        } catch (bytes memory err) {
+            assertTrue(bytes4(err) == IOrderDocuments.BadAmendSignature.selector, "BadAmendSignature");
+        }
+        // signatures for another new hash do not fit either
+        bytes32 v2 = keccak256("other");
+        try pulse.amendDocument(id, v2, b, sup) {
+            revert("signature for another hash accepted");
+        } catch (bytes memory err) {
+            assertTrue(bytes4(err) == IOrderDocuments.BadAmendSignature.selector, "other hash");
+        }
+    }
+
+    function test_docAmendRejectsBadInput() public {
+        address buyer = vm.addr(DOC_BUYER_KEY);
+        vm.deal(buyer, 10 ether);
+        vm.prank(buyer);
+        vm.expectRevert(IOrderDocuments.BadDocumentHash.selector);
+        pulse.createAmendableOrder{value: 1 ether}(0, CH_ID, supplier, bytes32(0), _amounts(1), _dues(1, NOW, 0), TTL, 0x06);
+
+        uint256 id = _docOrder(true);
+        bytes32 d = pulse.amendmentDigest(id, bytes32(0));
+        bytes memory b = _signDigest(DOC_BUYER_KEY, d);
+        bytes memory sup = _signDigest(DOC_SUPPLIER_KEY, d);
+        vm.expectRevert(IOrderDocuments.BadDocumentHash.selector);
+        pulse.amendDocument(id, bytes32(0), b, sup);
+
+    }
+
+    function test_docAmendClosedOrder() public {
+        uint256 id = _docOrder(true);
+        vm.prank(vm.addr(DOC_BUYER_KEY));
+        pulse.approveMilestone(id, 0);
+        vm.warp(NOW + 100 + GRACE);
+        pulse.refundRemaining(id); // no-data exit closes the order
+        bytes32 d = pulse.amendmentDigest(id, DOC_V1);
+        bytes memory b = _signDigest(DOC_BUYER_KEY, d);
+        bytes memory sup = _signDigest(DOC_SUPPLIER_KEY, d);
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.NotActive.selector, 2));
+        pulse.amendDocument(id, DOC_V1, b, sup);
     }
 
     // C2.5 finding 1: a buyer who approves late cannot approve and refund in the same block

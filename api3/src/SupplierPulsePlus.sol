@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {ISupplierPulsePlus} from "./ISupplierPulsePlus.sol";
+import {IOrderDocuments} from "./IOrderDocuments.sol";
 import {AirnodeVerifier} from "./AirnodeVerifier.sol";
 import {PriceParser} from "./PriceParser.sol";
 import {JsonFields} from "./JsonFields.sol";
@@ -14,8 +15,9 @@ import {JsonFields} from "./JsonFields.sol";
 /// balance for the buyer. Every newer record updates the supplier's verification history (tier), which only
 /// tells the agent how often to re-check; permits are never extended. A failed register status stops payments
 /// on every order of that supplier, and data that never arrives lets the buyer take the money back.
-/// Behaviour is specified in docs/SUPPLIERPULSE_PLUS.md §4.5 (v1.1).
-contract SupplierPulsePlus is ISupplierPulsePlus {
+/// Behaviour is specified in docs/SUPPLIERPULSE_PLUS.md §4.5 (v1.1). Order documents (salted hash, locked or
+/// amendable with both signatures) are described in IOrderDocuments.
+contract SupplierPulsePlus is ISupplierPulsePlus, IOrderDocuments {
     uint8 internal constant SOURCE_CH = 0;
     uint8 internal constant SOURCE_GLEIF = 1;
 
@@ -34,6 +36,11 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
     uint8 public constant BASE_FAILED = 0x80;
     uint8 internal constant CH_RULES = 0x06; // 0x01 is reserved since v1.1
     uint8 internal constant GLEIF_RULES = 0x08;
+
+    uint8 internal constant DOC_LOCKED = 0;
+    uint8 internal constant DOC_AMENDABLE = 1;
+    // secp256k1n / 2, rejects malleable (high-s) signatures
+    uint256 internal constant HALF_N = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     uint256 public constant MAX_FUTURE_SKEW = 60;
     uint32 public constant TRUSTED_STREAK = 3;
@@ -96,6 +103,8 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
     address[2] internal airnodes;
     Order[] internal orders;
     mapping(bytes32 => SupplierRecord) internal suppliers;
+    mapping(uint256 => uint8) internal docModes;
+    mapping(uint256 => bytes32[]) internal docAmendments; // versions 1, 2, … (version 0 is orderRef)
 
     constructor(address chAirnode, address gleifAirnode, uint256 _maxAge, uint64 _tierCountGap, uint64 _refundGrace) {
         admin = msg.sender;
@@ -119,7 +128,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         uint64[] calldata dueDates,
         uint64 permitTtl,
         uint8 rules
-    ) external payable returns (uint256 orderId) {
+    ) public payable returns (uint256 orderId) {
         bytes32 requestHash = requestHashFor(source, supplierId); // BadSource, BadSupplierId
         if (rules & ~(source == SOURCE_CH ? CH_RULES : GLEIF_RULES) != 0) revert BadRules();
         uint256 total = _checkSchedule(supplier, amounts, dueDates, permitTtl);
@@ -141,6 +150,22 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         o.approved = new bool[](amounts.length);
         o.approvedAt = new uint64[](amounts.length);
         _emitCreated(orderId, o, total);
+    }
+
+    /// Same as createOrder, but the document (docHash = orderRef) can later be amended by buyer and supplier together
+    function createAmendableOrder(
+        uint8 source,
+        string calldata supplierId,
+        address payable supplier,
+        bytes32 docHash,
+        uint256[] calldata amounts,
+        uint64[] calldata dueDates,
+        uint64 permitTtl,
+        uint8 rules
+    ) external payable returns (uint256 orderId) {
+        if (docHash == bytes32(0)) revert BadDocumentHash();
+        orderId = createOrder(source, supplierId, supplier, docHash, amounts, dueDates, permitTtl, rules);
+        docModes[orderId] = DOC_AMENDABLE;
     }
 
     function approveMilestone(uint256 orderId, uint256 milestone) external {
@@ -343,6 +368,52 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         tier = suppliers[o.supplierKey].tier;
     }
 
+    // ---------------------------------------------------------------- order documents
+
+    function amendDocument(uint256 orderId, bytes32 newHash, bytes calldata buyerSig, bytes calldata supplierSig)
+        external
+    {
+        Order storage o = _order(orderId);
+        if (docModes[orderId] != DOC_AMENDABLE) revert DocumentLocked(orderId);
+        if (o.state == STATE_CLOSED) revert NotActive(o.state);
+        if (newHash == bytes32(0)) revert BadDocumentHash();
+        bytes32 d = amendmentDigest(orderId, newHash);
+        address b = _recover(d, buyerSig);
+        if (b != o.buyer) revert BadAmendSignature(b, o.buyer);
+        address s = _recover(d, supplierSig);
+        if (s != o.supplier) revert BadAmendSignature(s, o.supplier);
+        (, bytes32 previous, uint256 version) = documentOf(orderId);
+        docAmendments[orderId].push(newHash);
+        emit DocumentAmended(orderId, version + 1, previous, newHash);
+    }
+
+    function amendmentDigest(uint256 orderId, bytes32 newHash) public view returns (bytes32) {
+        (, bytes32 current, uint256 version) = documentOf(orderId);
+        return keccak256(
+            abi.encode(
+                "SupplierPulsePlus.amendDocument", block.chainid, address(this), orderId, version + 1, current, newHash
+            )
+        );
+    }
+
+    function documentOf(uint256 orderId) public view returns (uint8 mode, bytes32 current, uint256 version) {
+        Order storage o = _order(orderId);
+        bytes32[] storage a = docAmendments[orderId];
+        version = a.length;
+        current = version == 0 ? o.orderRef : a[version - 1];
+        mode = docModes[orderId];
+    }
+
+    function documentHistory(uint256 orderId) external view returns (bytes32[] memory h) {
+        Order storage o = _order(orderId);
+        bytes32[] storage a = docAmendments[orderId];
+        h = new bytes32[](a.length + 1);
+        h[0] = o.orderRef;
+        for (uint256 i = 0; i < a.length; i++) {
+            h[i + 1] = a[i];
+        }
+    }
+
     function supplierRecord(bytes32 supplierKey)
         external
         view
@@ -528,6 +599,19 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         uint64 due = o.dueDates[m];
         uint64 approvedAt = o.approvedAt[m];
         return (approvedAt > due ? approvedAt : due) + refundGrace;
+    }
+
+    /// EIP-191 personal_sign recovery with the same checks as AirnodeVerifier
+    function _recover(bytes32 d, bytes calldata sig) internal pure returns (address signer) {
+        if (sig.length != 65) revert AirnodeVerifier.InvalidSignatureLength();
+        bytes32 r = bytes32(sig[0:32]);
+        bytes32 s = bytes32(sig[32:64]);
+        uint8 v = uint8(sig[64]);
+        if (v < 27) v += 27;
+        if (v != 27 && v != 28) revert AirnodeVerifier.InvalidSignatureV();
+        if (uint256(s) > HALF_N) revert AirnodeVerifier.InvalidSignatureS();
+        signer = ecrecover(AirnodeVerifier.ethSignedHash(d), v, r, s);
+        if (signer == address(0)) revert AirnodeVerifier.InvalidSigner();
     }
 
     function _emitCreated(uint256 orderId, Order storage o, uint256 total) internal {
