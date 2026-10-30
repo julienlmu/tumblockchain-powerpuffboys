@@ -388,7 +388,53 @@
     if (b) flashLabel(b, (await copyText(b.dataset.copy)) ? "Copied" : "Select and copy");
   });
 
+  // ---------------------------------------------------------------- settings form checks (presentation only)
+
+  const FIELD_RULES = {
+    contract: [/^(0x[0-9a-fA-F]{40})?$/, "0x followed by 40 hex characters"],
+    agent: [/^(0x[0-9a-fA-F]{40})?$/, "0x followed by 40 hex characters"],
+    rpc: [/^https?:\/\/\S+$/, "a URL that starts with http:// or https://"],
+    orders: [/^(\d+(\s*,\s*\d+)*)?$/, "order numbers separated by commas, for example 0,1,2"],
+    from: [/^\d*$/, "a block number, digits only"],
+    unit: [/^([1-9]\d*)?$/, "a whole number above 0"],
+  };
+  /** Checks each settings field as it is typed: the message sits under the field, and submit stays off until all are valid. */
+  function wireSettings(form) {
+    const submit = form.querySelector('[type="submit"]');
+    const check = () => {
+      let ok = true;
+      for (const el of form.elements) {
+        const rule = FIELD_RULES[el.name];
+        if (!rule) continue;
+        const bad = !rule[0].test(el.value.trim());
+        ok = ok && !bad;
+        let msg = el.parentElement.querySelector(".field-err");
+        if (!msg) { msg = Object.assign(document.createElement("span"), { className: "field-err", id: `err-${form.id}-${el.name}` }); el.after(msg); }
+        msg.textContent = bad ? `Expected ${rule[1]}.` : "";
+        if (bad) { el.setAttribute("aria-invalid", "true"); el.setAttribute("aria-describedby", msg.id); }
+        else if (!el.dataset.serverError) { el.removeAttribute("aria-invalid"); el.removeAttribute("aria-describedby"); }
+      }
+      if (submit) submit.disabled = !ok;
+      return ok;
+    };
+    form.addEventListener("input", (e) => { if (e.target.dataset) delete e.target.dataset.serverError; check(); });
+    check();
+    return check;
+  }
+  /** Marks one settings field as the cause of a load error, with the message under it. */
+  function markField(form, name, text) {
+    const el = form.elements[name];
+    if (!el) return;
+    el.dataset.serverError = "1";
+    el.setAttribute("aria-invalid", "true");
+    let msg = el.parentElement.querySelector(".field-err");
+    if (!msg) { msg = Object.assign(document.createElement("span"), { className: "field-err", id: `err-${form.id}-${name}` }); el.after(msg); }
+    msg.textContent = text;
+    el.setAttribute("aria-describedby", msg.id);
+  }
+
   window.PULSE = {
+    wireSettings, markField,
     copyBtn, copyText, flashLabel,
     icon, hydrateIcons,
     ABI, ABI_V1, V2_DEPLOYER, V11_VECTOR, V1_SEPOLIA, discoverV2, requestHashV1, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
