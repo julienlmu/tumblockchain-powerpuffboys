@@ -831,7 +831,7 @@
       const failed = failedOf(o);
       box = `<div class="held-box">
         <div class="title">${I("lock")}<span>${ownStop ? `${term("Payments stopped", "g-stop")}, supplier-wide` : `Payments stopped: ${esc(failed[0] || "failed register check")}`}</span></div>
-        ${!ownStop && failed.length > 1 ? `<p class="keep">Also failed: ${esc(failed.slice(1).join(", "))}.</p>` : ""}
+        ${!ownStop && failed.length > 1 ? `<p class="also-failed">Also failed: ${esc(failed.slice(1).join(", "))}.</p>` : ""}
         ${ownStop ? stoppedBy : alsoStops}
         <p id="${whoId}">Held: the ${tok(o.remaining)} tokens can only go back to the buyer. ${nowSec() >= o.autoRefundAt ? `The buyer or ${term("anyone", "g-grace")} can refund <b>now</b>` : `The buyer can refund now, ${term("anyone", "g-grace")} ${opens(o.autoRefundAt)}`}${offNote}.</p>
         ${claimRow(true)}
