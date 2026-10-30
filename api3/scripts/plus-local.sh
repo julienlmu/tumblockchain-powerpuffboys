@@ -58,6 +58,7 @@ export BUYER_PRIVATE_KEY=$BUYER_KEY
 export AGENT_PRIVATE_KEY=$AGENT_KEY
 export LOCAL_CH_KEY=$CH_KEY
 export LOCAL_GLEIF_KEY=$GLEIF_KEY
+export LOCAL_CHAIN_TIMESTAMP=1
 export FETCH_CMD=api3/scripts/fetch-local.sh
 ENV
 echo "wrote api3/.local/plus-local.env, now: source api3/.local/plus-local.env" >&2

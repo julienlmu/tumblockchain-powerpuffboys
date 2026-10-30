@@ -52,15 +52,17 @@ We did not find German Handelsregister records or German insolvency notices amon
 
 The v2 judge page is integrated at [`demo/judge.html`](../../demo/judge.html), with setup and local-chain instructions in [`demo/README.md`](../../demo/README.md). The dashboard is [`demo/index.html`](../../demo/index.html); `?sample=1` displays illustrative data without a chain. The current v1 run and scripts are documented in [`docs/evidence.md`](../evidence.md); its four tamper attempts were `eth_call` simulations, not mined reverted transactions. A current-branch local Anvil run accepted clean evidence, rejected replay and four tamper variants, paid a buyer-approved 500-token milestone, and refunded a held order. This validates local behavior only. V2 Sepolia deployment and public-chain judge evidence are still pending. Before submission:
 
-- Dashboard hosted URL: **[pending: publish and verify, if available]**
-- “Try to break it” hosted URL: **[pending: publish and verify, if available]**
+- Dashboard hosted URL: **pending Pages enablement** — expected `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/?sample=1`
+- “Try to break it” hosted URL: **pending Pages enablement** — expected `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/judge.html`; requires a v2 address for contract verdicts.
 - CLI: [`api3/scripts/plus-submit.sh`](../../api3/scripts/plus-submit.sh) simulates by default; add `--send` to broadcast. A reverted transaction consumes gas.
+
+The repository administrator must enable **Settings → Pages → Build and deployment → GitHub Actions**. The first deployment workflow attempt correctly stopped because Pages is disabled; it did not publish the site. Setup steps are in [`demo/README.md`](../../demo/README.md#github-pages).
 
 The v2 demonstration must first show an accepted fresh response that causes the intended outcome, then reject the edited value, stale response, different request, and wrong signer. Replay is an additional rejection case. Distinguish simulations from transactions actually sent on the testnet.
 
 ## Autonomous agent bonus
 
-The agent implementation and documentation exist in `api3/agent/` and `docs/agent.md`. Its 54-test suite passed locally, including the `cast` selector check with Foundry available on `PATH`. A 45-tick `--fake` workflow also ran against an in-memory chain and registry; its synthetic transactions and spend are not live evidence. The overnight Sepolia run, real-cycle count, and verified spend are still pending. The intended demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call; confirm these against the deployed v2 agent configuration before submission.
+The agent implementation and documentation exist in `api3/agent/` and `docs/agent.md`. Its 57-test suite had 56 passes and one skip locally; the skipped selector check requires Foundry's `cast`, which is unavailable in this environment. A four-cycle local Anvil run also completed with clean/held checks, two local milestone payouts, a supplier-wide stop, and four refunds; it used no paid calls and is not public-chain evidence. A 45-tick `--fake` workflow ran against an in-memory chain and registry; its synthetic transactions and spend are not live evidence. The overnight Sepolia run, real-cycle count, and verified spend are still pending. The intended demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call; confirm these against the deployed v2 agent configuration before submission.
 
 **Before submission:** replace the above with the live cycle count, measured spend, overnight log, and Base Sepolia payment / Ethereum Sepolia action links—or state plainly that the agent bonus was not demonstrated.
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import shlex
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -41,6 +42,24 @@ PROFILES = {
         max_gas_price_gwei=50.0,
     ),
 }
+
+
+def fetch_command(value: str) -> Tuple[str, ...]:
+    command = tuple(shlex.split(value))
+    if os.name != "nt" or not command or not command[0].lower().endswith(".sh"):
+        return command
+
+    bash = shutil.which("bash")
+    if not bash:
+        for root in (os.environ.get("ProgramFiles"), os.environ.get("ProgramW6432")):
+            if root:
+                candidate = Path(root) / "Git" / "bin" / "bash.exe"
+                if candidate.is_file():
+                    bash = str(candidate)
+                    break
+    if not bash:
+        raise ValueError("FETCH_CMD points to a .sh script, but bash was not found")
+    return (bash, *command)
 
 
 @dataclass
@@ -99,7 +118,7 @@ def load(env: Optional[dict] = None, profile: Optional[str] = None, require_chai
     rpc = env.get("EVM_RPC_URLS") or env.get("EVM_RPC_URL", "")
     rpc_urls = [u.strip() for u in rpc.split(",") if u.strip()]
     default_fetch = "api3/agent/fetch-v1.sh" if version == "v1" else "api3/scripts/fetch-evidence.sh"
-    fetch_cmd = tuple(shlex.split(env.get("FETCH_CMD") or default_fetch))
+    fetch_cmd = fetch_command(env.get("FETCH_CMD") or default_fetch)
     local_fetch = any("fetch-local" in part for part in fetch_cmd)
     cfg = Config(
         profile=name,

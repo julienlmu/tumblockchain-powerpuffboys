@@ -91,11 +91,13 @@ Every action is one JSON line in `api3/agent/state/cycles.jsonl`:
 
 *Overnight run on Sepolia: the report and tx links are added on Sat morning (C4).*
 
+The current branch was also exercised locally on Anvil: four agent cycles used free, locally signed registry records, paid two approved 500-token milestones, held failing suppliers (including a supplier-wide stop), and refunded held/no-data orders. This is integration evidence for chain `31337` only; it is not an overnight run, live registry evidence, or public-chain evidence. See [`docs/evidence.md`](evidence.md#autonomous-local-anvil-agent-run-30-october-2026).
+
 ## Run it
 
 ```sh
 cd api3/agent
-python3 -m unittest discover -s tests                   # 54 tests, no network
+python3 -m unittest discover -s tests                   # 57 tests, no network
 python3 pulse_agent.py run --fake --ticks 45            # whole flow against an in-memory contract, simulated clock
 python3 pulse_agent.py report --fake
 
@@ -108,6 +110,8 @@ cp .env.example .env                                    # Sepolia: fill in the a
 python3 pulse_agent.py plan                             # what the next tick would do, without acting
 while true; do python3 pulse_agent.py run; sleep 5; done   # supervised loop
 ```
+
+The local setup enables `LOCAL_CHAIN_TIMESTAMP=1` so signed fixture timestamps use Anvil's latest block time. This avoids future/stale responses when a local chain is idle; it applies only to the free local fetcher and is not used by the live paid fetch path.
 
 | Setting | Meaning |
 |---|---|

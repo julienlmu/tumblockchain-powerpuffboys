@@ -159,8 +159,25 @@ The local payout and refund were mined only on ephemeral Anvil and have no publi
 |---|---|
 | Foundry contract tests | 100 passed |
 | API3 request/data tests | 11 passed |
-| API3 agent Python tests | 54 passed, including the `cast` selector check with Foundry available on `PATH` |
+| API3 agent Python tests | 56 passed, 1 skipped (`cast` selector test; Foundry is unavailable); Windows shell/empty-return coverage passed |
 | Cardano agent gate tests | 17 passed |
+
+### Autonomous local Anvil agent run (30 October 2026)
+
+The current-branch Python agent was run for four cycles from **18:27:22–18:28:59 UTC** against a fresh Anvil chain (chain `31337`, local contract `0xe6e340d132b5f46d1e472debcd681b2abc16e57e`) with `fetch-local.sh`, which signs from the committed illustrative local registry. It produced 15 local transactions: clean checks, two approved 500-token milestone payouts, two evidence-based holds, a supplier-wide stop, and four buyer refunds (including the no-data exit). The cycle report showed **$0.00** spend because no x402 or live registry calls were made. The final snapshots showed orders 0 and 2 active with 500 tokens paid each, and orders 1, 3, 4, and 5 closed with zero remaining.
+
+Representative local transaction hashes:
+
+| Action | Order | Local transaction |
+|---|---:|---|
+| Clean Companies House evidence | 0 | `0x5324afa3b914fd45f73f5762896bc608ac67b5103030720dd736c6b07f623057` |
+| Held Companies House evidence | 1 | `0x95ceb41a0e4d535e82a358f75678127b35e3e79c6af61fa770248f3516bdd30c` |
+| Milestone paid (500 demo tokens) | 0 | `0x8f671e15f06e9fa1891bbcd6d8f505bb489ac8582e25e6fe5137cbd7fec6c0b2` |
+| Milestone paid (500 demo tokens) | 2 | `0x4db94efbcca77622b8af9a3c367e72ebbae7a9de02429159bab839224b0f16ec` |
+| Supplier-wide stop | 4 | `0x61b5c836c64ad97426823bd476a6992ccac9362b54df024556be2d03b5784aea` |
+| No-data exit refunded | 5 | `0x466a6c96490eefa45f84328b7fe1574de2079b97311d72637acc3734cc766349` |
+
+These are ephemeral chain-31337 transactions, not Sepolia evidence. The accelerated local clock and local registry are test fixtures; they are not an overnight or live-agent run.
 
 ### Live API3 data fetches (Base Sepolia)
 

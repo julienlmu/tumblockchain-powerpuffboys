@@ -165,6 +165,9 @@ class Chain:
             if envelope is not None and envelope.get("success"):
                 self._preferred = index
                 return envelope.get("data")
+            if json_out and res.returncode == 0 and out == "0x":
+                self._preferred = index
+                return out
             if res.returncode == 0 and not json_out:
                 self._preferred = index
                 return out

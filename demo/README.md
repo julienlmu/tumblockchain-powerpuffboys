@@ -23,6 +23,12 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 
 Opening the files straight from disk also works (`file://`); sample data is a `.js` file for that reason.
 
+## GitHub Pages
+
+The branch includes [a workflow](../.github/workflows/pages.yml) that publishes a labeled sample landing page, dashboard, and judge console at `https://julienlmu.github.io/tumblockchain-powerpuffgirls/`. The repository does not currently have GitHub Pages enabled, so [the first workflow run](https://github.com/julienlmu/tumblockchain-powerpuffgirls/actions/runs/41105403302) failed before publishing. A repository administrator must go to **Settings → Pages → Build and deployment**, select **GitHub Actions**, and then push a change under `demo/` to trigger deployment.
+
+After deployment, the sample dashboard will be at `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/?sample=1` and the judge console at `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/judge.html`. These pages do not imply that v2 is deployed; live contract verdicts require a configured v2 address.
+
 ### Dashboard parameters (also in the Settings panel)
 
 | Parameter | Default | Meaning |
@@ -61,6 +67,7 @@ The current branch was exercised against a fresh local Anvil deployment:
 - A buyer-approved milestone released **500 demo tokens** to the supplier after fresh clean evidence.
 - A held order was refunded to the buyer and closed with no remaining balance.
 - CLI status labels correctly distinguished clean and failed-rule booleans.
+- The autonomous Python agent completed four local cycles: two milestone payouts, three holds including the supplier-wide stop, and four refunds. It used the free local registry and reported $0.00 spend; detailed local-only results are in [`docs/evidence.md`](../docs/evidence.md#autonomous-local-anvil-agent-run-30-october-2026).
 
 These are local-chain results only. They are not Sepolia transactions and do not establish public-network deployment or paid live-agent behavior.
 

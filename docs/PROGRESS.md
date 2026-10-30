@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Ulaş · run autonomous local integration and prepare Pages
+- Changed: fixed the Windows agent shell invocation, local Anvil timestamp synchronization, and `cast call --json` handling for successful no-return functions. Added regression tests and a GitHub Pages workflow for the illustrative sample/judge site.
+- Next: a repository administrator must enable Pages in Settings → Pages → Build and deployment → GitHub Actions; then trigger and verify the site. V2 Sepolia deployment still requires a user-configured signer/RPC and funded test wallets; the paid overnight run and recording remain outstanding.
+- Notes: the four-cycle Anvil agent run completed 15 local transactions: two approved 500-token milestone payouts, three holds (including a supplier-wide stop), and four refunds including the no-data exit. Four cycles used free local signed fixtures and reported $0.00 spend. The current API3 agent suite has 56 passed and 1 skipped (the `cast` selector check; Foundry is unavailable in this environment). The first [Pages workflow run](https://github.com/julienlmu/tumblockchain-powerpuffgirls/actions/runs/41105403302) failed because the repository has no Pages site enabled; no public site was published.
+
 ### 2026-10-30 · Ulaş · verify local SupplierPulse+ paths and research
 - Changed: fixed Windows direct-run guards for the signed-data tools and corrected the CLI's boolean decoding and failed-rule labels; made Cardano no-data retry coverage robust on slower Windows runs. Updated the research notes with the Companies House timeline for JR LIQUIDATIONS LIMITED (16355878), and recorded the current-branch Anvil run and test results.
 - Next: deploy v2 to Sepolia and record public-chain evidence; collect a genuine overnight agent run; record/export the video.

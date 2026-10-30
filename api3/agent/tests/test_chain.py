@@ -102,6 +102,12 @@ class ChainTest(unittest.TestCase):
         with self.assertRaises(ChainError):
             chain.call("ordersLength")
 
+    def test_empty_return_simulation_is_successful(self):
+        runner = ScriptedRunner({"release": proc("0x\n")})
+        chain = Chain("0xc", ["http://a"], private_key="0xk", runner=runner)
+        self.assertEqual(chain.simulate("release", 1), "0x")
+        self.assertEqual([url for name, url in runner.calls if name == "call"], ["http://a"])
+
     def test_send_reads_plain_and_wrapped_receipts(self):
         ok = {"status": "0x1", "transactionHash": "0xabc"}
         for out in (ok, {"success": True, "data": ok}):

@@ -12,5 +12,14 @@ id="$(echo "$2" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
 # compact JSON with sorted keys, like the Airnode's projected data
 raw="$(jq -cS --arg k "$source:$id" '.[$k] // empty' "$dir/local-registry.json")"
 [[ -n "$raw" ]] || { echo "no data: $source:$id is not in local-registry.json" >&2; exit 3; }
-json="$(node "$dir/sign-local.mjs" "$source" "$id" "$raw")"
+timestamp=()
+case "${LOCAL_CHAIN_TIMESTAMP:-0}" in
+  0) ;;
+  1)
+    : "${EVM_RPC_URL:?EVM_RPC_URL is required when LOCAL_CHAIN_TIMESTAMP=1}"
+    timestamp=("$(cast block latest --rpc-url "$EVM_RPC_URL" -f timestamp)")
+    ;;
+  *) echo "LOCAL_CHAIN_TIMESTAMP must be 0 or 1" >&2; exit 2 ;;
+esac
+json="$(node "$dir/sign-local.mjs" "$source" "$id" "$raw" "${timestamp[@]}")"
 if [[ $# -ge 3 ]]; then echo "$json" > "$3"; else echo "$json"; fi
