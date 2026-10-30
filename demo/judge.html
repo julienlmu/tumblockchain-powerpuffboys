@@ -148,6 +148,7 @@
   table.score td:first-child { white-space: nowrap; }
   table.score td.v { font-family: var(--mono); font-size: 12px; overflow-wrap: normal; word-break: normal; }
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
+  .qual { color: var(--muted); font-family: var(--sans); font-size: 11.5px; }
   .res { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; white-space: nowrap; }
   .res.pass { color: var(--ok); } .res.fail { color: var(--hold); } .res.na { color: var(--muted); font-weight: 400; }
   .kit code { background: var(--bg); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
@@ -351,6 +352,8 @@
   const nameOf = P.orderNamer(); // the same order names as the dashboard
   // error names break between their words (Wrong<wbr>Request), never mid-word on a phone
   const wbr = (t) => esc(t).replace(/([a-z])([A-Z])/g, "$1<wbr>$2");
+  // "accepted: permit" reads as "accepted (permit)", so the verdict and the expected answer use the same word
+  const gotHtml = (got) => { const m = /^accepted: (\w+)$/.exec(got); return m ? `accepted <span class="qual">(${m[1]})</span>` : wbr(got); };
 
   try { localStorage.setItem("pulse-view", "detailed"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
@@ -415,7 +418,6 @@
   }
 
   const addr = (a) => explorer ? `<a class="mono" href="${explorer}/address/${a}" target="_blank" rel="noopener">${short(a)}</a>` : `<span class="mono" title="${a}">${short(a)}</span>`;
-  const signerName = (a) => (a && P.KNOWN_SIGNERS[a.toLowerCase()]) ? ` (${P.KNOWN_SIGNERS[a.toLowerCase()]})` : "";
   const signerLabel = (a) => P.KNOWN_SIGNERS[a.toLowerCase()] || "an unknown key";
   // one line, short addresses (full on hover): the recovered signer against the one the contract trusts
   const signerLine = (got, want) => got.toLowerCase() === want.toLowerCase()
@@ -480,9 +482,9 @@
     empty: all(SYNTH, "needs a record (step 2)"),
     invalid: all(SYNTH, "record needs fixing (step 2)"),
     held: all([...SYNTH, "realOld", "realOther"], 'order not active: answers <span class="mono">NotActive</span>'),
-    other: { asis: "stops at Request", value: "stops at Request", stale: "stops at Request", key: "stops at Request", replay: "stops at Request" },
-    stale: { asis: "stops at Fresh", value: "stops at Fresh", key: "stops at Fresh", replay: "stops at Fresh" },
-    used: { asis: "gets Replayed", value: "stops at Newer", key: "stops at Not used" },
+    other: all(["asis", "value", "stale", "key", "replay"], 'other company: answers <span class="mono">WrongRequest</span>'),
+    stale: all(["asis", "value", "key", "replay"], 'too old: answers <span class="mono">StaleResponse</span>'),
+    used: { asis: 'already sent: answers <span class="mono">Replayed</span>', value: 'already sent: answers <span class="mono">NotNewer</span>', key: 'already sent: answers <span class="mono">Replayed</span>' },
   };
   let marked = null;
   function markAttacks() {
@@ -562,17 +564,19 @@
     order.id = id; order.info = info; order.airnode = airnode;
     const s = P.SOURCES[source];
     const failedNow = info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : "";
-    // supplier and state are in the select itself; the summary adds what the attacks target
+    // supplier and state are in the select itself; the summary adds what the attacks target: the signer by name
+    // (its address and the anvil account are in Details, with a copy button)
+    const known = P.KNOWN_SIGNERS[airnode.toLowerCase()];
     $("order-sum").innerHTML = `${info.state === 1 ? `<span>Held <b>${failedNow.replace(/^ \(|\)$/g, "")}</b></span>` : ""}
       <span>Last record <b>${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</b></span>
-      <span>Signer <b class="mono" title="${airnode}${esc(signerName(airnode))}">${short(airnode)}</b></span>
+      <span>Signer ${known ? `<b title="${airnode}">${esc(known.split(",")[0])}</b>` : `<b class="mono" title="${airnode}">${short(airnode)}</b>`}</span>
       <span>Request <b class="mono" title="${info.requestHash}">${short(info.requestHash)}</b></span>`;
     $("order-info").innerHTML = `
-      <tr><th>Supplier</th><td><span class="reg">${s.badge}</span> <a class="mono" href="${s.registerUrl(info.supplierId)}" target="_blank" rel="noopener">${esc(info.supplierId)}</a></td></tr>
+      <tr><th>Supplier</th><td><span class="reg">${s.badge}</span> ${esc(s.name)} <a class="mono" href="${s.registerUrl(info.supplierId)}" target="_blank" rel="noopener">${esc(info.supplierId)}</a></td></tr>
       <tr><th>State</th><td>${P.STATE[info.state]}${info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : ""} · last check ${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</td></tr>
       <tr><th>Rules</th><td>${version === 2 ? P.ruleNames(source, info.rules).map(esc).join(", ") : "status active (v1)"}</td></tr>
       <tr><th>Expected request</th><td class="mono" title="${info.requestHash}">${short(info.requestHash)}</td></tr>
-      <tr><th>Trusted signer</th><td>${addr(airnode)}${signerName(airnode)}</td></tr>`;
+      <tr><th>Trusted signer</th><td>${known ? `${esc(known)} (${addr(airnode)})` : addr(airnode)}</td></tr>`;
     // a held or closed order stops every attempt at its first check: said here, before any press
     $("order-msg").innerHTML = info.state !== 0
       ? `<span class="warn">${P.icon("alert")} Order #${id} is ${P.STATE[info.state].toLowerCase()}, so every attempt stops at <span class="mono">NotActive</span>. Pick an active order to test the checks.</span>` : "";
@@ -781,14 +785,14 @@
     const gotText = verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : gotName;
     scoreRows.push({ time, order: id, name: MODE_NAME[mode], got: gotText, expected, res: res[2] });
     row.innerHTML = `<td>${time}</td><td>#${id}</td><td><button type="button" class="link" data-attempt="${attempt}" title="Show this attempt's checks">${MODE_NAME[mode]}</button></td>
-      <td class="v"${verdict.accepted ? ` title="${verdict.clean ? "accepted: would issue a payment permit" : "accepted: would hold the order"}"` : ""}>${verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : wbr(gotName)}</td><td class="v">${wbr(expected)}</td>
+      <td class="v"${verdict.accepted ? ` title="${verdict.clean ? "accepted: would issue a payment permit" : "accepted: would hold the order"}"` : ""}>${gotHtml(gotText)}</td><td class="v">${wbr(expected)}</td>
       <td><span class="res ${res[0]}">${P.icon(res[1])}${res[2]}</span></td>`;
     const empty = $("score").querySelector(".empty");
     if (empty) empty.remove();
     $("score").prepend(row);
     $("clear-score").disabled = false;
     $("copy-score").disabled = false;
-    return { mode, attempt, accepted: verdict.accepted, got: row.children[3].textContent, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
+    return { mode, attempt, accepted: verdict.accepted, got: gotText, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
   }
 
   const attempts = [];
@@ -961,7 +965,7 @@
       : { pass: "Rejected as expected", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
     const note = cls === "near" ? `at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
     return `<button type="button" class="tile ${cls}" data-attempt="${s.attempt}" title="Show this attempt's checks">
-      <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span><span class="v">${esc(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
+      <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span><span class="v">${gotHtml(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
   }
 
   function renderSuite() {
