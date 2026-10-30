@@ -2,6 +2,15 @@
 
 Newest on top.
 
+### 2026-10-30 ~12:45 · branch `batu/api3-setup`
+- Context: Ulaş is working on an idea that uses Cardano and API3 together, on his own branch. Until then Batu prepares what every option needs: an EVM test wallet with Base Sepolia ETH and aUSD.
+- Checked (read-only `cast call` on `https://sepolia.base.org`, chain id 84532):
+  - aUSD token: `0xbeA34973e5f67F18F656A2C6070C64326C791808`, symbol `aUSD`, 6 decimals. Source: the faucet page bundle (https://api3dao.github.io/airnodehub-hackathon/faucet/) and the chain.
+  - `faucetLimit()` = 10000000, i.e. **10 aUSD per account**. Minting is `mintFromFaucet(uint256)` sent from the wallet itself, so the wallet **needs Base Sepolia ETH for gas first**.
+  - The x402 payment itself needs no ETH (https://api3dao.github.io/airnodehub-hackathon/docs/).
+- Base Sepolia ETH faucets (https://docs.base.org/base-chain/network-information/network-faucets): Coinbase CDP (up to 0.1 ETH / 24 h), Alchemy (free account), QuickNode, thirdweb, ethfaucet.com.
+- Next: Batu creates an encrypted Foundry keystore (`cast wallet new batu-test`, password typed by Batu, key never in chat or git), gets ETH from a faucet, then mints aUSD.
+
 ### 2026-10-30 ~12:20 · branch `batu/api3-setup`
 - Done: `git fetch origin && git rebase origin/main`, no conflicts. Main had a new commit from Julien (`af864ac`, pay-on-pass Cardano agent).
 - Done: after the rebase, moved Batu's PROGRESS entries back to the top of the log. Marked decision-sheet fact 2 as outdated, because `af864ac` now delivers a result only when the vault executed.
