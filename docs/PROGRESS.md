@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun / Codex · API3-only research review
+- Changed: added `docs/API3_ONLY_REVIEW.md` and a supplemental v1 scenario reproducer in `docs/reviews/`. Reviewed all current idea branches, the API3-only SupplierPulse+ spec, official registry schemas, and primary prior-art documentation. Existing 36 Forge tests pass; four additional local scenarios confirm evidence reuse limits, order-specific holds, permit age semantics, and lack of an Active-order timeout refund. Public Sepolia reads confirm v1 code, a successful paid tx, and the held liquidation order.
+- Next: team review of shared evidence/revocation, no-data exit, and registry-field compatibility before optional scope expansion. Suggestions remain proposals; current feature files and frozen interfaces are unchanged.
+- Notes: no paid calls, signing, deployment or value transfers were performed for this review. Research is on `codex/api3-only-research`; it does not merge or choose the team's implementation branch.
+
 ### 2026-10-30 · Julien · SupplierPulse+ build spec
 - Changed: `docs/SUPPLIERPULSE_PLUS.md` is the complete build spec for SupplierPulse+ (API3 track only, decided ~16:00). It contains:
   - frozen interfaces: contract ABI, request templates with test vectors, signed fields and rules, CLI tools, a local test chain;
