@@ -743,7 +743,8 @@
           <div class="why">The contract accepts records at most ${maxAge} s old. With ${rec ? "this record" : "no record"}, every attempt stops at the freshness check,
             so the attacks would not show their own errors. Get a fresh signed record ($0.01 over x402), paste it, and press the button again:</div>
           <div class="why">${fetchCode()}</div></div>
-        <div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>`;
+        ${rec ? `<div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>` : ""}`;
+      P.hydrateIcons($("result"));
       return;
     }
     // A record this tab already sent is used: Submit as is would get Replayed and (a), (d) stop early.
