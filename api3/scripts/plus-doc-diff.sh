@@ -5,7 +5,7 @@
 # the reviewer: payments are decided by the contract and the signed registry records, never by this summary.
 # Usage: scripts/plus-doc-diff.sh <agreed file> <presented file>
 # env: [ANTHROPIC_API_KEY | OPENAI_API_KEY] [DOC_SUMMARY_MODEL] [DOC_SUMMARY_URL]
-#      defaults: claude-haiku-5-5 at api.anthropic.com, or gpt-5-mini at api.openai.com
+#      defaults: claude-haiku-5-5 at api.anthropic.com, or gpt-5.4-mini at api.openai.com
 set -euo pipefail
 [[ $# -eq 2 ]] || { sed -n '2,8p' "$0" >&2; exit 2; }
 for f in "$1" "$2"; do [[ -f "$f" ]] || { echo "no such file: $f" >&2; exit 2; }; done
@@ -35,7 +35,7 @@ provider=anthropic; key="$(key_of ANTHROPIC_API_KEY)"
 if [[ -z "$key" ]]; then provider=openai; key="$(key_of OPENAI_API_KEY)"; fi
 if [[ -z "$key" ]]; then echo; echo "(no ANTHROPIC_API_KEY or OPENAI_API_KEY: summary skipped, the diff above is the full report)"; exit 0; fi
 
-prompt="Two versions of a purchase-order document are compared below as a unified diff ('-' = agreed version, '+' = version now presented). In at most 6 short bullet points, state in plain language what changed, quoting the old and new values for quantities, prices, dates, delivery terms and parties. Do not judge whether anyone should be paid or who is right; only describe the changes.
+prompt="Two versions of a purchase-order document are compared below as a unified diff ('-' = agreed version, '+' = version now presented). In at most 6 short bullet points, state in plain language what changed, quoting the old and new values for quantities, prices, dates, delivery terms and parties. Do not judge whether anyone should be paid or who is right; only describe the changes. Mention every removed or added clause. Answer in plain text without markdown.
 
 $(head -c 20000 "$tmp/diff")"
 if [[ "$provider" == anthropic ]]; then
@@ -46,7 +46,7 @@ if [[ "$provider" == anthropic ]]; then
   pick='[.content[]? | select(.type == "text") | .text] | join("\n")'
 else
   url="${DOC_SUMMARY_URL:-https://api.openai.com/v1/chat/completions}"
-  body="$(jq -n --arg m "${DOC_SUMMARY_MODEL:-gpt-5-mini}" --arg p "$prompt" \
+  body="$(jq -n --arg m "${DOC_SUMMARY_MODEL:-gpt-5.4-mini}" --arg p "$prompt" \
     '{model: $m, max_completion_tokens: 2000, messages: [{role: "user", content: $p}]}')"
   headers=(-H "authorization: Bearer $key")
   pick='.choices[0].message.content // empty'
