@@ -97,7 +97,11 @@
     .toolbar .keys, .toolbar .tools, summary .key-hint { display: none; } /* no keyboard on a phone; "Go to order" finds an order there */
     .jump:not(:empty) { display: flex; margin-top: var(--s2); }
   }
-  .grid.stale { opacity: 0.75; }
+  .grid.stale { filter: grayscale(0.75); } /* colours drained, text contrast kept; the strip above says why */
+  .stale-strip { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: center; margin-top: var(--s3);
+    padding: 6px var(--s2) 6px var(--s3); border-radius: var(--r-md); background: var(--wait-bg); color: var(--wait); font-size: var(--t-1); box-shadow: 0 4px 12px rgb(0 0 0 / 0.18); }
+  .stale-strip b { font-weight: 600; }
+  .stale-strip button { margin-left: auto; min-height: 30px; padding: 4px 10px; }
   .meta .warn, .meta .warn b { color: var(--wait); }
   .live-dot.warn { background: var(--wait); }
   .banner-actions { display: inline-flex; flex-wrap: wrap; gap: var(--s2); margin-left: var(--s2); vertical-align: middle; }
@@ -195,6 +199,7 @@
   .ms details.approve { margin-top: 2px; font-size: 12px; }
   .ms details.approve .ways-body { line-height: 1.5; display: flex; flex-direction: column; gap: 2px; }
   .msg { font-size: var(--t-1); color: var(--text); }
+  .msg .retry { min-height: 28px; padding: 3px 10px; margin-left: 4px; vertical-align: middle; }
   .confirm { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--card); color: var(--text); border: 1px solid var(--line-strong); }
   .closed-box { border-radius: var(--r-md); padding: var(--s2) var(--s3); background: var(--done-bg); color: var(--done); font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; }
   .closed-box .i { margin-top: 0.15em; }
@@ -283,7 +288,7 @@
       <p>Your supplier was approved last month. That should not approve today's payment. Each card is one purchase order: its money stays
         locked in the contract and a milestone pays only when the buyer approved it, it is due, and a fresh signed register record passed the
         order's rules. The agent fetches those records on its own and sends the transactions under <b>Agent activity</b>; this page only reads.</p>
-      <table><thead><tr><th>State</th><th>What it means</th><th>What you can do</th></tr></thead><tbody id="guide-states"></tbody></table>
+      <table id="g-states" tabindex="-1"><thead><tr><th>State</th><th>What it means</th><th>What you can do</th></tr></thead><tbody id="guide-states"></tbody></table>
       <dl class="defs glossary">
         <dt id="g-permit" tabindex="-1">Payment permit</dt><dd>The contract's go-ahead to pay one milestone. A record that passes every rule gives one. It is valid for the order's permit time (in each card's Details; 30 min on the demo orders) from the record's signed time, and the payment uses it up. A tier never extends it.</dd>
         <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (Contract details: max age), and only once.</dd>
@@ -326,6 +331,7 @@
       <label class="sort-label">Sort <select id="sort"><option value="contract">contract order</option><option value="action">needs action first</option></select></label></span>
     <button type="button" class="link-order keys" data-guide="g-keys"><kbd>?</kbd> keyboard shortcuts</button></div>
   <nav class="jump" id="jump" aria-label="Go to order"></nav>
+  <div class="stale-strip" id="stale" hidden></div>
   <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
   <div class="grid" id="orders" aria-live="off" aria-busy="true"><div class="skeleton"><p class="skeleton-label" id="loading-label">Reading the contract…</p></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
   <footer>
@@ -1060,6 +1066,10 @@
     if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${dayClock(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
     else if (status.readAt) items.push(`Updated <b>${dayClock(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
     setHTML($("meta"), items.map((x) => `<span>${x}</span>`).join(""));
+    // while reads fail after a good one, the cards say so where the reader is: a slim strip that stays in view
+    const stale = status.failed && status.readAt > 0;
+    $("stale").hidden = !stale;
+    if (stale) setHTML($("stale"), `${I("alert")}<span>These cards are the last good read, <b>${dayClock(status.readAt)}</b> · <span class="next-read">${nextReadText()}</span></span><button type="button" data-retry>${I("refund")}Retry now</button>`);
   }
   renderMeta();
   function banner(kind, html) { setHTML($("banner"), html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""); }
@@ -1181,7 +1191,15 @@
   // ---------------------------------------------------------------- claim (MetaMask)
 
   const rerender = () => { if (lastOrders) renderAll(lastOrders, lastEnv); };
-  const notSent = (e) => { const f = P.friendlyError(e, { rpc: cfg.rpc }); return f.kind === "other" ? `The wallet or the RPC reported an error this page does not know (“${esc(f.text)}”).` : esc(f.text); };
+  // MetaMask answers 4902 ("Unrecognized chain ID") when it does not know the chain, the usual case for anvil
+  const unknownChain = (e) => [e && e.code, e && e.error && e.error.code, e && e.info && e.info.error && e.info.error.code, e && e.data && e.data.originalError && e.data.originalError.code].includes(4902)
+    || /unrecognized chain|wallet_addEthereumChain/i.test((e && (e.shortMessage || e.message)) || String(e));
+  const retry = (id) => ` <button type="button" class="retry" data-claim="${id}">${I("refund")}Try again</button>`;
+  const notSent = (e, id) => {
+    if (unknownChain(e)) return `Not sent. MetaMask does not know ${esc(P.NETWORKS[chainId] || "chain " + chainId)} (chain id ${chainId}). Add it in MetaMask (Networks, Add a network manually) with RPC URL <code>${esc(cfg.rpc)}</code>${P.copyBtn(cfg.rpc)} and chain id <code>${chainId}</code>${P.copyBtn(String(chainId))}, then try again.${retry(id)}`;
+    const f = P.friendlyError(e, { rpc: cfg.rpc });
+    return (f.kind === "other" ? `The wallet or the RPC reported an error this page does not know (“${esc(f.text)}”). Nothing was sent; try again, or use the script under “Other ways to refund”.` : esc(f.text)) + retry(id);
+  };
   async function claim(id) {
     const say = (html) => { claimMsg[id] = html; const o = lastOrders && lastOrders.find((x) => x.id === id); claimPhase[id] = o ? phaseOf(o) : ""; rerender(); };
     if (!window.ethereum) { delete claimState[id]; say("No browser wallet found. Install MetaMask, or use the script under “Other ways to refund”."); return; }
@@ -1198,7 +1216,7 @@
       try { await c.refundRemaining.staticCall(id); }
       catch (e) {
         const r = P.decodeRevert(iface, e);
-        say(r ? `Not sent. ${esc(P.explain(r.name, r.args) || "The contract would refuse it.")} <span class="small-muted">(contract answer: ${esc(r.name)})</span>` : `Not sent. ${notSent(e)}`);
+        say(r ? `Not sent. ${esc(P.explain(r.name, r.args) || `The contract refused this (${r.name}), so nothing was sent and the order is unchanged. The page reads it again within 12 s.`)} <span class="small-muted">(contract answer: ${esc(r.name)})</span> <button type="button" class="link-order" data-guide="g-states">What you can do</button>` : `Not sent. ${notSent(e, id)}`);
         return;
       }
       const before = lastOrders && lastOrders.find((x) => x.id === id);
@@ -1209,7 +1227,7 @@
       say(`Refunded in ${txLink(tx.hash)}.`);
       tick();
     } catch (e) {
-      say(notSent(e));
+      say(notSent(e, id));
     } finally {
       delete claimState[id];
       rerender();
@@ -1217,7 +1235,7 @@
   }
   $("orders").addEventListener("click", (e) => {
     const b = e.target.closest("[data-claim]");
-    if (b) { claimState[b.dataset.claim] = "confirm"; rerender(); const go = document.querySelector(`[data-claim-go="${b.dataset.claim}"]`); if (go) go.focus(); }
+    if (b) { claimState[b.dataset.claim] = "confirm"; delete claimMsg[b.dataset.claim]; rerender(); const go = document.querySelector(`[data-claim-go="${b.dataset.claim}"]`); if (go) go.focus(); }
     const go = e.target.closest("[data-claim-go]");
     if (go) claim(Number(go.dataset.claimGo));
     const no = e.target.closest("[data-claim-cancel]");
@@ -1518,6 +1536,7 @@
       el.focus(); el.select();
     }
   });
+  $("stale").addEventListener("click", (e) => { if (e.target.closest("[data-retry]")) tick(); });
   function startLive() {
     tick();
     setInterval(tick, REFRESH_MS);
