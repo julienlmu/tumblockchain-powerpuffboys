@@ -311,7 +311,7 @@
         <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (Contract details: max age), and only once.</dd>
         <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (Contract details: trusted signers).</dd>
         <dt>Rules</dt><dd>The register status check always runs; per order the buyer can add accounts filed, confirmation statement filed or LEI registration issued.</dd>
-        <dt id="g-stop" tabindex="-1">Supplier-wide stop</dt><dd>A failed register status on any order stops payments on every order of that supplier. The agent then holds the others without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
+        <dt id="g-stop" tabindex="-1">Payments stopped, supplier-wide</dt><dd>A failed register status on any order stops payments on every order of that supplier. Held: the money is locked for the buyer, who can refund at once. Not held yet: the agent holds the order on its next pass, without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
         <dt id="g-grace" tabindex="-1">Grace period, no-data exit</dt><dd>After a hold the buyer can refund at once, and anyone can once the grace period passed. When an approved milestone is overdue and no valid record came within the grace period (the no-data exit), anyone can send the rest back to the buyer. The money only ever goes to the buyer.</dd>
         <dt id="g-tiers" tabindex="-1">Verification history</dt><dd>Standard (0 to 2 clean checks in a row), Trusted (3 to 5), Premium (6 or more). Only the register status counts, at most once per tier gap; a failed status resets it to 0. A tier only changes how often the agent re-checks between due dates. It is not a credit score.</dd>
         <dt id="g-unit" tabindex="-1">Tokens</dt><dd id="g-unit-text"></dd>
@@ -668,7 +668,7 @@
 
   // Six states, one per order; the order is the filter order and the keys 1–6.
   const STATES = {
-    ok: { cls: "ok", icon: "check", label: "Eligible", def: "A fresh record passed every rule." },
+    ok: { cls: "ok", icon: "check", label: "Eligible to pay", def: "A fresh record passed every rule." },
     rule: { cls: "hold", icon: "x", label: "Payments stopped", def: "A genuine record failed a rule, on this order or on another order of the same supplier." },
     nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid record since the due date." },
     pending: { cls: "muted", icon: "search", label: "Awaiting check", def: "No valid payment permit yet." },
@@ -710,10 +710,11 @@
     const notHeldYet = !held && !closed && supplierStopped(o);
     // §2.4a: a failed base check on any order stops payments on every order of the supplier
     const cause = ctx.cause, byOther = cause && cause.id !== o.id && supplierStopped(o);
-    // stopped by another order's record: the badge names the supplier, not a rule of this order
+    // stopped by another order's record: the badge says so ("same supplier"), not a rule of this order. Held or not
+    // held yet is said in the status box only, so the badge, the filter and the guide share one name.
     const bySupplier = byOther && (!held || o.lastFailedRules === P.BASE_FAILED);
     // the state badge opens its row in the guide's state table: what it means, what you can do
-    const badge = `<button type="button" class="badge ${vs.cls}" data-guide="g-state-${sk}">${I(vs.icon)}${bySupplier ? "Supplier stopped" : vs.label}${held ? ", held" : notHeldYet ? ", not held yet" : ""}<span class="sr-only">: what it means</span></button>`;
+    const badge = `<button type="button" class="badge ${vs.cls}" data-guide="g-state-${sk}">${I(vs.icon)}${vs.label}${bySupplier ? " · same supplier" : ""}<span class="sr-only">: what it means</span></button>`;
     const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
     const restWord = held ? "held" : refunded ? "refunded" : "remaining";
     const bar = `<div class="bar" role="img" aria-label="${tok(o.paid)} of ${tok(total)} tokens paid, ${tok(total - o.paid)} ${restWord}">
@@ -756,18 +757,19 @@
     let box = "";
     if (held) {
       const ownStop = byOther && o.lastFailedRules === P.BASE_FAILED;
+      const failed = failedOf(o);
       box = `<div class="held-box">
-        <div class="title">${I("lock")}<span>Payment held: ${esc(ownStop ? "supplier-wide stop" : failedOf(o).join(", ") || "failed register check")}</span></div>
+        <div class="title">${I("lock")}<span>${ownStop ? `${term("Payments stopped", "g-stop")}, supplier-wide` : `Payments stopped: ${esc(failed.join(", ") || "failed register check")}`}</span></div>
         ${ownStop ? stoppedBy : alsoStops}
-        <p id="${whoId}">The ${tok(o.remaining)} tokens can only go back to the buyer: ${nowSec() >= o.autoRefundAt ? `the buyer or ${term("anyone", "g-grace")} can refund <b>now</b>` : `the buyer can refund now, ${term("anyone", "g-grace")} ${opens(o.autoRefundAt)}`}${offNote}.</p>
+        <p id="${whoId}">Held: the ${tok(o.remaining)} tokens can only go back to the buyer. ${nowSec() >= o.autoRefundAt ? `The buyer or ${term("anyone", "g-grace")} can refund <b>now</b>` : `The buyer can refund now, ${term("anyone", "g-grace")} ${opens(o.autoRefundAt)}`}${offNote}.</p>
         ${claimRow(true)}
       </div>`;
     } else if (notHeldYet) {
       const nd = o.autoRefundAt > 0;
       box = `<div class="held-box stop">
-        <div class="title">${I("stop")}<span>${term("Supplier-wide stop", "g-stop")}</span></div>
+        <div class="title">${I("stop")}<span>${term("Payments stopped", "g-stop")}, supplier-wide</span></div>
         ${stoppedBy}${alsoStops}${stopLine}
-        <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent can hold it without paying for a new check.</p>
+        <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent holds it on its next pass, without paying for a new check.</p>
         ${nd ? `<p id="${whoId}">${term("No verified data", "g-grace")} since milestone ${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
     } else if (!closed && o.autoRefundAt > 0) {
@@ -1072,13 +1074,13 @@
   function nextReadText() {
     if (busy) return "reading now…";
     const s = Math.max(0, nextReadAt - nowSec());
-    return status.failed ? `retrying in ${s} s` : `next read in ${s} s`;
+    return status.failed ? `retrying in ${s} s` : status.mode === "sample" ? `refreshes in ${s} s` : `next read in ${s} s`;
   }
   function renderMeta() {
     const items = [];
     if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
     else items.push(MODE_WORDS[status.mode]);
-    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b>`);
+    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b> (${ethers.formatEther(status.protectedTotal)} test ETH)`);
     if (cfg.unit) items.push(UNIT === BigInt(/^[1-9]\d*$/.test(cfg.unit) ? cfg.unit : 0)
       ? `<span class="warn">Custom unit: <b>1 token = ${UNIT.toLocaleString("en")} wei</b></span>`
       : `<span class="warn">Unit “${esc(cfg.unit)}” ignored: <b>1 token = 10¹² wei</b></span>`);
