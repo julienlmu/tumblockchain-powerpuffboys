@@ -390,6 +390,87 @@
     }
   }
 
+  // ---------------------------------------------------------------- starter guide (presentation only)
+
+  /** A short guided walk through a page: one step at a time, the element ringed and the rest dimmed, with Back, Next
+      and Close. steps: [{ el: "#selector" | () => Element | null, title, text (trusted HTML) }]. A step without `el` is
+      a centred card; a step whose element is missing or hidden (another view) is skipped. Esc closes, ← → move, focus
+      returns to `returnTo`. While it runs the page behind is inert and its keyboard shortcuts are off. */
+  function tour(steps, { returnTo = null } = {}) {
+    if (document.querySelector(".tour-card")) return;
+    const pick = (s) => (typeof s.el === "function" ? s.el() : s.el ? document.querySelector(s.el) : null);
+    const shown = (n) => !!n && n.getClientRects().length > 0 && getComputedStyle(n).visibility !== "hidden";
+    const list = steps.map((s) => ({ ...s, node: pick(s) })).filter((s) => !s.el || shown(s.node));
+    if (!list.length) return;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ring = document.createElement("div");
+    ring.className = "tour-ring"; ring.setAttribute("aria-hidden", "true");
+    const card = document.createElement("div");
+    card.className = "tour-card"; card.setAttribute("role", "dialog"); card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "tour-t"); card.setAttribute("aria-describedby", "tour-x");
+    const behind = [...document.body.children].map((e) => [e, e.inert]);
+    for (const [e] of behind) e.inert = true;
+    document.body.append(ring, card);
+    let i = 0, timer = null;
+    function place() {
+      const n = list[i].node, vw = innerWidth, vh = innerHeight, pad = 6, gap = 12, m = 16;
+      const cw = card.offsetWidth, ch = card.offsetHeight;
+      if (!n) {
+        ring.style.cssText = "display:none";
+        card.style.left = `${Math.max(m, (vw - cw) / 2)}px`; card.style.top = `${Math.max(m, (vh - ch) / 2)}px`;
+        return;
+      }
+      const r = n.getBoundingClientRect();
+      ring.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + 2 * pad}px;height:${r.height + 2 * pad}px`;
+      if (vw <= 520) { card.style.left = `${m}px`; card.style.top = `${r.top > vh / 2 ? m : vh - ch - m}px`; return; }
+      let top = r.bottom + pad + gap;
+      if (top + ch > vh - m) top = r.top - pad - gap - ch;
+      if (top < m) top = Math.max(m, Math.min(vh - ch - m, r.top + pad)); // a tall element: the card sits over its edge
+      card.style.left = `${Math.min(Math.max(m, r.left), vw - cw - m)}px`;
+      card.style.top = `${top}px`;
+    }
+    function show(k) {
+      i = k;
+      const s = list[i], last = i === list.length - 1;
+      card.innerHTML = `<div class="tour-step">${i + 1} of ${list.length}</div><h2 id="tour-t" tabindex="-1">${esc(s.title)}</h2><p id="tour-x">${s.text}</p>
+        <div class="tour-btns"><button type="button" class="tour-close" data-tour="end">Close</button><span></span>${i ? `<button type="button" data-tour="back">Back</button>` : ""}<button type="button" class="primary" data-tour="next">${last ? "Done" : "Next"}</button></div>`;
+      if (s.node) s.node.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      place();
+      clearTimeout(timer); timer = setTimeout(place, reduce ? 0 : 400); // again once a smooth scroll has settled
+      card.querySelector("#tour-t").focus({ preventScroll: true });
+    }
+    function end() {
+      clearTimeout(timer);
+      document.removeEventListener("keydown", onKey, true);
+      removeEventListener("resize", place); removeEventListener("scroll", place, true);
+      ring.remove(); card.remove();
+      for (const [e, was] of behind) e.inert = was;
+      if (returnTo && returnTo.isConnected) returnTo.focus();
+    }
+    function onKey(e) {
+      e.stopPropagation(); // the page's own single-key shortcuts stay off while the guide is open
+      if (e.key === "Escape") { e.preventDefault(); end(); }
+      else if (e.key === "ArrowRight" && i < list.length - 1) { e.preventDefault(); show(i + 1); }
+      else if (e.key === "ArrowLeft" && i > 0) { e.preventDefault(); show(i - 1); }
+      else if (e.key === "Tab") { // focus stays in the card
+        const b = [...card.querySelectorAll("button")];
+        const at = b.indexOf(document.activeElement);
+        e.preventDefault();
+        b[(at + (e.shiftKey ? -1 : 1) + b.length) % b.length].focus();
+      }
+    }
+    card.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-tour]");
+      if (!t) return;
+      if (t.dataset.tour === "end") end();
+      else if (t.dataset.tour === "back") show(i - 1);
+      else if (i < list.length - 1) show(i + 1); else end();
+    });
+    document.addEventListener("keydown", onKey, true);
+    addEventListener("resize", place); addEventListener("scroll", place, true);
+    show(0);
+  }
+
   // ---------------------------------------------------------------- copy to the clipboard (presentation only)
 
   /** A small Copy button for a command, address or JSON. Wired once by the click listener below. */
@@ -464,7 +545,7 @@
 
   window.PULSE = {
     wireSettings, markField,
-    copyBtn, copyText, flashLabel,
+    copyBtn, copyText, flashLabel, tour,
     icon, hydrateIcons,
     ABI, ABI_V1, V2_DEPLOYER, V11_VECTOR, V1_SEPOLIA, discoverV2, requestHashV1, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,

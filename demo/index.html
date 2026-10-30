@@ -52,7 +52,11 @@
   .toolbar .sort-label { display: inline-flex; gap: 6px; align-items: center; }
   .toolbar select { min-height: 30px; padding: 4px 8px; }
   summary .key-hint { font-size: 10px; margin-left: 2px; }
-  /* One cue per behaviour. A term that opens its guide entry: dotted underline plus a small help mark.
+  body.keys-off .state-btn kbd, body.keys-off summary .key-hint, body.keys-off .toolbar .keys kbd { display: none; }
+  .keys-toggle { min-height: 28px; padding: 2px 10px; margin-right: var(--s2); vertical-align: middle; }
+  .keys-toggle .state { font-weight: 600; color: var(--accent); }
+  .keys-toggle[aria-checked="false"] .state { color: var(--muted); }
+  /* One cue per behaviour. A term that shows its guide entry (in a bubble at the term): dotted underline plus a small help mark.
      A value with a tooltip (full address, digest): dashed bottom border. A link that leaves the page: the external mark. */
   .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 0; min-height: 0; display: inline; cursor: help; position: relative;
     text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -74,6 +78,19 @@
   button.badge.done:hover, button.badge.muted:hover { background: var(--done-bg); }
   /* the guide entry a term or badge opened: a short tint, so a mouse user sees where it landed */
   .guide .landed { background: var(--accent-bg); }
+  /* help at the term: the guide's entry in a small popover next to it */
+  #bubble { position: fixed; inset: auto; margin: 0; z-index: 20; width: max-content; max-width: min(46ch, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto;
+    padding: var(--s3); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--card); color: var(--text);
+    font: 400 var(--t-1)/1.5 var(--sans); box-shadow: 0 8px 24px rgb(0 0 0 / 0.3); }
+  #bubble:focus { outline: none; }
+  #bubble:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  #bubble .bubble-h { margin: 0 0 var(--s1); font-weight: 600; }
+  #bubble .bubble-b { display: flex; flex-direction: column; gap: var(--s1); }
+  #bubble .bubble-b p { margin: 0; }
+  #bubble .bubble-more { margin-top: var(--s2); font-weight: 500; }
+  #guide > summary { scroll-margin-top: var(--s4); } /* opened with ?: its focus ring clear of the screen edge */
+  .guide .guide-back { gap: 4px; margin-left: var(--s2); font-weight: 600; color: var(--text); }
+  .guide table + .guide-back { margin: 0; align-self: flex-start; }
   dl.facts dt .term { font-weight: 400; color: var(--muted); text-align: left; }
   .i.ext { width: 0.8em; height: 0.8em; margin-left: 2px; vertical-align: -0.05em; }
   /* hit areas: at least 24 px for standalone text controls (32 px on phones), without changing their look */
@@ -105,7 +122,11 @@
   .jump-sel { display: flex; gap: var(--s2); align-items: center; width: 100%; font-size: var(--t-1); color: var(--muted); }
   .jump-sel select { flex: 1; min-width: 0; min-height: 36px; }
   @media (max-width: 640px) {
-    .toolbar .keys, .toolbar .tools, summary .key-hint { display: none; } /* no keyboard on a phone; "Go to order" finds an order there */
+    .toolbar .keys, summary .key-hint { display: none; } /* key hints: no hardware keyboard on most phones */
+    /* find and sort stay on phones: one full-width row, the field takes the rest of the line */
+    .toolbar .tools { display: flex; flex-wrap: nowrap; width: 100%; }
+    .toolbar input[type="search"] { flex: 1 1 auto; width: auto; min-width: 0; min-height: 36px; font-size: 16px; }
+    .toolbar select { min-height: 36px; }
     .jump:not(:empty) { display: flex; margin-top: var(--s2); }
   }
   .grid.stale { filter: grayscale(0.75); } /* colours drained, text contrast kept; the strip above says why */
@@ -131,6 +152,10 @@
   body.view-simple .held-box > p[id^="who-"] { display: block; }
   /* a refund message that points to the script: the script shows in Simple too */
   body.view-simple .card details.ways.keep { display: block; }
+  /* Settings shows in Simple too while it is open, or while an error or a missing setting points to it ("Open Settings") */
+  body.view-simple #cfg-box:is([open], .keep) { display: block; }
+  .err-raw { display: block; margin-top: var(--s1); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
+  .err-raw code { font-size: 1em; }
   .agent:empty { display: none; } /* nothing read yet: no empty frame above the loading cards */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
   .agent-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; justify-content: space-between; }
@@ -146,9 +171,8 @@
   .flow .i { width: 0.95em; height: 0.95em; color: var(--muted); margin: 0 3px; }
 
   /* order cards */
-  /* cards in a row share one height, so the grid has no ragged voids */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: stretch; }
-  body.view-simple .grid { align-items: start; } /* Simple cards differ in height: no stretched empty space */
+  /* each card is as tall as its content, in both views: no stretched empty space inside a card */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: start; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; scroll-margin-top: var(--s4); }
   .card.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
   /* a card whose on-chain facts just changed: a short tint that fades; a static outline under reduced motion */
@@ -162,6 +186,11 @@
   .card-head h2 { flex: 1 1 0; min-width: min-content; }
   .card-head .badge { margin-left: auto; }
   .card-head .sub { flex-basis: 100%; }
+  .nobr { white-space: nowrap; }
+  @media (max-width: 640px) { /* phones: every card reads the same, the title on its row and the state below it */
+    .card-head h2 { flex-basis: 100%; }
+    .card-head .badge { margin-left: 0; }
+  }
   .agent .wallet { margin: var(--s1) 0 0; }
   .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: break-word; } /* long ids break after "LOCAL-", not mid-number */
   .card-head h2 .id { color: var(--muted); font-weight: 500; margin-right: 6px; }
@@ -183,6 +212,11 @@
   .hero .paid { font-size: var(--t-1); color: var(--muted); text-align: right; }
   .hero .paid b { color: var(--text); font-weight: 600; font-size: var(--t0); }
   .hero .unit { font-size: var(--t0); color: var(--muted); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+  /* the unit on a card: the tooltip cue only (the help mark is on the meta line, once); a click still shows its entry */
+  .hero .unit.term { text-decoration: none; border-bottom: 1px dashed var(--line-strong); }
+  .hero .unit.term:hover { color: var(--text); border-bottom-style: solid; }
+  .hero .unit .tl::after { content: none; }
+  .meta .term { font-weight: 500; }
   .bar { height: 6px; border-radius: 999px; background: var(--done-bg); overflow: hidden; display: flex; margin-top: calc(-1 * var(--s1)); }
   .bar span { display: block; height: 100%; }
   .bar .p { background: var(--ok); } .bar .r { background: var(--accent); opacity: 0.35; } .bar .x { background: var(--done); opacity: 0.4; }
@@ -210,6 +244,12 @@
   .ways-body .sample-cmd { color: var(--wait); font-weight: 500; display: flex; gap: 6px; align-items: flex-start; margin-bottom: var(--s1); }
   .sample-cmd .i { margin-top: 0.2em; }
   .ms details.approve { margin-top: 2px; font-size: 12px; }
+  .step-approve { margin: calc(-1 * var(--s2)) 0 0 calc(1.15em + var(--s2)); font-size: var(--t-1); } /* under the step's text */
+  body.view-simple .card .step-approve details.ways { display: block; }
+  .step-approve details.approve .ways-body { display: flex; flex-direction: column; gap: 2px; line-height: 1.5; }
+  /* a guide reference to a place only Detailed shows: a control that goes there (Detailed for this visit) */
+  .show-detailed { font-weight: 500; }
+  body.view-simple .show-detailed::after { content: " in the Detailed view"; }
   .ms details.approve .ways-body { line-height: 1.5; display: flex; flex-direction: column; gap: 2px; }
   .msg { font-size: var(--t-1); color: var(--text); }
   .msg .retry { min-height: 28px; padding: 3px 10px; margin-left: 4px; vertical-align: middle; }
@@ -276,7 +316,28 @@
     dl.facts { grid-template-columns: 1fr; }
     dl.facts dt { padding-bottom: 0; }
     dl.facts dd { border-top: none; padding-top: 2px; }
-    .agent li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    /* an agent row: its time and transaction on one line, the sentence below */
+    .agent li { grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--s2); }
+    .agent li > .t { grid-area: 1 / 1; }
+    .agent li > .lnk { grid-area: 1 / 2; }
+    .agent li > span:nth-child(2) { grid-area: 2 / 1 / 3 / 3; }
+    /* the header: the three controls on one row (the theme shows its icon and value, "Auto") */
+    .wrap { padding-top: var(--s4); }
+    h1 { font-size: var(--t2); }
+    .tagline { font-size: var(--t-1); }
+    /* tighter bands between the header and the first card, so its title and state are in the first screen */
+    .banner, .agent, .toolbar, .grid { margin-top: var(--s2); }
+    .filters { margin-top: var(--s2); }
+    .state-btn { min-height: 30px; }
+    .toolbar input[type="search"], .toolbar select, .jump-sel select { min-height: 32px; }
+    .head-links { flex-wrap: nowrap; gap: 6px; }
+    .view-switch button { padding: 5px 9px; }
+    .head-links .btn, #theme-btn { padding: 6px 10px; min-height: 32px; }
+    header { gap: var(--s2) var(--s5); }
+    .meta-row { margin-top: var(--s2); }
+    .meta { line-height: 1.4; }
+    #theme-btn .pre { display: none; }
+    #theme-btn .val { text-transform: capitalize; }
   }
 </style>
 </head>
@@ -285,12 +346,12 @@
   <header>
     <div>
       <h1>SupplierPulse<span class="plus">+</span></h1>
-      <p class="tagline">Every milestone pays only with a <button type="button" class="term" data-guide="g-permit">payment <span class="tl">permit</span></button>: the contract's short-lived go-ahead after a fresh, signed register check.</p>
+      <p class="tagline">Every milestone pays only with a <span class="nobr"><button type="button" class="term" data-guide="g-permit" aria-haspopup="dialog">payment <span class="tl">permit</span></button>:</span> the contract's short-lived go-ahead after a fresh, signed register check.</p>
     </div>
     <div class="head-links">
       <div class="view-switch" role="group" aria-label="View"><button type="button" data-view="simple" aria-pressed="false">Simple</button><button type="button" data-view="detailed" aria-pressed="false">Detailed</button></div>
       <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
-      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
+      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl"><span class="pre">Theme: </span><span class="val">auto</span></span></button>
     </div>
   </header>
   <div class="meta-row">
@@ -303,17 +364,17 @@
         order's rules. The agent fetches those records on its own and sends the transactions under <b>Agent activity</b>; this page only reads.</p>
       <table id="g-states" tabindex="-1"><thead><tr><th>State</th><th>What it means</th><th>What you can do</th></tr></thead><tbody id="guide-states"></tbody></table>
       <dl class="defs glossary">
-        <dt id="g-permit" tabindex="-1">Payment permit</dt><dd>The contract's go-ahead to pay one milestone. A record that passes every rule gives one. It is valid for the order's permit time (in each card's Details; 30 min on the demo orders) from the record's signed time, and the payment uses it up. A tier never extends it.</dd>
-        <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (Contract details: max age), and only once.</dd>
-        <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (Contract details: trusted signers).</dd>
+        <dt id="g-permit" tabindex="-1">Payment permit</dt><dd>The contract's go-ahead to pay one milestone. A record that passes every rule gives one. It is valid for the order's permit time (in <button type="button" class="link-order show-detailed" data-show="more">each card's Details</button>; 30 min on the demo orders) from the record's signed time, and the payment uses it up. A tier never extends it.</dd>
+        <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (<button type="button" class="link-order show-detailed" data-show="details-box">Contract details</button>: max age), and only once.</dd>
+        <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (<button type="button" class="link-order show-detailed" data-show="details-box">Contract details</button>: trusted signers).</dd>
         <dt>Rules</dt><dd>The register status check always runs; per order the buyer can add accounts filed, confirmation statement filed or LEI registration issued.</dd>
-        <dt id="g-stop" tabindex="-1">Supplier-wide stop</dt><dd>A failed register status on any order stops payments on every order of that supplier. The agent then holds the others without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
+        <dt id="g-stop" tabindex="-1">Payments stopped, supplier-wide</dt><dd>A failed register status on any order stops payments on every order of that supplier. Held: the money is locked for the buyer, who can refund at once. Not held yet: the agent holds the order on its next pass, without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
         <dt id="g-grace" tabindex="-1">Grace period, no-data exit</dt><dd>After a hold the buyer can refund at once, and anyone can once the grace period passed. When an approved milestone is overdue and no valid record came within the grace period (the no-data exit), anyone can send the rest back to the buyer. The money only ever goes to the buyer.</dd>
         <dt id="g-tiers" tabindex="-1">Verification history</dt><dd>Standard (0 to 2 clean checks in a row), Trusted (3 to 5), Premium (6 or more). Only the register status counts, at most once per tier gap; a failed status resets it to 0. A tier only changes how often the agent re-checks between due dates. It is not a credit score.</dd>
         <dt id="g-unit" tabindex="-1">Tokens</dt><dd id="g-unit-text"></dd>
         <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
       </dl>
-      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide, or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
+      <p id="g-keys" tabindex="-1"><button type="button" role="switch" class="keys-toggle" id="keys-toggle" aria-checked="true">Single-key shortcuts <span class="state" aria-hidden="true">on</span></button>Turn them off for speech input or if keys fire by accident (Esc and Enter keep working). Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide (back to what opened it), or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
       <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · <a href="judge.html" id="judge-link3">Try to break it</a></p>
     </div>
   </details>
@@ -384,12 +445,14 @@
 
   // ---------------------------------------------------------------- theme
 
+  let keysOn = true; // single-key shortcuts (the guide's switch)
+  try { keysOn = localStorage.getItem("pulse-keys") !== "off"; } catch { /* storage blocked */ }
   const THEMES = ["auto", "light", "dark"];
   let theme = "auto";
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
   function applyTheme() {
     if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>`;
+    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl"><span class="pre">Theme: </span><span class="val">${theme}</span></span>`;
     $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
   }
   P.hydrateIcons();
@@ -420,10 +483,17 @@
     for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
     setJudgeLinks();
   }
+  // Filter, search and sort live in Detailed: Simple parks them, and the way back to Detailed restores them. The
+  // sort is also remembered in this browser, like the view.
+  let storedSort = "contract";
+  try { storedSort = localStorage.getItem("pulse-sort") === "action" ? "action" : "contract"; } catch { /* storage blocked */ }
+  let parked = view === "simple" && storedSort === "action" ? { filter: null, query: "", sortMode: "action" } : null;
   function setView(v, remember = true) {
+    if (v === "simple" && view === "detailed") parked = { filter, query, sortMode };
+    if (v === "detailed" && view === "simple" && parked) { ({ filter, query, sortMode } = parked); parked = null; syncTools(); }
     view = v;
     if (remember) { stored = v; try { localStorage.setItem("pulse-view", view); } catch { /* storage blocked */ } }
-    if (view === "simple") { filter = null; query = ""; sortMode = "contract"; syncTools(); } // these live in Detailed
+    if (view === "simple") { filter = null; query = ""; sortMode = "contract"; syncTools(); }
     applyView();
     rerender(); // the agent panel shows a different number of rows per view
     writeFragment();
@@ -466,7 +536,7 @@
   const arrow = `<span class="flow">${I("arrow-right")}</span>`; // "leads to", in agent and history lines
   // A term that opens its guide entry; the last word carries the help mark, so the mark never wraps alone.
   const term = (label, id, cls = "", attrs = "") => { const k = label.lastIndexOf(" ") + 1;
-    return `<button type="button" class="term${cls ? " " + cls : ""}" data-guide="${id}"${attrs}>${label.slice(0, k)}<span class="tl">${label.slice(k)}</span></button>`; };
+    return `<button type="button" class="term${cls ? " " + cls : ""}" data-guide="${id}" aria-haspopup="dialog"${attrs}>${label.slice(0, k)}<span class="tl">${label.slice(k)}</span></button>`; };
   const tierBadge = (t) => `<span class="tier t${t}">${P.TIERS[t] || "?"}</span>`;
 
   // UI state that must survive re-renders: disclosures the user opened or closed, and claim messages.
@@ -558,7 +628,7 @@
         <p class="small-muted">Run it once the work for milestone ${i + 1} is delivered; it signs with the buyer key in <span class="mono">api3/.env</span>. The script counts from 0, so milestone ${i + 1} is ${i} here. An approval cannot be taken back.</p></div></details>`;
   }
 
-  function milestoneView(o, i, tintNext, env) {
+  function milestoneView(o, i, tintNext, env, approveInStep) {
     const now = nowSec(), due = o.dueDates[i];
     let cls = "", ic = "clock", parts = [], approve = "";
     const word = (c, t) => `<span class="${c}">${t}</span>`;
@@ -574,7 +644,7 @@
       } else ic = "minus";
       parts.push(o.approved[i] ? "approved by buyer" : word("wait", "awaiting approval"));
       parts.push(due > now ? `not due yet, in ${cd(due)}` : "due");
-      if (!o.approved[i]) approve = approveWays(o, i, env);
+      if (!o.approved[i] && !(approveInStep && i === o.next)) approve = approveWays(o, i, env);
     }
     return `<li class="${cls}"><span class="st">${I(ic)}</span><div>
       <div class="line1"><span class="n">Milestone ${i + 1}</span><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
@@ -596,14 +666,16 @@
     // each line says when: the due date with its countdown, and how long the permit lasts
     const dueWhen = nowSec() < due ? `due ${at(due)}` : `due since ${dayClock(due)}`;
     const Due = dueWhen.replace(/^d/, "D");
-    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. ${Due}; its payment permit is valid ${cd(o.permitValidUntil, "0 s")} more.`];
+    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. ${Due}; its payment permit is valid ${cd(o.permitValidUntil, "0 s")} more.`, "approve"];
     if (permitValid(o)) {
       const late = o.permitValidUntil < due;
       return ["info", late
         ? `Next: milestone ${n} is ${dueWhen}. Its permit ends earlier (${cd(o.permitValidUntil, "now", "in ")}), so the agent re-checks before then.`
         : `Next: milestone ${n} pays at its due date, ${at(due)}; its permit lasts until then.`];
     }
-    return ["wait", `Next: milestone ${n} needs a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`];
+    return o.approved[o.next]
+      ? ["wait", `Next: milestone ${n} needs a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`]
+      : ["wait", `Next: milestone ${n} needs the buyer's approval and a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`, "approve"];
   }
 
   // ---------------------------------------------------------------- events → words
@@ -664,7 +736,7 @@
 
   // Six states, one per order; the order is the filter order and the keys 1–6.
   const STATES = {
-    ok: { cls: "ok", icon: "check", label: "Eligible", def: "A fresh record passed every rule." },
+    ok: { cls: "ok", icon: "check", label: "Eligible to pay", def: "A fresh record passed every rule." },
     rule: { cls: "hold", icon: "x", label: "Payments stopped", def: "A genuine record failed a rule, on this order or on another order of the same supplier." },
     nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid record since the due date." },
     pending: { cls: "muted", icon: "search", label: "Awaiting check", def: "No valid payment permit yet." },
@@ -690,8 +762,11 @@
         && (Number(e.args.failedRules) & P.BASE_FAILED) && Number(e.args.timestamp) === o.rec.lastBaseFailureAt))
       || same.find((x) => x.state === 1 && (x.lastFailedRules & P.BASE_FAILED)) || null;
   }
-  const orderName = (o) => `#${o.id} ${esc(orderTitle(o) || "Order " + short(o.info.orderRef))}`;
-  const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}${orderName(o)}</button>`;
+  const orderName = (o) => `#${o.id} ${esc(orderTitle(o) || "Order " + short(o.info.orderRef))}`; // plain: attributes, options
+  // shown names keep a short hyphenated id whole ("PO-1006" never breaks after "PO-"); long ids may still break there
+  const nobr = (html) => html.replace(/(^|\s)([^\s<>]{1,7}-[^\s<>]{1,9})(?=\s|$)/g, '$1<span class="nobr">$2</span>');
+  const orderNameHTML = (o) => `#${o.id} ${nobr(esc(orderTitle(o) || "Order " + short(o.info.orderRef)))}`;
+  const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}<span>${orderNameHTML(o)}</span></button>`;
 
   // Card order, top to bottom: title and state, protected balance, one status box (or the next step), milestones, and
   // one "Details" disclosure with the facts and the audit trail (open from 1000 px, closed on phones). Each fact is
@@ -706,10 +781,11 @@
     const notHeldYet = !held && !closed && supplierStopped(o);
     // §2.4a: a failed base check on any order stops payments on every order of the supplier
     const cause = ctx.cause, byOther = cause && cause.id !== o.id && supplierStopped(o);
-    // stopped by another order's record: the badge names the supplier, not a rule of this order
+    // stopped by another order's record: the badge says so ("same supplier"), not a rule of this order. Held or not
+    // held yet is said in the status box only, so the badge, the filter and the guide share one name.
     const bySupplier = byOther && (!held || o.lastFailedRules === P.BASE_FAILED);
     // the state badge opens its row in the guide's state table: what it means, what you can do
-    const badge = `<button type="button" class="badge ${vs.cls}" data-guide="g-state-${sk}">${I(vs.icon)}${bySupplier ? "Supplier stopped" : vs.label}${held ? ", held" : notHeldYet ? ", not held yet" : ""}<span class="sr-only">: what it means</span></button>`;
+    const badge = `<button type="button" class="badge ${vs.cls}" data-guide="g-state-${sk}" aria-haspopup="dialog">${I(vs.icon)}${vs.label}${bySupplier ? " · same supplier" : ""}<span class="sr-only">: what it means</span></button>`;
     const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
     const restWord = held ? "held" : refunded ? "refunded" : "remaining";
     const bar = `<div class="bar" role="img" aria-label="${tok(o.paid)} of ${tok(total)} tokens paid, ${tok(total - o.paid)} ${restWord}">
@@ -752,18 +828,20 @@
     let box = "";
     if (held) {
       const ownStop = byOther && o.lastFailedRules === P.BASE_FAILED;
+      const failed = failedOf(o);
       box = `<div class="held-box">
-        <div class="title">${I("lock")}<span>Payment held: ${esc(ownStop ? "supplier-wide stop" : failedOf(o).join(", ") || "failed register check")}</span></div>
+        <div class="title">${I("lock")}<span>${ownStop ? `${term("Payments stopped", "g-stop")}, supplier-wide` : `Payments stopped: ${esc(failed[0] || "failed register check")}`}</span></div>
+        ${!ownStop && failed.length > 1 ? `<p class="also-failed">Also failed: ${esc(failed.slice(1).join(", "))}.</p>` : ""}
         ${ownStop ? stoppedBy : alsoStops}
-        <p id="${whoId}">The ${tok(o.remaining)} tokens can only go back to the buyer: ${nowSec() >= o.autoRefundAt ? `the buyer or ${term("anyone", "g-grace")} can refund <b>now</b>` : `the buyer can refund now, ${term("anyone", "g-grace")} ${opens(o.autoRefundAt)}`}${offNote}.</p>
+        <p id="${whoId}">Held: the ${tok(o.remaining)} tokens can only go back to the buyer. ${nowSec() >= o.autoRefundAt ? `The buyer or ${term("anyone", "g-grace")} can refund <b>now</b>` : `The buyer can refund now, ${term("anyone", "g-grace")} ${opens(o.autoRefundAt)}`}${offNote}.</p>
         ${claimRow(true)}
       </div>`;
     } else if (notHeldYet) {
       const nd = o.autoRefundAt > 0;
       box = `<div class="held-box stop">
-        <div class="title">${I("stop")}<span>${term("Supplier-wide stop", "g-stop")}</span></div>
+        <div class="title">${I("stop")}<span>${term("Payments stopped", "g-stop")}, supplier-wide</span></div>
         ${stoppedBy}${alsoStops}${stopLine}
-        <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent can hold it without paying for a new check.</p>
+        <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent holds it on its next pass, without paying for a new check.</p>
         ${nd ? `<p id="${whoId}">${term("No verified data", "g-grace")} since milestone ${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
     } else if (!closed && o.autoRefundAt > 0) {
@@ -785,6 +863,8 @@
 
     const step = box ? null : nextStep(o, ctx);
     const stepIcon = { ok: "arrow-right", wait: "clock", info: "arrow-right" };
+    // Simple: a step that waits for the buyer's approval carries its means, the approve script, right under it
+    const approveInStep = !!step && step[2] === "approve" && view === "simple";
 
     // Details: each fact once; where the status box or a milestone row already says it, the fact points there
     const rec = lastRecord(o);
@@ -813,14 +893,14 @@
           return `<li><div class="t">${e.time ? clock(e.time) : "#" + e.block}${txLink(e.tx) ? ` · ${txLink(e.tx)}` : ""}${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", I("agent") + "agent") : ""}</div>
             <div><span class="${l.cls || ""}">${l.text}</span>${l.detail || ""}</div></li>`;
         }).join("")}</ol></details>`
-      : `<p class="small-muted">No events found${env.sample ? "" : " in the searched block range. Set the deploy block in Settings to load older events"}.</p>`;
+      : `<p class="small-muted">No events found${env.sample ? "." : ` in the searched block range. To load older events, <button type="button" class="link-order" data-fix="from">Open Settings</button> and set the deploy block.`}</p>`;
 
     return `
       <article class="card" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
         ${backTo && backTo.target === o.id && lastOrders && lastOrders.some((x) => x.id === backTo.from)
-          ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}Back to ${orderName(lastOrders.find((x) => x.id === backTo.from))}</button>` : ""}
+          ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}<span>Back to ${orderNameHTML(lastOrders.find((x) => x.id === backTo.from))}</span></button>` : ""}
         <div class="card-head">
-          <h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
+          <h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${nobr(esc(title || "Order " + short(o.info.orderRef)))}</h2>
           ${badge}
           <div class="sub"><span class="reg">${esc(s.name)}</span>
               <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono" data-tip="Opens the ${esc(s.name)} page of ${esc(o.info.supplierId)}" aria-describedby="tip">${esc(o.info.supplierId)}${EXT}</a>
@@ -832,15 +912,16 @@
         </div>
         ${bar}
         ${step ? `<p class="next-step ${step[0]}">${I(stepIcon[step[0]] || "arrow-right")}<span>${step[1]}</span></p>` : ""}
+        ${approveInStep ? `<div class="step-approve">${approveWays(o, o.next, env)}</div>` : ""}
         ${box}
-        <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i, !box, env)).join("")}</ol>
+        <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i, !box, env, approveInStep)).join("")}</ol>
         <details class="more" data-key="${moreKey}"${isOpen(moreKey, wide.matches) ? " open" : ""}>
           <summary>Details</summary>
           <dl class="facts">
             <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
             <dt>${term("Payment permit", "g-permit")}</dt><dd>${permitRow}</dd>
             <dt>Last signed record</dt><dd>${lastCheck}</dd>
-            ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o, ctx.cause, shownInBox)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
+            ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${cap(agentWords(ctx.agent, o, ctx.cause, shownInBox))} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
             <dt>${term("Verification history", "g-tiers")}</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} ${["(Trusted at 3)", "(Premium at 6)", "(Premium from 6)"][o.rec.tier] || ""}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed</span></dd>
           </dl>
           ${trail}
@@ -865,20 +946,22 @@
   function agentWord(e, o, brief) {
     const a = e.args;
     switch (e.name) {
-      case "EvidenceAccepted": return a.clean ? "Register check passed" : brief ? "Register check failed" : `Register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
+      case "EvidenceAccepted": return a.clean ? "register check passed" : brief ? "register check failed" : `register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
       case "PermitIssued": return `payment permit for milestone ${Number(a.milestone) + 1}`;
       case "MilestonePaid": return `<b>paid milestone ${Number(a.milestone) + 1}</b>: ${tok(a.amount)} tokens to the supplier`;
       case "OrderHeld": return "<b>payment held</b>";
       case "OrderRefunded": return `<b>refunded ${tok(a.amount)} tokens</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
-      case "TierChanged": return `Verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} to ${P.TIERS[Number(a.newTier)]}`;
+      case "TierChanged": return `verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} to ${P.TIERS[Number(a.newTier)]}`;
       default: return e.name;
     }
   }
+  // the first letter of a sentence in capitals, past any leading tags ("<b>refunded" -> "<b>Refunded")
+  const cap = (html) => html.replace(/^((?:<[^>]+>)*)(\p{Ll})/u, (m, tags, c) => tags + c.toUpperCase());
   // A hold without a record in the same transaction is the supplier-wide stop (applySupplierFailure): the failure is
   // already verified on chain, so the agent holds without paying for a new check.
   const isSupplierStop = (g) => !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
   const agentWords = (g, o, cause, brief = false) => isSupplierStop(g)
-    ? `<b>Payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderName(cause)}` : ""} (no new paid check needed)`
+    ? `<b>payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderNameHTML(cause)}` : ""} (no new paid check needed)`
     : g.evs.map((e) => agentWord(e, o, brief)).join(arrow);
 
   // Rows that arrived after the first render carry a "new" chip for 30 s.
@@ -892,28 +975,28 @@
     agentPrimed = true;
     const isNew = (g) => nowMs - (agentNewAt.get(rowKey(g)) || 0) < 30000;
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
-      <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : "set an agent address in Settings to highlight its transactions"}</span></div>`;
-    const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders)) : ""; };
+      <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : `to highlight its transactions, <button type="button" class="link-order" data-fix="agent">Open Settings</button> and set its address`}</span></div>`;
+    // phones: a failed check in short ("register check failed"); the card's status box names the rules
+    const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders), narrow.matches) : ""; };
     // run: the newest transaction of a run of identical ones (same order, same sentence), with how many and since when
     const li = (g, run = [g]) => {
       const o = byId[g.order];
-      const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
+      const name = o ? nobr(esc(orderTitle(o) || `order ${g.order}`)) : `order ${g.order}`;
       const first = run[run.length - 1];
-      const rep = run.length > 1 ? ` <span class="rep">×${run.length}${first.time ? ` since ${P.clock(first.time)}` : ""}</span>` : "";
+      const rep = run.length > 1 ? ` <span class="rep">×${run.length}${first.time ? ` since ${clock(first.time)}` : ""}</span>` : "";
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
-        <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${words(g)}${rep}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+        <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${cap(words(g))}${rep}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
     // Repeats fold: consecutive transactions with the same order and the same sentence show as one row, "×3 since
     // 22:28:57", linking the newest; every single transaction stays listed in the disclosure.
     const runs = [];
     for (const g of rows) { const k = `${g.order}|${words(g)}`, last = runs[runs.length - 1]; if (last && last.k === k) last.rows.push(g); else runs.push({ k, rows: [g] }); }
-    // Simple: the latest one; Detailed: the latest two, none on phones (the first order then shows first);
-    // the rest, and the agent's wallet, one click away in both views
-    const SHOWN = view === "simple" ? 1 : narrow.matches ? 0 : 2;
+    // Simple and phones: the latest one; Detailed: the latest two; the rest, and the agent's wallet, one click away
+    const SHOWN = view === "simple" || narrow.matches ? 1 : 2;
     const top = runs.slice(0, SHOWN), heads = new Set(top.map((x) => x.rows[0]));
     const rest = rows.filter((g) => !heads.has(g));
     const more = rest.length
-      ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rest.length} earlier transactions` : `${rest.length} transactions`}, all sent by the agent on its own</summary>
+      ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rest.length} earlier` : `${rest.length} transactions`}, all sent by the agent on its own</summary>
           <p class="small-muted wallet">Agent wallet ${addr(agentAddr)}</p><ol>${rest.slice(0, 60).map((g) => li(g)).join("")}</ol></details>`
       : "";
     setHTML($("agent"), head + (rows.length ? `${SHOWN ? `<ol>${top.map((x) => li(x.rows[0], x.rows)).join("")}</ol>` : ""}${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
@@ -960,7 +1043,7 @@
   const frag = new URLSearchParams(location.hash.slice(1));
   let filter = STATES[frag.get("filter")] && view === "detailed" ? frag.get("filter") : null; // a STATES key: show only the orders in that state
   let query = view === "detailed" ? (frag.get("q") || "").trim() : "";  // find: order number, name or supplier id
-  let sortMode = view === "detailed" && frag.get("sort") === "action" ? "action" : "contract";
+  let sortMode = view === "detailed" && (frag.get("sort") === "action" || (!frag.has("sort") && storedSort === "action")) ? "action" : "contract";
   let focusOrder = /^\d+$/.test(frag.get("order") || "") ? Number(frag.get("order")) : null;
   function writeFragment() {
     const f = new URLSearchParams();
@@ -975,7 +1058,7 @@
   function renderStates(orders) {
     const count = {};
     for (const o of orders) { const k = stateOf(o); count[k] = (count[k] || 0) + 1; }
-    const btn = (k, i) => `<button type="button" class="state-btn${count[k] ? "" : " zero"}" data-filter="${k}" aria-pressed="${filter === k}" aria-keyshortcuts="${i + 1}">
+    const btn = (k, i) => `<button type="button" class="state-btn${count[k] ? "" : " zero"}" data-filter="${k}" aria-pressed="${filter === k}"${keysOn ? ` aria-keyshortcuts="${i + 1}"` : ""}>
       <span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     setHTML($("states"), STATE_KEYS.map(btn).join(""));
   }
@@ -1020,7 +1103,7 @@
       : orders.length ? `Showing all ${orders.length} orders${sortMode === "action" ? ", needs action first" : ""}` : "");
     const agentLast = rows[0] && rows[0].time;
     // phones: one "Go to order" list with each order's name and state, instead of bare numbers
-    setHTML($("jump"), shown.length > 1 ? `<label class="jump-sel"><span>Go to order</span><select id="jump-select"><option value="">Choose an order…</option>${shown.map((o) => `<option value="${o.id}">${orderName(o)} · ${STATES[stateOf(o)].label}</option>`).join("")}</select></label>` : "");
+    setHTML($("jump"), shown.length > 1 ? `<label class="jump-sel"><span>Go to order</span><select id="jump-select"><option value="">Choose an order…</option>${shown.map((o) => `<option value="${o.id}">${orderName(o)} · ${esc(o.info.supplierId)} · ${STATES[stateOf(o)].label}</option>`).join("")}</select></label>` : "");
     $("expand-all").hidden = !shown.length;
     renderGrid(!orders.length
       ? `<div class="empty-state">${I("file")}<b>No orders on this contract yet</b><span>A buyer creates one with <span class="mono">api3/scripts/plus-create-order.sh</span>${P.copyBtn("api3/scripts/plus-create-order.sh")}; it appears here within 12 s.</span></div>`
@@ -1052,6 +1135,10 @@
       row("Max age", `${d.maxAge} s`, `a signed record is accepted only if it is at most ${duration(d.maxAge)} old`),
       row("Tier gap", duration(d.tierCountGap), `the verification history counts at most one clean check per ${duration(d.tierCountGap)}`),
       row("Refund grace", duration(d.refundGrace), `after a hold, or an approved milestone overdue without data, the refund opens to anyone after ${duration(d.refundGrace)}`),
+      // which events the audit trails and the agent panel count: all of them, or only a recent range
+      d.fromBlock != null ? row("Events from", `block ${d.fromBlock.toLocaleString("en")}`, cfg.from && d.fromBlock === Number(cfg.from)
+        ? "the block you set: audit trails and agent activity count every event from there"
+        : `older events are not counted in audit trails and agent activity. <button type="button" class="link-order" data-fix="from">Open Settings</button> to set the deploy block`) : "",
     ].join(""));
   }
   // ---------------------------------------------------------------- read status (the meta line)
@@ -1061,26 +1148,30 @@
   // Where the data comes from, the protected total, when it was read, and when the next read happens.
   const status = { mode: cfg.sample ? "sample" : "start", network: "", protectedTotal: null, readAt: 0, note: "", failed: false };
   // the meta line speaks in short sentences, not "Mode x"
-  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract in Settings" };
+  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract address in Settings" };
   const rpcHost = () => { try { return new URL(cfg.rpc).host; } catch { return "the RPC"; } };
   const netGuess = () => (cfg.rpc === P.DEFAULT_RPC ? "Ethereum Sepolia" : rpcHost());
   $("loading-label").innerHTML = `${I("loader", "spin")}<span>${cfg.contract ? `Reading orders from ${esc(netGuess())}…` : cfg.sample ? "Loading the sample data…" : `Looking for SupplierPulse+ v2 on ${esc(netGuess())}…`}</span>`;
   function nextReadText() {
     if (busy) return "reading now…";
     const s = Math.max(0, nextReadAt - nowSec());
-    return status.failed ? `retrying in ${s} s` : `next read in ${s} s`;
+    return status.failed ? `retrying in ${s} s` : status.mode === "sample" ? `refreshes in ${s} s` : `next read in ${s} s`;
   }
   function renderMeta() {
     const items = [];
     if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
     else items.push(MODE_WORDS[status.mode]);
-    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b>`);
+    // the unit's help mark lives here, once for the page; each card's "tokens" keeps its tooltip
+    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} ${term("tokens", "g-unit", "", ' id="meta-unit"')}</b> (${ethers.formatEther(status.protectedTotal)} test ETH)`);
     if (cfg.unit) items.push(UNIT === BigInt(/^[1-9]\d*$/.test(cfg.unit) ? cfg.unit : 0)
       ? `<span class="warn">Custom unit: <b>1 token = ${UNIT.toLocaleString("en")} wei</b></span>`
       : `<span class="warn">Unit “${esc(cfg.unit)}” ignored: <b>1 token = 10¹² wei</b></span>`);
     if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${dayClock(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
     else if (status.readAt) items.push(`Updated <b>${dayClock(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
-    setHTML($("meta"), items.map((x) => `<span>${x}</span>`).join(""));
+    // one element per item, each written only when it changed: the 12 s "Updated" never replaces the unit's button
+    const meta = $("meta");
+    while (meta.children.length < items.length) meta.append(document.createElement("span"));
+    [...meta.children].forEach((el, i) => { el.hidden = i >= items.length; setHTML(el, items[i] || ""); });
     // while reads fail after a good one, the cards say so where the reader is: a slim strip that stays in view
     const stale = status.failed && status.readAt > 0;
     $("stale").hidden = !stale;
@@ -1092,7 +1183,7 @@
   // ---------------------------------------------------------------- live data
 
   let provider, contract, iface, chainId, consts;
-  const evState = { next: null, list: [], blockTime: {}, txFrom: {} };
+  const evState = { next: null, list: [], blockTime: {}, txFrom: {}, from: null }; // from: the first block searched
 
   async function loadEvents(latest) {
     let from = evState.next;
@@ -1100,6 +1191,7 @@
     if (from === null) {
       from = cfg.from ? Number(cfg.from) : Math.max(0, latest - LOG_CHUNK);
       if (latest - from > LOG_CHUNK * MAX_CHUNKS) { from = latest - LOG_CHUNK * MAX_CHUNKS; note = ` · history limited to the last ${LOG_CHUNK * MAX_CHUNKS} blocks`; }
+      evState.from = from;
     }
     const fresh = [];
     while (from <= latest) {
@@ -1181,8 +1273,9 @@
       protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n),
     });
     $("orders").classList.remove("stale");
-    renderDetails({ contract: cfg.contract, airnodes: consts.airnodes, maxAge: consts.maxAge, tierCountGap: consts.tierCountGap, refundGrace: consts.refundGrace });
-    banner(missing.length ? "info" : "", missing.length ? `${I("info")}<span>${missing.length === 1 ? `Order ${missing[0]} is` : `Orders ${missing.join(", ")} are`} not on this contract: it has ${count} ${count === 1 ? "order" : "orders"}${count ? ` (#0 to #${count - 1})` : ""}. Change the order IDs in Settings, or leave them empty for all.</span>` : ""); // no orders: the empty state in the grid says it
+    renderDetails({ contract: cfg.contract, airnodes: consts.airnodes, maxAge: consts.maxAge, tierCountGap: consts.tierCountGap, refundGrace: consts.refundGrace, fromBlock: evState.from });
+    $("cfg-box").classList.remove("keep"); // a good read: Settings goes back to Detailed (it stays while open)
+    banner(missing.length ? "info" : "", missing.length ? `${I("info")}<span>${missing.length === 1 ? `Order ${missing[0]} is` : `Orders ${missing.join(", ")} are`} not on this contract: it has ${count} ${count === 1 ? "order" : "orders"}${count ? ` (#0 to #${count - 1})` : ""}. Change the order IDs, or leave them empty for all. <span class="banner-actions"><button type="button" data-fix="orders">Open Settings</button></span></span>` : ""); // no orders: the empty state in the grid says it
     lastOrders = orders;
     renderAll(orders, { sample: false });
   }
@@ -1197,7 +1290,7 @@
     Object.assign(status, { mode: "sample", readAt: nowSec(), protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n) });
     renderMeta();
     renderDetails({ maxAge: data.maxAge, tierCountGap: data.tierCountGap, refundGrace: data.refundGrace });
-    banner("sample", `${I("info")}<span><b>Sample data</b>, not read from a chain: illustrative amounts, wallets, ids and times; <span id="sample-note">nothing can be sent</span>.</span><button type="button" class="banner-btn" data-live>Use live data</button>`);
+    banner("sample", `${I("info")}<span><b>Sample data</b>: illustrative amounts, wallets, ids and times; <span id="sample-note">nothing can be sent</span>.</span><button type="button" class="banner-btn" data-live>Use live data</button>`);
     lastOrders = orders;
     renderAll(orders, { sample: true });
   }
@@ -1210,10 +1303,14 @@
   const unknownChain = (e) => [e && e.code, e && e.error && e.error.code, e && e.info && e.info.error && e.info.error.code, e && e.data && e.data.originalError && e.data.originalError.code].includes(4902)
     || /unrecognized chain|wallet_addEthereumChain/i.test((e && (e.shortMessage || e.message)) || String(e));
   const retry = (id) => ` <button type="button" class="retry" data-claim="${id}">${I("refund")}Try again</button>`;
+  // An answer this page does not recognise: one plain sentence first, the raw message once, below it, with Copy
+  const errMsg = (e) => (e && (e.shortMessage || e.message)) || String(e);
+  const rawDetails = (e) => `<span class="err-raw">Details: <code>${esc(errMsg(e))}</code>${P.copyBtn(errMsg(e))}</span>`;
   const notSent = (e, id) => {
     if (unknownChain(e)) return `Not sent. MetaMask does not know ${esc(P.NETWORKS[chainId] || "chain " + chainId)} (chain id ${chainId}). Add it in MetaMask (Networks, Add a network manually) with RPC URL <code>${esc(cfg.rpc)}</code>${P.copyBtn(cfg.rpc)} and chain id <code>${chainId}</code>${P.copyBtn(String(chainId))}, then try again.${retry(id)}`;
     const f = P.friendlyError(e, { rpc: cfg.rpc });
-    return (f.kind === "other" ? `The wallet or the RPC reported an error this page does not know (“${esc(f.text)}”). Nothing was sent; try again, or use the script under “Other ways to refund”.` : esc(f.text)) + retry(id);
+    if (f.kind === "other") return `The wallet or the RPC answered with an error this page does not recognise. Nothing was sent: try again, or use the script under “Other ways to refund”.${retry(id)}${rawDetails(e)}`;
+    return esc(f.text) + retry(id) + (f.kind === "network" ? ` <button type="button" class="retry" data-fix="rpc">Open Settings</button>` : "");
   };
   async function claim(id) {
     const say = (html) => { claimMsg[id] = html; const o = lastOrders && lastOrders.find((x) => x.id === id); claimPhase[id] = o ? phaseOf(o) : ""; rerender(); };
@@ -1302,7 +1399,11 @@
   // Find and sort (Detailed toolbar): kept in the fragment like the filter
   function syncTools() { $("find").value = query; $("sort").value = sortMode; }
   $("find").addEventListener("input", () => { query = $("find").value.trim(); if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment(); });
-  $("sort").addEventListener("change", () => { sortMode = $("sort").value === "action" ? "action" : "contract"; if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment(); });
+  $("sort").addEventListener("change", () => {
+    sortMode = storedSort = $("sort").value === "action" ? "action" : "contract";
+    try { localStorage.setItem("pulse-sort", sortMode); } catch { /* storage blocked */ }
+    if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment();
+  });
   syncTools();
   document.addEventListener("click", (e) => {
     const f = e.target.closest && e.target.closest("[data-filter]");
@@ -1363,7 +1464,7 @@
   // ---------------------------------------------------------------- the guide ("How this page works")
 
   const DO = {
-    ok: `Approve the next milestone once its work is delivered: in the Detailed view, “Approve milestone <i>n</i> (script)” under that milestone holds the exact <span class="mono">api3/scripts/plus-approve.sh</span> command, numbers filled in, with Copy. The agent pays it when it is due.`,
+    ok: `Approve the next milestone once its work is delivered: “Approve milestone <i>n</i> (script)” on the card (under the next step in Simple, under the milestone in Detailed) holds the exact <span class="mono">api3/scripts/plus-approve.sh</span> command, numbers filled in, with Copy. The agent pays it when it is due.`,
     rule: "Once the order is held: refund the rest from the buyer's wallet now, or let anyone (the agent) do it after the grace period. An order not held yet is held by the agent on its next pass, without a new paid check.",
     nodata: "Wait for the grace period; then anyone can send the rest back to you. Nothing bad is known about the supplier.",
     pending: "Nothing: the agent fetches a fresh record before the due date.",
@@ -1373,18 +1474,131 @@
   $("guide-states").innerHTML = STATE_KEYS.map((k, i) => `<tr id="g-state-${k}" tabindex="-1"><td><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span> <kbd>${i + 1}</kbd></td><td>${STATES[k].def}</td><td>${DO[k]}</td></tr>`).join("");
   for (const a of document.querySelectorAll('.guide-body a[target="_blank"]')) a.insertAdjacentHTML("beforeend", EXT);
   $("g-unit-text").textContent = `Amounts are in tokens of test ETH: 1 token = ${UNIT.toLocaleString("en")} wei${UNIT === 10n ** 12n ? " (10¹²), so 1,000,000 tokens are 1 ETH" : `, set by the unit parameter (default 10¹²)`}.`;
-  function openGuide(targetId) {
+  // The guide remembers what opened it (a term, a badge, a button): closing it (Esc, ?, its summary, or the "Back to
+  // #n" button at the entry) scrolls back to that control and focuses it, so help never strands the reader at the top.
+  let guideFrom = null; // { el, sel }: the opener, and a selector that finds it again after a re-render
+  const backBtn = Object.assign(document.createElement("button"), { type: "button", className: "link-order back guide-back" });
+  const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function openerSel(el) {
+    const card = el.closest("article.card");
+    if (card && el.dataset.guide) return `#${card.id} [data-guide="${el.dataset.guide}"]`;
+    return el.id ? `#${el.id}` : null;
+  }
+  function openGuide(targetId, from = null) {
     const g = $("guide");
+    if (from && !g.contains(from)) guideFrom = { el: from, sel: openerSel(from) };
     g.open = true;
     const el = (targetId && $(targetId)) || g.querySelector("summary");
-    el.scrollIntoView({ block: targetId ? "center" : "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    // from a card: a way back to it at the entry it landed on
+    const card = guideFrom && guideFrom.el.closest("article.card"), o = card && lastOrders && lastOrders.find((x) => `order-${x.id}` === card.id);
+    backBtn.remove();
+    if (o && targetId) {
+      backBtn.innerHTML = `${I("arrow-left")}<span>Back to ${orderNameHTML(o)}</span>`;
+      const host = el.tagName === "DT" ? el.nextElementSibling : el.tagName === "TR" ? el.lastElementChild : el.tagName === "TABLE" ? null : el;
+      if (host) host.append(backBtn); else el.after(backBtn);
+    }
+    // after the opened guide's layout (and the browser's scroll anchoring), or the scroll is lost
+    requestAnimationFrame(() => el.scrollIntoView({ block: targetId ? "center" : "nearest", behavior: still() ? "auto" : "smooth" }));
     el.focus({ preventScroll: true });
     if (targetId) { el.classList.add("landed"); clearTimeout(el._landed); el._landed = setTimeout(() => el.classList.remove("landed"), 1600); }
   }
-  function closeGuide() { $("guide").open = false; $("guide").querySelector("summary").focus(); }
+  function returnFromGuide() {
+    const f = guideFrom;
+    guideFrom = null;
+    backBtn.remove();
+    const el = f && (f.el.isConnected ? f.el : f.sel && document.querySelector(f.sel));
+    if (!el || !el.offsetParent) return false;
+    el.scrollIntoView({ block: "center", behavior: still() ? "auto" : "smooth" });
+    el.focus({ preventScroll: true });
+    return true;
+  }
+  function closeGuide() {
+    $("guide").open = false;
+    if (!returnFromGuide()) $("guide").querySelector("summary").focus();
+  }
+  // closed by its summary: back to the opener too
+  $("guide").addEventListener("toggle", () => { if (!$("guide").open && guideFrom) returnFromGuide(); });
+  backBtn.addEventListener("click", closeGuide);
+  // A guide reference to a place only Detailed shows ("Contract details", "each card's Details") is a control: it
+  // switches to Detailed for this visit (the remembered view stays) and opens that place, on the card help came from.
+  function showInDetailed(what, btn) {
+    if (view === "simple") { setView("detailed", false); say("Detailed view for this visit. Press S for Simple."); }
+    let target;
+    if (what === "details-box") target = $("details-box");
+    else {
+      const from = btn.closest("article.card") || (bubble.contains(btn) && bubbleFor && bubbleFor.closest("article.card")) || (guideFrom && guideFrom.el.closest("article.card"));
+      const card = (from && $(from.id)) || document.querySelector("#orders article.card");
+      target = card && card.querySelector("details.more");
+      if (target) userOpen.set(target.dataset.key, true);
+    }
+    if (!target) return;
+    target.open = true;
+    const sum = target.querySelector("summary");
+    sum.scrollIntoView({ block: "center", behavior: still() ? "auto" : "smooth" });
+    sum.focus({ preventScroll: true });
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-show]"); if (b) showInDetailed(b.dataset.show, b); });
+  // ---------------------------------------------------------------- help at the term (a bubble)
+
+  // A term or badge outside the guide shows its entry right where it is: a small popover cloned from the guide's own
+  // entry (the guide stays the one source), with "More in the guide" for the whole page. Esc, a click outside or
+  // the term again closes it, and focus goes back to the term. Entries that are whole sections (the keys, the state
+  // table) still open the guide.
+  const bubble = Object.assign(document.createElement("div"), { id: "bubble", tabIndex: -1 });
+  bubble.setAttribute("popover", "auto");
+  bubble.setAttribute("role", "dialog");
+  bubble.setAttribute("aria-labelledby", "bubble-h");
+  bubble.innerHTML = `<p class="bubble-h" id="bubble-h"></p><div class="bubble-b"></div><button type="button" class="link-order bubble-more">More in the guide</button>`;
+  document.body.append(bubble);
+  let bubbleFor = null, bubbleId = null, bubbleSel = null;
+  const bubbleOpen = () => bubble.matches(":popover-open");
+  function bubbleContent(id) {
+    const el = $(id);
+    if (!el) return null;
+    if (el.tagName === "DT" && el.nextElementSibling) return { head: esc(el.textContent), body: `<p>${el.nextElementSibling.innerHTML}</p>` };
+    if (el.tagName === "TR") {
+      const [a, b, c] = el.children;
+      return { head: a.querySelector(".badge").outerHTML, body: `<p>${b.innerHTML}</p><p><b>What you can do:</b> ${c.innerHTML}</p>` };
+    }
+    return null;
+  }
+  function placeBubble() {
+    if (bubbleFor && !bubbleFor.isConnected) bubbleFor = (bubbleSel && document.querySelector(bubbleSel)) || null;
+    if (!bubbleFor) { bubble.hidePopover(); return; }
+    const r = bubbleFor.getBoundingClientRect(), w = bubble.offsetWidth, h = bubble.offsetHeight;
+    bubble.style.left = `${Math.min(Math.max(8, r.left), innerWidth - w - 8)}px`;
+    const below = r.bottom + 6, above = r.top - h - 6;
+    bubble.style.top = `${below + h <= innerHeight - 8 ? below : above >= 8 ? above : Math.max(8, innerHeight - h - 8)}px`;
+  }
+  function showBubble(t, id) {
+    const c = bubbleContent(id);
+    if (!c) return openGuide(id, t);
+    if (bubbleOpen()) { const same = bubbleFor === t; bubble.hidePopover(); if (same) return; } // the term again: closes
+    hideTip();
+    bubbleFor = t; bubbleId = id; bubbleSel = openerSel(t);
+    bubble.querySelector(".bubble-h").innerHTML = c.head;
+    bubble.querySelector(".bubble-b").innerHTML = c.body;
+    try { bubble.showPopover({ source: t }); } catch { bubble.showPopover(); }
+    placeBubble();
+    bubble.focus({ preventScroll: true });
+  }
+  bubble.addEventListener("toggle", (e) => {
+    if (e.newState !== "closed") return;
+    // focus back on the term when it was in the bubble (or nowhere)
+    const a = document.activeElement;
+    const t = bubbleFor && (bubbleFor.isConnected ? bubbleFor : bubbleSel && document.querySelector(bubbleSel));
+    if ((!a || a === document.body || bubble.contains(a)) && t) t.focus({ preventScroll: true });
+  });
+  bubble.querySelector(".bubble-more").addEventListener("click", () => { const t = bubbleFor, id = bubbleId; bubble.hidePopover(); openGuide(id, t); });
+  // a "(Detailed view)" control inside the bubble: the bubble goes, the place opens
+  bubble.addEventListener("click", (e) => { if (e.target.closest("[data-show]")) setTimeout(() => bubbleOpen() && bubble.hidePopover()); });
+  window.addEventListener("scroll", () => { if (bubbleOpen()) placeBubble(); }, { passive: true });
+  window.addEventListener("resize", () => { if (bubbleOpen()) placeBubble(); });
   document.addEventListener("click", (e) => {
     const t = e.target.closest && e.target.closest("[data-guide]");
-    if (t) openGuide(t.dataset.guide);
+    if (!t) return;
+    if ($("guide").contains(t)) openGuide(t.dataset.guide, t);
+    else showBubble(t, t.dataset.guide);
   });
 
   // Expand all: every card's details and audit trail, or back to closed.
@@ -1405,17 +1619,35 @@
   // Keyboard accelerators, never while typing: 1–6 filter, 0 or Esc all, / find, J/K next or previous order, Enter an
   // order's details, S/D view, T theme, ? guide.
   const say = (text) => { const a = $("announce"); a.textContent = ""; setTimeout(() => { a.textContent = text; }, 50); };
-  $("theme-btn").setAttribute("aria-keyshortcuts", "T");
+  // Single-character shortcuts can be switched off (WCAG 2.1.4), remembered in this browser; Esc and Enter stay.
+  function applyKeys() {
+    document.body.classList.toggle("keys-off", !keysOn);
+    $("keys-toggle").setAttribute("aria-checked", String(keysOn));
+    $("keys-toggle").querySelector(".state").textContent = keysOn ? "on" : "off";
+    for (const [sel, key] of [["#theme-btn", "T"], ["#guide > summary", "?"], ["#find", "/"]]) {
+      if (keysOn) document.querySelector(sel).setAttribute("aria-keyshortcuts", key); else document.querySelector(sel).removeAttribute("aria-keyshortcuts");
+    }
+    rerender();
+  }
+  $("keys-toggle").addEventListener("click", () => {
+    keysOn = !keysOn;
+    try { localStorage.setItem("pulse-keys", keysOn ? "on" : "off"); } catch { /* storage blocked */ }
+    applyKeys();
+    say(`Single-key shortcuts ${keysOn ? "on" : "off"}.`);
+  });
+  applyKeys();
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest("input, textarea, select, [contenteditable]"))) return;
     const k = e.key;
+    if (k === "Escape" && bubbleOpen()) { e.preventDefault(); bubble.hidePopover(); return; }
+    if (!keysOn && k !== "Escape" && k !== "Enter") return;
     if (k === "Escape" && !tip.hidden) { e.preventDefault(); hideTip(); }
     else if (/^[1-6]$/.test(k)) {
       // the filters live in Detailed: from Simple, switch for this visit only (the remembered view stays)
       e.preventDefault();
-      const fromSimple = view === "simple";
+      const fromSimple = view === "simple", key = STATE_KEYS[Number(k) - 1];
       if (fromSimple) setView("detailed", false);
-      setFilter(STATE_KEYS[Number(k) - 1]);
+      if (!(fromSimple && filter === key)) setFilter(key); // from Simple a key shows its state, it never toggles it off
       say(`${fromSimple ? "Detailed view for this visit. " : ""}${filter ? `Showing only ${STATES[filter].label}` : "Showing all orders"}.${fromSimple ? " Press S for Simple." : ""}`);
     }
     else if (k === "/") { e.preventDefault(); if (view === "simple") setView("detailed", false); $("find").focus(); $("find").select(); }
@@ -1427,7 +1659,7 @@
       const d = document.activeElement.querySelector("details.more");
       if (d) { d.open = !d.open; userOpen.set(d.dataset.key, d.open); }
     }
-    else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(); }
+    else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(null, document.activeElement !== document.body ? document.activeElement : null); }
     else if (k === "Escape" && Object.values(claimState).includes("confirm")) {
       e.preventDefault(); // cancel the refund confirm; focus back on its refund button
       const inCard = document.activeElement && document.activeElement.closest && document.activeElement.closest("article.card");
@@ -1446,7 +1678,10 @@
       goTo(Number(cards[next].id.slice(6)), { flash: false });
     } else if (k === "t" || k === "T") { e.preventDefault(); $("theme-btn").click(); }
   });
-  narrow.addEventListener("change", rerender);
+  // the find field's hint fits the narrower phone field
+  const findHint = () => { $("find").placeholder = narrow.matches ? "Order or supplier id" : "Find order or supplier id"; };
+  findHint();
+  narrow.addEventListener("change", () => { findHint(); rerender(); });
   wide.addEventListener("change", () => {
     for (const d of document.querySelectorAll("details.more[data-key]")) if (!userOpen.has(d.dataset.key)) d.open = wide.matches;
   });
@@ -1525,15 +1760,16 @@
       status.failed = true; // the dot turns amber; the meta says when the last good read was and when the next try is
       const f = P.friendlyError(e, { reading: true, contract: cfg.contract, rpc: cfg.rpc });
       readCulprit = f.kind === "network" ? "rpc" : f.kind === "address" ? "contract" : null;
+      $("cfg-box").classList.add("keep"); // the message points to Settings: it shows in Simple too
       if (readCulprit) { P.markField(form, readCulprit, f.text); if (!lastOrders) $("cfg-box").open = true; }
-      let text = f.kind === "other" ? `The RPC answered with an error this page does not know (“${esc(f.text)}”). Check the address, the RPC URL and the network in Settings.` : esc(f.text);
+      let text = f.kind === "other" ? "The RPC answered with an error this page does not recognise. Check the contract address, the RPC URL and the network." : esc(f.text);
       if (f.notV2) { // the v1 contract (or another one): link its screen
         const q = new URLSearchParams({ contract: cfg.contract });
         if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
         text = text.replace("open the v1 screen", `<a href="v1.html?${esc(q.toString())}">open the v1 screen</a>`);
       }
       banner("error", `${I("alert")}<span>Could not read the contract. ${text} The page retries every 12 s${lastOrders ? "; the cards show the last good read" : ""}.
-        <span class="banner-actions"><button type="button" data-retry>${I("refund")}Retry now</button><button type="button" data-fix>Open Settings</button></span></span>`);
+        <span class="banner-actions"><button type="button" data-retry>${I("refund")}Retry now</button><button type="button" data-fix>Open Settings</button></span>${f.kind === "other" ? rawDetails(e) : ""}</span>`);
       if (!lastOrders) renderGrid("");
       else $("orders").classList.add("stale");
     }
@@ -1546,21 +1782,27 @@
       location.search = q.toString();
     }
     if (e.target.closest("[data-retry]")) tick();
-    if (e.target.closest("[data-fix]")) {
-      $("cfg-box").open = true;
-      const el = form.elements[readCulprit || "contract"];
-      el.focus(); el.select();
-    }
   });
+  // "Open Settings" (banner, refund message, agent panel, audit trail): Settings opens in either view, on the field
+  // the message is about; in Simple it shows for as long as it is open or the error lasts.
+  function openSettings(field) {
+    const box = $("cfg-box"), el = form.elements[field || readCulprit || "contract"];
+    box.classList.add("keep");
+    box.open = true;
+    el.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    el.focus({ preventScroll: true }); el.select();
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-fix]"); if (b) openSettings(b.dataset.fix); });
   $("stale").addEventListener("click", (e) => { if (e.target.closest("[data-retry]")) tick(); });
   function startLive() {
     tick();
     setInterval(tick, REFRESH_MS);
   }
-  function notConfigured(html) {
+  function notConfigured(html, field = "contract", details = "") {
+    $("cfg-box").classList.add("keep");
     $("cfg-box").open = true;
     renderGrid("");
-    html = `${I("info")}<span>${html}</span>`;
+    html = `${I("info")}<span>${html} <span class="banner-actions"><button type="button" data-fix="${field}">Open Settings</button></span>${details}</span>`;
     status.mode = "none";
     renderMeta();
     $("agent").hidden = true;
@@ -1585,7 +1827,7 @@
     } else if (Number(net.chainId) === 11155111) {
       notConfigured(`SupplierPulse+ v2 is not deployed on Sepolia yet. The live v1 contract: <a href="v1.html?contract=${P.V1_SEPOLIA}&orders=0,1">v1 screen</a> · <a href="judge.html">try to break v1</a> · or the <a href="?sample=1">sample data</a>.`);
     } else {
-      notConfigured("No SupplierPulse+ contract found on this network. Enter its address in Settings, or open the <a href=\"?sample=1\">sample data</a>.");
+      notConfigured("No SupplierPulse+ contract found on this network. Enter its address, or open the <a href=\"?sample=1\">sample data</a>.");
     }
   }
 
@@ -1595,9 +1837,9 @@
     loadSample();
     setInterval(loadSample, REFRESH_MS); // states change as sample times pass (permits expire, refunds open)
   } else if (cfg.contract) {
-    notConfigured("That contract address is not valid: it must be 0x followed by 40 hex characters. Fix it in Settings.");
+    notConfigured("That contract address is not valid: it must be 0x followed by 40 hex characters.");
   } else {
-    discover().catch((e) => notConfigured(`Could not search for the contract. ${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)} Enter its address in Settings, or open the <a href="?sample=1">sample data</a>.`));
+    discover().catch((e) => { const f = P.friendlyError(e, { rpc: cfg.rpc }); notConfigured(`Could not search for the contract. ${f.kind === "other" ? "The RPC answered with an error this page does not recognise." : esc(f.text)} Enter the contract address, or open the <a href="?sample=1">sample data</a>.`, f.kind === "network" ? "rpc" : "contract", f.kind === "other" ? rawDetails(e) : ""); });
   }
 })();
 </script>
