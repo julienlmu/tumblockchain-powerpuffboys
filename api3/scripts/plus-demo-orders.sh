@@ -2,13 +2,19 @@
 # Creates the Sepolia demo orders A to E and their approvals (docs/SUPPLIERPULSE_PLUS.md §2.5). Prints the ids.
 # Run at C3, right after the deploy. Amounts are tokens (1 token = 10^12 wei); the whole set costs 0.0095 ETH.
 # env: EVM_RPC_URL, BUYER_PRIVATE_KEY, PULSE_PLUS_ADDRESS,
-#      DEMO_CH_A, DEMO_CH_B, DEMO_CH_C, DEMO_LEI_D, DEMO_LEI_E (supplier ids),
+#      [DEMO_CH_A, DEMO_CH_B, DEMO_CH_C, DEMO_LEI_D, DEMO_LEI_E] (supplier ids; defaults: Emre's verified demo suppliers),
 #      DEMO_SUPPLIER_1, DEMO_SUPPLIER_2 (fresh team wallets, never anvil addresses), [PERMIT_TTL=1800]
 set -euo pipefail
 cd "$(dirname "$0")"
 source plus-lib.sh
 : "${EVM_RPC_URL:?}" "${BUYER_PRIVATE_KEY:?}" "${PULSE_PLUS_ADDRESS:?}"
-: "${DEMO_CH_A:?}" "${DEMO_CH_B:?}" "${DEMO_CH_C:?}" "${DEMO_LEI_D:?}" "${DEMO_LEI_E:?}"
+# verified with live signed records on 30 Oct (docs/data-sources.md): A clean, B liquidation, C accounts overdue,
+# D ACTIVE/ISSUED, E ACTIVE/LAPSED
+DEMO_CH_A="${DEMO_CH_A:-03778796}"
+DEMO_CH_B="${DEMO_CH_B:-07418033}"
+DEMO_CH_C="${DEMO_CH_C:-09729896}"
+DEMO_LEI_D="${DEMO_LEI_D:-391200JI69LS8L648F30}"
+DEMO_LEI_E="${DEMO_LEI_E:-52990092KBQJF8QBGJ50}"
 : "${DEMO_SUPPLIER_1:?}" "${DEMO_SUPPLIER_2:?}"
 ttl="${PERMIT_TTL:-1800}"
 
