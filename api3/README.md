@@ -1,4 +1,70 @@
-# API3 track: PriceTriggeredVault
+# API3 track: SupplierPulse
+
+Milestone payments to a supplier where **every payment needs fresh, signed registry evidence**.
+Plan: [`docs/SUPPLIERPULSE.md`](../docs/SUPPLIERPULSE.md). Contract: `src/SupplierPulse.sol`.
+
+A buyer locks the whole order (e.g. 500 + 1,500) for one supplier, identified by its Companies House number.
+Before each milestone the agent fetches the supplier's status from the Companies House Airnode on AirnodeHub
+(`getCompanyProfile`, $0.01 paid over x402) and submits it:
+
+- `active`: the contract issues a **payment permit** for exactly the next milestone, this order, this supplier
+  wallet and this amount, valid for `permitTtl`. The payment uses it up, so every milestone needs new evidence.
+- anything else (`dissolved`, `liquidation`, ...): the remaining balance is **held**; the buyer can take it back
+  with `refundRemaining`.
+- a milestone is paid only if the buyer approved it (`approveMilestone`): registry evidence does not prove delivery.
+
+The contract builds the request hash itself from the order's company number
+(`companyRequestHash`, `keccak256('["getCompanyProfile",[["company_number","<n>"]],[["status","/company_status"]]]')`),
+so an order can only accept that company's profile.
+
+| Check | Error |
+|---|---|
+| signer is the stored Companies House Airnode `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF` | `WrongSigner(address)` |
+| request is this order's company profile (hash built on chain) | `WrongRequest(bytes32,bytes32)` |
+| `now - timestamp <= maxAge` (300 s), max 60 s in the future | `StaleResponse`, `FutureResponse` |
+| each signed response once, timestamps increase per order | `Replayed(bytes32)`, `NotNewer` |
+| permit exists, is for this milestone, not expired | `NoValidPermit`, `PermitExpired` |
+
+Signed data looks like `{"status":"liquidation"}`. Three real signed responses (active, liquidation, dissolved)
+are tests (`test_real*`).
+
+### Run
+
+```sh
+forge test                          # 36 tests (19 SupplierPulse, 17 vault)
+./scripts/pulse-local-demo.sh       # anvil: 4 tampers rejected, milestone paid, replay rejected,
+                                    # supplier in liquidation -> held, buyer refund
+```
+
+On a testnet (`.env`: `EVM_RPC_URL`, `EVM_PRIVATE_KEY`, `PULSE_ADDRESS`, `PAYER_PRIVATE_KEY` with aUSD on Base Sepolia):
+
+```sh
+forge script script/DeploySupplierPulse.s.sol --rpc-url "$EVM_RPC_URL" --broadcast --slow --gas-estimate-multiplier 800
+id=$(scripts/pulse-create-order.sh 09729896 <supplier address> 500000000000,1500000000000)
+scripts/pulse-approve.sh "$id" 0
+ORDER_ID=$id scripts/supplier-agent.sh   # last line: {"outcome":"Paid"|"AwaitingApproval"|"Held"|"NoData"|"Rejected",...}
+scripts/pulse-status.sh "$id"            # paid, remaining, permit, last status
+```
+
+### For judges: tamper test
+
+```sh
+scripts/supplier-fetch.sh 09729896 resp.json            # fresh signed profile ($0.01 aUSD via x402)
+ORDER_ID=<id> scripts/pulse-submit.sh resp.json value     # status edited      -> WrongSigner
+ORDER_ID=<id> scripts/pulse-submit.sh resp.json stale     # 1 h older          -> StaleResponse
+ORDER_ID=<id> scripts/pulse-submit.sh resp.json request   # other company      -> WrongRequest
+ORDER_ID=<id> scripts/pulse-submit.sh resp.json key       # random signer      -> WrongSigner
+ORDER_ID=<id> scripts/pulse-submit.sh resp.json           # valid              -> paid / held
+```
+
+### For the Cardano agent
+
+`cardano-agent/apps/supplier-pulse.json` runs `scripts/supplier-agent.sh` with `ORDER_ID` and `COMPANY_NUMBER`.
+`Paid`, `AwaitingApproval` and `Held` are finished jobs: stopping a payment is as correct as making one.
+
+---
+
+# Fallback: PriceTriggeredVault
 
 A vault that pays out ETH when ETH/USD crosses a threshold. The price can only come from an
 **AirnodeHub signed response**, which the contract checks on-chain:

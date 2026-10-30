@@ -1,0 +1,12 @@
+{
+  "name": "supplierpulse-fetch",
+  "private": true,
+  "type": "module",
+  "description": "Fetch a signed Companies House profile from AirnodeHub, paying the x402 price in aUSD on Base Sepolia",
+  "engines": { "node": ">=22.18" },
+  "dependencies": {
+    "@x402/evm": "2.28.0",
+    "@x402/fetch": "2.28.0",
+    "viem": "2.57.3"
+  }
+}

@@ -11,8 +11,8 @@ contract SupplierPulseTest is TestBase {
 
     uint256 constant AIRNODE_KEY = 0xA11CE;
     uint256 constant ATTACKER_KEY = 0xBAD;
-    bytes32 constant MOTOR_CO = keccak256('["getCompanyProfile",[["companyNumber","01234567"]],[["status","/company_status"]]]');
-    bytes32 constant OTHER_CO = keccak256('["getCompanyProfile",[["companyNumber","07654321"]],[["status","/company_status"]]]');
+    bytes32 constant MOTOR_CO = keccak256('["getCompanyProfile",[["company_number","01234567"]],[["status","/company_status"]]]');
+    bytes32 constant OTHER_CO = keccak256('["getCompanyProfile",[["company_number","07654321"]],[["status","/company_status"]]]');
     uint256 constant MAX_AGE = 300;
     uint64 constant PERMIT_TTL = 1 days;
     uint256 constant NOW = 1_800_000_000;
@@ -30,7 +30,7 @@ contract SupplierPulseTest is TestBase {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 0.5 ether;
         amounts[1] = 1.5 ether;
-        orderId = pulse.createOrder{value: 2 ether}(supplier, MOTOR_CO, keccak256("PO-1042"), amounts, PERMIT_TTL);
+        orderId = pulse.createOrder{value: 2 ether}(supplier, "01234567", keccak256("PO-1042"), amounts, PERMIT_TTL);
     }
 
     function _sign(uint256 key, bytes32 req, uint256 ts, bytes memory data) internal pure returns (bytes memory) {
@@ -133,7 +133,7 @@ contract SupplierPulseTest is TestBase {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 1 ether;
         vm.expectRevert(SupplierPulse.BadOrder.selector);
-        pulse.createOrder{value: 0.9 ether}(supplier, MOTOR_CO, bytes32(0), amounts, PERMIT_TTL);
+        pulse.createOrder{value: 0.9 ether}(supplier, "01234567", bytes32(0), amounts, PERMIT_TTL);
     }
 
     // --------------------------------------------------------- tamper tests
@@ -160,6 +160,82 @@ contract SupplierPulseTest is TestBase {
         bytes memory sig = _sign(AIRNODE_KEY, OTHER_CO, NOW, data);
         vm.expectRevert(abi.encodeWithSelector(SupplierPulse.WrongRequest.selector, OTHER_CO, MOTOR_CO));
         pulse.checkAndRelease(orderId, OTHER_CO, NOW, data, sig);
+    }
+
+    function test_requestHashBuiltOnChain() public view {
+        assertTrue(pulse.companyRequestHash("01234567") == MOTOR_CO, "matches the AirnodeHub hash");
+    }
+
+    function test_rejectsBadCompanyNumber() public {
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1 ether;
+        // a quote would let someone splice another request into the hashed JSON
+        vm.expectRevert(SupplierPulse.BadCompanyNumber.selector);
+        pulse.createOrder{value: 1 ether}(supplier, '0123"4567', bytes32(0), amounts, PERMIT_TTL);
+    }
+
+    // ------------------------------------------- real AirnodeHub responses
+
+    address constant CH_AIRNODE = 0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF;
+
+    /// One-milestone order on a contract that trusts the real Companies House Airnode,
+    /// then submits a real signed getCompanyProfile response (fetched 30 Oct, paid via x402).
+    function _real(string memory number, uint256 ts, bytes memory data, bytes memory sig)
+        internal
+        returns (SupplierPulse live, uint256 id, SupplierPulse.Outcome outcome)
+    {
+        vm.warp(ts + 10);
+        live = new SupplierPulse(CH_AIRNODE, MAX_AGE, bytes('"status":'));
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1 ether;
+        id = live.createOrder{value: 1 ether}(supplier, number, keccak256("PO-7"), amounts, PERMIT_TTL);
+        live.approveMilestone(id, 0);
+        outcome = live.checkAndRelease(id, live.companyRequestHash(number), ts, data, sig);
+    }
+
+    function test_realActiveCompanyIsPaid() public {
+        (,, SupplierPulse.Outcome o) = _real(
+            "09729896",
+            1793364518,
+            bytes('{"status":"active"}'),
+            hex"588d0127410b329952922cf003e1ea8508b51a2d617422ffbe9450f00ef90e9b5a254f3b673928b9b4cf4b03fa717424f48688b24a146a6ff9255e9718d177371b"
+        );
+        assertTrue(o == SupplierPulse.Outcome.Paid, "paid");
+        assertEq(supplier.balance, 1 ether, "supplier paid");
+    }
+
+    function test_realLiquidationIsHeld() public {
+        (SupplierPulse live, uint256 id, SupplierPulse.Outcome o) = _real(
+            "07418033",
+            1793364519,
+            bytes('{"status":"liquidation"}'),
+            hex"cc64b26d5ad371d15f42bd7af33315504d05ee40e25670764fb360fdc44be07000f0908c4bee9d503c6bca1579b54e136295c0bdff1ac2278598c8d540a23ab41b"
+        );
+        assertTrue(o == SupplierPulse.Outcome.Held, "held");
+        assertEq(supplier.balance, 0, "not paid");
+        (, , uint256 remaining,,,,, string memory status,) = live.orderStatus(id);
+        assertEq(remaining, 1 ether, "protected");
+        assertTrue(keccak256(bytes(status)) == keccak256("liquidation"), "status stored");
+    }
+
+    function test_realResponseRejectedForAnotherCompany() public {
+        // genuine signed "active" for 09729896, submitted for an order on 07418033
+        vm.warp(1793364518 + 10);
+        SupplierPulse live = new SupplierPulse(CH_AIRNODE, MAX_AGE, bytes('"status":'));
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1 ether;
+        uint256 id = live.createOrder{value: 1 ether}(supplier, "07418033", bytes32(0), amounts, PERMIT_TTL);
+        bytes32 activeReq = live.companyRequestHash("09729896");
+        vm.expectRevert(
+            abi.encodeWithSelector(SupplierPulse.WrongRequest.selector, activeReq, live.companyRequestHash("07418033"))
+        );
+        live.checkAndRelease(
+            id,
+            activeReq,
+            1793364518,
+            bytes('{"status":"active"}'),
+            hex"588d0127410b329952922cf003e1ea8508b51a2d617422ffbe9450f00ef90e9b5a254f3b673928b9b4cf4b03fa717424f48688b24a146a6ff9255e9718d177371b"
+        );
     }
 
     function test_rejectsWrongKey() public {

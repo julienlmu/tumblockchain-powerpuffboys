@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun
+- Changed: SupplierPulse takes the company number in `createOrder` and builds the Companies House request hash on chain (`companyRequestHash`), so an order only accepts that company's `getCompanyProfile` (projection `status`). Batu's three real signed responses are tests (active paid, liquidation held, another company's response rejected); 36 tests. New: `api3/scripts/supplier-agent.sh` (the script `cardano-agent/apps/supplier-pulse.json` calls; `Paid`/`AwaitingApproval`/`Held`/`NoData`/`Rejected`), `supplier-fetch.sh` + `api3/x402/` (paid fetch, $0.01 aUSD), judge script `pulse-submit.sh` (4 tamper modes), `pulse-create-order.sh`, `pulse-approve.sh`, `pulse-status.sh`, `pulse-local-demo.sh`, `DeploySupplierPulse.s.sol`.
+- Next: deploy on Ethereum Sepolia, live run with an active and a liquidation company; the payer wallet needs a few aUSD on Base Sepolia.
+- Notes: `orderInfo` and the events are unchanged, so the demo screen still reads them; `companyNumberOf(orderId)` and `OrderCompany` are new.
+
 ### 2026-10-30 · Julien (Cardano) · SupplierPulse on the Cardano side
 - Changed: the Cardano side is ready for SupplierPulse. New app `apps/supplier-pulse.json` + `executors/supplier_pulse.py`, paid for a verified decision as in the plan: `Paid`, `AwaitingApproval` and `Held` put the result on chain and the escrow pays the agent. `NoData` retries until the deadline and `Rejected` is final; both refund the buyer. Tested on preprod with a simulated EVM side (`apps/supplier-pulse-sim.json`): a held supplier means the agent is paid (job `09fa4cf7…`), no data means 5 tADA back to the buyer (job `79293455…`). Seller receipt verified on chain for job `c00c4fcf…`: 5 tADA from escrow into the selling wallet (tx `1929a3d1…`). 16 tests.
 - **Orhun:** the agent script the Cardano side calls is specified under "Interfaces" above (`api3/scripts/supplier-agent.sh`, env `ORDER_ID` + `COMPANY_NUMBER`, one JSON line out). Once it exists, the only change is `APP_CONFIG=apps/supplier-pulse.json`.

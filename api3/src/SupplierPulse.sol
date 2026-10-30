@@ -37,6 +37,7 @@ contract SupplierPulse {
         address buyer;
         address payable supplier; // fixed at creation, nobody can change it
         bytes32 companyRequest; // AirnodeHub request hash of this supplier's company profile
+        string companyNumber; // Companies House number, e.g. "07418033"
         bytes32 orderRef; // invoice / purchase order id
         uint64 permitTtl; // seconds a permit stays valid
         uint32 paidCount; // milestones paid so far (= index of the next milestone)
@@ -68,6 +69,7 @@ contract SupplierPulse {
         uint256 total,
         uint256 milestones
     );
+    event OrderCompany(uint256 indexed orderId, string companyNumber, bytes32 companyRequest);
     event MilestoneApproved(uint256 indexed orderId, uint256 milestone);
     event EvidenceAccepted(uint256 indexed orderId, bytes status, uint256 timestamp, bytes32 digest, address submitter);
     event PermitIssued(uint256 indexed orderId, uint256 milestone, uint256 amount, uint256 validUntil, bytes32 evidence);
@@ -88,6 +90,7 @@ contract SupplierPulse {
     error NotActive(State state);
     error NotHeld();
     error BadOrder();
+    error BadCompanyNumber();
     error NotAuthorized();
     error TransferFailed();
 
@@ -104,12 +107,13 @@ contract SupplierPulse {
     /// @notice Lock the whole order amount. `amounts` are the milestone payments, in order.
     function createOrder(
         address payable supplier,
-        bytes32 companyRequest,
+        string calldata companyNumber,
         bytes32 orderRef,
         uint256[] calldata amounts,
         uint64 permitTtl
     ) external payable returns (uint256 id) {
-        if (supplier == address(0) || companyRequest == bytes32(0) || amounts.length == 0 || permitTtl == 0) {
+        bytes32 companyRequest = companyRequestHash(companyNumber);
+        if (supplier == address(0) || amounts.length == 0 || permitTtl == 0) {
             revert BadOrder();
         }
         uint256 total;
@@ -124,11 +128,13 @@ contract SupplierPulse {
         o.buyer = msg.sender;
         o.supplier = supplier;
         o.companyRequest = companyRequest;
+        o.companyNumber = companyNumber;
         o.orderRef = orderRef;
         o.permitTtl = permitTtl;
         o.amounts = amounts;
         o.approved = new bool[](amounts.length);
         emit OrderCreated(id, msg.sender, supplier, companyRequest, orderRef, total, amounts.length);
+        emit OrderCompany(id, companyNumber, companyRequest);
     }
 
     /// @notice Buyer confirms a milestone (order accepted, stage reached, delivery accepted).
@@ -239,6 +245,26 @@ contract SupplierPulse {
     }
 
     // ---------------------------------------------------------------- views
+
+    /// @notice The only AirnodeHub request an order accepts: Companies House getCompanyProfile for
+    /// this company number, projected to its status. Built here, so nobody can bind an order to a
+    /// different company or query: requestHash = keccak256(JSON.stringify([operation, params, projection])).
+    function companyRequestHash(string calldata companyNumber) public pure returns (bytes32) {
+        bytes calldata n = bytes(companyNumber);
+        if (n.length == 0 || n.length > 10) revert BadCompanyNumber();
+        for (uint256 i = 0; i < n.length; i++) {
+            bytes1 c = n[i];
+            // register numbers are digits with an optional letter prefix (e.g. SC, OC); nothing to escape
+            if (!((c >= "0" && c <= "9") || (c >= "A" && c <= "Z"))) revert BadCompanyNumber();
+        }
+        return keccak256(
+            abi.encodePacked('["getCompanyProfile",[["company_number","', n, '"]],[["status","/company_status"]]]')
+        );
+    }
+
+    function companyNumberOf(uint256 orderId) external view returns (string memory) {
+        return _order(orderId).companyNumber;
+    }
 
     function ordersLength() external view returns (uint256) {
         return orders.length;
