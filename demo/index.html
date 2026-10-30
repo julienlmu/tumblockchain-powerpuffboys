@@ -221,6 +221,12 @@
   .ways-body .sample-cmd { color: var(--wait); font-weight: 500; display: flex; gap: 6px; align-items: flex-start; margin-bottom: var(--s1); }
   .sample-cmd .i { margin-top: 0.2em; }
   .ms details.approve { margin-top: 2px; font-size: 12px; }
+  .step-approve { margin: calc(-1 * var(--s2)) 0 0 calc(1.15em + var(--s2)); font-size: var(--t-1); } /* under the step's text */
+  body.view-simple .card .step-approve details.ways { display: block; }
+  .step-approve details.approve .ways-body { display: flex; flex-direction: column; gap: 2px; line-height: 1.5; }
+  /* a guide reference to a place only Detailed shows: a control that goes there (Detailed for this visit) */
+  .show-detailed { font-weight: 500; }
+  body.view-simple .show-detailed::after { content: " (Detailed view)"; }
   .ms details.approve .ways-body { line-height: 1.5; display: flex; flex-direction: column; gap: 2px; }
   .msg { font-size: var(--t-1); color: var(--text); }
   .msg .retry { min-height: 28px; padding: 3px 10px; margin-left: 4px; vertical-align: middle; }
@@ -314,9 +320,9 @@
         order's rules. The agent fetches those records on its own and sends the transactions under <b>Agent activity</b>; this page only reads.</p>
       <table id="g-states" tabindex="-1"><thead><tr><th>State</th><th>What it means</th><th>What you can do</th></tr></thead><tbody id="guide-states"></tbody></table>
       <dl class="defs glossary">
-        <dt id="g-permit" tabindex="-1">Payment permit</dt><dd>The contract's go-ahead to pay one milestone. A record that passes every rule gives one. It is valid for the order's permit time (in each card's Details; 30 min on the demo orders) from the record's signed time, and the payment uses it up. A tier never extends it.</dd>
-        <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (Contract details: max age), and only once.</dd>
-        <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (Contract details: trusted signers).</dd>
+        <dt id="g-permit" tabindex="-1">Payment permit</dt><dd>The contract's go-ahead to pay one milestone. A record that passes every rule gives one. It is valid for the order's permit time (in <button type="button" class="link-order show-detailed" data-show="more">each card's Details</button>; 30 min on the demo orders) from the record's signed time, and the payment uses it up. A tier never extends it.</dd>
+        <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (<button type="button" class="link-order show-detailed" data-show="details-box">Contract details</button>: max age), and only once.</dd>
+        <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (<button type="button" class="link-order show-detailed" data-show="details-box">Contract details</button>: trusted signers).</dd>
         <dt>Rules</dt><dd>The register status check always runs; per order the buyer can add accounts filed, confirmation statement filed or LEI registration issued.</dd>
         <dt id="g-stop" tabindex="-1">Payments stopped, supplier-wide</dt><dd>A failed register status on any order stops payments on every order of that supplier. Held: the money is locked for the buyer, who can refund at once. Not held yet: the agent holds the order on its next pass, without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
         <dt id="g-grace" tabindex="-1">Grace period, no-data exit</dt><dd>After a hold the buyer can refund at once, and anyone can once the grace period passed. When an approved milestone is overdue and no valid record came within the grace period (the no-data exit), anyone can send the rest back to the buyer. The money only ever goes to the buyer.</dd>
@@ -573,7 +579,7 @@
         <p class="small-muted">Run it once the work for milestone ${i + 1} is delivered; it signs with the buyer key in <span class="mono">api3/.env</span>. The script counts from 0, so milestone ${i + 1} is ${i} here. An approval cannot be taken back.</p></div></details>`;
   }
 
-  function milestoneView(o, i, tintNext, env) {
+  function milestoneView(o, i, tintNext, env, approveInStep) {
     const now = nowSec(), due = o.dueDates[i];
     let cls = "", ic = "clock", parts = [], approve = "";
     const word = (c, t) => `<span class="${c}">${t}</span>`;
@@ -589,7 +595,7 @@
       } else ic = "minus";
       parts.push(o.approved[i] ? "approved by buyer" : word("wait", "awaiting approval"));
       parts.push(due > now ? `not due yet, in ${cd(due)}` : "due");
-      if (!o.approved[i]) approve = approveWays(o, i, env);
+      if (!o.approved[i] && !(approveInStep && i === o.next)) approve = approveWays(o, i, env);
     }
     return `<li class="${cls}"><span class="st">${I(ic)}</span><div>
       <div class="line1"><span class="n">Milestone ${i + 1}</span><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
@@ -611,14 +617,16 @@
     // each line says when: the due date with its countdown, and how long the permit lasts
     const dueWhen = nowSec() < due ? `due ${at(due)}` : `due since ${dayClock(due)}`;
     const Due = dueWhen.replace(/^d/, "D");
-    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. ${Due}; its payment permit is valid ${cd(o.permitValidUntil, "0 s")} more.`];
+    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. ${Due}; its payment permit is valid ${cd(o.permitValidUntil, "0 s")} more.`, "approve"];
     if (permitValid(o)) {
       const late = o.permitValidUntil < due;
       return ["info", late
         ? `Next: milestone ${n} is ${dueWhen}. Its permit ends earlier (${cd(o.permitValidUntil, "now", "in ")}), so the agent re-checks before then.`
         : `Next: milestone ${n} pays at its due date, ${at(due)}; its permit lasts until then.`];
     }
-    return ["wait", `Next: milestone ${n} needs a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`];
+    return o.approved[o.next]
+      ? ["wait", `Next: milestone ${n} needs a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`]
+      : ["wait", `Next: milestone ${n} needs the buyer's approval and a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`, "approve"];
   }
 
   // ---------------------------------------------------------------- events → words
@@ -709,7 +717,7 @@
   // shown names keep a short hyphenated id whole ("PO-1006" never breaks after "PO-"); long ids may still break there
   const nobr = (html) => html.replace(/(^|\s)([^\s<>]{1,7}-[^\s<>]{1,9})(?=\s|$)/g, '$1<span class="nobr">$2</span>');
   const orderNameHTML = (o) => `#${o.id} ${nobr(esc(orderTitle(o) || "Order " + short(o.info.orderRef)))}`;
-  const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}${orderNameHTML(o)}</button>`;
+  const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}<span>${orderNameHTML(o)}</span></button>`;
 
   // Card order, top to bottom: title and state, protected balance, one status box (or the next step), milestones, and
   // one "Details" disclosure with the facts and the audit trail (open from 1000 px, closed on phones). Each fact is
@@ -805,6 +813,8 @@
 
     const step = box ? null : nextStep(o, ctx);
     const stepIcon = { ok: "arrow-right", wait: "clock", info: "arrow-right" };
+    // Simple: a step that waits for the buyer's approval carries its means, the approve script, right under it
+    const approveInStep = !!step && step[2] === "approve" && view === "simple";
 
     // Details: each fact once; where the status box or a milestone row already says it, the fact points there
     const rec = lastRecord(o);
@@ -838,7 +848,7 @@
     return `
       <article class="card" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
         ${backTo && backTo.target === o.id && lastOrders && lastOrders.some((x) => x.id === backTo.from)
-          ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}Back to ${orderNameHTML(lastOrders.find((x) => x.id === backTo.from))}</button>` : ""}
+          ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}<span>Back to ${orderNameHTML(lastOrders.find((x) => x.id === backTo.from))}</span></button>` : ""}
         <div class="card-head">
           <h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${nobr(esc(title || "Order " + short(o.info.orderRef)))}</h2>
           ${badge}
@@ -852,8 +862,9 @@
         </div>
         ${bar}
         ${step ? `<p class="next-step ${step[0]}">${I(stepIcon[step[0]] || "arrow-right")}<span>${step[1]}</span></p>` : ""}
+        ${approveInStep ? `<div class="step-approve">${approveWays(o, o.next, env)}</div>` : ""}
         ${box}
-        <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i, !box, env)).join("")}</ol>
+        <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i, !box, env, approveInStep)).join("")}</ol>
         <details class="more" data-key="${moreKey}"${isOpen(moreKey, wide.matches) ? " open" : ""}>
           <summary>Details</summary>
           <dl class="facts">
@@ -1041,7 +1052,7 @@
       : orders.length ? `Showing all ${orders.length} orders${sortMode === "action" ? ", needs action first" : ""}` : "");
     const agentLast = rows[0] && rows[0].time;
     // phones: one "Go to order" list with each order's name and state, instead of bare numbers
-    setHTML($("jump"), shown.length > 1 ? `<label class="jump-sel"><span>Go to order</span><select id="jump-select"><option value="">Choose an order…</option>${shown.map((o) => `<option value="${o.id}">${orderName(o)} · ${STATES[stateOf(o)].label}</option>`).join("")}</select></label>` : "");
+    setHTML($("jump"), shown.length > 1 ? `<label class="jump-sel"><span>Go to order</span><select id="jump-select"><option value="">Choose an order…</option>${shown.map((o) => `<option value="${o.id}">${orderName(o)} · ${esc(o.info.supplierId)} · ${STATES[stateOf(o)].label}</option>`).join("")}</select></label>` : "");
     $("expand-all").hidden = !shown.length;
     renderGrid(!orders.length
       ? `<div class="empty-state">${I("file")}<b>No orders on this contract yet</b><span>A buyer creates one with <span class="mono">api3/scripts/plus-create-order.sh</span>${P.copyBtn("api3/scripts/plus-create-order.sh")}; it appears here within 12 s.</span></div>`
@@ -1389,7 +1400,7 @@
   // ---------------------------------------------------------------- the guide ("How this page works")
 
   const DO = {
-    ok: `Approve the next milestone once its work is delivered: in the Detailed view, “Approve milestone <i>n</i> (script)” under that milestone holds the exact <span class="mono">api3/scripts/plus-approve.sh</span> command, numbers filled in, with Copy. The agent pays it when it is due.`,
+    ok: `Approve the next milestone once its work is delivered: “Approve milestone <i>n</i> (script)” on the card (under the next step in Simple, under the milestone in Detailed) holds the exact <span class="mono">api3/scripts/plus-approve.sh</span> command, numbers filled in, with Copy. The agent pays it when it is due.`,
     rule: "Once the order is held: refund the rest from the buyer's wallet now, or let anyone (the agent) do it after the grace period. An order not held yet is held by the agent on its next pass, without a new paid check.",
     nodata: "Wait for the grace period; then anyone can send the rest back to you. Nothing bad is known about the supplier.",
     pending: "Nothing: the agent fetches a fresh record before the due date.",
@@ -1418,7 +1429,7 @@
     const card = guideFrom && guideFrom.el.closest("article.card"), o = card && lastOrders && lastOrders.find((x) => `order-${x.id}` === card.id);
     backBtn.remove();
     if (o && targetId) {
-      backBtn.innerHTML = `${I("arrow-left")}Back to ${orderNameHTML(o)}`;
+      backBtn.innerHTML = `${I("arrow-left")}<span>Back to ${orderNameHTML(o)}</span>`;
       const host = el.tagName === "DT" ? el.nextElementSibling : el.tagName === "TR" ? el.lastElementChild : el.tagName === "TABLE" ? null : el;
       if (host) host.append(backBtn); else el.after(backBtn);
     }
@@ -1443,6 +1454,25 @@
   // closed by its summary: back to the opener too
   $("guide").addEventListener("toggle", () => { if (!$("guide").open && guideFrom) returnFromGuide(); });
   backBtn.addEventListener("click", closeGuide);
+  // A guide reference to a place only Detailed shows ("Contract details", "each card's Details") is a control: it
+  // switches to Detailed for this visit (the remembered view stays) and opens that place, on the card help came from.
+  function showInDetailed(what, btn) {
+    if (view === "simple") { setView("detailed", false); say("Detailed view for this visit. Press S for Simple."); }
+    let target;
+    if (what === "details-box") target = $("details-box");
+    else {
+      const from = btn.closest("article.card") || (guideFrom && guideFrom.el.closest("article.card"));
+      const card = (from && $(from.id)) || document.querySelector("#orders article.card");
+      target = card && card.querySelector("details.more");
+      if (target) userOpen.set(target.dataset.key, true);
+    }
+    if (!target) return;
+    target.open = true;
+    const sum = target.querySelector("summary");
+    sum.scrollIntoView({ block: "center", behavior: still() ? "auto" : "smooth" });
+    sum.focus({ preventScroll: true });
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-show]"); if (b) showInDetailed(b.dataset.show, b); });
   document.addEventListener("click", (e) => {
     const t = e.target.closest && e.target.closest("[data-guide]");
     if (t) openGuide(t.dataset.guide, t);
