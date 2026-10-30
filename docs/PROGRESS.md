@@ -73,6 +73,18 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Batu · dashboard v2 and "Try to break it" (§6.4, Phase A)
+- Changed: branch `batu/plus-ui` (from `supplierpulse-plus`, with `batu/demo-screen` merged; v1 is now `demo/v1.html`).
+  - `demo/index.html`, dashboard v2: one card per order with the protected balance, milestone timeline (paid, permit valid until, awaiting approval, not due, held, refunded), permit countdown and `effectivePermitTtl`, trust tier and streak, last check with failed rules in words, held banner with refund countdown, "Claim now" (MetaMask) and the `plus-refund.sh` command, audit trail with the decoded signed data. Agent activity panel above the cards. Auto-refresh 12 s, light/dark, phone width.
+  - `demo/judge.html`: the five attacks plus "Submit as is", built in the browser with the §4.7 semantics; verdict from an `eth_call` of `submitEvidence` from `0x…dEaD`; checklist in the contract's order of checks; scoreboard; judge kit; "Send for real" (MetaMask, or the anvil agent key locally).
+  - Sample mode (`?sample=1`, `demo/sample/sample.js`) shows every state and all three tiers; ethers is bundled in `demo/vendor/` so it also works offline. Usage in `demo/README.md`.
+  - Tested on a local chain with Orhun's `plus-local.sh` and Emre's `sign-local.mjs`: judge page valid → accepted, (a) `WrongSigner`, (b) `StaleResponse`, (c) `WrongRequest`, (d) `WrongSigner`, Replay after a real send → `Replayed`. The four §4.2 test vectors match in the browser. Dashboard showed paid, held, refunded and the agent's transactions.
+- Next: C2, both pages against `plus-local.sh` and the agent; compare judge verdicts with Emre's `plus-submit.sh`. Load Emre's real fixtures. C3: point both pages at Sepolia v2; send ≥ 2 aUSD to the agent wallet. C2.5: review the agent's `policy.py`.
+- Notes:
+  - **Orhun:** `plus-create-order.sh` stores `orderRef = keccak256(name)`, which cannot be decoded. The dashboard matches the demo names by hash (and `LOCAL-<id>`), so A to E show their names. If you create other orders, either tell me the names (URL `names=`) or use `cast format-bytes32-string`, which the page decodes directly.
+  - **Orhun, Julien (C2):** on anvil, `eth_call` uses the latest block's timestamp, and anvil only mines on transactions. After a minute idle, a fresh record simulates as `FutureResponse` (seen here: block time 513 s behind the clock). The agent simulates every write, so it would hit this locally. Fix: start anvil with `--block-time 1` in `plus-local.sh`, or `cast rpc evm_mine` before simulating. Sepolia is not affected. The judge page mines one block before each local simulation.
+  - After a record was sent for real, (a) and (d) on the same record stop earlier (`NotNewer`, `Replayed`). For the video: run all simulations first, then send, then Replay.
+
 ### 2026-10-30 · Julien · SupplierPulse+ build spec
 - Changed: `docs/SUPPLIERPULSE_PLUS.md` is the complete build spec for SupplierPulse+ (API3 track only, decided ~16:00). It contains:
   - frozen interfaces: contract ABI, request templates with test vectors, signed fields and rules, CLI tools, a local test chain;

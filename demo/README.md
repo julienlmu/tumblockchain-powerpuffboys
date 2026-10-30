@@ -1,8 +1,12 @@
-# SupplierPulse demo screen
+# SupplierPulse+ screens
 
-One static page (`index.html`) that shows each order the way the buyer sees it: the **protected remaining balance**, which stages are paid or held, whether a payment permit is valid and until when, the last signed register status, and the next step. Below each order is its on-chain history with links to the explorer.
+Two static pages for `api3/src/SupplierPulsePlus.sol` (spec: `docs/SUPPLIERPULSE_PLUS.md` §6.4). No build step: HTML plus ethers 6.13.5.
 
-It is read-only: it calls the view functions `orderStatus` and `orderInfo` of `api3/src/SupplierPulse.sol` and reads the contract's events. No wallet, no keys.
+| Page | For | What it does |
+|---|---|---|
+| `index.html` | buyers, the demo video | One card per order: protected remaining balance, milestones (paid, permit valid until, awaiting approval, not due, held, refunded), permit countdown, trust tier, last check with failed rules in plain words, refund countdown and "Claim now" when held, and the audit trail with the decoded signed data. Above the cards: the agent's autonomous transactions. |
+| `judge.html` | judges | "Try to break it": pick an order, paste or load a signed response, press **Submit as is**, **(a) Edit value**, **(b) Too old**, **(c) Different request**, **(d) Wrong key** or **Replay**. The tampered response is built in the browser (same rules as `api3/x402/tamper.mjs`, §4.7). The verdict is the contract's own: an `eth_call` of `submitEvidence` from `0x…dEaD`, no wallet, no gas. A checklist shows each check in the contract's order and where it stops; a scoreboard keeps every attempt. |
+| `v1.html` | fallback | The v1 order screen for `SupplierPulse.sol` (`0x91d7…74d7` on Sepolia). |
 
 ## Run
 
@@ -10,37 +14,51 @@ It is read-only: it calls the view functions `orderStatus` and `orderInfo` of `a
 python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 ```
 
-Then open one of:
-
 | What | URL |
 |---|---|
-| Live, Ethereum Sepolia | `http://localhost:8765/?contract=<SupplierPulse address>&orders=0,1` |
-| Sample data (no chain) | `http://localhost:8765/?sample=1` |
+| Sample data, no chain | `http://localhost:8765/?sample=1` |
+| Live, Ethereum Sepolia | `http://localhost:8765/?contract=<v2 address>&from=<deploy block>` |
+| Local test chain (after `api3/scripts/plus-local.sh`) | `http://localhost:8765/?contract=<PULSE_PLUS_ADDRESS>&rpc=http://127.0.0.1:8545&from=0` |
+| Judge page | `http://localhost:8765/judge.html?contract=<address>` (same `rpc` parameter) |
 
-The settings panel on the page sets the same values.
+Opening the files straight from disk also works (`file://`); sample data is a `.js` file for that reason.
+
+### Dashboard parameters (also in the Settings panel)
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `contract` | none | SupplierPulse address |
+| `contract` | none | SupplierPulsePlus address |
 | `rpc` | `https://ethereum-sepolia-rpc.publicnode.com` | any JSON-RPC URL that allows browser requests |
-| `orders` | `0,1` | order IDs to show, in this order |
-| `companies` | `09729896,07418033,12493325` | Companies House numbers. The page computes each one's request hash and shows the number instead of the hash. |
-| `from` | latest block − 9000 | first block searched for events. publicnode refuses ranges of 20000 blocks, so set the deploy block if the contract is older than ~30 h. |
+| `orders` | all | order ids, comma-separated |
+| `agent` | Sepolia: `0xED34…253a` (Julien), local: anvil #3 | address whose transactions count as the agent's |
+| `from` | latest block − 9000 | first block searched for events. Set the deploy block. Longer ranges are read in 9000-block steps (publicnode refuses 20000) |
+| `unit` | `1000000000000` | wei per token (§2.5) |
+| `names` | the demo order names | extra order names, comma-separated. Orders store `orderRef = keccak256(name)` (`plus-create-order.sh`), which cannot be decoded, so the page matches known names by hash. `LOCAL-<id>` from `plus-local.sh` is matched too |
+| `sample` | off | `1` shows the sample data |
 
-The page reads the chain every 12 s. The permit countdown updates every second.
+The dashboard reads the chain every 12 s; countdowns move every second. Light and dark follow the system; the ◐ button overrides it.
 
 ## Sample mode
 
-`?sample=1` shows two orders without a chain, with a purple banner saying so. The register statuses are the real signed Companies House records in `docs/samples/companies-house/` (`09729896` active, `07418033` liquidation). Amounts, wallets and times are made up. Use it only as a fallback, and say so in the video.
+`?sample=1` renders six orders from `sample/sample.js`: snapshots in the shape of the view functions, plus their events. Every state appears: paid, permit valid, awaiting approval, not due, permit expired, held (refund pending and open to anyone), refunded, fully paid, and the tiers Standard, Trusted and Premium. Amounts, wallets, ids and times are illustrative, and a purple banner says so.
 
-## Checked (30 Oct 2026, ~14:30)
+If the CDN is unreachable, both pages load the bundled copy in `vendor/ethers.umd.min.js` (ethers 6.13.5, MIT, `vendor/ethers-LICENSE.md`), so sample mode works offline.
 
-- Live mode on a local anvil chain against `SupplierPulse.sol` from branch `supplier-pulse`. The contract trusted the real Companies House Airnode `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF` and received the real signed responses from `docs/samples/companies-house/`:
-  - order 0 (`09729896`, `active`): stage 1 paid, then the screen showed the permit as used up
-  - order 1 (`07418033`, `liquidation`): order held, 0.003 protected
-  - order 2 (`12493325`): no evidence yet
-- Sample mode, desktop and phone width, light and dark theme. No console errors.
-- publicnode Sepolia RPC allows browser requests (`access-control-allow-origin: *`). `eth_getLogs` works for 10000 blocks and is refused for 20000.
-- **Not checked yet:** a SupplierPulse contract on Sepolia, because it is not deployed yet.
+## Judge page notes
 
-Note from the local test: a permit's lifetime starts at the timestamp of the evidence, not at submission (`SupplierPulse.sol`, `submitEvidence`). If the evidence is already older than `permitTtl`, `checkAndRelease` reverts with `PermitExpired` instead of paying. With `maxAge` well below `permitTtl` this cannot happen.
+- **Samples** (`sample/responses.js`) are records signed with the public local test keys at a fixed time, so they are stale on purpose. Real fixtures come from `api3/fixtures/` (Emre) via "Upload file".
+- **Fresh local record** (local chain only) signs a record in the browser with the anvil key of the order's registry, using the fields of `api3/x402/local-registry.json`.
+- **Order of attempts for the video:** run all six as simulations first (nothing changes on chain), then **Send for real** with the valid record, then **Replay**. After a real send, (a) and (d) stop at an earlier check (`NotNewer`, `Replayed`), because they reuse the same timestamp or digest; the checklist shows this.
+- **Send for real** uses MetaMask, or on the local chain the public anvil #3 agent key.
+- On the local chain the page mines one empty block before each simulation. `eth_call` runs against the latest block, and anvil only mines on transactions, so its clock can lag minutes behind and a fresh record would look like `FutureResponse`.
+
+## Checked (30 Oct 2026, ~17:15)
+
+Local anvil chain, `SupplierPulsePlus` from `orhun/plus-contract` (`plus-local.sh`), records from Emre's `sign-local.mjs`:
+
+- Judge page on order 0: valid record accepted (permit), (a) `WrongSigner`, (b) `StaleResponse`, (c) `WrongRequest`, (d) `WrongSigner`; Replay of an unsent record marked "not a replay"; after **Send for real**, Replay gives `Replayed`.
+- The four §4.2 test vectors (`requestHashFor`, `supplierKeyOf`) match in the browser.
+- Dashboard live: order 0 paid M1, order 1 held then refunded by the buyer, order 2 checked and paid in one transaction, order 3 held (LEI lapsed) with the refund countdown; agent panel and audit trails with decoded signed data. Desktop and phone width (375 px, no horizontal scroll). No console errors.
+- Sample mode, dark and light.
+
+**Not checked yet:** Sepolia v2 (not deployed), real signed v2 responses (Emre's fixtures), MetaMask flows.
