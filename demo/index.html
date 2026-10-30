@@ -32,6 +32,7 @@
   .state-btn[aria-pressed="true"]:hover { background: var(--accent-bg); }
   .state-btn[aria-pressed="true"] .count { color: var(--accent); }
   .state-btn .count { font-size: var(--t0); font-weight: 700; line-height: 1; }
+  .state-btn kbd { color: var(--muted); font-weight: 400; } /* its key: 1–6 in button order */
   /* a state no order is in: muted, still a working filter */
   .state-btn.zero .badge { color: var(--muted); background: var(--done-bg); }
   .state-btn.zero .count { color: var(--muted); font-weight: 600; }
@@ -45,9 +46,10 @@
   .toolbar .keys kbd { font-size: 10.5px; }
   /* One cue per behaviour. A term that opens its guide entry: dotted underline plus a small help mark.
      A value with a tooltip (full address, digest): dashed bottom border. A link that leaves the page: the external mark. */
-  .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 4px 0; min-height: 0; display: inline; cursor: help;
+  .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 0; min-height: 0; display: inline; cursor: help; position: relative;
     text-decoration: underline dotted; text-underline-offset: 3px; }
   .term { overflow-wrap: normal; }
+  .term::before { content: ""; position: absolute; inset: -4px 0; } /* a 24 px hit area without a taller line */
   .term .tl { white-space: nowrap; } /* the last word keeps its help mark on its line */
   .term .tl::after { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-left: 3px; vertical-align: -0.05em; background: var(--muted);
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -60,7 +62,7 @@
   @media (max-width: 640px) {
     summary, .link-order, .order-chip { position: relative; }
     summary::after, .link-order::after, .order-chip::after { content: ""; position: absolute; inset: -4px 0; }
-    .term { padding: 8px 0; }
+    .term::before { inset: -8px 0; }
   }
   /* the one tooltip: full addresses, digests, link targets; on hover and on keyboard focus, Esc hides it */
   #tip { position: fixed; z-index: 10; max-width: min(46ch, calc(100vw - 16px)); padding: 6px 8px; border-radius: var(--r-sm); background: var(--text); color: var(--bg);
@@ -81,10 +83,11 @@
   .guide [tabindex="-1"]:focus { outline: none; }
   .guide [tabindex="-1"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .jump { display: none; }
+  .jump-sel { display: flex; gap: var(--s2); align-items: center; width: 100%; font-size: var(--t-1); color: var(--muted); }
+  .jump-sel select { flex: 1; min-width: 0; min-height: 36px; }
   @media (max-width: 640px) {
     .toolbar .keys { display: none; } /* no keyboard on a phone */
-    .jump:not(:empty) { display: flex; flex-wrap: wrap; gap: 4px; margin-top: var(--s2); }
-    .jump-chip { min-height: 32px; min-width: 36px; padding: 4px 2px; border-radius: 999px; font-weight: 600; }
+    .jump:not(:empty) { display: flex; margin-top: var(--s2); }
   }
   .grid.stale { opacity: 0.75; }
   .meta .warn, .meta .warn b { color: var(--wait); }
@@ -99,9 +102,9 @@
      details, filters and the explanations are one switch away (Detailed). Nothing is removed from the page. */
   body.view-simple #details-box, body.view-simple #cfg-box, body.view-simple .filters, body.view-simple #toolbar, body.view-simple #jump,
   body.view-simple .card .sub, body.view-simple .card .ms, body.view-simple .card details.more, body.view-simple .card details.ways,
-  body.view-simple .held-box > p, body.view-simple .closed-box .orders, body.view-simple footer,
-  body.view-simple .agent > ol > li:nth-child(n+2), body.view-simple .agent details { display: none; }
-  /* the sentence that says who may refund, and from when, stays: a disabled refund button never shows without its reason */
+  body.view-simple .held-box > p:not(.keep), body.view-simple .closed-box .orders, body.view-simple footer { display: none; }
+  /* kept in Simple: the sentence that says who may refund, and from when (a disabled refund button never shows without
+     its reason), and which order caused a supplier-wide stop, and when */
   body.view-simple .held-box > p[id^="who-"] { display: block; }
   .agent:empty { display: none; } /* nothing read yet: no empty frame above the loading cards */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
@@ -234,6 +237,7 @@
     .states { gap: 6px; }
     .state-btn { min-height: 32px; padding: 2px 10px 2px 2px; gap: 6px; }
     .state-btn .badge { padding: 2px 8px; }
+    .state-btn kbd { display: none; } /* no keyboard on a phone */
     .banner { font-size: var(--t-1); padding: var(--s2) var(--s3); margin-top: var(--s3); }
     .agent { padding: var(--s2) var(--s3); }
     .hero .big { font-size: var(--t3); }
@@ -696,15 +700,18 @@
       .find((e) => e.name === "EvidenceAccepted" && Number(e.args.timestamp) === o.rec.lastBaseFailureAt);
     const word = failRec && P.BASE[o.info.source] ? fieldOf(rawOf(failRec.args), P.BASE[o.info.source].field) : null;
     const statusWord = word ? ` (${esc(word)})` : ""; // the signed status of the failing record ("liquidation")
-    const alsoStops = ctx.stops.length ? `<p class="orders">Also stops ${ctx.stops.map(orderLink).join(" ")}</p>` : "";
-    const stopLine = `<p>${byOther ? "The same supplier's" : "The supplier's"} register status failed${statusWord} on ${when}: no permit from before that can pay, on any of its orders.</p>`;
+    // Simple keeps the paragraphs marked "keep": which order caused the stop and when, and who may refund
+    const alsoStops = ctx.stops.length ? `<p class="orders keep">Also stops ${ctx.stops.map(orderLink).join(" ")}</p>` : "";
+    const stoppedBy = byOther ? `<p class="orders keep">Stopped by ${orderLink(cause)}, whose register status failed${statusWord} on ${when}.</p>` : "";
+    const stopLine = byOther ? `<p>No permit from before then can pay, on any of this supplier's orders.</p>`
+      : `<p class="keep">The supplier's register status failed${statusWord} on ${when}: no permit from before then can pay, on any of its orders.</p>`;
 
     let box = "";
     if (held) {
       const ownStop = byOther && o.lastFailedRules === P.BASE_FAILED;
       box = `<div class="held-box">
         <div class="title">${I("lock")}<span>Payment held: ${esc(ownStop ? "supplier-wide stop" : failedOf(o).join(", ") || "failed register check")}</span></div>
-        ${ownStop ? `<p class="orders">Stopped by ${orderLink(cause)}</p>` : alsoStops}
+        ${ownStop ? stoppedBy : alsoStops}
         <p id="${whoId}">The ${tok(o.remaining)} tokens can only go back to the buyer: ${nowSec() >= o.autoRefundAt ? "the buyer or anyone can refund <b>now</b>" : `the buyer can refund now, anyone ${opens(o.autoRefundAt)}`}${offNote}.</p>
         ${claimRow(true)}
       </div>`;
@@ -712,8 +719,8 @@
       const nd = o.autoRefundAt > 0;
       box = `<div class="held-box stop">
         <div class="title">${I("stop")}<span>Supplier-wide stop</span></div>
-        ${byOther ? `<p class="orders">Stopped by ${orderLink(cause)}</p>` : ""}${alsoStops}${stopLine}
-        <p class="note"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent can hold it without paying for a new check.</p>
+        ${stoppedBy}${alsoStops}${stopLine}
+        <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent can hold it without paying for a new check.</p>
         ${nd ? `<p id="${whoId}">No verified data since milestone ${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
     } else if (!closed && o.autoRefundAt > 0) {
@@ -849,9 +856,9 @@
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
         <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${o ? agentWords(g, o, causeOf(o, orders)) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
-    // the latest three; on phones the latest one in Simple, none in Detailed (its first order then shows first);
-    // the rest, and the agent's wallet, one click away
-    const SHOWN = !narrow.matches ? 3 : view === "simple" ? 1 : 0;
+    // Simple: the latest one; Detailed: the latest three, none on phones (the first order then shows first);
+    // the rest, and the agent's wallet, one click away in both views
+    const SHOWN = view === "simple" ? 1 : narrow.matches ? 0 : 3;
     const more = rows.length > SHOWN
       ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rows.length - SHOWN} earlier transactions` : `${rows.length} transactions`}, all sent by the agent on its own</summary>
           <p class="small-muted wallet">Agent wallet ${addr(agentAddr)}</p><ol>${rows.slice(SHOWN, 60).map(li).join("")}</ol></details>`
@@ -910,7 +917,7 @@
     const count = {};
     for (const o of orders) { const k = stateOf(o); count[k] = (count[k] || 0) + 1; }
     const btn = (k, i) => `<button type="button" class="state-btn${count[k] ? "" : " zero"}" data-filter="${k}" aria-pressed="${filter === k}" aria-keyshortcuts="${i + 1}">
-      <span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span></button>`;
+      <span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     setHTML($("states"), STATE_KEYS.map(btn).join(""));
   }
 
@@ -937,7 +944,8 @@
       ? `Showing only <b>${STATES[filter].label}</b>: ${shown.length} of ${orders.length} orders${STATES[filter].def ? ` (${STATES[filter].def.replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase())})` : ""} · <button type="button" class="link-order" data-filter="">Show all</button>`
       : orders.length ? `Showing all ${orders.length} orders` : "");
     const agentLast = rows[0] && rows[0].time;
-    setHTML($("jump"), shown.length > 1 ? shown.map((o) => `<button type="button" class="jump-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">#${o.id}</button>`).join("") : "");
+    // phones: one "Go to order" list with each order's name and state, instead of bare numbers
+    setHTML($("jump"), shown.length > 1 ? `<label class="jump-sel"><span>Go to order</span><select id="jump-select"><option value="">Choose an order…</option>${shown.map((o) => `<option value="${o.id}">${orderName(o)} · ${STATES[stateOf(o)].label}</option>`).join("")}</select></label>` : "");
     $("expand-all").hidden = !shown.length;
     renderGrid(!orders.length
       ? `<div class="empty-state">${I("file")}<b>No orders on this contract yet</b><span>A buyer creates one with <span class="mono">api3/scripts/plus-create-order.sh</span>${P.copyBtn("api3/scripts/plus-create-order.sh")}; it appears here within 12 s.</span></div>`
@@ -1202,6 +1210,14 @@
     const g = e.target.closest && e.target.closest("[data-goto]");
     if (g) { const c = g.closest("article.card"); jump(Number(g.dataset.goto), c ? Number(c.id.slice(6)) : null); }
     if (e.target.closest && e.target.closest("[data-back]")) jumpBack();
+  });
+  // phones: "Go to order" jumps to the chosen card, then the list shows its prompt again
+  $("jump").addEventListener("change", (e) => {
+    const sel = e.target.closest("select");
+    if (!sel || sel.value === "") return;
+    const id = Number(sel.value);
+    sel.value = "";
+    jump(id, null);
   });
   // the focused order goes into the fragment, so a reload or a shared link comes back to it
   $("orders").addEventListener("focusin", (e) => {
