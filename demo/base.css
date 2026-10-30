@@ -102,6 +102,19 @@ button:disabled, button:disabled:hover { opacity: 0.5; cursor: not-allowed; tran
 button.primary:disabled, button.danger:disabled { background: var(--done-bg); border-color: transparent; color: var(--muted); }
 button[aria-busy="true"] { cursor: progress; }
 
+button.copy { min-height: 26px; padding: 2px 8px; font-size: 12px; font-weight: 500; gap: 4px; margin-left: 6px; vertical-align: middle; }
+button.copy .i { width: 1em; height: 1em; }
+kbd { font: 500 11px/1 var(--mono); padding: 2px 5px; border-radius: 4px; border: 1px solid var(--line-strong); border-bottom-width: 2px; background: var(--raised); color: var(--text); }
+
+/* in-page guide: same box as the settings form */
+.guide-body { margin-top: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); font-size: var(--t-1); display: flex; flex-direction: column; gap: var(--s3); max-width: 110ch; }
+.guide-body ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--s1); }
+.guide-body p { margin: 0; }
+.guide-body table { width: 100%; border-collapse: collapse; }
+.guide-body th { text-align: left; color: var(--muted); font-weight: 400; padding: 4px var(--s3) 4px 0; border-bottom: 1px solid var(--line-strong); }
+.guide-body td { padding: 4px var(--s3) 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.small { font-size: var(--t-1); }
+
 /* settings */
 details.cfg-box { margin-top: var(--s3); }
 /* the meta line and the settings toggle share one row; open settings take the full width below */

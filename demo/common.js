@@ -348,6 +348,9 @@
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>',
     send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
     file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   };
   const icon = (name, cls = "") => `<svg class="i${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name] || ""}</svg>`;
   /** Puts the icon named in data-icon in front of each static element's label. */
@@ -358,7 +361,35 @@
     }
   }
 
+  // ---------------------------------------------------------------- copy to the clipboard (presentation only)
+
+  /** A small Copy button for a command, address or JSON. Wired once by the click listener below. */
+  const copyBtn = (text, label = "Copy") => `<button type="button" class="copy" data-copy="${esc(text)}" aria-label="${esc(label)}: ${esc(text.length > 40 ? text.slice(0, 40) + "…" : text)}">${icon("copy")}<span>${esc(label)}</span></button>`;
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch { /* file:// or no permission: fall back */ }
+    const ta = Object.assign(document.createElement("textarea"), { value: t });
+    ta.style.cssText = "position:fixed;opacity:0";
+    document.body.append(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch { /* not supported */ }
+    ta.remove();
+    return ok;
+  }
+  /** Shows a short confirmation in the button's label, then restores it. */
+  function flashLabel(btn, text) {
+    const l = btn.querySelector("span") || btn;
+    if (!btn.dataset.label) btn.dataset.label = l.textContent;
+    l.textContent = text;
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { l.textContent = btn.dataset.label; }, 1600);
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest && e.target.closest("[data-copy]");
+    if (b) flashLabel(b, (await copyText(b.dataset.copy)) ? "Copied" : "Select and copy");
+  });
+
   window.PULSE = {
+    copyBtn, copyText, flashLabel,
     icon, hydrateIcons,
     ABI, ABI_V1, V2_DEPLOYER, V11_VECTOR, V1_SEPOLIA, discoverV2, requestHashV1, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,

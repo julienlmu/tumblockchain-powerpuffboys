@@ -29,6 +29,7 @@
   .panel .group { display: flex; flex-direction: column; gap: var(--s2); }
   .panel .group + .group { border-top: 1px solid var(--line); padding-top: var(--s3); }
   .panel-head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between; }
+  .keys { margin: 0; font-size: 12px; color: var(--muted); }
   .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
   select, textarea { width: 100%; }
   textarea[aria-invalid="true"] { border-color: var(--hold); }
@@ -159,6 +160,26 @@
   </header>
   <div class="meta-row">
     <div class="meta" id="meta"></div>
+    <details class="cfg-box guide" id="guide">
+      <summary>How this page works</summary>
+      <div class="guide-body">
+        <ol>
+          <li><b>Pick an order.</b> The contract builds the request it expects from the order's supplier and trusts one signer per registry.</li>
+          <li><b>Load a signed record</b> of that supplier: a sample (old on purpose), your own file from <code>fetch-evidence.sh</code>, or <b>Fresh local record</b> on the local chain. It must be at most <span class="max-age">300</span> s old, or every attack stops at the freshness check.</li>
+          <li><b>Run the full tamper test.</b> Each attempt is an <span class="mono">eth_call</span> simulation, so nothing changes on chain. It passes when the valid record is accepted and every attack is rejected.</li>
+          <li><b>Replay last.</b> Send the valid record for real, then replay it: the contract answers <span class="mono">Replayed</span>.</li>
+        </ol>
+        <table class="kv"><thead><tr><th>Attempt</th><th>What changes</th><th>Expected answer</th></tr></thead><tbody>
+          <tr><td>Submit as is</td><td>nothing</td><td>accepted</td></tr>
+          <tr><td>(a) Edit value</td><td>one value inside the signed data</td><td class="mono">WrongSigner</td></tr>
+          <tr><td>(b) Too old, Real old record</td><td>the signed time, or a genuine earlier record</td><td class="mono">StaleResponse</td></tr>
+          <tr><td>(c) Different request, Real, other company</td><td>the request, or a genuine record of another company</td><td class="mono">WrongRequest</td></tr>
+          <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono">WrongSigner</td></tr>
+          <tr><td>Replay</td><td>the same record a second time</td><td class="mono">Replayed</td></tr></tbody></table>
+        <p>Amber tile: rejected, but by an earlier check than the one the attack targets. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
+        <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> <kbd>1</kbd>–<kbd>8</kbd> <kbd>Esc</kbd> <kbd>?</kbd></p>
+      </div>
+    </details>
     <details class="cfg-box" id="cfg-box">
       <summary>Settings: contract, network</summary>
       <form class="cfg" id="cfg">
@@ -205,6 +226,7 @@
           <button type="button" class="atk real" data-mode="realOther"><span class="l" data-icon="file">(c) Real, other company</span><span class="d">genuine, other firm</span></button>
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
+        <p class="keys" id="keys">Keys: <kbd>R</kbd> run the full test · <kbd>1</kbd>–<kbd>8</kbd> one attempt, in button order · <kbd>Esc</kbd> stop · <kbd>?</kbd> how this page works</p>
         <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons send real inputs: untouched records genuinely signed by the Airnode, nothing edited.</p>
       </div>
     </section>
@@ -218,14 +240,14 @@
 
   <div class="stack">
     <section class="panel">
-      <div class="panel-head"><h2>Scoreboard</h2><button type="button" class="link" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></div>
-      <p class="hint">Every attempt in this browser tab. The tamper test passes when the valid record is accepted and every attack is rejected.</p>
+      <div class="panel-head"><h2>Scoreboard</h2><span class="row"><button type="button" class="link" id="copy-score" data-icon="copy" disabled>Copy as Markdown</button><button type="button" class="link" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></span></div>
+      <p class="hint">Every attempt in this browser tab. The tamper test passes when the valid record is accepted and every attack is rejected. Press an attempt's name to see its checks again.</p>
       <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
     </section>
 
     <section class="panel kit">
-      <h2>Judge kit</h2>
+      <div class="panel-head"><h2>Judge kit</h2><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener" class="small">Full guide (README)</a></div>
       <ul id="kit"></ul>
     </section>
   </div>
@@ -515,9 +537,7 @@
 
     const rawShown = r.raw != null ? r.raw : (() => { try { return ethers.toUtf8String(r.data); } catch { return null; } })();
     const ic = (ok) => `<span class="ic ${ok ? "y" : "n"}">${P.icon(ok ? "check" : "x")}<span class="sr-only">${ok ? "passes" : "fails"}</span></span>`;
-    $("result").removeAttribute("aria-busy");
-    $("result").innerHTML = `
-      ${suite.length && !suiteRunning ? `<button type="button" class="link" data-summary>${P.icon("arrow-left")} Tamper test summary</button>` : ""}
+    const html = `
       <h2>The contract's verdict</h2>
       <div class="what">${esc(t.what)}</div>
       ${box}
@@ -529,21 +549,39 @@
       </ol>
       <details><summary>The submitted record</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>
       <div class="row"><button type="button" id="send">${P.icon("send")}${verdict.accepted ? "Send for real" : "Send anyway as a real transaction (it reverts on chain)"} ${chainId === 31337 ? "(local agent key)" : "(MetaMask)"}</button><span class="msg" id="send-msg" role="status"></span></div>
-      ${verdict.accepted ? "" : `<p class="hint">A rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
-    $("send").addEventListener("click", sendForReal);
+      ${verdict.accepted ? (mode === "asis" ? `<p class="hint">${P.icon("info")} Attack this record before you send it: once it is on chain, (a) and (d) stop earlier, at NotNewer or Replayed.</p>` : "")
+        : `<p class="hint">A rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
+    // every attempt is kept, so a tile or a scoreboard row reopens its checklist without asking the contract again
+    attempts.push({ html, candidate: lastCandidate });
+    const attempt = attempts.length - 1;
+    $("result").removeAttribute("aria-busy");
+    showAttempt(attempt);
 
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
     const notApplicable = (mode === "asis" && !verdict.accepted) || (mode === "replay" && used === false);
     const row = document.createElement("tr");
     const res = notApplicable ? ["na", "minus", "n/a"] : match ? ["pass", "check", "Pass"] : ["fail", "x", "Fail"];
-    row.innerHTML = `<td>${new Date().toLocaleTimeString("en-GB")}</td><td>#${id}</td><td>${MODE_NAME[mode]}</td>
+    const time = new Date().toLocaleTimeString("en-GB");
+    const gotText = verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : gotName;
+    scoreRows.push({ time, order: id, name: MODE_NAME[mode], got: gotText, expected, res: res[2] });
+    row.innerHTML = `<td>${time}</td><td>#${id}</td><td><button type="button" class="link" data-attempt="${attempt}" title="Show this attempt's checks">${MODE_NAME[mode]}</button></td>
       <td class="v">${verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : wbr(gotName)}</td><td class="v">${wbr(expected)}</td>
       <td><span class="res ${res[0]}">${P.icon(res[1])}${res[2]}</span></td>`;
     const empty = $("score").querySelector(".empty");
     if (empty) empty.remove();
     $("score").prepend(row);
     $("clear-score").disabled = false;
-    return { mode, accepted: verdict.accepted, got: row.children[3].textContent, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
+    $("copy-score").disabled = false;
+    return { mode, attempt, accepted: verdict.accepted, got: row.children[3].textContent, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
+  }
+
+  const attempts = [];
+  let scoreRows = [];
+  function showAttempt(i) {
+    const a = attempts[i];
+    if (!a) return;
+    lastCandidate = a.candidate;
+    $("result").innerHTML = (suite.length && !suiteRunning ? `<button type="button" class="link" data-summary>${P.icon("arrow-left")} Tamper test summary</button>` : "") + a.html;
   }
 
   async function sendForReal() {
@@ -659,7 +697,7 @@
       ? { pass: "Accepted", fail: "Not accepted", na: "Not tested" }[cls]
       : { pass: "Rejected: own error", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
     const note = cls === "near" ? `at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
-    return `<button type="button" class="tile ${cls}" data-show="${s.mode}" title="Show this attempt's checks">
+    return `<button type="button" class="tile ${cls}" data-attempt="${s.attempt}" title="Show this attempt's checks">
       <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span><span class="v">${esc(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
   }
 
@@ -732,19 +770,22 @@
     const net = chainId ? (P.NETWORKS[chainId] || `chain ${chainId}`) : "not connected";
     const v1 = version === 1;
     const v1Body = `{"operation":"getCompanyProfile","parameters":{"company_number":"${id}"},"responseProjection":{"status":"/company_status"}}`;
+    const code = (t) => `<code>${esc(t)}</code>${P.copyBtn(t)}`;
+    const fetchCmd = v1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
+    const body = v1 ? v1Body : s.body(id);
+    const reqText = v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id);
     $("kit").innerHTML = `
-      <li>Contract: ${cfg.contract ? `${addr(cfg.contract)} (${v1 ? "SupplierPulse v1" : "SupplierPulse+ v1.1"}) on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>` : ""}.</li>
-      <li>Get your own fresh signed response ($0.01 over x402, needs aUSD on Base Sepolia): ${v1
-        ? `<code>api3/scripts/supplier-fetch.sh ${esc(id)}</code>`
-        : `<code>api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json</code>`}, then paste or upload the file.</li>
+      <li>Contract: ${cfg.contract ? `${addr(cfg.contract)}${P.copyBtn(cfg.contract)} (${v1 ? "SupplierPulse v1" : "SupplierPulse+ v1.1"}) on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>${P.copyBtn(order.info.requestHash)}` : ""}.</li>
+      <li>Get your own fresh signed response ($0.01 over x402, needs aUSD on Base Sepolia): ${code(fetchCmd)} then paste or upload the file.</li>
       <li><details><summary>Build the request yourself (AirnodeHub body and request hash)</summary>
-        <p class="hint">Call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:</p><code>${esc(v1 ? v1Body : s.body(id))}</code>
-        <p class="hint">The request hash is <code>keccak256(utf8(${esc(v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id))}))</code>. The contract builds it on chain from the order's ${v1 ? "company number" : "source and id"}.</p></details></li>
+        <p class="hint">Call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:</p>${code(body)}
+        <p class="hint">The request hash is <code>keccak256(utf8(…))</code> of this string; the contract builds it on chain from the order's ${v1 ? "company number" : "source and id"}:</p>${code(reqText)}</details></li>
       <li>The same attacks from a terminal: ${v1
-        ? `<code>api3/scripts/pulse-submit.sh</code> (v1)`
-        : `<code>api3/scripts/plus-submit.sh ${order.id ?? 0} response.json [value|stale|request|key|replay] [--send]</code>`}.</li>
+        ? `${code("api3/scripts/pulse-submit.sh")} (v1)`
+        : code(`api3/scripts/plus-submit.sh ${order.id ?? 0} response.json [value|stale|request|key|replay] [--send]`)}</li>
       <li>What a pass proves: the register said it, unaltered and recently. It does not prove the supplier will deliver; that stays the buyer's approval.</li>`;
   }
+
 
   // ---------------------------------------------------------------- wiring
 
@@ -776,7 +817,20 @@
     e.target.value = "";
   });
   const EMPTY_SCORE = $("score").innerHTML;
-  $("clear-score").addEventListener("click", () => { $("score").innerHTML = EMPTY_SCORE; $("clear-score").disabled = true; $("suite").focus(); });
+  $("clear-score").addEventListener("click", () => { $("score").innerHTML = EMPTY_SCORE; scoreRows = []; $("clear-score").disabled = $("copy-score").disabled = true; $("suite").focus(); });
+  $("copy-score").addEventListener("click", async () => {
+    const md = ["| Time | Order | Attempt | Contract verdict | Expected | Result |", "|---|---|---|---|---|---|",
+      ...[...scoreRows].reverse().map((r) => `| ${r.time} | #${r.order} | ${r.name} | \`${r.got}\` | \`${r.expected}\` | ${r.res} |`)].join("\n");
+    const ok = await P.copyText(md);
+    P.flashLabel($("copy-score"), ok ? "Copied" : "Copy failed: select the table instead");
+  });
+  $("score").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-attempt]");
+    if (!b) return;
+    showAttempt(Number(b.dataset.attempt));
+    $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    $("result").focus({ preventScroll: true });
+  });
   $("clear-rec").addEventListener("click", () => { $("resp").value = ""; $("resp").removeAttribute("aria-invalid"); respMsg(""); $("resp").focus(); });
   let typing = null;
   $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
@@ -798,9 +852,24 @@
     const t = e.target.closest("button");
     if (!t || t.disabled) return;
     if (t.matches("[data-summary]")) renderSuite();
-    else if (t.dataset.show) run(t.dataset.show).catch(runFailed);
+    else if (t.dataset.attempt) showAttempt(Number(t.dataset.attempt));
+    else if (t.id === "send") sendForReal();
     else if (t.id === "suite-force") runSuite(true).catch(runFailed);
     else if (t.id === "suite-replay") sendThenReplay().catch(runFailed);
+  });
+
+  // Keyboard accelerators; never while typing in a field.
+  document.querySelectorAll(".attacks [data-mode]").forEach((b, i) => { b.setAttribute("aria-keyshortcuts", String(i + 1)); b.title = `${b.title ? b.title + ". " : ""}Key ${i + 1}`; });
+  $("suite").setAttribute("aria-keyshortcuts", "R");
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]")) return;
+    const k = e.key;
+    if ((k === "r" || k === "R") && !suiteRunning) { e.preventDefault(); $("suite").click(); }
+    else if (k === "Escape" && suiteRunning) { e.preventDefault(); $("suite").click(); }
+    else if (/^[1-8]$/.test(k)) {
+      const b = document.querySelectorAll(".attacks [data-mode]")[Number(k) - 1];
+      if (b && !b.disabled) { e.preventDefault(); b.click(); }
+    } else if (k === "?") { e.preventDefault(); const g = $("guide"); g.open = !g.open; if (g.open) g.querySelector("summary").focus(); }
   });
 
   async function init() {
@@ -839,6 +908,7 @@
     else if (found) banner("", "");
     const maxAge = await contract.maxAge();
     maxAgeVal = Number(maxAge);
+    for (const el of document.querySelectorAll(".max-age")) el.textContent = maxAgeVal;
     renderKit();
     renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], ["Contract", `${addr(cfg.contract)}${found && version === 2 ? " (found automatically)" : ""}`],
       ["Version", version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1"], ["Max age", `${maxAge} s`], ["Simulated from", `<span class="mono">${short(P.DEAD)}</span>`]]);
