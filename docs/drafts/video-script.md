@@ -3,6 +3,8 @@
 **Target runtime:** 2:30 maximum
 **Recording plan:** capture real Sepolia interactions and real signed registry evidence. Local-chain steps may be used for development only; never present them as live/testnet proof.
 
+> **Not record-ready (30 October 2026, 17:00 CET):** this storyboard requires a deployed v2 contract, integrated dashboard and judge page, and a real agent run. None is evidenced in this branch yet. Current v1 evidence is in `docs/evidence.md`; its four tamper rejections were simulations, not mined revert transactions. Do not narrate the v2 storyboard as an accomplished live demo until each precondition below is met.
+
 ## Preconditions before recording
 
 - [ ] Confirm the v2 contract address and deployment transaction from `docs/evidence.md`.
@@ -14,17 +16,18 @@
 - [ ] Prepare the overnight agent log, spend summary, and x402 Base Sepolia transaction links.
 - [ ] Record pre-run proof transactions so a slow RPC or live timing issue does not erase the demo.
 - [ ] Have a backup screen recording; keep the final cut at or under 2:30.
+- [ ] Time the narration aloud and confirm the finished export is no longer than 2:30.
 
 ## Timed storyboard and narration
 
 | Time | Picture / action | Narration |
 |---|---|---|
-| 0:00–0:15 | Title over the held-balance dashboard; show the tagline and one sourced Insolvency Service figure. | “Your supplier was approved last month. That should not approve today's payment. In September 2026, England and Wales recorded 1,882 company insolvencies. SupplierPulse+ asks for fresh registry proof before each milestone.” |
-| 0:15–0:35 | Architecture graphic: Companies House and GLEIF → API3 AirnodeHub → agent → Sepolia contract. Highlight buyer approval separately. | “The agent pays a cent for a signed Companies House or GLEIF response through API3 AirnodeHub. The contract checks the signer, the exact supplier request, freshness, and replay protection. Registry evidence is one lock; buyer approval for delivery is the other.” |
-| 0:35–1:05 | Sepolia dashboard. Show clean order A's latest agent check, its permit, then M2 payment. Briefly show order B2 held by the supplier-wide stop, without a new fetch. | “A clean record grants a permit for only the next milestone. The buyer still approves that stage. Here the agent checked the supplier and the approved milestone was paid. A verified status failure on another order stops older permits for this supplier too, without another fetch. If data stays unavailable past an approved due date and the grace period, the buyer gets the remaining balance back.” |
-| 1:05–1:45 | Judge page: first submit a valid fresh response and show the contract's accepted verdict/action. Then run edited value, too old, different request, wrong key; show errors. If time, show replay. | “First, a real fresh response succeeds. Now we change one field without changing its signature: rejected. We make the signed timestamp too old: rejected. We substitute another supplier request: rejected. We sign with a different key: rejected. The contract is not rejecting everything; the valid response worked first.” |
-| 1:45–2:10 | Agent activity/log panel; show several timestamped cycles, tier, daily spend, and one x402 payment link on Base Sepolia. | “The agent runs repeatedly. It checks near due dates, monitors less often as verified history earns a higher tier, stays within a daily budget, simulates writes before sending, and backs off or quarantines on errors. Tiers change monitoring frequency, never permit lifetime. Data payments are on Base Sepolia; supplier orders are on Ethereum Sepolia.” |
-| 2:10–2:30 | Limitation text, unavailable data, repo and contract link. | “A signature proves what the registry returned, not that goods were delivered or that a supplier will remain solvent. We could not find German Handelsregister and insolvency-notice data in the sources checked. SupplierPulse+ makes fresh public evidence a payment condition. Explore the contract and judge tools in the repository.” |
+| 0:00–0:15 | Title over the held-balance dashboard; show the tagline and one sourced Insolvency Service figure. | “Your supplier was approved last month. That should not approve today's payment. In September 2026, England and Wales recorded 1,882 company insolvencies. SupplierPulse+ checks registry evidence before a milestone.” |
+| 0:15–0:35 | Architecture graphic: Companies House and GLEIF → API3 AirnodeHub → agent → Sepolia contract. Highlight buyer approval separately. | “The agent pays for a signed Companies House or GLEIF response through API3. The contract checks the signer, supplier request, freshness, and replay. Buyer approval remains separate: registry data cannot confirm delivery.” |
+| 0:35–1:05 | Sepolia dashboard. Show clean order A's latest agent check, its permit, then M2 payment. Briefly show order B2 held by the supplier-wide stop, without a new fetch. | “A clean record permits only the next milestone. After buyer approval, this milestone was paid. A verified failed status on another order blocks older permits for the same supplier, without another fetch. If data stays unavailable past an approved due date and grace period, funds return to the buyer.” |
+| 1:05–1:45 | Judge page: first submit a valid fresh response and show the contract's accepted verdict/action. Then run edited value, too old, different request, wrong key; show errors. If time, show replay. | “First, a fresh signed response succeeds. Edit its value: rejected. Submit stale data: rejected. Change the supplier request: rejected. Use a wrong signer: rejected. Each failure protects the payment rule, not just the demo page.” |
+| 1:45–2:10 | Agent activity/log panel; show several timestamped cycles, tier, daily spend, and one x402 payment link on Base Sepolia. | “The agent checks near due dates and monitors less often as verified history improves. It limits spend and gas, simulates writes, and handles errors. Tiers change monitoring frequency, never permit lifetime. Data payments run on Base Sepolia; orders settle on Ethereum Sepolia.” |
+| 2:10–2:30 | Limitation text, unavailable data, repo and contract link. | “A signature proves what the registry returned—not delivery or future solvency. We could not find German Handelsregister or insolvency-notice data in the sources checked. Explore the contract and evidence in the repository.” |
 
 ## On-screen source and evidence notes
 

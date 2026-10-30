@@ -48,6 +48,8 @@ The requested example is a UK company whose **status changed to liquidation in 2
 
 The Companies House page for [A K Motor Services (Plymouth) Ltd, company 07418033](https://find-and-update.company-information.service.gov.uk/company/07418033) is a useful check against accidentally using an old example: it currently shows the company in liquidation, and its filing history records a voluntary liquidator appointment on **31 March 2022**. That is outside the requested period and must **not** be presented as a 2025/26 timeline.
 
+I also checked [LIQUIDATION CENTRE LIMITED, company 15312797](https://find-and-update.company-information.service.gov.uk/company/15312797). Companies House reports that it was **dissolved on 14 July 2026**; the profile does not establish that its status changed to liquidation in 2025/26. It is not a qualifying timeline example and should not be used as one.
+
 Before using a dated line in the pitch, verify the company profile's current status and the filing that marks the start of liquidation. State only the verified filing date and frame the product implication as a counterfactual about the next payment after a fresh check. Do not imply the contract would have stopped payments made before the record changed, or that it would have predicted the change.
 
 ## Prior art and claim boundaries

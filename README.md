@@ -8,7 +8,7 @@ SupplierPulse+ is a prototype for milestone-based supplier payments gated by fre
 
 ## Try it
 
-The v2 integration is in progress on the `supplierpulse-plus` branch. Use the existing v1 test flow until the v2 contract and demo tools are merged.
+**Status at 30 October 2026, 17:00 CET:** the live contract and transaction evidence in this branch are for SupplierPulse v1. SupplierPulse+ v2 has a build specification, but its contract, fetch tools, dashboard, and judge page are not yet integrated or deployed here. Do not present v2 behavior as live.
 
 ### Existing v1 test flow
 
@@ -22,29 +22,19 @@ forge test
 
 The existing v1 contract is deployed on Ethereum Sepolia at [`0x91d7dbae109029b2b1245179a68ac362799674d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7). It checks a Companies House status field only. See [`api3/README.md`](api3/README.md) and [the v1 evidence](docs/evidence.md#supplierpulse-live-run-ethereum-sepolia-2026-10-30).
 
-### SupplierPulse+ demo (when integration is merged)
+The v1 live run, including a paid outcome, a held outcome, and four simulated tamper rejections, is recorded in [`docs/evidence.md`](docs/evidence.md). The four tamper checks were `eth_call` simulations, not mined revert transactions.
 
-The planned v2 dashboard and judge page are `demo/index.html` and `demo/judge.html`. The judge CLI is `api3/scripts/plus-submit.sh`. The intended local flow:
+The v2 local flow and judge tools described in [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md) are planned integration work, not runnable commands in this branch. Their contract address, transactions, dashboard, and judge-page links remain pending. Do not use a local signer or fixture as public-network evidence.
 
-```sh
-cd api3
-./scripts/plus-local.sh
-source .local/plus-local.env
-./scripts/fetch-local.sh ch 01234567 response.json
-./scripts/plus-submit.sh 0 response.json
-```
+## SupplierPulse+ v2 design
 
-The local signer and registry fixtures are explicitly test-only. Never use Anvil keys or addresses on a public network. To try the tamper cases, use the value, stale, request, key, and replay modes documented in [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md#47-command-line-tools).
-
-**v2 contract:** deployment address and transaction are pending; this README must be updated from [`docs/evidence.md`](docs/evidence.md) after the Sepolia deployment. Do not treat the v1 address above as the v2 contract.
-
-## How it works
+The following describes the target v2 design; it is not the current deployed feature set.
 
 1. A buyer creates an order with a supplier registry ID, payout wallet, milestones, due dates, rules, and a permit lifetime. The full balance is locked in the contract.
 2. Before a payment, the agent pays $0.01 over x402 on Base Sepolia for a signed projected registry response from API3 AirnodeHub.
 3. The Ethereum Sepolia contract verifies the expected Airnode, request hash, freshness, timestamp order, and that the signed digest has not been used.
 4. A clean record grants a permit for exactly the next milestone. The buyer must also approve that milestone before anyone can release it.
-5. A failed record holds the order. A verified base-status failure also blocks older permits across that supplier's other orders. If data stays unavailable after an approved milestone is overdue beyond the grace period, anyone can return the remaining balance to the buyer.
+5. A failed record holds the order. The buyer can claim a held balance immediately; after the grace period anyone can trigger the refund to the buyer. A verified base-status failure also blocks older permits across that supplier's other orders. If data stays unavailable after an approved milestone is overdue beyond the grace period, anyone can return the remaining balance to the buyer.
 6. Accepted base-status records update the supplier's shared verification history. Higher tiers reduce monitoring frequency; they never extend permits or relax the evidence freshness limit.
 
 ```text
@@ -110,7 +100,7 @@ cd api3
 forge test
 ```
 
-For environment variables and deploy/test instructions, see [`api3/README.md`](api3/README.md), [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md), and the workstream guides as they become available.
+For environment variables and deploy/test instructions, see [`api3/README.md`](api3/README.md), [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md), and the existing [`docs/agent.md`](docs/agent.md). The v2 data-source guide and demo tools are not present in this branch yet.
 
 ## Repository map
 
@@ -120,7 +110,7 @@ For environment variables and deploy/test instructions, see [`api3/README.md`](a
 | `api3/test/` | Foundry tests |
 | `api3/scripts/` | Contract, fetch, judge, and local-demo scripts |
 | `api3/agent/` | Autonomous agent implementation |
-| `demo/` | Planned dashboard and judge tamper page |
+| `demo/` | Planned v2 dashboard and judge tamper page; not present in this branch |
 | `docs/SUPPLIERPULSE_PLUS.md` | Frozen build specification and integration runbook |
 | `docs/evidence.md` | Testnet transaction evidence |
 | `docs/research.md` | Sourced context and prior-art notes |

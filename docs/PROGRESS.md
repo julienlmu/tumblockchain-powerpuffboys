@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Ulaş · SupplierPulse+ story
+- Changed: aligned the README, Devfolio draft, pitch, and video storyboard to distinguish the live v1 evidence from the v2 design; updated the research note with a Companies House example screened out as not meeting the liquidation-timeline requirement. Updated agent validation: 54 tests (53 passed, 1 skipped because `cast` is unavailable) and a 45-tick fake-chain run.
+- Next: verify current v1 hedge and v2 evidence before replacing submission placeholders. Do not treat fake-chain transactions or dry-run tamper rejections as live evidence.
+- Notes: the 2025/26 company-level liquidation timeline remains unverified. The agent fake run is synthetic, and its fake transaction hashes/spend are not submission evidence.
+
 ### 2026-10-30 · Julien · v1.0 → v1.1 checklists for Orhun and Emre
 - Changed: nothing in code. `orhun/plus-contract` and `emre/plus-data` were built on spec v1.0 (`864fe18`), before v1.1 (`3181439`, ~17:00). Great speed. These are the exact deltas so both fit the agent and each other at C2.
 - **Orhun (contract):**

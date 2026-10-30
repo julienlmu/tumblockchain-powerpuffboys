@@ -1,5 +1,7 @@
 # SupplierPulse+ pitch and judge Q&A
 
+> **Readiness gate (30 October 2026, 17:00 CET):** This is the intended v2 pitch, not a claim that v2 is live. The current deployed and evidenced contract is v1, which checks Companies House status only. Use the v2 claims below only after the integration and its evidence are verified; otherwise describe the v1 demo and say v2 is still in development.
+
 ## 90-second pitch
 
 Your supplier was approved last month. That should not approve today's payment.
@@ -21,6 +23,8 @@ A direct unsigned response can be changed by the script or service that submits 
 ### What exactly does a signature establish?
 
 It establishes that the configured Airnode signed these bytes for this request at this timestamp. It does not establish that the source is infallible, that a supplier will perform, or that the supplier's broader financial condition is sound.
+
+For the threat model, describe an edited response or compromised/misconfigured signer as the risk. An attacker cannot make an arbitrary unsigned response pass the contract's signature check.
 
 ### Why does the buyer still approve a milestone?
 
