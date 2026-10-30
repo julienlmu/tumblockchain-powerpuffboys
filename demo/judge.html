@@ -32,6 +32,8 @@
   .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
   select, textarea { width: 100%; }
   textarea[aria-invalid="true"] { border-color: var(--hold); }
+  select[aria-invalid="true"] { border-color: var(--hold); box-shadow: inset 0 0 0 1px var(--hold); }
+  #order-msg .link { font-size: inherit; display: inline; }
   /* three whole lines of JSON (rows="3"), never a line cut in half */
   textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: auto; resize: vertical; display: block; }
   .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
@@ -583,6 +585,27 @@
     checkRecordInput();
   }
 
+  // A failed read of the order is said under the select, where it was picked, with a way to try again. The select
+  // goes back to the order the attacks still target, so it never shows one order while the attacks use another.
+  function orderError(err, id) {
+    const sel = $("order");
+    if (!err) { if (sel.getAttribute("aria-invalid")) { sel.removeAttribute("aria-invalid"); sel.removeAttribute("aria-describedby"); } return; }
+    if (order.id !== null) sel.value = String(order.id);
+    sel.setAttribute("aria-invalid", "true");
+    sel.setAttribute("aria-describedby", "order-msg");
+    $("order-msg").innerHTML = `<span class="bad">${P.icon("alert")} Could not read order #${id}. ${esc(P.friendlyError(err, { rpc: cfg.rpc }).text)}${order.id !== null && order.id !== id ? ` Still on order #${order.id}.` : ""}</span> <button type="button" class="link" id="order-retry" data-order="${id}">Try again</button>`;
+  }
+  // picking an order: the URL keeps it once it is read (order=…)
+  function pickOrder(id) {
+    return selectOrder(id).then(() => {
+      $("order").value = String(id);
+      const q = new URLSearchParams(location.search);
+      q.set("order", id);
+      history.replaceState(null, "", "?" + q);
+      orderError(null);
+    }, (err) => orderError(err, id));
+  }
+
   // ---------------------------------------------------------------- the run
 
   async function chainNow() {
@@ -718,7 +741,7 @@
         <div class="why">${esc(P.explain(verdict.err.name, verdict.err.args, { expectedSigner: airnode }))}</div>`;
     } else {
       const f = P.friendlyError({ shortMessage: verdict.raw, message: verdict.raw }, { rpc: cfg.rpc });
-      box = `<div class="verdict bad"><div class="big">${P.icon("x")}<span>The call failed</span></div><div class="why">${esc(f.text)} Your record is kept: check the RPC in Settings, or try again.</div>`;
+      box = `<div class="verdict bad"><div class="big">${P.icon("x")}<span>The call failed</span></div><div class="why">${esc(f.text)} Your record is kept.</div>${recoverRow(`data-retry-mode="${mode}"`)}`;
     }
     let expNote = "";
     if (t.expect) expNote = match ? `Rejected exactly as expected (${t.expect}).` : `Expected ${t.expect}.`;
@@ -820,7 +843,7 @@
       const label = `${P.icon(rc.status === 1 ? "check" : "x")}${rc.status === 1 ? "Sent" : "Reverted"} in block ${rc.blockNumber}`;
       if (btn) { btn.removeAttribute("aria-busy"); btn.dataset.sent = "1"; btn.innerHTML = label; }
       if (attempt) attempt.sent = { label, msg: out.innerHTML };
-      await selectOrder(order.id);
+      await selectOrder(order.id).then(() => orderError(null), (err) => orderError(err, order.id));
       return { status: rc.status, hash: tx.hash, block: rc.blockNumber };
     } catch (e) {
       pending(false);
@@ -836,6 +859,7 @@
   // so it is a second, explicit step that sends a real transaction.
   const SUITE = ["asis", "value", "stale", "request", "key", "realOld", "realOther"];
   let suite = [], suiteRunning = false, suiteTx = null, suiteStopped = false, skipped = [], skipReason = "";
+  let suiteBroke = false, suiteFailView = null, retryRun = null;
   // One column (phones): the verdict is below the attack panel, so bring it into view and give it focus.
   function reveal() {
     if (!matchMedia("(max-width: 900px)").matches) return;
@@ -901,7 +925,7 @@
       reveal();
       return;
     }
-    suite = []; suiteTx = null; suiteStopped = false; skipped = [];
+    suite = []; suiteTx = null; suiteStopped = false; skipped = []; suiteBroke = false; suiteFailView = null;
     lockButtons(true);
     try {
       for (const [i, m] of SUITE.entries()) {
@@ -916,7 +940,8 @@
         else if (skipReason) skipped.push({ mode: m, reason: skipReason });
         await pause(350); // long enough to see each verdict go by in the video
       }
-    } finally { lockButtons(false); }
+    } catch (e) { suiteBroke = true; throw e; } // runFailed keeps the tiles answered so far
+    finally { lockButtons(false); }
     renderSuite();
     reveal();
   }
@@ -941,6 +966,8 @@
 
   function renderSuite() {
     if (!suite.length) return;
+    // a run that failed partway has no verdict: its summary is the failure box with the tiles answered so far
+    if (suiteFailView) { $("result").removeAttribute("aria-busy"); $("result").innerHTML = suiteFailView; P.hydrateIcons($("result")); return; }
     const valid = suite.find((s) => s.mode === "asis");
     const attacks = suite.filter((s) => s.mode !== "asis" && !s.notApplicable);
     const validOk = !!valid && valid.accepted;
@@ -1160,20 +1187,39 @@
   });
   let typing = null;
   $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
-  $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
-  $("order").addEventListener("change", (e) => {
-    const q = new URLSearchParams(location.search);
-    q.set("order", e.target.value);
-    history.replaceState(null, "", "?" + q);
-    selectOrder(Number(e.target.value)).catch((err) => banner("error", esc(err.message)));
+  $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(`Could not sign a fresh record. ${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)}`, true)));
+  $("order").addEventListener("change", (e) => pickOrder(Number(e.target.value)));
+  $("order-msg").addEventListener("click", (e) => {
+    const b = e.target.closest("#order-retry");
+    if (b) pickOrder(Number(b.dataset.order));
   });
-  const runFailed = (e) => {
+  // A failed call says what happened and offers the two ways out: the same run again, or the RPC field in Settings.
+  function recoverRow(retryAttr = "data-retry") {
+    return `<div class="row recover">${retryAttr ? `<button type="button" ${retryAttr} data-icon="refund">Try again</button>` : ""}<button type="button" data-settings>Open Settings</button></div>`;
+  }
+  function openSettings() {
+    $("cfg-box").open = true;
+    const f = $("cfg").elements.rpc;
+    f.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    f.focus({ preventScroll: true });
+  }
+  const runFailed = (e, again = null) => {
+    const partial = suiteBroke && suite.length > 0;
+    suiteBroke = false;
     lockButtons(false);
     $("result").removeAttribute("aria-busy");
+    retryRun = again;
     const f = P.friendlyError(e, { rpc: cfg.rpc });
-    const fix = f.kind === "network" ? "" : " Nothing was sent. Your record is kept in step 2: check it there, then press the button again.";
-    $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(f.text)}${fix}</div></div>`;
+    const fix = f.kind === "network" ? "" : " Nothing was sent. Your record is kept in step 2.";
+    const back = !partial && suite.length ? `<button type="button" class="link" data-summary aria-keyshortcuts="B">${P.icon("arrow-left")} Tamper test summary<kbd class="kb-k" aria-hidden="true">B</kbd></button>` : "";
+    const tiles = partial ? `<p class="hint">Answered before the failure: ${suite.length} of ${SUITE.length} attempts. Press a tile for its checklist.</p><div class="tiles">${suite.map(tileOf).join("")}</div>` : "";
+    $("result").innerHTML = `${back}<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(f.text)}${fix}</div>${recoverRow(again ? "data-retry" : null)}</div>${tiles}`;
+    P.hydrateIcons($("result"));
+    if (partial) suiteFailView = $("result").innerHTML;
+    $("verdict-live").textContent = `Could not ask the contract. ${f.text}`;
   };
+  // runFailed with what "Try again" repeats
+  const failed = (again) => (e) => runFailed(e, again);
   // One single attempt at a time: the buttons rest while the contract answers, and focus comes back to the one pressed.
   async function single(mode, from) {
     if (attemptBusy || suiteRunning) return;
@@ -1187,7 +1233,7 @@
       if (from && from.isConnected && (!document.activeElement || document.activeElement === document.body)) from.focus({ preventScroll: true });
     }
   }
-  for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => single(b.dataset.mode, b).catch(runFailed));
+  for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => single(b.dataset.mode, b).catch(failed(() => single(b.dataset.mode, b))));
   // On the local chain nothing else asks before a real send (MetaMask does on Sepolia): the first press arms the
   // button, the second sends. Cancel, or 8 s without a press, puts it back.
   function armed(btn) {
@@ -1208,7 +1254,7 @@
   }
   $("suite").addEventListener("click", () => {
     if (suiteRunning) { stopRequested = true; $("suite").innerHTML = `${P.icon("loader", "spin")}${runFlow === "replay" ? "Stopping before the send…" : "Stopping after this attempt…"}`; return; }
-    runSuite().catch(runFailed);
+    runSuite().catch(failed(() => runSuite()));
   });
   $("result").addEventListener("click", (e) => {
     const t = e.target.closest("button");
@@ -1217,11 +1263,15 @@
     else if (t.matches("[data-disarm]")) { const b = t.parentElement.querySelector("[data-armed]"); if (b) { disarm(b); b.focus(); } }
     else if (t.dataset.attempt) showAttempt(Number(t.dataset.attempt));
     else if (t.id === "send") { if (armed(t)) { disarm(t); sendForReal(); } }
-    else if (t.id === "suite-force") runSuite(true).catch(runFailed);
-    else if (t.id === "suite-replay") { if (armed(t)) { disarm(t); sendThenReplay().catch(runFailed); } }
-    else if (t.id === "suite-fresh") freshLocal().then(() => runSuite()).catch(runFailed);
-    else if (t.id === "suite-replay-only") replayOnly().catch(runFailed);
-    else if (t.dataset.try) single(t.dataset.try).catch(runFailed);
+    else if (t.id === "suite-force") runSuite(true).catch(failed(() => runSuite(true)));
+    // a real send is never repeated by "Try again": it goes back to the replay step, where the send asks again
+    else if (t.id === "suite-replay") { if (armed(t)) { disarm(t); sendThenReplay().catch(failed(() => (suiteTx ? replayOnly() : renderSuite()))); } }
+    else if (t.id === "suite-fresh") freshLocal().then(() => runSuite()).catch(failed(() => freshLocal().then(() => runSuite())));
+    else if (t.id === "suite-replay-only") replayOnly().catch(failed(() => replayOnly()));
+    else if (t.dataset.try) single(t.dataset.try).catch(failed(() => single(t.dataset.try)));
+    else if (t.matches("[data-retry]") && retryRun) { const again = retryRun; Promise.resolve(again()).catch(failed(again)); }
+    else if (t.dataset.retryMode) single(t.dataset.retryMode).catch(failed(() => single(t.dataset.retryMode)));
+    else if (t.matches("[data-settings]")) openSettings();
   });
   // one filled primary at a time: when the verdict offers the next step, Run steps back
   new MutationObserver(() => $("suite").classList.toggle("primary", !$("result").querySelector("button.primary"))).observe($("result"), { childList: true, subtree: true });
