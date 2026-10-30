@@ -84,6 +84,104 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - **Orhun:** `plus-create-order.sh` stores `orderRef = keccak256(name)`, which cannot be decoded. The dashboard matches the demo names by hash (and `LOCAL-<id>`), so A to E show their names. If you create other orders, either tell me the names (URL `names=`) or use `cast format-bytes32-string`, which the page decodes directly.
   - **Orhun, Julien (C2):** on anvil, `eth_call` uses the latest block's timestamp, and anvil only mines on transactions. After a minute idle, a fresh record simulates as `FutureResponse` (seen here: block time 513 s behind the clock). The agent simulates every write, so it would hit this locally. Fix: start anvil with `--block-time 1` in `plus-local.sh`, or `cast rpc evm_mine` before simulating. Sepolia is not affected. The judge page mines one block before each local simulation.
   - After a record was sent for real, (a) and (d) on the same record stop earlier (`NotNewer`, `Replayed`). For the video: run all simulations first, then send, then Replay.
+### 2026-10-30 · Orhun · SupplierPulse+ contract (§6.1, Phase A, spec v1.1)
+- Changed: the contract part (§6.1) is built against spec v1.1. It is on `orhun/plus-contract` and merged into `supplierpulse-plus`.
+  - `api3/src/ISupplierPulsePlus.sol` (§4.4 v1.1 verbatim), `SupplierPulsePlus.sol`, `JsonFields.sol` (`parseBool`).
+  - Contract features:
+    - Companies House rules `0x02`/`0x04` (`0x01` is reserved and reverts `BadRules`);
+    - a verification history that counts only the base status and only moves forward;
+    - permits that are never extended;
+    - the supplier-wide stop: `lastBaseFailureAt`, `SupplierFailed` in `submitEvidence` and `release`, and `applySupplierFailure`;
+    - `refundRemaining` with the held path and the no-data exit (`NotRefundable`, `OrderRefunded.noDataExit`);
+    - `autoRefundAt` for both paths.
+  - `api3/test/SupplierPulsePlus.t.sol`: 64 tests. They cover the §4.2 v1.1 vectors, every bad-input error, each rule, every tamper case (edited value, stale, future, other request, CH response on a GLEIF order, wrong key, replay, not newer, high-s), permits, `NotDue`, all four `checkAndRelease` outcomes, the history (gap, older records, rule-only failures, base failures, `TierChanged`, shared record), every supplier-wide stop case, both refund paths with all their errors, and event arguments. `forge test`: 100 passed, including v1's 36. v1 files are unchanged.
+  - `api3/script/DeploySupplierPulsePlus.s.sol`, the `api3/scripts/plus-{lib,local,create-order,approve,refund,status,demo-orders}.sh` scripts, and new lines in `api3/.env.example`.
+  - `plus-local.sh` creates the six §4.8 orders. Tested on anvil:
+    - a cast-signed clean record paid order 0 M1;
+    - liquidation held order 1 with labels, and the buyer refunded it;
+    - `applySupplierFailure(4)` held order 4 without new evidence;
+    - order 5 (no data) was refunded through the no-data exit after due + grace;
+    - errors decode by name (`WrongSigner`, `NotRefundable`, `BadSupplierId`).
+- Next:
+  - C1a: tests with Emre's real fixtures. If a Companies House field is dropped (§4.2 fallback), I change the two constants.
+  - C2: `plus-local.sh` for the integration.
+  - C3: Sepolia deploy and `plus-demo-orders.sh`.
+- Notes:
+  - Local orders use `permitTtl` 300; demo orders use `PERMIT_TTL` (default 1800).
+  - Demo due dates are fixed for Saturday CET: A M2 at 11:45, A M3 at 15:30, the others at 12:00.
+  - A missing field of an enabled rule makes `submitEvidence` revert with `KeyNotFound` or `NoBool`. That never pays, and the no-data exit covers it.
+
+### 2026-10-30 · Julien · v1.0 → v1.1 checklists for Orhun and Emre
+- Changed: nothing in code. `orhun/plus-contract` and `emre/plus-data` were built on spec v1.0 (`864fe18`), before v1.1 (`3181439`, ~17:00). Great speed. These are the exact deltas so both fit the agent and each other at C2.
+- **Orhun (contract):**
+  1. `ISupplierPulsePlus.sol` = §4.4 v1.1 verbatim.
+     - New: `applySupplierFailure`, `SupplierFailed(uint256)`, `NoNewerFailure()`, `NotRefundable()` (replaces `NotHeld`), `OrderRefunded(…, bool noDataExit)`, and `supplierRecord(…)` with `uint64 lastBaseFailureAt` before `tier`.
+     - Removed: `effectivePermitTtl`. Bit `0x01` is reserved.
+  2. Companies House template with 3 fields (§4.2): `accounts_overdue` `/accounts/next_accounts/overdue`, `confirmation_overdue` `/confirmation_statement/overdue`, `status` `/company_status`. The vector for `09729896` is `0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f`. Companies House rules ⊆ `0x06`, and `0x01` gives `BadRules`.
+  3. Verification history (§2.4, §4.5):
+     - Only the base status counts.
+     - The record is updated only if `timestamp > lastCheckAt`.
+     - A base failure sets `lastBaseFailureAt`.
+     - **No permit multiplier:** `validUntil = timestamp + permitTtl`, and `Permit` gets `evidenceAt`.
+  4. Supplier-wide stop (§4.5):
+     - `submitEvidence` step 10: a clean record with `timestamp ≤ lastBaseFailureAt` reverts `SupplierFailed`.
+     - `release` requires `permit.evidenceAt > lastBaseFailureAt`.
+     - `applySupplierFailure`.
+  5. `refundRemaining`: Held, Active (the no-data exit: approved, no valid permit, `now ≥ due + refundGrace`, anyone can call), and Closed gives `NotRefundable`. The `orderSchedule.autoRefundAt` semantics change accordingly.
+  6. Tests per §6.1 v1.1: add the supplier-wide stop, the no-data exit and the forward-only history; drop the permit × tier tests.
+  7. Scripts:
+     - `plus-local.sh`: rules `0x06`, plus local orders 4 (`07654321`) and 5 (`99999999`, no data) (§4.8).
+     - `plus-lib.sh`: decode the new error names.
+     - `plus-status.sh`: LAPSED = "LEI renewal overdue".
+- **Emre (data layer):**
+  1. `requests.mjs`: the Companies House projection above (drop `insolvency`, and the rule `0x01` is reserved); the GLEIF `0x08` label is "LEI renewal overdue". In `test-requests.mjs` the vector is `0x6e84…7f0f`.
+  2. `local-registry.json`: `ch:07654321` = `{"accounts_overdue":true,"confirmation_overdue":false,"status":"liquidation"}`. `99999999` stays unknown (exit 3).
+  3. C1a:
+     - verify the new pointers live, applying the fallback in §4.2 if needed;
+     - keep two genuine tamper inputs: an old `09729896` response and a fresh `12493325` response (§4.7).
+  4. `verify.mjs` checks the 3 fields. `plus-submit.sh` decodes `SupplierFailed`, `NoNewerFailure` and `NotRefundable`; `--send` is for the video.
+- Notes: the agent (on `main`) already speaks v1.1 and is running on the live v1 contract as the bonus hedge since 17:03.
+
+### 2026-10-30 · Julien (agent) · v1.1 and the v1 hedge
+- Changed: the agent follows spec v1.1.
+  - **Priority 0:** it holds other orders of a supplier whose register status failed (`applySupplierFailure`, no new fetch).
+  - **Refunds:** they also cover the no-data exit.
+  - **Labels:** the insolvency rule is gone, and LAPSED is labelled "LEI renewal overdue".
+  - **New: v1 hedge mode** (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). The same loop runs against the live v1 contract, so the autonomous-cycle evidence builds up even if v2 is late.
+  - 54 tests (Python 3.8+). The simulated run covers the supplier-wide stop and the no-data exit. The live anvil check against v1 still passes.
+- Next: start the v1 hedge run on Sepolia tonight, then the C2 integration with v2.
+- Notes:
+  - `main` now stays identical to `supplierpulse-plus` (Julien's rule: everything that can affect someone else's code goes to `main` right away).
+  - **Orhun:** the v1 hedge submits evidence to v1 order 0, which issues permits but pays nothing without your approval of milestone 1. If you test on v1 order 0 yourself, expect `NotNewer` for older responses.
+
+### 2026-10-30 · Julien · INTERFACE CHANGE: spec v1.1 (before kickoff)
+- Changed: `docs/SUPPLIERPULSE_PLUS.md` v1.1. It adopts the real findings of Orhun's two reviews (`codex/api3-only-research`, `claude/project-thread-0habue`) **before anyone builds**:
+  - **Companies House fields** (§4.2, §4.3): the current pointers `/accounts/next_accounts/overdue` and `/confirmation_statement/overdue`. The insolvency rule is dropped (the field is deprecated; current insolvency already shows in the status). The new test vector is `0x6e84…7f0f`. The fallback if a field is missing is in §4.2.
+  - **Tiers as verification history** (§2.4): only the base status counts, the history only moves forward, and **permits are never extended**. The tier only changes how often the agent re-checks.
+  - **Supplier-wide stop** (§2.4a): `lastBaseFailureAt` blocks `release` on older permits for every order of the supplier. `applySupplierFailure(orderId)` holds other orders without a new fetch. New errors: `SupplierFailed`, `NoNewerFailure`.
+  - **No-data exit** (§2.4a): an approved milestone without a permit, overdue by `refundGrace`, lets the money go back to the buyer. `NotHeld` is replaced by `NotRefundable`, and `OrderRefunded` gets `noDataExit`.
+  - Real signed responses for the tamper cases (b) and (c), and real reverted transactions in the video (§4.7).
+  - v1 stays the fallback submission (§7); the agent runs against v1 tonight as a hedge (§6.3).
+  - `effectivePermitTtl` is removed, and `supplierRecord` gets `lastBaseFailureAt`.
+  - Two new local orders (4: same supplier as order 1, 5: no data).
+- Next: everyone builds against v1.1. Create your branch from `supplierpulse-plus` now.
+- Notes:
+  - The agent wallet funded itself: 0.003 ETH bridged to Base Sepolia (tx `0xd700…61f3`) and 10 aUSD minted (tx `0xa0cf…0c70`). How to do the same is in §5.3.
+  - Cardano stays out (the office-hours review suggested keeping one job; we keep the focus).
+
+### 2026-10-30 · Julien (agent) · Phase A done
+- Changed: `api3/agent/` is the autonomous agent for SupplierPulse+ (spec §6.3).
+  - **Schedule:** due checks within the lead time, re-checks by trust tier, releases at the due date, refunds after the grace period.
+  - **Spending limits:** a daily budget with a reserve for due checks, a fetch cap per tick, a gas cap, and a pause after failed payments.
+  - **Failure handling:** backoff, quarantine on `WrongRequest`/`WrongSigner`, every write simulated before it is sent.
+  - **Log:** one JSON line per action, plus `report`.
+  - **Tested:** 48 tests (Python 3.8+). `--fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil.
+  - **Docs:** `docs/agent.md` explains the schedule, limits and failure handling, as the agent bonus requires.
+- Next: C2 integration with Orhun's `plus-local.sh` and Emre's `fetch-local.sh`, then the overnight Sepolia run from C3.
+- Notes:
+  - **Tenderly's public Sepolia RPC refuses bursts (`-32603`).** Use publicnode, `https://ethereum-sepolia-rpc.publicnode.com`. The agent fails over by itself (`EVM_RPC_URLS`), but scripts don't.
+  - The agent wallet `0xED34…253a` needs at least 2 aUSD by C3.
+  - `.claude/skills/grillme/SKILL-2.md` is renamed to `SKILL.md`, so Claude Code loads it.
 
 ### 2026-10-30 · Julien · SupplierPulse+ build spec
 - Changed: `docs/SUPPLIERPULSE_PLUS.md` is the complete build spec for SupplierPulse+ (API3 track only, decided ~16:00). It contains:
