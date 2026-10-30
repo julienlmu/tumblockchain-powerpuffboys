@@ -1446,7 +1446,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 | 09:30 – 10:30 | **Dry run** of the whole video flow on Sepolia with separate orders. Save every step's tx as a pre-run proof, in case a live moment fails during recording |
 | 11:00 | **Feature freeze** |
 | 11:00 – 13:00 | Video (A M2 is due at 11:45, D M2 at 12:00; B2 is created live; the tamper cases are sent as real transactions) |
-| 13:00 | Julien merges `supplierpulse-plus` into `main`. The repo is public (it already is) |
+| 13:00 | Julien merges `supplierpulse-plus` into `main` and makes the repo public if it is not yet. It was still **private** on Fri 18:12 (Batu's check); the whole history was scanned for secrets then and is clean, apart from anvil's public test keys |
 | 14:30 | Submit |
 | 15:00 – 17:00 | API3 booth: everyone present; who speaks is decided at 08:00 |
 

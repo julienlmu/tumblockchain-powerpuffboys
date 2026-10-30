@@ -106,7 +106,7 @@ Every action is one JSON line in `api3/agent/state/cycles.jsonl`:
 
 ```sh
 cd api3/agent
-python3 -m unittest discover -s tests                   # 80 tests, no network
+python3 -m unittest discover -s tests                   # 82 tests, no network
 python3 pulse_agent.py run --fake --ticks 45            # whole flow against an in-memory contract, simulated clock
 python3 pulse_agent.py report --fake
 

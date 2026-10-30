@@ -9,7 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import config  # noqa: E402
 import fakes  # noqa: E402
-from chain import ChainError  # noqa: E402
+from chain import ChainError, Reverted  # noqa: E402
 from evidence import NoData, PaymentFailed, SetupFailed, VerificationFailed  # noqa: E402
 from executor import Executor  # noqa: E402
 from journal import Journal  # noqa: E402
@@ -170,6 +170,26 @@ class ExecutorTest(unittest.TestCase):
         self.assertEqual(self.chain.orders[1]["state"], HELD)
         self.run_ticks(4)  # grace 120 s
         self.assertEqual(self.chain.orders[1]["state"], CLOSED)
+
+    def test_a_late_approval_gives_the_full_grace_before_the_no_data_exit(self):
+        # Emre's finding 1, as Orhun built it: the exit counts from max(due date, first approval)
+        chain, _ = fakes.local_world()
+        oid = chain.add_order(0, "99999999", 0x06, [500], [60])  # due in 60 s, not approved
+        chain.advance(600)  # long past due date + grace
+        chain.approve(oid, 0)
+        snap = chain.snapshot()
+        self.assertEqual(snap.order(oid).auto_refund_at, chain.now() + chain.refund_grace)
+        with self.assertRaises(Reverted) as ctx:
+            chain.simulate("refundRemaining", oid)  # no approve-and-refund in one block
+        self.assertEqual(ctx.exception.name, "RefundNotYet")
+        chain.advance(chain.refund_grace)
+        chain.simulate("refundRemaining", oid)
+
+    def test_a_permit_shorter_than_max_age_is_refused(self):
+        chain, _ = fakes.local_world()
+        with self.assertRaises(Reverted) as ctx:
+            chain.add_order(0, "01234567", 0x06, [500], [60], permit_ttl=chain.max_age - 1)
+        self.assertEqual(ctx.exception.name, "BadOrder")
 
     def test_a_broken_fetch_setup_never_refunds_clean_orders(self):
         # review finding: every fetch exits 2 (no PAYER_PRIVATE_KEY) while approved milestones pass their no-data exit

@@ -84,6 +84,8 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Checks: 80 tests (Python 3.8 and 3.13), `c2_check.py --fake` 8/8. **Real C2 8/8 twice**: with automine (188 s, 15 transactions through the new send path, 0 errors), and on an anvil that mines a block every 2 s like Sepolia (183 s, 15 writes, 0 errors, 0 out of gas).
 - New for the overnight run: `api3/agent/run-forever.sh` restarts the agent after a crash, but stops on a config error or a second agent on the same state. `pulse_agent.py report --markdown` prints every transaction with explorer links for `docs/evidence.md`.
 - The v1 hedge was restarted on the new code at 18:09 (cycle 127). Nothing was lost: its state and cycle count continue.
+- **Orhun's note:** `fakes.py` now opens the no-data exit at `max(due date, first approval) + grace`, and refuses `permitTtl < maxAge`, like the contract. 2 tests, 82 in total.
+- **Batu's note, repo visibility:** confirmed, the repo is **private** (`gh api`, Fri 18:12). I scanned the whole history of every branch for secrets: no `.env` was ever committed; no private keys, Blockfrost ids or seed phrases; only anvil's public test keys. Switching it to public is my decision as the owner (needed by Sat 14:30). Spec §7.4 corrected.
 - `docs/agent.md` and §6.3 are updated (failure table, refund rule, gas limit, runner).
 - **Emre**, for later: `airnode-fetch.mjs` exits 4 for any thrown error, including an unreachable Airnode before payment, so an Airnode outage pauses both registries for 15 min. A separate exit code for "Airnode unreachable, nothing paid" would let the agent pause one source only. Not urgent.
 ### 2026-10-30 · Orhun · C2.5 review fixes in `SupplierPulsePlus.sol` (Emre's findings 1 and 2)
