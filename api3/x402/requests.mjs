@@ -13,9 +13,8 @@ export const SOURCES = {
     param: 'company_number',
     idPattern: /^[0-9A-Z]{1,10}$/,
     projection: {
-      accounts_overdue: '/accounts/overdue',
+      accounts_overdue: '/accounts/next_accounts/overdue',
       confirmation_overdue: '/confirmation_statement/overdue',
-      insolvency: '/has_insolvency_history',
       status: '/company_status',
     },
   },
@@ -34,13 +33,12 @@ export const SOURCES = {
   },
 };
 
-// §4.3: the base check is always on; the other rules are bits the buyer picks per order.
+// §4.3: the base check is always on; the other rules are bits the buyer picks per order. 0x01 is reserved (v1.1).
 export const BASE_FAILED = 0x80;
 export const RULES = [
-  { bit: 0x01, source: 'ch', field: 'insolvency', clean: (v) => v === false, label: 'insolvency history' },
   { bit: 0x02, source: 'ch', field: 'accounts_overdue', clean: (v) => v === false, label: 'accounts overdue' },
   { bit: 0x04, source: 'ch', field: 'confirmation_overdue', clean: (v) => v === false, label: 'confirmation statement overdue' },
-  { bit: 0x08, source: 'gleif', field: 'registration_status', clean: (v) => v === 'ISSUED', label: 'LEI registration not issued (e.g. lapsed)' },
+  { bit: 0x08, source: 'gleif', field: 'registration_status', clean: (v) => v === 'ISSUED', label: 'LEI renewal overdue' },
 ];
 const BASE = {
   ch: { field: 'status', clean: (v) => v === 'active', label: 'registry status not active' },
