@@ -89,6 +89,15 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - dRPC `historicalPrices` gives a signed price at a past timestamp ($0.01) for DOGE, BTC, LTC, ADA and more.
   - Nodary serves DOGE/USD, LTC/USD, BTC/USD and ADA/USD for free.
 
+### 2026-10-30 · Orhun
+- Changed: Deployed PriceTriggeredVault on Ethereum Sepolia at 0xBC68DB972A62cFf3161e600d92C475c29c22886A (Nodary signer, max age 300s). Live checks: real ETH/USD response accepted, replay and all four tampered responses (value, stale, request, key) rejected on-chain, agent-run created and executed order 0. Deploy needs `--slow --gas-estimate-multiplier 800`. submit.sh now reads revert errors from newer cast output. README has a Deployment section; .env.example points at Sepolia (Tenderly RPC).
+- Next: agent loop (repeated cycles), README "why this data matters" section, tamper-test video.
+
+### 2026-10-30 · Orhun
+- Changed: API3: vault now matches the official AirnodeHub starter. Data comes from the Nodary Airnode (free, ETH/USD, signer `0xE70f1e8b22a21e4Bb5188918a3033341b281E4c0`). The contract also rejects a fresh signature over an old price (`updatedAt` check). Deploy uses Nodary defaults. 16 tests pass.
+- Notes: a real Nodary ETH/USD response (price 2246.485) was fetched and verified against the Nodary signer; it is now a test (`test_realNodaryResponse`), 17 tests pass. Fixed the `key` tamper mode for Foundry 1.8.x.
+- Next: choose the API3 use case (ETH vault, parametric insurance or esports escrow), deploy to Base Sepolia, add a timed loop to the agent for the agent bonus.
+
 ### 2026-10-30 · Batu (12:46)
 - Changed: nothing in code. Batu has a Base Sepolia test wallet `0xA54506DcE89ff9561534c76C043505a1a484FB4c` (encrypted Foundry keystore `batu-test`) with 10 aUSD and ~0.0001 ETH. Mint tx `0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f`.
 - Next: wait for Ulaş's Cardano + API3 idea branch, then the API3 contract work with Orhun.
@@ -127,15 +136,6 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - Re Julien's proposal 1 (refund when the seller never submits): the Masumi refunds doc lists "no response before the deadline" as grounds for the buyer's `POST /purchase/request-refund`, but the seller must then `authorize-refund`, or it escalates to the Masumi team. Safer: our agent calls `POST /payment/authorize-refund` itself when the condition fails by the deadline. Confirm with Masumi. Source: https://www.masumi.network/dev/masumi/core-concepts/refunds-and-disputes.md
   - AirnodeHub: Nodary ETH/USD is free and first-party. The CoinGecko `simplePrice` used in `fetch-eth-usd.sh` costs $0.02 aUSD (x402).
   - API3 judging: real use case 40%, signed data matters 30%, execution 20%, novelty 10% ("beyond the unchanged starter"; the starter is already a Nodary ETH/USD consumer), +10 agent bonus. Projections let a contract read string fields such as Companies House `company_status`. Details in `docs/decision-sheet.md`.
-
-### 2026-10-30 · Orhun
-- Changed: Deployed PriceTriggeredVault on Ethereum Sepolia at 0xBC68DB972A62cFf3161e600d92C475c29c22886A (Nodary signer, max age 300s). Live checks: real ETH/USD response accepted, replay and all four tampered responses (value, stale, request, key) rejected on-chain, agent-run created and executed order 0. Deploy needs `--slow --gas-estimate-multiplier 800`. submit.sh now reads revert errors from newer cast output. README has a Deployment section; .env.example points at Sepolia (Tenderly RPC).
-- Next: agent loop (repeated cycles), README "why this data matters" section, tamper-test video.
-
-### 2026-10-30 · Orhun
-- Changed: API3: vault now matches the official AirnodeHub starter. Data comes from the Nodary Airnode (free, ETH/USD, signer `0xE70f1e8b22a21e4Bb5188918a3033341b281E4c0`). The contract also rejects a fresh signature over an old price (`updatedAt` check). Deploy uses Nodary defaults. 16 tests pass.
-- Notes: a real Nodary ETH/USD response (price 2246.485) was fetched and verified against the Nodary signer; it is now a test (`test_realNodaryResponse`), 17 tests pass. Fixed the `key` tamper mode for Foundry 1.8.x.
-- Next: choose the API3 use case (ETH vault, parametric insurance or esports escrow), deploy to Base Sepolia, add a timed loop to the agent for the agent bonus.
 
 ### 2026-10-30 · Orhun
 - Changed: API3: added `api3/`, a Foundry vault that verifies AirnodeHub signed ETH/USD (signer, request hash, freshness, no replay) and pays out when the price crosses the threshold. 15 tests incl. all tamper cases; `scripts/local-demo.sh` runs the full flow on anvil. `scripts/submit.sh` for judges (tamper modes: value, stale, request, key), `scripts/agent-run.sh` for the Cardano agent.

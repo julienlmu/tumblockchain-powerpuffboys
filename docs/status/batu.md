@@ -2,6 +2,11 @@
 
 Newest on top.
 
+### 2026-10-30 ~13:05 · branch `batu/api3-setup`
+- Done: `git fetch origin && git rebase origin/main` onto Orhun's `a77d2f7` ("API3 vault deployed on Sepolia"), no conflicts. Moved Orhun's two new PROGRESS entries to their place in the time order.
+- Resolved: Orhun fixed the wrong-key tamper mode for Foundry 1.8.x in `a77d2f7`. His vault is live on Ethereum Sepolia `0xBC68DB972A62cFf3161e600d92C475c29c22886A`, with all four tamper cases rejected on-chain (his log entry).
+- Note: Orhun deployed on Ethereum Sepolia, while aUSD (x402) lives on Base Sepolia. Both work, since the payer needs no ETH for x402.
+
 ### 2026-10-30 ~12:56 · branch `batu/api3-setup`
 - Done: the three open checks for #6 (mining). Batu ran a scratch script that asks for the keystore password and keeps the key in memory only. The x402 client is copied from the official starter.
 - Spent: 0.01 aUSD, payment tx `0xf54d7b05d806a0e246472f3380438710f85020441797dca6cd5ec44b43eeaa91`. Balance now 9.99 aUSD.
