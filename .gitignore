@@ -154,3 +154,7 @@ venv/
 
 # macOS
 .DS_Store
+
+# Hackathon repo hygiene (CLAUDE.md section 7)
+.local/
+cache/

@@ -2,6 +2,13 @@
 
 Newest on top.
 
+### 2026-10-30 ~12:10 · branch `batu/api3-setup` (from `origin/batu/decision-sheet`)
+- Role: API3 track with Orhun (tentative). Ulaş + Julien own Cardano.
+- Waiting: idea decision with Orhun, #0 price vault vs #3 supplier approval gate (see `docs/decision-sheet.md`). No feature code until both confirm.
+- Found: Batu's laptop has Node v24.19.0, but no Foundry (`forge`, `anvil`, `cast`) and no `pnpm`. Both are needed for `api3/` and the API3 starter. Not installed yet, waiting for Batu's OK.
+- Found: `.gitignore` lacked `.local/` and `cache/`, which `CLAUDE.md` §7 requires. Added both (`out` was already there).
+- Next: once the idea is confirmed, install Foundry, run `forge test` in `api3/`, then fetch one live signed response.
+
 ### 2026-10-30 ~11:50
 - Team split (tentative): Batu + Orhun on API3, Ulaş + Julien on Cardano.
 

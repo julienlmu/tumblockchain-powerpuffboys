@@ -87,6 +87,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: agree on the proposals with Orhun, then implement 1 and 3 in `cardano-agent/agent.py`.
 - Notes: Sokosumi preprod: CLI 1.0.4 is broken (`404 route_not_found` on Personal Workspace commands), use 1.1.0. Vendor `powerpuffboys` and Coworker `powerpuffboys-agent` are registered on Julien's account (quickstart path, may not be needed for the MIP-003 agent). Julien's laptop: Node 24, Postgres 17, Foundry; no Docker or cloudflared yet.
 
+### 2026-10-30 · Batu (12:10)
+- Changed: new branch `batu/api3-setup` for the API3 track (Batu + Orhun, tentative). Added `.local/` and `cache/` to `.gitignore` (required by `CLAUDE.md` §7). Status log in `docs/status/batu.md`.
+- Next: Batu and Orhun pick #0 (price vault) or #3 (supplier approval gate). Then Foundry setup and `forge test` on Batu's laptop.
+- Notes: Batu's laptop has no Foundry or pnpm yet.
+
 ### 2026-10-30 · Batu
 - Changed: added `docs/decision-sheet.md` (ideas #0–#5 compared, facts vs inferences) and `docs/status/batu.md`. Docs only, branch `batu/decision-sheet`.
 - Next: Julien picks the idea and API3 scope. After that: README, Devfolio text, video script, pitch.
