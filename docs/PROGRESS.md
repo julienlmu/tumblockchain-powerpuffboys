@@ -73,6 +73,15 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · C2.5 review of `tamper.mjs`, `verify.mjs`, `requests.mjs`, `plus-submit.sh` → Emre
+- Changed: nothing in Emre's files. Reviewed against §4.7 and the contract's check order (§4.5).
+- **No blocking findings.** The four tamper modes produce exactly the contract errors (value/key → `WrongSigner`, stale → `StaleResponse`, request → `WrongRequest`, replay → `Replayed`). `verify.mjs` uses the same freshness rule as the contract (`maxAge`, 60 s future skew). `plus-submit.sh` reuses `plus-lib.sh` (`plus_send`, `plus_error`, `plus_num`) correctly.
+- Minor notes (no action needed for the demo):
+  - `requests.mjs` uppercases supplier ids; the contract rejects lowercase ids anyway, so the result is the same.
+  - The JS label check treats a missing field as "not clean", while the contract reverts `KeyNotFound`. This only shows after a simulation has already succeeded, so the verdict never differs.
+  - With `--send` and a fixed gas limit, check that `cast send` exits non-zero when the tx is mined as failed, so the CLI never prints success for a red tx.
+- Also checked: Julien's agent (`chain.py`) and Batu's dashboard (`common.js`) match the compiled v1.1 ABI exactly (all functions, events and the 4-byte selectors of all 33 errors).
+
 ### 2026-10-30 · Orhun · live outcomes of demo orders A–E, source verified
 - Changed: A and D were paid at their due dates (A m0 at 20:03:48, D m0 at 20:16:48). The agent held B, C and E and then refunded them (tx in `docs/evidence.md`, "Outcomes"). Sourcify exact match for v2.
 - Also: `plus-local.sh` + `c2_check.py` rehearsed with the fixed contract: 8/8 PASS in 183 s, no changes needed.
