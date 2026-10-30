@@ -123,6 +123,7 @@
   .agent li { display: grid; grid-template-columns: 148px minmax(0, 1fr) auto; gap: var(--s3); padding: 6px 0; border-top: 1px solid var(--line); align-items: baseline; }
   .agent li:first-child { border-top: none; }
   .agent .t { color: var(--muted); }
+  .agent .rep { color: var(--muted); white-space: nowrap; }
   .agent details > summary { margin-top: var(--s1); }
   .flow { display: inline; }
   .flow .i { width: 0.95em; height: 0.95em; color: var(--muted); margin: 0 3px; }
@@ -130,6 +131,7 @@
   /* order cards */
   /* cards in a row share one height, so the grid has no ragged voids */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: stretch; }
+  body.view-simple .grid { align-items: start; } /* Simple cards differ in height: no stretched empty space */
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; scroll-margin-top: var(--s4); }
   .card.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
   /* a card whose on-chain facts just changed: a short tint that fades; a static outline under reduced motion */
@@ -138,12 +140,15 @@
   @media (prefers-reduced-motion: reduce) { .card.changed { outline: 2px solid var(--accent); outline-offset: 2px; } }
   .chip.new { color: var(--accent); background: var(--accent-bg); font-weight: 600; }
   /* title and state on the first row; the register, id and wallet below them, across the full card width */
-  .card-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s3); align-items: start; }
-  .card-head .sub { grid-column: 1 / -1; }
+  /* the state goes below a title whose longest word leaves it no room, instead of breaking the id mid-number */
+  .card-head { display: flex; flex-wrap: wrap; gap: 4px var(--s3); align-items: flex-start; }
+  .card-head h2 { flex: 1 1 0; min-width: min-content; }
+  .card-head .badge { margin-left: auto; }
+  .card-head .sub { flex-basis: 100%; }
   .agent .wallet { margin: var(--s1) 0 0; }
-  .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: break-word; } /* long ids break after "LOCAL-", not mid-number */
   .card-head h2 .id { color: var(--muted); font-weight: 500; margin-right: 6px; }
-  .card-head .sub { color: var(--muted); font-size: var(--t-1); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px var(--s2); align-items: center; }
+  .card-head .sub { color: var(--muted); font-size: var(--t-1); margin-top: -2px; display: flex; flex-wrap: wrap; gap: 2px var(--s2); align-items: center; }
   .badge { flex: none; display: inline-flex; gap: 5px; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: var(--t-1); font-weight: 600; white-space: nowrap; }
   .ok { color: var(--ok); background: var(--ok-bg); }
   .hold { color: var(--hold); background: var(--hold-bg); }
@@ -702,7 +707,7 @@
       const busyNow = claimState[o.id] === "busy";
       const off = env.sample || !enabled || busyNow;
       const waysKey = `ways-${o.id}`;
-      return `<div class="row"><button type="button" class="primary" data-claim="${o.id}"${off ? " disabled" : ""}${busyNow ? ' aria-busy="true"' : ""} aria-describedby="${whoId}${env.sample ? " sample-note" : ""}">${busyNow ? I("loader", "spin") + "Waiting for MetaMask…" : I("refund") + "Refund to buyer (MetaMask)"}</button></div>${msg}
+      return `<div class="row"><button type="button"${env.sample ? "" : ' class="primary"'} data-claim="${o.id}"${off ? " disabled" : ""}${busyNow ? ' aria-busy="true"' : ""} aria-describedby="${whoId}${env.sample ? " sample-note" : ""}">${busyNow ? I("loader", "spin") + "Waiting for MetaMask…" : I("refund") + (env.sample ? "Refund to buyer (sample)" : "Refund to buyer (MetaMask)")}</button></div>${msg}
         <details class="ways" data-key="${waysKey}"${isOpen(waysKey, false) ? " open" : ""}><summary>Other ways to refund</summary>
           <div class="ways-body">${env.sample ? sampleCmdNote(o) : ""}<p>Without a browser wallet: <code class="cmd">api3/scripts/plus-refund.sh ${o.id}</code>${P.copyBtn(`api3/scripts/plus-refund.sh ${o.id}`)} (signs with the buyer key in <span class="mono">api3/.env</span>).</p></div></details>`;
     };
@@ -868,20 +873,30 @@
     const isNew = (g) => nowMs - (agentNewAt.get(rowKey(g)) || 0) < 30000;
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
       <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : "set an agent address in Settings to highlight its transactions"}</span></div>`;
-    const li = (g) => {
+    const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders)) : ""; };
+    // run: the newest transaction of a run of identical ones (same order, same sentence), with how many and since when
+    const li = (g, run = [g]) => {
       const o = byId[g.order];
       const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
+      const first = run[run.length - 1];
+      const rep = run.length > 1 ? ` <span class="rep">×${run.length}${first.time ? ` since ${P.clock(first.time)}` : ""}</span>` : "";
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
-        <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${o ? agentWords(g, o, causeOf(o, orders)) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+        <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${words(g)}${rep}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
-    // Simple: the latest one; Detailed: the latest three, none on phones (the first order then shows first);
+    // Repeats fold: consecutive transactions with the same order and the same sentence show as one row, "×3 since
+    // 22:28:57", linking the newest; every single transaction stays listed in the disclosure.
+    const runs = [];
+    for (const g of rows) { const k = `${g.order}|${words(g)}`, last = runs[runs.length - 1]; if (last && last.k === k) last.rows.push(g); else runs.push({ k, rows: [g] }); }
+    // Simple: the latest one; Detailed: the latest two, none on phones (the first order then shows first);
     // the rest, and the agent's wallet, one click away in both views
-    const SHOWN = view === "simple" ? 1 : narrow.matches ? 0 : 3;
-    const more = rows.length > SHOWN
-      ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rows.length - SHOWN} earlier transactions` : `${rows.length} transactions`}, all sent by the agent on its own</summary>
-          <p class="small-muted wallet">Agent wallet ${addr(agentAddr)}</p><ol>${rows.slice(SHOWN, 60).map(li).join("")}</ol></details>`
+    const SHOWN = view === "simple" ? 1 : narrow.matches ? 0 : 2;
+    const top = runs.slice(0, SHOWN), heads = new Set(top.map((x) => x.rows[0]));
+    const rest = rows.filter((g) => !heads.has(g));
+    const more = rest.length
+      ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rest.length} earlier transactions` : `${rest.length} transactions`}, all sent by the agent on its own</summary>
+          <p class="small-muted wallet">Agent wallet ${addr(agentAddr)}</p><ol>${rest.slice(0, 60).map((g) => li(g)).join("")}</ol></details>`
       : "";
-    setHTML($("agent"), head + (rows.length ? `${SHOWN ? `<ol>${rows.slice(0, SHOWN).map(li).join("")}</ol>` : ""}${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
+    setHTML($("agent"), head + (rows.length ? `${SHOWN ? `<ol>${top.map((x) => li(x.rows[0], x.rows)).join("")}</ol>` : ""}${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
   }
 
   // ---------------------------------------------------------------- what changed since the last read
