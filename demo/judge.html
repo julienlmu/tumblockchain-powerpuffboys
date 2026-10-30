@@ -122,6 +122,11 @@
         <button type="button" class="atk" data-mode="key">(d) Wrong key</button>
         <button type="button" class="atk" data-mode="replay">Replay</button>
       </div>
+      <p class="hint">Real inputs: untouched records genuinely signed by the Airnode, nothing edited (§4.7).</p>
+      <div class="attacks">
+        <button type="button" class="atk" data-mode="realOld" title="A genuine signed record of this order's supplier, fetched earlier">(b) Real old record</button>
+        <button type="button" class="atk" data-mode="realOther" title="A genuine signed record of another company">(c) Real, other company</button>
+      </div>
     </section>
 
     <section class="panel" id="result">
@@ -154,14 +159,18 @@
     agent: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
     // api3/x402/local-registry.json
     registry: {
-      "ch:01234567": { accounts_overdue: false, confirmation_overdue: false, insolvency: false, status: "active" },
-      "ch:07654321": { accounts_overdue: true, confirmation_overdue: false, insolvency: true, status: "liquidation" },
+      "ch:01234567": { accounts_overdue: false, confirmation_overdue: false, status: "active" },
+      "ch:07654321": { accounts_overdue: true, confirmation_overdue: false, status: "liquidation" },
       "gleif:TESTLEI0000000000000": { entity_status: "ACTIVE", registration_status: "ISSUED" },
       "gleif:TESTLEI0000000000001": { entity_status: "ACTIVE", registration_status: "LAPSED" },
     },
-    clean: [{ accounts_overdue: false, confirmation_overdue: false, insolvency: false, status: "active" }, { entity_status: "ACTIVE", registration_status: "ISSUED" }],
+    clean: [{ accounts_overdue: false, confirmation_overdue: false, status: "active" }, { entity_status: "ACTIVE", registration_status: "ISSUED" }],
   };
-  const MODE_NAME = { asis: "Valid record", value: "(a) Edit value", stale: "(b) Too old", request: "(c) Different request", key: "(d) Wrong key", replay: "Replay" };
+  const MODE_NAME = {
+    asis: "Valid record", value: "(a) Edit value", stale: "(b) Too old", request: "(c) Different request", key: "(d) Wrong key", replay: "Replay",
+    realOld: "(b) Real old record", realOther: "(c) Real record, other company",
+  };
+  const SAMPLES = window.PULSE_SAMPLE_RESPONSES || [];
 
   const params = new URLSearchParams(location.search);
   const cfg = { contract: params.get("contract") || "", rpc: params.get("rpc") || P.DEFAULT_RPC, order: params.get("order") };
@@ -245,18 +254,41 @@
     return Number((await provider.getBlock("latest")).timestamp);
   }
 
+  // Real inputs (§4.7, v1.1): untouched, genuinely signed records from sample/responses.js. Off the local chain the
+  // real Airnode records come first; on it, the local-key ones, whose request matches the local orders.
+  function realInput(mode) {
+    const src = P.SOURCES[Number(order.info.source)].key, id = order.info.supplierId, wantReal = chainId !== 31337;
+    const pool = SAMPLES.filter((s) => s.record.source === src).sort((a, b) => (b.real === wantReal) - (a.real === wantReal));
+    return mode === "realOld" ? pool.find((s) => s.record.supplierId === id) : pool.find((s) => s.record.supplierId !== id);
+  }
+
   async function run(mode) {
-    let base;
-    try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); return; }
     if (!contract) { banner("error", "Connect a contract in Settings to get the contract's verdict."); return; }
-    const t = await P.tamper(base, mode);
+    let t;
+    if (mode === "realOld" || mode === "realOther") {
+      const s = realInput(mode);
+      if (!s) {
+        respMsg(mode === "realOld" ? `No earlier signed record of ${esc(order.info.supplierId)} is bundled. Upload one from api3/fixtures/ and press "Submit as is".` : "No record of another company is bundled for this registry.", true);
+        return;
+      }
+      const rec = P.normalizeRecord(s.record, Number(order.info.source));
+      t = mode === "realOld"
+        ? { record: rec, what: `(b) Real old record, untouched: ${s.label}, signed ${dayClock(rec.timestamp)}.`, expect: "StaleResponse" }
+        : { record: rec, what: `(c) Real record of another company, untouched: ${s.label}.`, expect: "WrongRequest" };
+    } else {
+      let base;
+      try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); return; }
+      t = await P.tamper(base, mode);
+    }
     const r = t.record;
     lastCandidate = { record: r, mode };
     $("result").innerHTML = `<h2>The contract's verdict</h2><p class="hint">Asking the contract…</p>`;
 
     const id = order.id, source = Number(order.info.source);
     const now = await chainNow();
-    const [st, maxAge, airnode] = await Promise.all([contract.orderStatus(id), contract.maxAge(), contract.airnodeOf(source)]);
+    const [st, maxAge, airnode, srec] = await Promise.all([contract.orderStatus(id), contract.maxAge(), contract.airnodeOf(source),
+      contract.supplierRecord(P.supplierKeyOf(source, order.info.supplierId))]);
+    const lastFailure = Number(srec.lastBaseFailureAt);
     let digest = null, used = null, recovered = null, recoverErr = null;
     try { digest = P.digestOf(r.requestHash, r.timestamp, r.data); used = await contract.usedDigests(digest); } catch (e) { recoverErr = e.message; }
     try { recovered = ethers.verifyMessage(ethers.getBytes(digest), r.signature); } catch (e) { recoverErr = "the signature bytes are malformed"; }
@@ -273,6 +305,8 @@
       { ok: used === false, t: "Not used before", d: digest ? `digest ${short(digest)} ${used ? "already used" : "unused"}` : esc(recoverErr || "") },
       { ok: ts > Number(st.lastCheck), t: "Newer than the order's last record", d: Number(st.lastCheck) ? `last record ${dayClock(st.lastCheck)}` : "no record yet" },
       { ok: !!recovered && recovered.toLowerCase() === airnode.toLowerCase(), t: "Signed by the trusted Airnode", d: recovered ? `recovers to ${recovered}${signerName(recovered)}; trusted ${airnode}${signerName(airnode)}` : esc(recoverErr || "") },
+      // v1.1: a clean record older than a known base failure of the supplier is refused (SupplierFailed)
+      { ok: failed !== 0 || ts > lastFailure, t: "A clean record is newer than any known failure of this supplier", d: lastFailure ? `register status failed in a record signed ${dayClock(lastFailure)}` : "no failure on record" },
     ];
     const stop = checks.findIndex((c) => !c.ok);
 

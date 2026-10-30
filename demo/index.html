@@ -240,8 +240,7 @@
       state: Number(s.state), paid: BigInt(s.paid), remaining: BigInt(s.remaining), next: Number(s.nextMilestone),
       permitValidUntil: Number(s.permitValidUntil), permitValidRead: Boolean(s.permitValid), lastCheck: Number(s.lastCheck),
       lastFailedRules: Number(h.lastFailedRules), heldAt: Number(h.heldAt), autoRefundAt: Number(h.autoRefundAt), tier: Number(h.tier),
-      rec: { cleanStreak: Number(r.cleanStreak), checks: Number(r.checks), failures: Number(r.failures), lastCheckAt: Number(r.lastCheckAt), tier: Number(r.tier) },
-      effTtl: Number(o.effectivePermitTtl),
+      rec: { cleanStreak: Number(r.cleanStreak), checks: Number(r.checks), failures: Number(r.failures), lastCheckAt: Number(r.lastCheckAt), lastBaseFailureAt: Number(r.lastBaseFailureAt), tier: Number(r.tier) },
       events: o.events || [],
     };
   }
@@ -304,8 +303,8 @@
       case "PermitIssued": return { text: `Payment permit for milestone ${Number(a.milestone) + 1} (${tok(a.amount)} tokens), valid until ${dayClock(a.validUntil)}` };
       case "MilestonePaid": return { cls: "ev-ok", text: `Milestone ${Number(a.milestone) + 1} paid: ${tok(a.amount)} tokens to the supplier` };
       case "OrderHeld": return { cls: "ev-hold", text: `Order held: ${P.failedLabels(src, a.failedRules).join(", ")}. ${tok(a.remaining)} tokens protected; anyone can trigger the refund from ${dayClock(a.autoRefundAt)}` };
-      case "OrderRefunded": return { text: `${tok(a.amount)} tokens refunded to the buyer, triggered by ${isAgent(a.triggeredBy) ? "the agent" : a.triggeredBy && o.info.buyer && a.triggeredBy.toLowerCase() === o.info.buyer.toLowerCase() ? "the buyer" : addr(a.triggeredBy)}` };
-      case "TierChanged": return { text: `Supplier tier ${P.TIERS[Number(a.oldTier)]} → ${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
+      case "OrderRefunded": return { text: `${tok(a.amount)} tokens refunded to the buyer${a.noDataExit ? " (no-data exit)" : ""}, triggered by ${isAgent(a.triggeredBy) ? "the agent" : a.triggeredBy && o.info.buyer && a.triggeredBy.toLowerCase() === o.info.buyer.toLowerCase() ? "the buyer" : addr(a.triggeredBy)}` };
+      case "TierChanged": return { text: `Verification history ${P.TIERS[Number(a.oldTier)]} → ${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
       default: return { text: e.name };
     }
   }
@@ -323,23 +322,41 @@
     const bar = `<div class="bar" title="paid / ${held ? "held" : refunded ? "refunded" : "remaining"}">
       <span class="p" style="width:${pct(o.paid)}%"></span><span class="${held ? "h" : refunded ? "x" : "r"}" style="width:${pct(total - o.paid)}%"></span></div>`;
 
+    // §2.4a: a failed base check on any order stops payments on every order of the supplier
+    const supplierStop = o.rec.lastBaseFailureAt > 0 && !closed
+      ? `Register status failed on ${dayClock(o.rec.lastBaseFailureAt)}: payments to this supplier are stopped on every order.` : "";
+    const claimRow = (label, enabled) => `<div class="row"><button type="button" class="danger" data-claim="${o.id}"${env.sample || !enabled ? ` disabled title="${env.sample ? "sample data" : "not yet"}"` : ""}>${label}</button>
+          <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span></div>${claimMsg[o.id] ? `<div class="msg">${claimMsg[o.id]}</div>` : ""}`;
     let statusBox = "";
     if (held) {
       const labels = P.failedLabels(o.info.source, o.lastFailedRules);
       const open = nowSec() >= o.autoRefundAt;
-      const m = claimMsg[o.id];
       statusBox = `<div class="held-box">
         <b>🔒 Payment held: ${esc(labels.join(", ") || "failed register check")}</b>
+        ${supplierStop ? `<div>${supplierStop}</div>` : ""}
         <div>${tok(o.remaining)} tokens are protected and can only go back to the buyer. The buyer can claim them now;
           ${open ? "<b>anyone (the agent) can trigger the refund now.</b>" : `anyone (the agent) can trigger the refund in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</div>
-        <div class="row"><button type="button" class="danger" data-claim="${o.id}"${env.sample ? " disabled title=\"sample data\"" : ""}>Claim now (MetaMask)</button>
-          <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span></div>
-        ${m ? `<div class="msg">${m}</div>` : ""}
+        ${claimRow("Claim now (MetaMask)", true)}
       </div>`;
+    } else if (!closed && o.autoRefundAt > 0) {
+      // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
+      const open = nowSec() >= o.autoRefundAt;
+      statusBox = `<div class="held-box" style="background:var(--wait-bg);color:var(--wait)">
+        <b>No verified data since the due date of M${o.next + 1}</b>
+        ${supplierStop ? `<div style="color:var(--hold)">${supplierStop}</div>` : ""}
+        <div>No signed register record has allowed this payment. That says nothing bad about the supplier, only that there is no proof.
+          The remaining ${tok(o.remaining)} tokens can go back to the buyer ${open ? "<b>now</b>; anyone can trigger it." : `from ${dayClock(o.autoRefundAt)} (<b>${cd(o.autoRefundAt, "now")}</b>); anyone can trigger it then.`}</div>
+        ${claimRow("Return to buyer (MetaMask)", open)}
+      </div>`;
+    } else if (supplierStop) {
+      statusBox = `<div class="held-box"><b>⛔ ${supplierStop}</b>
+        <div>This order is not held yet. The agent can hold it without a new paid check (<span class="mono">applySupplierFailure</span>), and no permit from before the failure can pay.</div></div>`;
     } else if (refunded) {
       const ev = o.events.find((e) => e.name === "OrderRefunded");
-      statusBox = `<div class="closed-box">Closed after a hold: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</div>`;
-    } else if (closed) {
+      const how = ev && ev.args.noDataExit ? "Closed by the no-data exit" : "Closed after a hold";
+      statusBox = `<div class="closed-box">${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</div>`;
+    }
+    if (closed && !refunded) {
       statusBox = `<div class="closed-box">Fully paid: every milestone was paid against its own fresh signed record.</div>`;
     }
 
@@ -354,7 +371,7 @@
     else if (permitValid(o)) permitRow = `<b style="color:var(--ok)">valid</b> for M${o.next + 1} until ${clock(o.permitValidUntil)} · ${cd(o.permitValidUntil, "expired")} left`;
     else if (o.permitValidUntil > 0) permitRow = `<span style="color:var(--wait)">expired at ${clock(o.permitValidUntil)}</span>`;
     else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid M${o.next}` : "none yet"}</span>`;
-    permitRow += `<div class="small-muted">lifetime ${duration(o.info.permitTtl)} × ${P.TIER_MULT[o.tier] || 1} (${P.TIERS[o.tier]}) = ${duration(o.effTtl)} from the signed time</div>`;
+    permitRow += `<div class="small-muted">each permit lasts ${duration(o.info.permitTtl)} from the signed time</div>`;
 
     const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
     const trailKey = `trail-${o.id}`;
@@ -387,8 +404,8 @@
         <ol class="ms">${o.amounts.map((_, i) => milestoneView(o, i)).join("")}</ol>
         <table class="rows">
           <tr><th>Payment permit</th><td>${permitRow}</td></tr>
-          <tr><th>Supplier trust</th><td>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} · ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"} · ${o.rec.failures} failed</span>
-            <div class="small-muted">shared by every order for this supplier; Trusted from 3, Premium from 6 clean checks</div></td></tr>
+          <tr><th>Verification history</th><td>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} · ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"} · ${o.rec.failures} failed</span>
+            <div class="small-muted">register checks of this supplier across all orders, not a credit score. A longer clean history only means fewer paid re-checks.</div></td></tr>
           <tr><th>Last check</th><td>${lastCheck}</td></tr>
         </table>
         ${step ? `<div class="next-step ${step[0]}">Next: ${step[1]}</div>` : ""}
@@ -415,8 +432,8 @@
         case "PermitIssued": return `permit M${Number(a.milestone) + 1}`;
         case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b> (${tok(a.amount)})`;
         case "OrderHeld": return "<b>held 🔒</b>";
-        case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer`;
-        case "TierChanged": return `tier → ${P.TIERS[Number(a.newTier)]}`;
+        case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
+        case "TierChanged": return `history → ${P.TIERS[Number(a.newTier)]}`;
         default: return e.name;
       }
     };
@@ -522,10 +539,10 @@
     const evBy = eventsByOrder();
 
     const orders = await Promise.all(ids.map(async (id) => {
-      const [info, milestones, status, schedule, ttl] = await Promise.all([
-        contract.orderInfo(id), contract.orderMilestones(id), contract.orderStatus(id), contract.orderSchedule(id), contract.effectivePermitTtl(id)]);
+      const [info, milestones, status, schedule] = await Promise.all([
+        contract.orderInfo(id), contract.orderMilestones(id), contract.orderStatus(id), contract.orderSchedule(id)]);
       const supplier = await contract.supplierRecord(P.supplierKeyOf(Number(info.source), info.supplierId));
-      return norm({ id, info, milestones, status, schedule, supplier, effectivePermitTtl: ttl, events: evBy[id] || [] });
+      return norm({ id, info, milestones, status, schedule, supplier, events: evBy[id] || [] });
     }));
 
     const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
