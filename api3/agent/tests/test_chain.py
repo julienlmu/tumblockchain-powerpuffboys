@@ -89,6 +89,13 @@ class ChainTest(unittest.TestCase):
         chain.call("ordersLength")
         self.assertEqual([url for _, url in runner.calls][1:], ["http://b", "http://a"])
 
+    def test_a_call_without_return_values_succeeds(self):
+        # cast prints a bare "0x" for release / applySupplierFailure / refundRemaining, even with --json
+        runner = ScriptedRunner({"release": proc("0x\n")})
+        chain = Chain("0xc", ["http://a", "http://b"], private_key="0xk", runner=runner)
+        self.assertEqual(chain.simulate("release", 0), ["0x"])
+        self.assertEqual([url for name, url in runner.calls if name == "call"], ["http://a"])  # no failover
+
     def test_a_revert_is_not_retried_on_another_rpc(self):
         runner = ScriptedRunner({"release": proc(REVERT_ENVELOPE, 1)})
         chain = Chain("0xc", ["http://a", "http://b"], private_key="0xk", runner=runner)

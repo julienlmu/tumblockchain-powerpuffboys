@@ -13,6 +13,8 @@
 > - real signed responses for the tamper demo (§4.7);
 > - an agent hedge on v1 tonight (§6.3).
 >
+> **Amendment (Fri ~17:55, no ABI change):** Emre's C2.5 review of the contract. The no-data exit counts from the approval when it came after the due date (§2.4a, §4.5), and `createOrder` requires `permitTtl ≥ maxAge` (§4.5).
+>
 > Code against this version.
 
 ## How to use this file
@@ -255,9 +257,9 @@ Rule-specific failures (accounts or confirmation statement overdue, LEI renewal)
 **No-data exit.** The buyer gets the remaining balance back when all three hold:
 - the buyer has approved the next milestone;
 - there is no valid permit;
-- the due date has passed by more than `refundGrace`.
+- the due date, or the approval if it came later, has passed by more than `refundGrace`.
 
-`refundRemaining` can then be called by anyone, and the money always goes to the buyer. This covers data that stays unavailable: the register or the Airnode is down, or a field is missing. Milestones already paid stay paid. Without approval there is no exit, because then it is the buyer who has not released the payment.
+`refundRemaining` can then be called by anyone, and the money always goes to the buyer. This covers data that stays unavailable: the register or the Airnode is down, or a field is missing. Milestones already paid stay paid. Without approval there is no exit, because then it is the buyer who has not released the payment. A late approval starts the grace period again, so the supplier (through the agent) always gets the full `refundGrace` to bring evidence; otherwise a buyer could approve and refund in the same block.
 
 ### 2.5 Demo scenario
 
@@ -267,12 +269,14 @@ Rule-specific failures (accounts or confirmation statement overdue, LEI renewal)
 
 | Order | Supplier | Registry | Rules | Milestones (tokens), due | Expected |
 |---|---|---|---|---|---|
-| **A** "PO-1001 Motor supply" | `09729896` (active, flags to verify) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
+| **A** "PO-1001 Motor supply" | `03778796` Electric Motors International Ltd (clean on every field) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
 | **B** "PO-1002 Gearbox" | `07418033` (liquidation) | Companies House | `0x06` | 1,000 (C3 + 20 min), 2,000 | Held at the first check. The agent triggers the refund after the grace period |
-| **C** "PO-1003 Sensors" | active company with **accounts overdue** (Emre finds it) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
-| **D** "PO-1004 Cable harness (DE)" | German company with an LEI, `ACTIVE`/`ISSUED` (Emre finds it) | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
-| **E** "PO-1005 Castings" | LEI with registration **LAPSED** (Emre finds it) | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
+| **C** "PO-1003 Sensors" | `09729896` (active, **accounts and confirmation statement overdue**) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
+| **D** "PO-1004 Cable harness (DE)" | `391200JI69LS8L648F30` ASR Component GmbH, `ACTIVE`/`ISSUED` | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
+| **E** "PO-1005 Castings" | `52990092KBQJF8QBGJ50` MoKa Projekt GmbH, registration **LAPSED** | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
 | **B2** (created live in the video) | `07418033` | Companies House | `0x06` | 1,000, 2,000 (due in 2 minutes) | Held at once by the **supplier-wide stop** (order B already showed `liquidation`), without a new fetch. The refund countdown and the "Claim now" option appear on screen |
+
+Demo suppliers found and verified live by Emre at C1a, with the v1.0 fields. Before C3 they need one check each with the v1.1 fields (`/accounts/next_accounts/overdue`), about $0.05.
 
 **Approvals at creation:** A: M1 and M2. B: M1. C: M1. D: M1 and M2. E: M1. The buyer approves A's M3 live, as the "dual lock" moment.
 
@@ -558,7 +562,8 @@ interface ISupplierPulsePlus {
     ) external payable returns (uint256 orderId);
     function approveMilestone(uint256 orderId, uint256 milestone) external;
     /// Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the next
-    /// milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
+    /// milestone is approved, has no valid permit and is overdue by refundGrace (counted from the due date or the
+    /// later approval). The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external;
 
     // ---- anyone (agent, judges)
@@ -672,14 +677,14 @@ The library errors can also surface and must be decodable by the tools:
 1. `source ≤ 1`, otherwise `BadSource`.
 2. The id format from §4.2, otherwise `BadSupplierId`.
 3. `rules` is valid for the source (Companies House ⊆ `0x06`, GLEIF ⊆ `0x08`), otherwise `BadRules`.
-4. `supplier != 0`, `amounts.length ≥ 1`, `amounts.length == dueDates.length`, every amount > 0, due dates are non-decreasing, `permitTtl > 0`, and `msg.value == sum(amounts)`. Otherwise `BadOrder`.
+4. `supplier != 0`, `amounts.length ≥ 1`, `amounts.length == dueDates.length`, every amount > 0, due dates are non-decreasing, `permitTtl ≥ maxAge` (a record that is still fresh must give a permit that has not expired), and `msg.value == sum(amounts)`. Otherwise `BadOrder`.
 
 Effects:
 - Store `requestHash = requestHashFor(source, id)` and `supplierKey = supplierKeyOf(source, id)`.
 - `approved = new bool[](n)`.
 - Emit `OrderCreated`.
 
-**`approveMilestone`.** Only the buyer (`NotAuthorized`); the milestone must be `< n` (`BadOrder`). Sets `approved[m] = true` and emits `MilestoneApproved`.
+**`approveMilestone`.** Only the buyer (`NotAuthorized`); the milestone must be `< n` (`BadOrder`). Sets `approved[m] = true`, stores `approvedAt[m] = now` on the first approval (internal storage, not in the ABI), and emits `MilestoneApproved`.
 
 **`submitEvidence`.** The order of checks matters, because it decides which error each tamper case produces:
 1. The order exists (`BadOrder`).
@@ -735,7 +740,7 @@ It reverts only on verification failures and on `SupplierFailed`.
 - **Active (no-data exit):** with `m = paidCount`:
   - `approved[m]` (`NotApproved(m)`);
   - no valid permit for `m` (`NotRefundable`);
-  - `now ≥ dueDates[m] + refundGrace` (`RefundNotYet(dueDates[m] + refundGrace)`).
+  - `now ≥ max(dueDates[m], approvedAt[m]) + refundGrace` (`RefundNotYet` with that time).
 
   Anyone may call it. `noDataExit = true`.
 - **Closed:** `NotRefundable`.
@@ -747,7 +752,7 @@ A hold is final: there is no un-hold.
 - `orderSchedule.nextDueDate` is `dueDates[paidCount]`, or `0` when closed.
 - `autoRefundAt`:
   - `heldAt + refundGrace` when held;
-  - `dueDates[m] + refundGrace` when active, the next milestone is approved and there is no valid permit (the no-data exit);
+  - `max(dueDates[m], approvedAt[m]) + refundGrace` when active, the next milestone is approved and there is no valid permit (the no-data exit);
   - otherwise `0`.
 - `tier` is the supplier's current tier.
 - `orderStatus.permitValid` follows v1: active, permit exists for `paidCount`, and `now ≤ validUntil`.
@@ -998,7 +1003,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
    - **Verification history** that counts only the base check and only moves forward, the supplier-wide stop (`lastBaseFailureAt`, the `SupplierFailed` checks, `applySupplierFailure`), `release` with `NotDue`, the `checkAndRelease` outcomes, `refundRemaining` with both paths (§4.5), all views, and admin.
 3. **Forge tests.** Use the same style as `SupplierPulse.t.sol` (custom `Vm`, `vm.sign`). At least these:
    - **Hashes and keys:** `requestHashFor` and `supplierKeyOf` reproduce the §4.2 vectors.
-   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x01` and `0x08` on a Companies House order, `0x02` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` of 0). `BadSource`.
+   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x01` and `0x08` on a Companies House order, `0x02` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` below `maxAge`). `BadSource`.
    - **Companies House:** a clean record issues a permit valid for exactly `permitTtl`. `0x02` and `0x04` fail alone. Status `liquidation` gives `0x80` plus whatever else is enabled. A disabled rule is ignored.
    - **GLEIF:** clean; `LAPSED` with `0x08` is held; `INACTIVE` gives `0x80`.
    - **Tamper:** an edited value (`WrongSigner`), stale, future, another request (`WrongRequest`), a wrong key (`WrongSigner`), replay (`Replayed`), not newer (`NotNewer`), a high-s signature (`InvalidSignatureS`). A Companies House response on a GLEIF order gives `WrongRequest`. A held order rejects new evidence (`NotActive`).
@@ -1020,7 +1025,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
      - a rule-only failure on B does not stop A.
    - **Refund:**
      - Held: the buyer at once; a stranger before the grace period gets `RefundNotYet`, after it the refund reaches the buyer.
-     - No-data exit: approved, no permit, overdue by the grace period, so anyone can refund to the buyer with `noDataExit = true`. It gives `NotApproved` when the milestone is not approved, `NotRefundable` with a valid permit, `RefundNotYet` before due date + grace, and `NotRefundable` on a closed order.
+     - No-data exit: approved, no permit, overdue by the grace period, so anyone can refund to the buyer with `noDataExit = true`. It gives `NotApproved` when the milestone is not approved, `NotRefundable` with a valid permit, `RefundNotYet` before due date + grace, and `NotRefundable` on a closed order. **Late approval:** approve after due date + grace, then refund in the same block → `RefundNotYet(approvedAt + refundGrace)`; after the grace the refund works (Emre's PoC).
    - **Events:** every event fires with the exact arguments.
 4. **Deploy script.** `DeploySupplierPulsePlus.s.sol` reads env `EVM_PRIVATE_KEY`, `CH_AIRNODE` (default the real one), `GLEIF_AIRNODE` (default the real one), `MAX_AGE=300`, `TIER_COUNT_GAP=300` and `REFUND_GRACE=600`.
 5. **Scripts.**
@@ -1131,7 +1136,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
 
-**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass.
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass. **C2 passed (~17:20)** against Orhun's v1.1 contract on a local chain (`api3/agent/c2_check.py`, 8/8). **C2.5 review fixes (~17:45):** the check window respects `permitTtl`, no monitoring while a due milestone waits for the buyer, quarantine blocks every action, and one last try before the no-data refund. **C2 with Emre's real `fetch-local.sh` passed (~17:40, 8/8)**; it showed that P4 could pay for a fetch on an order refunded in the same tick, now fixed. 63 tests pass.
 
 **Modules (`api3/agent/`):**
 
@@ -1167,16 +1172,19 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 **Plan, once per tick.** `now` is the chain time. Actions are listed by priority:
 
 ```text
+            a quarantined order gets no action at all (no fetch, release, refund or stop)
 P0 stop     state=Active and supplier.lastBaseFailureAt > order.lastCheck   → applySupplierFailure(order)   (no fetch)
-P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0     → refundRemaining(order)        (no fetch)
-            (a hold after its grace period, or the no-data exit of an approved milestone without a permit)
+P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0, and either state=Held (a hold after
+            its grace period) or the agent's own try at or after nextDueDate failed (the no-data exit;
+            until then P3 tries once more, ignoring the backoff)  → refundRemaining(order)  (no fetch)
 P2 release  state=Active and permitValid and nextApproved and now ≥ nextDueDate → release(order)          (no fetch)
-P3 due      state=Active and now ≥ nextDueDate − DUE_LEAD
+P3 due      state=Active and now ≥ nextDueDate − min(DUE_LEAD, permitTtl − 60 s)  # its permit covers the due date
             and not (permitValid and permitValidUntil ≥ max(now, nextDueDate))
             and (nextApproved or now < nextDueDate)        # don't pay for checks while waiting for the buyer
-            and not quarantined and backoff elapsed      → fetch(source, id) →
+            and backoff elapsed (or P1's last try)       → fetch(source, id) →
                                                           now ≥ nextDueDate ? checkAndRelease : submitEvidence
-P4 monitor  per supplierKey with ≥ 1 Active order and no P3 fetch this tick:
+P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer and without a P0–P3 action this tick,
+            and no P3 due check for that supplier (run or skipped):
             now − lastCheckAt ≥ interval(tier)            → fetch once → submitEvidence to that supplier's
                                                           Active order with the nearest nextDueDate
 Budget      P3 only if spentToday + cost ≤ DAILY_BUDGET_USD
@@ -1392,7 +1400,7 @@ Required policy tests:
    - order 2 paid;
    - order 3 held (LEI renewal overdue);
    - order 4 (same supplier as order 1) held by `applySupplierFailure`, **without a fetch**;
-   - order 5 (no data) refunded through the no-data exit 120 s after its due date;
+   - order 5 (no data) refunded through the no-data exit 120 s after its due date, once the agent's last try failed;
    - order 0's supplier climbs tiers as monitoring checks pass the 60 s gap.
 4. **Batu:** the dashboard on `rpc=http://127.0.0.1:8545` shows all of this live, and the judge page verdicts equal step 2.
 5. **Ulaş:** follows the README draft against what actually happens, and notes demo moments.
@@ -1413,7 +1421,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 ### 7.2 C3: Sepolia launch (00:00)
 
 1. **Orhun** deploys v2 with the demo constants and records the address in §3.2, `docs/evidence.md` and `api3/.env.example`.
-2. **Emre** confirms the demo supplier ids and exports `DEMO_CH_A=09729896`, `DEMO_CH_B=07418033`, `DEMO_CH_C=…`, `DEMO_LEI_D=…`, `DEMO_LEI_E=…`.
+2. **Emre** confirms the demo supplier ids, re-verified with the v1.1 fields, and exports `DEMO_CH_A=03778796`, `DEMO_CH_B=07418033`, `DEMO_CH_C=09729896`, `DEMO_LEI_D=391200JI69LS8L648F30`, `DEMO_LEI_E=52990092KBQJF8QBGJ50`.
 3. **Orhun** runs `plus-demo-orders.sh` (orders A to E plus the approvals in §2.5). The supplier wallets are fresh team addresses.
 4. **Batu** sends at least 2 aUSD on Base Sepolia to the agent wallet, and **Julien** checks the balances.
 5. **Julien** starts the agent in the supervised loop with `AGENT_PROFILE=demo` and watches the first cycles: A M1 and D M1 paid; B, C and E held.
