@@ -126,7 +126,7 @@ class ChainTest(unittest.TestCase):
         send = runner.cmds[0]
         self.assertIn("--async", send)
         # Batu's finding: the exact estimate ran out of gas when the transaction landed a block later
-        self.assertEqual(send[send.index("--gas-limit") + 1], "600000")
+        self.assertEqual(send[send.index("--gas-limit") + 1], "2000000")
 
     def test_a_receipt_rpc_failure_never_sends_again(self):
         # an RPC error while waiting (Tenderly -32603): the receipt comes from the next RPC, one transaction only

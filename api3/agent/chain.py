@@ -35,9 +35,10 @@ SIGNATURES = {
 OUTCOME_NAMES = {0: "Paid", 1: "AwaitingApproval", 2: "NotDue", 3: "Held"}
 # Fixed gas limit for every write. cast send would use the exact estimate, and on a chain that mines in intervals
 # (Sepolia) a transaction often lands a block later, where more storage is written (for example the verification
-# history after tierCountGap): 18 of 24 sends ran out of gas in Batu's test. Unused gas is refunded, and every
-# write is simulated first, so the fixed limit only removes the estimate's lack of headroom.
-GAS_LIMIT = 600_000
+# history after tierCountGap): 18 of 24 sends ran out of gas in Batu's test. On v2 a clean submitEvidence needs
+# ~683k gas (Sepolia, measured), a held one ~596k, and checkAndRelease adds the payout, so 600k ran out of gas.
+# Unused gas is refunded, and every write is simulated first, so a high limit costs nothing.
+GAS_LIMIT = 2_000_000
 
 # 4-byte selectors of every error the contract and its libraries can raise (cast sig "Name(types)")
 ERROR_SELECTORS = {
