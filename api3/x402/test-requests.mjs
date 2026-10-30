@@ -1,6 +1,13 @@
-// Asserts the test vectors of docs/SUPPLIERPULSE_PLUS.md §4.2. Run: node api3/x402/test-requests.mjs
+// Asserts the test vectors of docs/SUPPLIERPULSE_PLUS.md §4.2, and the local signer, verify and tamper tools (§4.7).
+// Run: node api3/x402/test-requests.mjs
 import assert from 'node:assert/strict';
 import { buildRequest, evaluateRules, hashRequest, normalizeId, requestHash, supplierKey } from './requests.mjs';
+import { signRecord } from './sign-local.mjs';
+import { tamper } from './tamper.mjs';
+import { verifyRecord } from './verify.mjs';
+
+const CLEAN_CH = '{"accounts_overdue":false,"confirmation_overdue":false,"insolvency":false,"status":"active"}';
+const failing = async (r) => (await verifyRecord(r, { local: true })).filter((x) => !x.ok).map((x) => x.check);
 
 const tests = {
   'requestHash ch 09729896': () =>
@@ -44,12 +51,35 @@ const tests = {
     assert.equal(evaluateRules('gleif', { entity_status: 'ACTIVE', registration_status: 'LAPSED' }, 0x08).failedRules, 0x08);
     assert.equal(evaluateRules('gleif', { entity_status: 'INACTIVE', registration_status: 'ISSUED' }, 0x08).failedRules, 0x80);
   },
+  'local record verifies with --local only': async () => {
+    const r = await signRecord('ch', '01234567', CLEAN_CH);
+    assert.deepEqual(await failing(r), []);
+    assert.deepEqual((await verifyRecord(r)).filter((x) => !x.ok).map((x) => x.check), ['signer']);
+  },
+  'tamper modes break the expected checks': async () => {
+    const r = await signRecord('ch', '01234567', CLEAN_CH);
+    const t = async (mode) => (await tamper(r, mode)).record;
+    const value = await t('value');
+    assert.equal(value.raw, CLEAN_CH.replace('"active"', '"liquidation"'));
+    assert.equal(value.signature, r.signature);
+    assert.deepEqual(await failing(value), ['signer']);
+    assert.deepEqual(await failing(await t('stale')), ['signer', 'fresh']);
+    assert.deepEqual(await failing(await t('request')), ['signer', 'request']);
+    assert.deepEqual(await failing(await t('key')), ['signer']);
+    assert.deepEqual(await t('replay'), r);
+  },
+  'tamper value: GLEIF and boolean fallback': async () => {
+    const g = await signRecord('gleif', 'TESTLEI0000000000000', '{"entity_status":"ACTIVE","registration_status":"ISSUED"}');
+    assert.equal((await tamper(g, 'value')).record.raw, '{"entity_status":"INACTIVE","registration_status":"ISSUED"}');
+    const b = await signRecord('ch', '01234567', '{"accounts_overdue":false,"insolvency":false}');
+    assert.equal((await tamper(b, 'value')).record.raw, '{"accounts_overdue":true,"insolvency":false}');
+  },
 };
 
 let failed = 0;
 for (const [name, fn] of Object.entries(tests)) {
   try {
-    fn();
+    await fn();
     console.log(`ok   ${name}`);
   } catch (e) {
     failed++;

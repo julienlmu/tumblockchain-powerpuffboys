@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · verify and tamper tools (§6.2)
+- Changed: `node api3/x402/verify.mjs <file> [--max-age 300] [--local]` runs the contract's checks off chain (signer per source, request hash, age, projected fields) and prints a table; exit 0 valid, 1 invalid. `node api3/x402/tamper.mjs <file> <value|stale|request|key|replay>` writes the tampered record with the §4.7 semantics (value edits only the one field, the other bytes stay as signed). Tests: 11/11 in `test-requests.mjs`.
+- Next: live calls (C1a), `fetch-evidence.sh`, `plus-submit.sh`.
+- Notes: Batu, the judge page can copy `tamper.mjs` logic 1:1 (it only uses viem functions that have ethers equivalents).
+
 ### 2026-10-30 · Emre · SupplierPulse+ data layer, local signer (§6.2)
 - Changed: started §6.2 on `emre/plus-data`.
   - `api3/x402/requests.mjs`: sources, request bodies, request hashes, supplier keys and the §4.3 rule evaluation. `node api3/x402/test-requests.mjs` asserts all §4.2 vectors (8/8 pass).
