@@ -72,6 +72,15 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: confirm the seller payout of `c00c4fcf…` (receipt), then a paid job with the real `eth-vault` app (needs the Sepolia `EVM_*` vars in `cardano-agent/.env`).
 - Notes: our agent is not on Sokosumi's agent list (`sokosumi --preprod agents list` shows 20 curated agents). Registering on Masumi does not list it there, so ask the Masumi team on site how to get listed. Qualification does not depend on it: the paid job runs through Masumi escrow on preprod.
 
+### 2026-10-30 · Batu (13:55)
+- Changed: `docs/decision-sheet.md` has a new section "SupplierPulse (#3 extended): API3 review". Docs only.
+- Next: Orhun looks at the issues list. Batu can fetch real `getCompanyProfile` responses for the test companies ($0.01 each).
+- Notes:
+  - `forge test` on `supplier-pulse` passes 31/31.
+  - **Test hashes use `companyNumber`, but the Companies House listing's parameter is `company_number`.** A script built from the tests would fail every real response with `WrongRequest`.
+  - Free `advancedSearchCompanies` test candidates: active `09729896`, `10092605`; liquidation `07418033`; dissolved `12493325`.
+  - One company won't change status during a live demo, so show two orders (paid vs held).
+
 ### 2026-10-30 · Batu (13:05)
 - Changed: `docs/decision-sheet.md` #6 now has the results of the paid checks. Docs only.
 - Next: Ulaş, Orhun and Batu decide. If #6: one coin, simulated pool rewards, credit = reward × signed `historicalPrices` at the reward time, hash built on-chain.

@@ -2,6 +2,17 @@
 
 Newest on top.
 
+### 2026-10-30 ~13:55 · branch `batu/api3-setup`
+- Done: API3 review of SupplierPulse (branch `supplier-pulse`, Orhun) in `docs/decision-sheet.md`.
+- Verified: `forge test` on a scratch copy passes 31/31 (SupplierPulse 14, vault 17). Companies House listing: signer `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, `getCompanyProfile` with `company_number`, $0.01.
+- Free calls only (no aUSD spent): `advancedSearchCompanies` found active and liquidation/dissolved motor companies for the demo.
+- Findings for Orhun:
+  - the test hashes use `companyNumber`, but the real parameter is `company_number`
+  - the live demo cannot show a status change between stages, so use two orders (active vs liquidation)
+  - store the company number on-chain
+  - keep the projection mandatory and `maxAge` short
+- Next: with Batu's OK, one paid `getCompanyProfile` per test company ($0.01 each) to fix the real request hash.
+
 ### 2026-10-30 ~13:05 · branch `batu/api3-setup`
 - Done: `git fetch origin && git rebase origin/main` onto Orhun's `a77d2f7` ("API3 vault deployed on Sepolia"), no conflicts. Moved Orhun's two new PROGRESS entries to their place in the time order.
 - Resolved: Orhun fixed the wrong-key tamper mode for Foundry 1.8.x in `a77d2f7`. His vault is live on Ethereum Sepolia `0xBC68DB972A62cFf3161e600d92C475c29c22886A`, with all four tamper cases rejected on-chain (his log entry).

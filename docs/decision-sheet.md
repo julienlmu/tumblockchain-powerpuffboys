@@ -147,6 +147,75 @@ Two paid calls from Batu's wallet `0xA545…FB4c`, using the x402 client copied 
 - The valuation half of #6 is now technically proven: a signed price bound to the reward's own moment, with a request hash the contract can rebuild.
 - The reward-amount half is still unsigned. So #6 stays behind #3 on "signed data matters" (30%), but clearly ahead of #0 on novelty and the agent bonus.
 
+## SupplierPulse (#3 extended): API3 review (30 Oct, ~13:55)
+
+Reviewed:
+- `docs/SUPPLIERPULSE.md` (plan, "agreed by Orhun") and `api3/src/SupplierPulse.sol` + `api3/test/SupplierPulse.t.sol`, all on branch `supplier-pulse` (`9bef289`, Orhun, 13:38).
+- The idea: every payment stage of a supplier order needs a **fresh** signed Companies House `company_status`. An "active" status issues a permit for one stage that expires. Any other status holds the rest of the order.
+
+### Checked
+
+- [F] **Tests pass.** `forge test` on a scratch copy of `supplier-pulse`: SupplierPulse 14/14, existing vault 17/17.
+- [F] **The Companies House listing exists and fits** (https://airnodehub.api3.org/llms-full.txt):
+  - URL `https://airnode-companies-house.fly.dev/`, signer `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, third-party attestation.
+  - `getCompanyProfile`, parameter **`company_number`**, $0.01 aUSD via x402. The response has `company_status`.
+- [F] **Search is free** (`searchCompanies`, `advancedSearchCompanies`) and is signed by the same Airnode. A free call today (`company_name_includes=motor`, `company_type=ltd`) found test candidates:
+
+| Case | Company number | Name | Status (search index) |
+|---|---|---|---|
+| paid | `09729896` | POOLE BRIDGE MOTOR COMPANY LTD | active |
+| paid | `10092605` | JENKINS MOTOR COMPANY LIMITED | active |
+| held | `07418033` | A K MOTOR SERVICES (PLYMOUTH) LTD | liquidation |
+| held | `12493325` | LUXURY MOTOR RENTAL LTD | dissolved (2020-12-22) |
+
+  These are real public register entries. Confirm with one paid `getCompanyProfile` before the demo, because the search index may lag the profile.
+- [F] **No German register on AirnodeHub.** The catalogue has zero matches for Handelsregister, Insolvenz, Unternehmensregister or OpenCorporates. This is a good answer to "what data did you want but could not find" for a German customer.
+
+### Against the API3 judging criteria [I]
+
+- **Real use case (40%):** strong.
+  - Concrete customer and money at risk: instalments to a supplier that went into liquidation.
+  - API3's own idea list names "payment or escrow released when authenticated external data meets a condition", with Companies House as an example [F, fact 6].
+- **Signed data matters (30%):** **strongest of all candidates.** The signed status *is* the payment decision. Forge `active` and money goes to a dead company.
+- **Novelty (10%):** good.
+  - The permit expires, is bound to one stage, one supplier wallet and one order, and is used up by the payment.
+  - "Approval last month ≠ approval today" goes clearly beyond the starter.
+- **Execution (20%):** good. The contract and tests exist. The live response and deploy are still open.
+- **Agent bonus (+10):** good fit. The agent re-checks before each payment date and pays x402 each time (`getCompanyProfile` is priced).
+
+### Issues to fix or decide
+
+1. **[F] Parameter name.**
+   - The test hashes use `["getCompanyProfile",[["companyNumber","01234567"]],[["status","/company_status"]]]`, but the listing's parameter is `company_number`.
+   - The contract itself is fine, because it takes the hash as input. But any script that builds `companyRequest` must use `company_number`, or every real response fails with `WrongRequest`.
+   - Safest: take the hash from one real response.
+2. **[I] The live demo cannot show "status changes between stage 1 and stage 2".** One real company will not change status during the demo. Honest demo:
+   - Order A with an active supplier: stage 1 paid, the permit expires, stage 2 needs a new check and is paid.
+   - Order B with a supplier in liquidation: held at the first check, buyer refunds.
+   - The status-change story stays in the unit test (`test_holdsRemainderWhenStatusChanges`) and in the pitch, never faked in the video.
+3. **[I] Make the company visible on-chain.**
+   - `companyRequest` is an opaque hash chosen by the buyer, and the docs warn "a hash does not show its request".
+   - Better: store the company number and build the hash in the contract. The docs recommend the `POST /` route for this, with a Nodary example at ~5,500 gas. At least emit the company number in `OrderCreated`.
+   - This also makes tamper case (c) easy to explain to judges.
+4. **[I] Keep the projection mandatory.**
+   - `PriceParser.parseString` takes the first `"status":` in the data. That is only safe with the projection `status` → `/company_status`.
+   - The request hash covers the projection, so an unprojected response already fails as `WrongRequest`. Document this in the README.
+5. **[I] Keep `maxAge` short.**
+   - `submitEvidence` is open to anyone. An "active" response fetched just before a status change stays usable for `maxAge`.
+   - A narrow window (minutes, not a day) limits this, as the API3 docs advise for cherry-picking. The permit TTL is counted from the evidence time, which is good.
+6. **[I] Only `active` passes.**
+   - Statuses such as `administration` or `voluntary-arrangement` hold the order. That is probably right, but say it in the README.
+   - Possible later rule, not v1: also hold when the profile shows overdue accounts.
+7. **[F] One response serves one order.** `usedDigests` is global, so two orders for the same company need two checks ($0.01 each). That is fine.
+
+### Verdict (Batu's view, for the team to challenge)
+
+**SupplierPulse is the strongest API3 candidate so far** [I]:
+- It beats #0 on use case and novelty.
+- It beats #6 (mining) on "signed data matters", because nothing in the decision is unsigned.
+
+Fix items 1 and 2 before the demo. Item 3 is a cheap upgrade worth doing. Next paid step: one `getCompanyProfile` per test company ($0.01 each, Batu's wallet), to fix the real request hash and confirm the statuses.
+
 ## Comparison
 
 | # | Idea | Customer & paid job | Payment tied to result | Real vs mocked | Build risk | Cardano fit | API3 fit |
