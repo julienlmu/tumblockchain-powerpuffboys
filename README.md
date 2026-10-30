@@ -8,7 +8,7 @@ SupplierPulse+ is a prototype for milestone-based supplier payments gated by fre
 
 ## Try it
 
-**Status at 30 October 2026, 17:00 CET:** the live contract and transaction evidence in this branch are for SupplierPulse v1. SupplierPulse+ v2 has a build specification, but its contract, fetch tools, dashboard, and judge page are not yet integrated or deployed here. Do not present v2 behavior as live.
+**Status at 30 October 2026, 17:02 CET:** the live contract and transaction evidence in this branch are for SupplierPulse v1. SupplierPulse+ v2 has a build specification, but its contract, fetch tools, dashboard, and judge page are not yet integrated or deployed here. Do not present v2 behavior as live.
 
 ### Existing v1 test flow
 

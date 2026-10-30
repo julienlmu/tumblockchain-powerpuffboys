@@ -1,6 +1,6 @@
 # SupplierPulse+ pitch and judge Q&A
 
-> **Readiness gate (30 October 2026, 17:00 CET):** This is the intended v2 pitch, not a claim that v2 is live. The current deployed and evidenced contract is v1, which checks Companies House status only. Use the v2 claims below only after the integration and its evidence are verified; otherwise describe the v1 demo and say v2 is still in development.
+> **Readiness gate (30 October 2026, 17:02 CET):** This is the intended v2 pitch, not a claim that v2 is live. The current deployed and evidenced contract is v1, which checks Companies House status only. Use the v2 claims below only after the integration and its evidence are verified; otherwise describe the v1 demo and say v2 is still in development.
 
 ## 90-second pitch
 

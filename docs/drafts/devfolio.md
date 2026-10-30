@@ -1,6 +1,6 @@
 # Devfolio submission draft — API3 track
 
-> **Not submission-ready (30 October 2026, 17:00 CET).** The v2 feature description below is the intended design, not a deployed product claim. The only live contract evidence in this branch is SupplierPulse v1, which checks Companies House status only. Keep this as a draft until the v2 contract, data tools, judge experience, and live evidence are integrated and verified.
+> **Not submission-ready (30 October 2026, 17:02 CET).** The v2 feature description below is the intended design, not a deployed product claim. The only live contract evidence in this branch is SupplierPulse v1, which checks Companies House status only. Keep this as a draft until the v2 contract, data tools, judge experience, and live evidence are integrated and verified.
 
 ## Project name
 
@@ -60,7 +60,7 @@ The v2 demonstration must first show an accepted fresh response that causes the 
 
 ## Autonomous agent bonus
 
-The agent implementation and documentation exist in `api3/agent/` and `docs/agent.md`. Its 48-test suite ran locally: 47 passed and one was skipped because `cast` is not installed. A 45-tick `--fake` workflow also ran against an in-memory chain and registry; its synthetic transactions and spend are not live evidence. The overnight Sepolia run, real-cycle count, and verified spend are still pending. The intended demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call; confirm these against the deployed v2 agent configuration before submission.
+The agent implementation and documentation exist in `api3/agent/` and `docs/agent.md`. Its updated 54-test suite ran locally: 53 passed and one was skipped because `cast` is not installed. A 45-tick `--fake` workflow also ran against an in-memory chain and registry; its synthetic transactions and spend are not live evidence. The overnight Sepolia run, real-cycle count, and verified spend are still pending. The intended demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call; confirm these against the deployed v2 agent configuration before submission.
 
 **Before submission:** replace the above with the live cycle count, measured spend, overnight log, and Base Sepolia payment / Ethereum Sepolia action links—or state plainly that the agent bonus was not demonstrated.
 
