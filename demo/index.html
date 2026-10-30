@@ -13,6 +13,17 @@
 <script src="sample/sample.js"></script>
 <link rel="stylesheet" href="base.css">
 <style>
+  /* the three verification states, also a filter */
+  .states { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 18px; }
+  .state-btn { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .state-btn:hover { border-color: var(--muted); }
+  .state-btn.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .state-btn .top { display: flex; align-items: baseline; gap: 10px; }
+  .state-btn .count { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .state-btn .def { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .states .rest { color: var(--muted); font-size: 13px; align-self: center; }
+  .link-order { font: inherit; background: none; border: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; }
+
   /* agent panel */
   .agent { margin-top: 18px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; }
   .agent-head { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; justify-content: space-between; }
@@ -130,6 +141,7 @@
       <div class="btns"><button class="primary" type="submit">Load</button><button type="button" id="sample-btn">Sample data</button></div>
     </form>
   </details>
+  <div class="states" id="states"></div>
   <section class="agent" id="agent"></section>
   <div class="grid" id="orders"></div>
   <footer>
@@ -311,20 +323,57 @@
 
   // ---------------------------------------------------------------- order card
 
-  function renderOrder(o, env) {
+  // ---------------------------------------------------------------- verification state of an order
+
+  // The three states the buyer reads first: eligible, rule failed, no data. The rest are waiting or closed.
+  const STATES = {
+    ok: { cls: "ok", label: "Eligible", def: "A fresh signed record passed every rule. The payment permit is valid." },
+    rule: { cls: "hold", label: "Rule failed", def: "A genuine record failed the buyer's rules, on this order or another order of the same supplier. Payments stop; the balance stays protected for the buyer." },
+    nodata: { cls: "wait", label: "No data", def: "No valid signed record since the due date. Says nothing bad about the supplier. The buyer gets the money back after the grace period." },
+    pending: { cls: "muted", label: "Awaiting check" },
+    paid: { cls: "ok", label: "Fully paid" },
+    closed: { cls: "done", label: "Refunded" },
+  };
+  const totalOf = (o) => o.amounts.reduce((x, y) => x + y, 0n);
+  const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2;
+  function stateOf(o) {
+    if (o.state === 2) return o.paid >= totalOf(o) ? "paid" : "closed";
+    if (o.state === 1 || supplierStopped(o) || o.lastFailedRules) return "rule";
+    if (o.autoRefundAt > 0) return "nodata";
+    if (permitValid(o)) return "ok";
+    return "pending";
+  }
+
+  // §2.4a: which order's record stopped this supplier. The failed record's signed time is the supplier's lastBaseFailureAt.
+  const supKey = (o) => `${o.info.source}:${o.info.supplierId}`;
+  function causeOf(o, orders) {
+    if (!o.rec.lastBaseFailureAt) return null;
+    const same = orders.filter((x) => supKey(x) === supKey(o));
+    return same.find((x) => x.events.some((e) => e.name === "EvidenceAccepted" && !e.args.clean
+        && (Number(e.args.failedRules) & P.BASE_FAILED) && Number(e.args.timestamp) === o.rec.lastBaseFailureAt))
+      || same.find((x) => x.state === 1 && (x.lastFailedRules & P.BASE_FAILED)) || null;
+  }
+  const orderName = (o) => `#${o.id} ${esc(orderTitle(o) || "Order " + short(o.info.orderRef))}`;
+  const orderLink = (o) => `<button type="button" class="link-order" data-goto="${o.id}">${orderName(o)}</button>`;
+
+  function renderOrder(o, env, ctx) {
     const s = P.SOURCES[o.info.source] || { badge: "?", name: "unknown", registerUrl: () => "#" };
     const total = o.amounts.reduce((x, y) => x + y, 0n);
     const title = orderTitle(o);
     const held = o.state === 1, closed = o.state === 2, refunded = closed && o.paid < total;
 
-    const badge = held ? ["hold", "Held 🔒"] : refunded ? ["done", "Refunded"] : closed ? ["ok", "Fully paid"] : ["info", "Active"];
+    const vs = STATES[stateOf(o)];
+    const badge = [vs.cls, vs.label + (held ? " · held 🔒" : "")];
     const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
     const bar = `<div class="bar" title="paid / ${held ? "held" : refunded ? "refunded" : "remaining"}">
       <span class="p" style="width:${pct(o.paid)}%"></span><span class="${held ? "h" : refunded ? "x" : "r"}" style="width:${pct(total - o.paid)}%"></span></div>`;
 
     // §2.4a: a failed base check on any order stops payments on every order of the supplier
-    const supplierStop = o.rec.lastBaseFailureAt > 0 && !closed
-      ? `Register status failed on ${dayClock(o.rec.lastBaseFailureAt)}: payments to this supplier are stopped on every order.` : "";
+    const cause = ctx.cause, byOther = cause && cause.id !== o.id;
+    const supplierStop = !supplierStopped(o) ? ""
+      : byOther ? `Stopped by ${orderLink(cause)}: a signed record of the same supplier (${esc(o.info.supplierId)}) failed the register status on ${dayClock(o.rec.lastBaseFailureAt)}. Payments to this supplier are stopped on every order.`
+      : `Register status failed on ${dayClock(o.rec.lastBaseFailureAt)}: payments to this supplier are stopped on every order.`;
+    const alsoStops = ctx.stops.length ? `<div>This record also stops ${ctx.stops.map(orderLink).join(", ")}: same supplier.</div>` : "";
     const claimRow = (label, enabled) => `<div class="row"><button type="button" class="danger" data-claim="${o.id}"${env.sample || !enabled ? ` disabled title="${env.sample ? "sample data" : "not yet"}"` : ""}>${label}</button>
           <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span></div>${claimMsg[o.id] ? `<div class="msg">${claimMsg[o.id]}</div>` : ""}`;
     let statusBox = "";
@@ -333,7 +382,7 @@
       const open = nowSec() >= o.autoRefundAt;
       statusBox = `<div class="held-box">
         <b>🔒 Payment held: ${esc(labels.join(", ") || "failed register check")}</b>
-        ${supplierStop ? `<div>${supplierStop}</div>` : ""}
+        ${supplierStop ? `<div>${supplierStop}</div>` : ""}${alsoStops}
         <div>${tok(o.remaining)} tokens are protected and can only go back to the buyer. The buyer can claim them now;
           ${open ? "<b>anyone (the agent) can trigger the refund now.</b>" : `anyone (the agent) can trigger the refund in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</div>
         ${claimRow("Claim now (MetaMask)", true)}
@@ -386,7 +435,7 @@
       : `<div class="small-muted">No events found${env.sample ? "" : " in the searched block range (set the deploy block in Settings)"}.</div>`;
 
     return `
-      <article class="card${held ? " is-held" : ""}">
+      <article class="card${held ? " is-held" : ""}" id="order-${o.id}">
         <div class="card-head">
           <div><h2>#${o.id} · ${esc(title || "Order " + short(o.info.orderRef))}</h2>
             <div class="sub"><span class="reg">${s.badge}</span>
@@ -406,7 +455,10 @@
           <tr><th>Payment permit</th><td>${permitRow}</td></tr>
           <tr><th>Verification history</th><td>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} · ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"} · ${o.rec.failures} failed</span>
             <div class="small-muted">register checks of this supplier across all orders, not a credit score. A longer clean history only means fewer paid re-checks.</div></td></tr>
-          <tr><th>Last check</th><td>${lastCheck}</td></tr>
+          <tr><th>Last signed record</th><td>${lastCheck}</td></tr>
+          <tr><th>Agent's last decision</th><td>${ctx.agent
+            ? `${agentWords(ctx.agent, o)} <span class="small-muted">· ${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}`
+            : `<span class="small-muted">no agent transaction on this order yet</span>`}</td></tr>
         </table>
         ${step ? `<div class="next-step ${step[0]}">Next: ${step[1]}</div>` : ""}
         ${trail}
@@ -415,8 +467,8 @@
 
   // ---------------------------------------------------------------- agent panel
 
-  function renderAgent(orders, env) {
-    const byId = Object.fromEntries(orders.map((o) => [o.id, o]));
+  // The agent's transactions, one row per transaction, newest first.
+  function agentGroups(orders) {
     const groups = new Map();
     for (const o of orders) for (const e of o.events) {
       if (!isAgent(e.from)) continue;
@@ -424,28 +476,33 @@
       if (!groups.has(k)) groups.set(k, { time: e.time, block: e.block, tx: e.tx, order: o.id, evs: [] });
       groups.get(k).evs.push(e);
     }
-    const rows = [...groups.values()].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0));
-    const word = (e, o) => {
-      const a = e.args;
-      switch (e.name) {
-        case "EvidenceAccepted": return a.clean ? "check clean ✓" : `check failed: ${P.failedLabels(o.info.source, a.failedRules).join(", ")}`;
-        case "PermitIssued": return `permit M${Number(a.milestone) + 1}`;
-        case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b> (${tok(a.amount)})`;
-        case "OrderHeld": return "<b>held 🔒</b>";
-        case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
-        case "TierChanged": return `history → ${P.TIERS[Number(a.newTier)]}`;
-        default: return e.name;
-      }
-    };
+    return [...groups.values()].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0));
+  }
+  function agentWord(e, o) {
+    const a = e.args;
+    switch (e.name) {
+      case "EvidenceAccepted": return a.clean ? "check clean ✓" : `check failed: ${P.failedLabels(o.info.source, a.failedRules).join(", ")}`;
+      case "PermitIssued": return `permit M${Number(a.milestone) + 1}`;
+      case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b> (${tok(a.amount)})`;
+      case "OrderHeld": return "<b>held 🔒</b>";
+      case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
+      case "TierChanged": return `history → ${P.TIERS[Number(a.newTier)]}`;
+      default: return e.name;
+    }
+  }
+  // a hold without evidence in the same transaction is applySupplierFailure: no paid fetch
+  const isSupplierStop = (g) => !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
+  const agentWords = (g, o) => `${isSupplierStop(g) ? "supplier-wide stop, no fetch → " : ""}${g.evs.map((e) => agentWord(e, o)).join(" → ")}`;
+
+  function renderAgent(orders, rows) {
+    const byId = Object.fromEntries(orders.map((o) => [o.id, o]));
     const head = `<div class="agent-head"><h2>Agent activity</h2>
       <span class="sub">${agentAddr ? `agent ${addr(agentAddr)} · ${rows.length} autonomous transactions${rows[0] && rows[0].time ? ` · last ${since(rows[0].time)}` : ""}` : "set an agent address in Settings to highlight its transactions"}</span></div>`;
     const li = (g) => {
       const o = byId[g.order];
       const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
-      // a hold without evidence in the same transaction is applySupplierFailure: no paid fetch
-      const stop = !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
-        <span>#${g.order} ${name}: ${stop ? "supplier-wide stop, no fetch → " : ""}${g.evs.map((e) => word(e, o)).join(" → ")}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+        <span>#${g.order} ${name}: ${o ? agentWords(g, o) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
     const more = rows.length > 5
       ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - 5} earlier</summary><ol>${rows.slice(5, 60).map(li).join("")}</ol></details>`
@@ -453,9 +510,30 @@
     $("agent").innerHTML = head + (rows.length ? `<ol>${rows.slice(0, 5).map(li).join("")}</ol>${more}` : `<div class="small-muted" style="margin-top:8px">No agent transactions in the loaded history yet.</div>`);
   }
 
+  let filter = null; // a STATES key: show only the orders in that state
+  function renderStates(orders) {
+    const count = {};
+    for (const o of orders) { const k = stateOf(o); count[k] = (count[k] || 0) + 1; }
+    const btn = (k) => `<button type="button" class="state-btn${filter === k ? " on" : ""}" data-filter="${k}" title="${filter === k ? "Show all orders" : "Show only these orders"}">
+      <span class="top"><span class="badge ${STATES[k].cls}">${STATES[k].label}</span><span class="count">${count[k] || 0}</span></span>
+      <span class="def">${STATES[k].def}</span></button>`;
+    const rest = ["pending", "paid", "closed"].filter((k) => count[k]).map((k) => `${count[k]} ${STATES[k].label.toLowerCase()}`);
+    $("states").innerHTML = btn("ok") + btn("rule") + btn("nodata")
+      + `<div class="rest">${rest.join(" · ")}${filter ? `${rest.length ? " · " : ""}<button type="button" class="link-order" data-filter="">show all</button>` : ""}</div>`;
+  }
+
+  let lastEnv = { sample: false };
   function renderAll(orders, env) {
-    renderAgent(orders, env);
-    $("orders").innerHTML = orders.length ? orders.map((o) => renderOrder(o, env)).join("") : "";
+    lastEnv = env;
+    const rows = agentGroups(orders);
+    renderStates(orders);
+    renderAgent(orders, rows);
+    const shown = filter ? orders.filter((o) => stateOf(o) === filter) : orders;
+    $("orders").innerHTML = shown.map((o) => {
+      const cause = causeOf(o, orders);
+      const stops = orders.filter((x) => x.id !== o.id && supplierStopped(x) && causeOf(x, orders) === o);
+      return renderOrder(o, env, { cause, stops, agent: rows.find((g) => g.order === o.id) || null });
+    }).join("");
   }
 
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, val]) => `<span>${k} <b>${val}</b></span>`).join(""); }
@@ -604,6 +682,19 @@
   $("orders").addEventListener("click", (e) => {
     const b = e.target.closest("[data-claim]");
     if (b) claim(Number(b.dataset.claim));
+    const g = e.target.closest("[data-goto]");
+    if (g) {
+      // the order that stopped this supplier may be filtered out: show all, then jump to it
+      if (filter && lastOrders) { filter = null; renderAll(lastOrders, lastEnv); }
+      const card = $(`order-${g.dataset.goto}`);
+      if (card) { card.scrollIntoView({ behavior: "smooth", block: "start" }); card.animate([{ boxShadow: "0 0 0 3px var(--accent)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 1200 }); }
+    }
+  });
+  $("states").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-filter]");
+    if (!b || !lastOrders) return;
+    filter = b.dataset.filter && filter !== b.dataset.filter ? b.dataset.filter : null;
+    renderAll(lastOrders, lastEnv);
   });
   const rememberToggle = (e) => {
     const k = e.target.dataset && e.target.dataset.key;
