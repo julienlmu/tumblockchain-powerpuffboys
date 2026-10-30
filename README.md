@@ -45,6 +45,11 @@ Some data stays public by design:
 
 Stronger privacy, such as hiding amounts and counterparties, would need zero-knowledge proofs or a private settlement layer. That is out of scope for this prototype.
 
+### Two levels of document integrity
+
+1. **Salted document hash (built).** The order's `orderRef` is written once, in `createOrder`, and no function can change it afterwards, so the anchored hash is fixed for the life of the order. The document itself stays off chain; if anyone edits it, `plus-verify-doc.sh` reports a mismatch. This already gives tamper evidence: a changed document can never be passed off as the agreed one.
+2. **Amendable agreement with full history (future work).** Real contracts change: delivery dates move and quantities are adjusted, so a document that can never be amended is impractical. The next step is an amendment function that accepts a new document hash only when both the buyer and the supplier sign it, and appends it next to the previous hashes instead of replacing them. A one-sided change is then impossible, and every agreed change stays visible on chain. This needs a contract change and a redeploy, so it is not part of the live demo.
+
 ## License
 
 MIT

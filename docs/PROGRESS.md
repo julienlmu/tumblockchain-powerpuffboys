@@ -73,6 +73,9 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · README: two levels of document integrity (branch orhun/doc-hash)
+- Changed: README describes (1) the built salted hash (`orderRef` is set once in `createOrder` and never changed) and (2) future work: amendments signed by both buyer and supplier, appended rather than replaced. Docs only, no contract change.
+
 ### 2026-10-30 · Orhun · salted document hash as orderRef (branch orhun/doc-hash)
 - Changed: `plus-doc-hash.sh` (keccak256(salt ++ document), random 32-byte salt), `plus-verify-doc.sh` (checks a document + salt against an order's `orderRef` on chain), `ORDER_DOC_HASH` option in `plus-create-order.sh`, Forge test cross-checking the script's hash (116 tests), README usage. No contract or ABI change, no redeploy; the live v2 and orders A–E are untouched.
 - Notes: on its own branch, not merged into `supplierpulse-plus`; the dashboard shows such orders as "Order 0x…" because their names can't be matched.
