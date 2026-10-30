@@ -119,3 +119,14 @@ Tamper cases and the expected rejection:
 - Companies House listing on AirnodeHub: exact endpoint, signer address, operation and parameter names, and response projection (`status` → `/company_status`). The operation is priced ($0.01 aUSD per call, x402 on Base Sepolia), and Batu's wallet holds 9.99 aUSD.
 - A real test company number for the "active" case, and a dissolved one for the "held" case.
 - Cardano side: a new app/executor in `cardano-agent/` that is paid for a correct decision (paid or held), not only for approvals.
+
+## Ideas for later (not built)
+
+Stricter supplier rules from the same signed Companies House call. The same $0.01 `getCompanyProfile` call can project up to 20 fields, so these cost nothing extra:
+
+- **No insolvency history:** pay only if `status == "active"` **and** `has_insolvency_history == false`. Projection: `"insolvency":"/has_insolvency_history"`.
+- **Accounts overdue:** read `/accounts/overdue`. Show it as a warning in the agent's report, but do not hold the payment for it.
+- **Risk:** if a projected field is missing for a company, the Airnode returns HTTP 400 and the order gets "no data". Before building, fetch one profile per test company with the extra fields and check the fields are always present.
+- **Contract change:** the request hash covers the projection, so `companyRequestHash` must include the new fields, and `submitEvidence` must parse the boolean as well.
+- **Not ADSCR-style ratios:** they need debt service and cash flow from filed accounts, which are not signed fields on AirnodeHub. A ratio computed off-chain would be unsigned data the contract cannot verify.
+- Source: docs/supplierpulse-upgrades.md (upgrade 4) on batu/api3-setup.

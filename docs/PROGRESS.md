@@ -74,6 +74,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 ```
 
 ### 2026-10-30 · Orhun
+- Changed: docs/SUPPLIERPULSE.md lists the insolvency-history and overdue-accounts rules as ideas for later (not built).
+- Next: decide after the demo works whether to build them.
+
+### 2026-10-30 · Orhun
 - Changed: **SupplierPulse live paid run on Ethereum Sepolia** (contract `0x91d7dbae109029b2b1245179a68ac362799674d7`). Order 0 (`09729896`, signed `active`): **Paid**, milestone 0 released. Order 1 (`07418033`, signed `liquidation`): **Held**, balance refundable to the buyer. Each check paid $0.01 aUSD over x402 on Base Sepolia. All 4 tampers (value, stale, request, key) rejected by the deployed contract. All tx hashes in `docs/evidence.md`.
 - Next: connect the Cardano executor to the live contract (`PULSE_ADDRESS` in `cardano-agent/.env`); record the demo.
 
