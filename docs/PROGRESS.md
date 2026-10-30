@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien · C2.5: judge page tamper code reviewed; agent material for the video
+- **C2.5 review of the judge page's tamper code against §4.7: passes, nothing to change.** I ran `demo/common.js` and Emre's `api3/x402/tamper.mjs` side by side on all 5 real fixtures in `api3/fixtures/`. (a) value, (b) stale, (c) request and replay give byte-identical records. (d) key re-signs the untouched digest with a random key that is not an Airnode, in both. The request templates match §4.2 v1.1, and the v1 fallback uses v1's template. The comparison is a 40-line Node script; Batu or Emre, I can add it to your folder as a test if you want it.
+- `docs/agent.md` now shows real log lines from the live Sepolia run instead of the example. A new section, "For the video (1:45 – 2:10)", gives **Ulaş** four shots and a 60-word voice-over for the agent part.
+- Next: watch the agent's first v2 actions once Orhun creates orders A–E; the C4 report in the morning.
+
 ### 2026-10-30 · Julien (agent) · C3: the agent runs on v2
 - Changed:
   - **The agent runs on v2 [`0xf25A…3DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) since 18:18**, with the demo profile (30 s ticks, $1/day budget) under `api3/agent/run-forever.sh`. A dry run (`plan`) first: v2 reachable, 0 orders, `maxAge` 300, agent wallet `0xED34…253a`.

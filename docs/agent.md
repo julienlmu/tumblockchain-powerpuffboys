@@ -90,17 +90,34 @@ The tier comes from the contract's **verification history**: the supplier's veri
 
 ## Evidence of autonomous cycles
 
-Every action is one JSON line in `api3/agent/state/cycles.jsonl`:
+Every action is one JSON line in `api3/agent/state/cycles.jsonl` (`state/v1/` for the v1 run). Two real lines from the live run on Sepolia, a paid re-check and an idle tick:
 
 ```json
-{"ts":"2026-10-31T01:15:02Z","cycle":42,"reason":"milestone due soon","orderId":0,"supplier":"ch:09729896","tier":"Trusted","action":"checkAndRelease","costUsd":0.01,"spentTodayUsd":0.17,"paymentTx":"0x…","outcome":"Paid","tx":"0x…"}
+{"ts":"2026-10-30T17:16:14Z","outcome":"clean","tx":"0xf9049107c93102a52a4e84f00f314fdb3506aa987934f5ff884fcbeaba33d0f7","cycle":140,"reason":"re-check by tier","orderId":0,"supplier":"ch:09729896","tier":"Standard","action":"submitEvidence","costUsd":0.01,"spentTodayUsd":0.08,"paymentTx":"0x5b486a3834d6376a29abd8cd4ec0fdf1f6ba02e765454db930fefd591503e7ca"}
+{"ts":"2026-10-30T17:24:57Z","cycle":157,"action":"idle","outcome":"nothing due","orders":2,"spentTodayUsd":0.08}
 ```
 
-`python3 api3/agent/pulse_agent.py report` summarises a run: cycles, actions by outcome, spend per day, tier changes, transactions and alerts.
+The first line is one autonomous cycle end to end: the agent decided a re-check was due (`reason`), paid $0.01 aUSD over x402 for a fresh signed Companies House record ([`paymentTx` on Basescan](https://sepolia.basescan.org/tx/0x5b486a3834d6376a29abd8cd4ec0fdf1f6ba02e765454db930fefd591503e7ca)), and the contract verified and accepted it ([`tx` on Etherscan](https://sepolia.etherscan.io/tx/0xf9049107c93102a52a4e84f00f314fdb3506aa987934f5ff884fcbeaba33d0f7)). The idle tick shows the schedule at work: nothing was due, so nothing was paid.
 
-**Live since Fri 17:03 (v1 hedge):** the agent runs on the deployed v1 contract on Sepolia. Each paid re-check is an x402 payment on Base Sepolia plus a contract transaction; both are linked per cycle in `docs/evidence.md` ("SupplierPulse+ autonomous agent").
+- `python3 api3/agent/pulse_agent.py report` summarises a run: cycles, actions by outcome, spend per day, tier changes, transactions and alerts.
+- `python3 api3/agent/pulse_agent.py report --markdown` lists every transaction with both explorer links; `docs/evidence.md` ("SupplierPulse+ autonomous agent") holds that table.
 
-*Overnight run on Sepolia: the report and tx links are added on Sat morning (C4).*
+**Live runs on Sepolia:**
+- **v1 (since Fri 17:03):** the deployed v1 contract `0x91d7…74d7`; 157 cycles, 8 paid re-checks, 0 alerts, 0 errors by 18:25.
+- **v2 (since Fri 18:18):** SupplierPulse+ `0xf25A…3DfC`, from its first block on. It works on the demo orders A–E as soon as they exist.
+
+*The overnight report and the v2 transactions are added on Sat morning (C4).*
+
+## For the video (1:45 – 2:10)
+
+About 25 seconds, for Ulaş's script (§6.5). Each shot is one screen:
+
+1. **The overnight log** (`python3 api3/agent/pulse_agent.py report`): "N cycles since Friday evening, every one decided by the agent alone."
+2. **One paid cycle on Basescan**, then the same cycle on Etherscan: "$0.01 in aUSD over x402 buys a fresh signed record; the contract verifies it before any money moves."
+3. **The limits** (the spending table above): "A daily budget with a reserve for due dates, one fetch per supplier per tick, a gas check, and it never pays twice for a record it could not submit."
+4. **The failure handling**: the no-data supplier's refund, or the supplier-wide stop on B2 without a fetch: "When data is missing, it retries, alerts, and refunds the buyer only when the registry itself has no data."
+
+Voice-over (≈60 words): *"Nobody presses a button here. The agent watches every supplier on a schedule, pays for each fresh record in aUSD over x402, and submits it on chain. It stays inside a daily budget, backs off when something fails, and never refunds a supplier because of its own mistakes. Since Friday evening it has run on its own: every cycle is logged, with the payment and the transaction."*
 
 ## Run it
 
