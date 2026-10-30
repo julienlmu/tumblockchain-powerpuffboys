@@ -93,9 +93,18 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - **For the video:** record the judge page at 1280×720 or larger; press Run, keep the Passed card and the tiles in frame. On the dashboard, click "Stopped by #1" on the B2 card to show the jump. Theme button = "Theme: auto/light/dark".
 - Not checked: a real screen reader, a real MetaMask extension (code paths unchanged).
 
+### 2026-10-30 · Julien (agent) · Sepolia acceptance passed (§6.3)
+- `c3_check.py` gives **PASSED** at 20:17:
+  - A M1 and D M1 were paid by the agent at their due dates (20:03:52 and 20:16:52).
+  - B, C and E were held with the expected rules, then refunded by the agent after their grace periods.
+  - A's supplier rose to Trusted at 20:13.
+  - 226 autonomous cycles on v2.
+- The v2 transactions are in `docs/evidence.md` ("v2 run"), with the 6 out-of-gas sends from before the fix stated openly. `c3_check.py` lists such failures as a note; they are not part of the §6.3 acceptance.
+- Both agents keep running overnight (v1 hedge and v2). Next: the morning report (C4). A M2 at 11:45 and D M2 at 12:00 follow the same path live in the video.
+
 ### 2026-10-30 · Julien (agent) · demo orders: B, C, E held; clean records needed more gas (fixed)
 - **The agent picked up Orhun's demo orders within a minute.** It held B (`0x86`), C (`0x02`) and E (`0x08`) at their first checks.
-- **Bug, fixed:** the clean records of **A and D ran out of gas** (5 reverted sends, 18:44–18:48 UTC, ~$0.05 of paid records lost). On v2 a clean `submitEvidence` needs **682,737** gas (A) and **645,837** (D), measured by re-estimating the failed transactions at the block before. A held one used 595,724, so the 600k limit from Batu's local test was too low for real records. The limit is now **2,000,000** (`9a0d4d7`). Unused gas is refunded, so it costs nothing.
+- **Bug, fixed:** the clean records of **A and D ran out of gas** (6 reverted sends, 3 each, 18:44–18:50 UTC, ~$0.06 of paid records lost). On v2 a clean `submitEvidence` needs **682,737** gas (A) and **645,837** (D), measured by re-estimating the failed transactions at the block before. A held one used 595,724, so the 600k limit from Batu's local test was too low for real records. The limit is now **2,000,000** (`9a0d4d7`). Unused gas is refunded, so it costs nothing.
 - The review fixes did their job meanwhile: the agent backed off instead of buying records every tick, and it never treated the failures as "no data", so A was not refunded.
 - The agent was restarted at 18:51 UTC, and the backoff these bug failures caused was cleared. **A and D are verified now** (clean, 18:52 UTC). A's permit covers its due date, so **A M1 is released at 19:03 UTC**, and D's at its due date.
 - **Batu:** your fix was right, only the number was local. The 234k you measured on anvil is about a third of what real records need on Sepolia.

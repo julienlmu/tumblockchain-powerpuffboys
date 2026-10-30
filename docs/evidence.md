@@ -227,7 +227,38 @@ Checked on chain for cycle 59: the payment tx (a facilitator batch sent to Multi
 
 ### v2 run (SupplierPulse+ v2, demo profile, since 30 Oct 18:18)
 
-Contract [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) (Orhun's C3 deploy). The agent started on it at 18:18 with no orders yet and acts on the demo orders as soon as they exist. Its transactions are added here at C4 with `python3 api3/agent/pulse_agent.py report --markdown`.
+Contract [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) (Orhun's C3 deploy, demo orders A–E = ids 0–4). The agent started on it at 18:18, before the orders existed, and took them up by itself.
+
+**Sepolia acceptance (§6.3): passed at 20:17**, `python3 api3/agent/c3_check.py`:
+- A M1 paid by the agent at 20:03:52, 28 s after its due date, on the permit from its own re-check at 20:02;
+- D M1 paid by the agent at 20:16:52;
+- B held at its first check (`0x86`: status, accounts, confirmation statement) and refunded by the agent when the grace period ended;
+- C held (`0x02`, accounts overdue) and E held (`0x08`, LEI lapsed), both refunded after their grace periods;
+- A's supplier rose from Standard to Trusted at 20:13 (3 clean checks, each counted at least 300 s apart);
+- 226 autonomous cycles by 20:17.
+
+Not hidden: before 19:51, 6 sends for the clean records of A and D ran out of gas at the 600k limit (clean v2 records need ~680k). After the limit was raised to 2,000,000 they went through (PROGRESS, `9a0d4d7`).
+
+| Cycle | Time (CET) | Order / supplier | Why | Action | x402 payment (Base Sepolia) | Contract tx (Sepolia) | Outcome |
+|---|---|---|---|---|---|---|---|
+| 171 | 30 Oct 19:45:03 | 1 / `ch:07418033` | re-check by tier | `submitEvidence` | [`0x26d821…8121`](https://sepolia.basescan.org/tx/0x26d8212944cdc1dd8a7965de06e2c45c9a59b29fa8d4bd391633058133ea8121) | [`0x254f08…2323`](https://sepolia.etherscan.io/tx/0x254f08265550daf0c8de4d20fb29a3dd7310c9050e59339bb87f6d40b1742323) | held |
+| 172 | 30 Oct 19:45:50 | 2 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x4fdcb6…f0ff`](https://sepolia.basescan.org/tx/0x4fdcb6b7c938ba22920ffa82b0fd786ae8d7296ee49deae12a01e710c54ff0ff) | [`0xbcc39c…d441`](https://sepolia.etherscan.io/tx/0xbcc39c8fc274c8674bac7b410b1cbc321cc1e82dc49640c7eabacbe8ed6dd441) | held |
+| 175 | 30 Oct 19:48:16 | 4 / `gleif:52990092KBQJF8QBGJ50` | re-check by tier | `submitEvidence` | [`0x89138d…2c08`](https://sepolia.basescan.org/tx/0x89138dd3d28e7a7efb33248f85d20a02a2c863bdf167eeffe909bf4ad1002c08) | [`0x0dbce4…9e3e`](https://sepolia.etherscan.io/tx/0x0dbce43cb2a1fdfc0ff20db3bb7a58eac80470cf651bd7095df0c5c7b8989e3e) | held |
+| 182 | 30 Oct 19:52:01 | 0 / `ch:03778796` | re-check by tier | `submitEvidence` | [`0x1ec42c…2aaf`](https://sepolia.basescan.org/tx/0x1ec42c9e8e9b8251cc6a70e902548431fb8efc16fc810993f747f87eaefc2aaf) | [`0xcb3a45…e82b`](https://sepolia.etherscan.io/tx/0xcb3a459159a23a2b67726085f4640227c268f94522f58a7ca832301ddf0de82b) | clean |
+| 182 | 30 Oct 19:52:16 | 3 / `gleif:391200JI69LS8L648F30` | re-check by tier | `submitEvidence` | [`0x7a96e0…4c19`](https://sepolia.basescan.org/tx/0x7a96e008c6a695bee2c63fcab068a2f4be1191fc338d08a4e6cd1503aa864c19) | [`0x625af3…ba6c`](https://sepolia.etherscan.io/tx/0x625af3c442f1c12fa078f7a0e9b90c922de8b8d405fda05595b0cbf3dbb8ba6c) | clean |
+| 188 | 30 Oct 19:55:39 | 1 / `ch:07418033` | grace period over | `refundRemaining` | – | [`0x37bd28…cb3f`](https://sepolia.etherscan.io/tx/0x37bd28187b99b48c6f25f309ce7683232d1a9f7cbd313d38b9ff1fa36ed6cb3f) | Refunded |
+| 189 | 30 Oct 19:56:24 | 2 / `ch:09729896` | grace period over | `refundRemaining` | – | [`0x458093…0fd0`](https://sepolia.etherscan.io/tx/0x4580934a30754f43d9524e751fbc6c04ca443fd058e0a922400ba54fac250fd0) | Refunded |
+| 193 | 30 Oct 19:58:38 | 4 / `gleif:52990092KBQJF8QBGJ50` | grace period over | `refundRemaining` | – | [`0xb617b1…2800`](https://sepolia.etherscan.io/tx/0xb617b152bd209fcf7f7cae7db112b2eac65994f580f31e7cc1cd8afa7f9f2800) | Refunded |
+| 200 | 30 Oct 20:02:24 | 0 / `ch:03778796` | re-check by tier | `submitEvidence` | [`0x6269c0…2852`](https://sepolia.basescan.org/tx/0x6269c04c8fb582affdd0e896082b563f130940874499d31c58ccb5188ccb2852) | [`0xe5c9b0…af5b`](https://sepolia.etherscan.io/tx/0xe5c9b01a4a3edeffa53f7fe2d0fda3fcea425316d1462f5335abbad198d8af5b) | clean |
+| 200 | 30 Oct 20:02:39 | 3 / `gleif:391200JI69LS8L648F30` | re-check by tier | `submitEvidence` | [`0x2d872a…fc7f`](https://sepolia.basescan.org/tx/0x2d872a061f181d49ebe1e01597dfc07af79451b4a4e4149436e1f997ac0bfc7f) | [`0x8e0a95…3c38`](https://sepolia.etherscan.io/tx/0x8e0a95b32ded431dea2432e3ae547029a2ac85da1f8c64c9d41865ef36c93c38) | clean |
+| 202 | 30 Oct 20:03:52 | 0 / `ch:03778796` | milestone due | `release` | – | [`0xa03f3d…5587`](https://sepolia.etherscan.io/tx/0xa03f3d72700ce72ea7cdc6b9dac97dc28a3f43211549b3342321a8e14fe75587) | Paid |
+| 219 | 30 Oct 20:12:49 | 0 / `ch:03778796` | re-check by tier | `submitEvidence` | [`0x9ede09…47a8`](https://sepolia.basescan.org/tx/0x9ede09d8efaf53358f4fb79f81b269a5e93497b678b9a49d01773967893647a8) | [`0xfe89bd…a382`](https://sepolia.etherscan.io/tx/0xfe89bdbb12e7feb8f9bed6bb3a6ec88d0cd72ca1b6f048346eb8624c38f8a382) | clean |
+| 219 | 30 Oct 20:13:01 | 3 / `gleif:391200JI69LS8L648F30` | re-check by tier | `submitEvidence` | [`0x410a56…09cf`](https://sepolia.basescan.org/tx/0x410a561ff2f1043edf780afb1db2ce6b3c88427140770e7f5123a70b432909cf) | [`0xdb0cdc…d974`](https://sepolia.etherscan.io/tx/0xdb0cdc406b48b2102f93946edb6d4a8481c96d78aa666b292ae298337573d974) | clean |
+| 226 | 30 Oct 20:16:52 | 3 / `gleif:391200JI69LS8L648F30` | milestone due | `release` | – | [`0x7af6c9…37ef`](https://sepolia.etherscan.io/tx/0x7af6c99da9dd1bc3ef0479f3bae07342875e37f86d1d69de97667e61f45137ef) | Paid |
+
+226 cycles from 30 Oct 18:18 to 30 Oct 20:16 (CET): 14 transactions, $0.15 spent on paid checks, 0 alerts, 6 errors.
+
+Generated with `python3 api3/agent/pulse_agent.py report --markdown`.
 
 ### C2 integration (local anvil, v1.1 contract, `api3/agent/c2_check.py`)
 

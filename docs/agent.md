@@ -104,7 +104,7 @@ The first line is one autonomous cycle end to end: the agent decided a re-check 
 
 **Live runs on Sepolia:**
 - **v1 (since Fri 17:03):** the deployed v1 contract `0x91d7…74d7`; 157 cycles, 8 paid re-checks, 0 alerts, 0 errors by 18:25.
-- **v2 (since Fri 18:18):** SupplierPulse+ `0xf25A…3DfC`, from its first block on. It works on the demo orders A–E as soon as they exist.
+- **v2 (since Fri 18:18):** SupplierPulse+ `0xf25A…3DfC`. **Sepolia acceptance passed at 20:17:** A M1 and D M1 paid at their due dates; B, C and E held, then refunded; A's supplier Trusted; 226 cycles (`c3_check.py`, `docs/evidence.md`).
 
 *The overnight report and the v2 transactions are added on Sat morning (C4).*
 
