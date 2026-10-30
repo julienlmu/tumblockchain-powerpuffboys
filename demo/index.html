@@ -1676,7 +1676,10 @@
       goTo(Number(cards[next].id.slice(6)), { flash: false });
     } else if (k === "t" || k === "T") { e.preventDefault(); $("theme-btn").click(); }
   });
-  narrow.addEventListener("change", rerender);
+  // the find field's hint fits the narrower phone field
+  const findHint = () => { $("find").placeholder = narrow.matches ? "Order or supplier id" : "Find order or supplier id"; };
+  findHint();
+  narrow.addEventListener("change", () => { findHint(); rerender(); });
   wide.addEventListener("change", () => {
     for (const d of document.querySelectorAll("details.more[data-key]")) if (!userOpen.has(d.dataset.key)) d.open = wide.matches;
   });
