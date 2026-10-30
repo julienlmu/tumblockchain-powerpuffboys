@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · documents: locked or amendable + change report (branch orhun/doc-hash)
+- Changed: new `IOrderDocuments` interface implemented by `SupplierPulsePlus`. `createOrder` stays locked (the hash never changes); `createAmendableOrder` + `amendDocument` accept a new hash only with both buyer and supplier signatures (digest binds chain id, contract, order id, version, previous hash), and every version stays on chain (`documentHistory`). Scripts: `plus-amend-doc.sh sign|submit`, `ORDER_DOC_MODE=amendable` in `plus-create-order.sh`.
+- Changed: `plus-doc-diff.sh` change report (line diff + optional language-model summary when a key is set in `api3/.env`), called by `plus-verify-doc.sh` on a mismatch when the agreed file is given. Informational only, never affects payments. Fixed an early exit when `api3/.env` has no key line.
+- Notes: `forge test` 122 passed. Not deployed (live v2 `0xf25Aae1772326C95294D1923399D55c658493DfC` is locked-only via `orderRef`), not merged into `supplierpulse-plus`.
+
 ### 2026-10-30 · Orhun · README: two levels of document integrity (branch orhun/doc-hash)
 - Changed: README describes (1) the built salted hash (`orderRef` is set once in `createOrder` and never changed) and (2) future work: amendments signed by both buyer and supplier, appended rather than replaced. Docs only, no contract change.
 
