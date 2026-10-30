@@ -73,6 +73,12 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · judge CLI `plus-submit.sh`, §6.2 Phase A done
+- Changed: `api3/scripts/plus-submit.sh <orderId> <file> [value|stale|request|key|replay] [--send]`. It simulates `submitEvidence` (from `0x…dEaD`, no wallet), prints `ACCEPTED clean` / `ACCEPTED held: <labels>` / `REJECTED <Error>(args)`, and exits 0/1/2. `--send` sends with a fixed gas limit, so a rejected record is mined as a failed tx (red "Fail" on Etherscan). It reads `EVM_RPC_URL`/`PULSE_PLUS_ADDRESS` from the env or `api3/.env` and reuses Orhun's `plus-lib.sh` error decoding.
+- Tested against Orhun's contract on `plus-local.sh` (the C2 checks of §6.2): order 0 `ACCEPTED clean`; order 1 `ACCEPTED held: registry status not active, accounts overdue`; order 3 `ACCEPTED held: LEI renewal overdue`; value → `WrongSigner`, stale → `StaleResponse`, request → `WrongRequest`, key → `WrongSigner(random)`, replay → `Replayed`; `--send` gives a success tx and a failed tx.
+- Next: C2 integration at 22:00, C2.5 review of the contract, C3 real fetches + judge CLI on Sepolia.
+- Notes: **Batu, Ulaş (video and judge page): run the tamper cases on a record that has NOT been accepted yet.** The contract checks replay and "newer" before the signer (§4.5), so tampering an already accepted record gives `NotNewer` (a) or `Replayed` (d) instead of `WrongSigner`. Order: tamper a fresh record (a)–(d) first, then submit it untouched (accepted), then replay it.
+
 ### 2026-10-30 · Emre · data layer on spec v1.1, v1.1 pointers verified live (C1a)
 - Changed: Julien's v1.1 checklist for the data layer is done on `emre/plus-data` (merged `supplierpulse-plus` in):
   - `requests.mjs`: the Companies House projection has 3 fields (`/accounts/next_accounts/overdue`), the rule `0x01` is gone, and the `0x08` label is "LEI renewal overdue". Tests 11/11 with the vector `0x6e84…7f0f`.
