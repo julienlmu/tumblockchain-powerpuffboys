@@ -794,6 +794,19 @@ contract SupplierPulsePlusTest is TestBase {
         pulse.refundRemaining(id);
     }
 
+    // salted document hash as orderRef: same value as scripts/plus-doc-hash.sh, and the order stores it untouched
+    function test_saltedDocHashAsOrderRef() public {
+        bytes memory doc = "PO-1001 Motor supply\n3 x 500 units, delivery Munich, 30 days net\n";
+        bytes32 salt = 0x1111111111111111111111111111111111111111111111111111111111111111;
+        bytes32 ref = keccak256(abi.encodePacked(salt, doc));
+        assertTrue(ref == 0x6c99fb0b05beb2c0239b48d8fe4652af925393b427c7eb96197a3a85fd73530c, "matches plus-doc-hash.sh");
+        uint256 id = pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, ref, _amounts(1), _dues(1, NOW, 0), TTL, 0x06);
+        (,,,,, bytes32 stored,,) = pulse.orderInfo(id);
+        assertTrue(stored == ref, "stored as given");
+        doc[25] = "6"; // 500 -> 600 units
+        assertTrue(keccak256(abi.encodePacked(salt, doc)) != stored, "an edited document does not match");
+    }
+
     // C2.5 finding 1: a buyer who approves late cannot approve and refund in the same block
     function test_noDataExitCountsFromLateApproval() public {
         uint256 id = pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x06);
