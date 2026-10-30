@@ -73,6 +73,16 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · demo suppliers and real GLEIF tests (C1a, part 1)
+- Changed:
+  - `plus-demo-orders.sh` and `api3/.env.example` now use Emre's verified demo suppliers: A `03778796`, B `07418033`, C `09729896`, D `391200JI69LS8L648F30`, E `52990092KBQJF8QBGJ50`.
+  - 4 new tests run Emre's real signed GLEIF records against the contract. D is paid and E is held with `0x08`. The untouched D record is rejected when too old (`StaleResponse`) and on another LEI's order (`WrongRequest`). `forge test`: 104 passed.
+- Next: the real Companies House tests are blocked. See the notes.
+- Notes: **open interface question for Emre and Orhun (§4.2 fallback).** Emre's live Companies House records use the v1.0 projection: 4 fields, `/accounts/overdue`, including `insolvency`. Spec v1.1 changed it to 3 fields and `/accounts/next_accounts/overdue`. That pointer has not been called live yet. So no real Companies House record matches the v1.1 request hash, and the contract rejects them with `WrongRequest`.
+  - Proposal: one paid call ($0.01) for `03778796` with the v1.1 projection.
+  - If it signs, v1.1 stays, and I add the Companies House tests with that record.
+  - If not, we keep 3 fields but go back to the verified `/accounts/overdue` pointer. That changes two constants on the contract side.
+
 ### 2026-10-30 · Orhun · SupplierPulse+ contract (§6.1, Phase A, spec v1.1)
 - Changed: the contract part (§6.1) is built against spec v1.1. It is on `orhun/plus-contract` and merged into `supplierpulse-plus`.
   - `api3/src/ISupplierPulsePlus.sol` (§4.4 v1.1 verbatim), `SupplierPulsePlus.sol`, `JsonFields.sol` (`parseBool`).

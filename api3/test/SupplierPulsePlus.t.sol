@@ -854,6 +854,67 @@ contract SupplierPulsePlusTest is TestBase {
         pulse.submitEvidence(id, CH_REQ, NOW, data, _sign(CH_KEY, CH_REQ, NOW, data));
     }
 
+    // ------------------------------------------- real AirnodeHub responses (GLEIF)
+
+    address constant GLEIF_AIRNODE = 0x26d83124541e89ef28B9A5FB012B4B5f4097C20c;
+
+    bytes constant LEI_D_DATA = bytes('{"entity_status":"ACTIVE","registration_status":"ISSUED"}');
+    bytes constant LEI_D_SIG =
+        hex"89fe847673d03cbb3a3494be47bd0f6abab30fd5987ee967b955d11257ea79d55268dbb30fd9a3b60edb127a1f6121922516acae81f064d595920c731e65e41c1c";
+    uint256 constant LEI_D_TS = 1793376460;
+
+    /// One-milestone GLEIF order (approved) on a contract that trusts the real GLEIF Airnode. The responses below
+    /// are real signed getLegalEntity records (30 Oct 17:07 CET, paid via x402; api3/fixtures/ on emre/plus-data).
+    function _gleifOrder(string memory lei, uint256 ts) internal returns (SupplierPulsePlus live, uint256 id) {
+        vm.warp(ts + 10);
+        live = new SupplierPulsePlus(vm.addr(CH_KEY), GLEIF_AIRNODE, MAX_AGE, GAP, GRACE);
+        id = live.createOrder{value: 1 ether}(1, lei, supplier, 0, _amounts(1), _dues(1, ts, 0), TTL, 0x08);
+        live.approveMilestone(id, 0);
+    }
+
+    function test_realGleifActiveIssuedIsPaid() public {
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("391200JI69LS8L648F30", LEI_D_TS);
+        bytes32 req = live.requestHashFor(1, "391200JI69LS8L648F30");
+        assertTrue(req == 0x428725c3fad90b9f3709a91b72530344bad9ceb87e33304d9eeb0d7290585e79, "signed request hash");
+        assertEq(live.checkAndRelease(id, req, LEI_D_TS, LEI_D_DATA, LEI_D_SIG), 0, "paid");
+        assertEq(supplier.balance, 1 ether, "supplier paid");
+    }
+
+    function test_realGleifLapsedIsHeld() public {
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("52990092KBQJF8QBGJ50", 1793376461);
+        uint8 o = live.checkAndRelease(
+            id,
+            live.requestHashFor(1, "52990092KBQJF8QBGJ50"),
+            1793376461,
+            bytes('{"entity_status":"ACTIVE","registration_status":"LAPSED"}'),
+            hex"d2ad3f67f559968249345a9b3827ecf230c5f40525156e3c0b86d91b5f6c7d73212daa971c11d55c2319ce121bc4458bb5af9c77ac09bd09b36092a0c3d8ea8d1c"
+        );
+        assertEq(o, 3, "held");
+        (,, uint8 f,,,) = live.orderSchedule(id);
+        assertEq(f, 0x08, "LEI renewal overdue");
+        assertEq(supplier.balance, 0, "not paid");
+    }
+
+    function test_realGleifResponseTooOld() public {
+        // the genuine record, untouched, submitted after maxAge (tamper case b with a real input)
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("391200JI69LS8L648F30", LEI_D_TS);
+        bytes32 req = live.requestHashFor(1, "391200JI69LS8L648F30");
+        vm.warp(LEI_D_TS + MAX_AGE + 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(ISupplierPulsePlus.StaleResponse.selector, LEI_D_TS, LEI_D_TS + MAX_AGE + 1)
+        );
+        live.submitEvidence(id, req, LEI_D_TS, LEI_D_DATA, LEI_D_SIG);
+    }
+
+    function test_realGleifResponseForAnotherLei() public {
+        // the genuine ISSUED record for one LEI, submitted to an order on another LEI (tamper case c)
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("52990092KBQJF8QBGJ50", LEI_D_TS);
+        bytes32 req = live.requestHashFor(1, "391200JI69LS8L648F30");
+        bytes32 expected = live.requestHashFor(1, "52990092KBQJF8QBGJ50");
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.WrongRequest.selector, req, expected));
+        live.submitEvidence(id, req, LEI_D_TS, LEI_D_DATA, LEI_D_SIG);
+    }
+
     // ------------------------------------------------------------------ admin
 
     function test_adminOnly() public {
