@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · order document tools on main-compatible branch (orhun/doc-tools)
+- Changed: `api3/scripts/plus-doc-hash.sh` (salted document hash + new salt), `plus-verify-doc.sh` (reads `orderRef` via `orderInfo`, MATCH/MISMATCH, optional change report), `plus-doc-diff.sh` (line diff + optional short language-model summary, informational only), `plus_doc_hash`/`plus_new_salt` in `plus-lib.sh`, `ORDER_DOC_HASH` in `plus-create-order.sh`, test `test_saltedDocHashAsOrderRef`. README: "Order documents" section (privacy, two levels of document integrity, change report). `api3/.env.example`: optional `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for the summary.
+- Notes: contract source unchanged (`api3/src` identical to main); the live v2 already supports this via `orderRef`. `forge test`: 116 passed (main 115 + 1). Anvil smoke test: MATCH for the agreed PO, MISMATCH plus change report for an edited copy. Amendable mode stays on `orhun/doc-hash`, not deployed.
+- Next: Julien merges.
+
 ### 2026-10-30 · Orhun · v2 source verified on Etherscan
 - Changed: Etherscan exact match for `0xf25Aae1772326C95294D1923399D55c658493DfC` (built from `c668c51`); `docs/evidence.md` updated.
 - Notes: for the video, fresh held orders are opened right before filming, because the agent's 10-minute monitoring holds and refunds a new order within minutes.
