@@ -85,6 +85,7 @@
   .order-chip { font: 600 var(--t-1)/1.2 var(--sans); min-height: 30px; padding: 4px 10px; border-radius: 999px; color: var(--hold); background: var(--hold-bg); border: 1px solid color-mix(in srgb, var(--hold) 40%, transparent); }
   .order-chip:hover { border-color: var(--hold); background: var(--hold-bg); }
   .stop-strip .note { color: var(--muted); }
+  .past-failure { color: var(--muted); font-size: var(--t-1); }
 
   .held-box { border-radius: var(--r-md); padding: var(--s3); background: var(--hold-bg); color: var(--hold); display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t-1); }
   .held-box.nodata { background: var(--wait-bg); color: var(--wait); }
@@ -382,7 +383,12 @@
     closed: { cls: "done", icon: "refund", label: "Refunded" },
   };
   const totalOf = (o) => o.amounts.reduce((x, y) => x + y, 0n);
-  const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2;
+  // A failed base status stays on record (lastBaseFailureAt), but it only blocks a payment whose evidence is not newer
+  // (release: evidenceAt <= lastBaseFailureAt). The supplier has recovered once its newest record is newer than the failure.
+  const failedAt = (o) => o.rec.lastBaseFailureAt;
+  const supplierRecovered = (o) => failedAt(o) > 0 && o.rec.lastCheckAt > failedAt(o);
+  const supplierStopped = (o) => failedAt(o) > 0 && o.state !== 2 && o.lastCheck <= failedAt(o);
+  const pastFailure = (o) => failedAt(o) > 0 && o.state !== 2 && !supplierStopped(o);
   function stateOf(o) {
     if (o.state === 2) return o.paid >= totalOf(o) ? "paid" : "closed";
     if (o.state === 1 || supplierStopped(o) || o.lastFailedRules) return "rule";
@@ -424,7 +430,9 @@
     if (supplierStopped(o) || ctx.stops.length) {
       const when = o.rec.lastBaseFailureAt ? dayClock(o.rec.lastBaseFailureAt) : "";
       const lines = [];
-      if (supplierStopped(o) && byOther) {
+      if (supplierStopped(o) && supplierRecovered(o)) {
+        lines.push(`<div>The register status failed on ${when}. A newer clean record of the same supplier has been accepted since, but this order's last evidence is older than the failure: it needs a new check before it can pay.</div>`);
+      } else if (supplierStopped(o) && byOther) {
         lines.push(`<div class="orders">Stopped by ${orderLink(cause)}</div>
           <div>A signed record of the same supplier (<span class="mono">${esc(o.info.supplierId)}</span>) failed the register status on ${when}. Payments to this supplier are stopped on every order.</div>`);
       } else if (supplierStopped(o)) {
@@ -433,6 +441,8 @@
       if (ctx.stops.length) lines.push(`<div class="orders">This record also stops the same supplier's ${ctx.stops.map(orderLink).join("")}</div>`);
       if (supplierStopped(o) && !held && !closed) lines.push(`<div class="note">This order is not held yet. The agent can hold it without a new paid check (<span class="mono">applySupplierFailure</span>), and no permit from before the failure can pay.</div>`);
       stopStrip = `<div class="stop-strip"><div class="head">${I("stop")}Supplier-wide stop</div>${lines.join("")}</div>`;
+    } else if (pastFailure(o)) {
+      stopStrip = `<div class="past-failure">Earlier failure on record: the register status failed on ${dayClock(failedAt(o))}. This order's evidence is newer, so the failure no longer blocks its payments.</div>`;
     }
 
     const claimRow = (label, enabled) => {
