@@ -35,6 +35,7 @@
   .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
   select, textarea { width: 100%; }
   textarea[aria-invalid="true"] { border-color: var(--hold); }
+  textarea[aria-invalid="true"].missing { border-color: var(--wait); box-shadow: inset 0 0 0 1px var(--wait); }
   select[aria-invalid="true"] { border-color: var(--hold); box-shadow: inset 0 0 0 1px var(--hold); }
   #order-msg .link { font-size: inherit; display: inline; }
   /* three whole lines of JSON, never a line cut in half: the box is exactly three line boxes plus the top padding and
@@ -144,11 +145,10 @@
   .attacks button .d.exp { display: flex; align-items: center; gap: 0; }
   .attacks button .d.exp .kb-k { margin-left: auto; flex: none; }
   .attacks button .d.exp .mono { font-size: 12px; color: var(--text); }
-  /* neutral buttons: colour only marks the kind (green = the valid record, red marker = an attack); filled colour is kept for results */
+  /* neutral buttons: a red marker = an attack, the untouched record wears the record icon in the text colour; green
+     is kept for results */
   .attacks button .l .i { color: var(--hold); }
-  .attacks button.valid { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
-  .attacks button.valid .l .i { color: var(--ok); }
-  .attacks button.valid:hover { border-color: var(--ok); }
+  .attacks button.valid .l .i { color: var(--text); }
   .attacks button.atk:hover { border-color: var(--hold); }
   .attacks button.real { border-style: dashed; }
   /* the loaded record cannot test some attempts: the cause once above the buttons, an amber mark on each one it stops */
@@ -405,7 +405,7 @@
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
-          <button type="button" class="valid" data-mode="asis" data-what="The loaded record, untouched"><span class="l" data-icon="check">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span><kbd class="kb-k" aria-hidden="true">1</kbd></span></button>
+          <button type="button" class="valid" data-mode="asis" data-what="The loaded record, untouched"><span class="l" data-icon="file">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span><kbd class="kb-k" aria-hidden="true">1</kbd></span></button>
           <button type="button" class="atk" data-mode="value" data-what="One value inside the signed data is edited; the signature stays"><span class="l" data-icon="target">(a) Edit value</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span><kbd class="kb-k" aria-hidden="true">2</kbd></span></button>
           <button type="button" class="atk" data-mode="stale" data-what="The signed time is moved 1 h earlier"><span class="l" data-icon="target">(b) Too old</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span><kbd class="kb-k" aria-hidden="true">3</kbd></span></button>
           <button type="button" class="atk" data-mode="request" data-what="The request hash of another company"><span class="l" data-icon="target">(c) Different request</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span><kbd class="kb-k" aria-hidden="true">4</kbd></span></button>
@@ -560,7 +560,12 @@
     : `recovers to ${esc(signerLabel(got))} (<span class="mono" title="${got}">${short(got)}</span>), but the contract trusts ${esc(signerLabel(want))} (<span class="mono" title="${want}">${short(want)}</span>)`;
   function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""; }
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join(""); }
-  function respMsg(html, bad) { $("resp-msg").innerHTML = html ? `<span style="color:var(${bad ? "--hold" : "--muted"})">${html}</span>` : ""; }
+  // tone: true = an error (red), "warn" = nothing to test with (amber, as in the verdict and on the buttons)
+  function respMsg(html, tone) { $("resp-msg").innerHTML = html ? `<span style="color:var(${tone === "warn" ? "--wait" : tone ? "--hold" : "--muted"})">${html}</span>` : ""; }
+  function markBox(state) { // null, "missing" or "invalid"
+    if (state) $("resp").setAttribute("aria-invalid", "true"); else $("resp").removeAttribute("aria-invalid");
+    $("resp").classList.toggle("missing", state === "missing");
+  }
 
   function readRecord() {
     const text = $("resp").value.trim();
@@ -692,8 +697,8 @@
     const text = $("resp").value.trim();
     if (!text) { recordTs = null; recordUsed = null; recordOther = false; markAttacks(); respMsg(note); return; }
     let r;
-    try { r = readRecord(); } catch (e) { $("resp").setAttribute("aria-invalid", "true"); respMsg(esc(e.message), true); markAttacks(); return; }
-    $("resp").removeAttribute("aria-invalid");
+    try { r = readRecord(); } catch (e) { markBox("invalid"); respMsg(esc(e.message), true); markAttacks(); return; }
+    markBox(null);
     const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
     const age = nowSec() - Number(r.timestamp);
     recordTs = Number(r.timestamp);
@@ -859,7 +864,7 @@
       <div class="why">${contract ? "The tamper test checks a record against an order. Run it once the buyer has created an order, or pick another contract in Settings." : "Enter the contract address in Settings."}</div></div>`;
   }
 
-  async function run(mode) {
+  async function run(mode, label = MODE_NAME[mode]) {
     if (!contract || !order.info) { noOrderVerdict(); return null; }
     let t;
     if (mode === "realOld" || mode === "realOther") {
@@ -877,7 +882,13 @@
         : { record: rec, what: `(c) Real, other company: an untouched record of ${s.label}.`, expect: "WrongRequest" };
     } else {
       let base;
-      try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); if (!suiteRunning) attemptProblem("No attempt made: the record needs fixing", e.message); return null; }
+      try { base = readRecord(); } catch (e) {
+        const none = !$("resp").value.trim();
+        if (none) markBox("missing");
+        respMsg(esc(e.message), none ? "warn" : true);
+        if (!suiteRunning) attemptProblem(none ? "No attempt made: no record in step 2" : "No attempt made: the record needs fixing", e.message);
+        return null;
+      }
       t = await P.tamper(base, mode, version === 1 ? { requestHashFor: P.requestHashV1 } : {});
     }
     const r = t.record;
@@ -983,14 +994,14 @@
     const attempt = attempts.length - 1;
     $("result").removeAttribute("aria-busy");
     showAttempt(attempt);
-    $("verdict-live").textContent = `${MODE_NAME[mode]}: ${verdict.accepted ? (verdict.clean ? "accepted, would issue a permit" : "accepted, would hold the order") : `rejected with ${gotName}`}${t.expect ? (match ? ", as expected" : `, expected ${t.expect}`) : ""}.`;
+    $("verdict-live").textContent = `${label}: ${verdict.accepted ? (verdict.clean ? "accepted, would issue a permit" : "accepted, would hold the order") : `rejected with ${gotName}`}${t.expect ? (match ? ", as expected" : `, expected ${t.expect}`) : ""}.`;
 
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
     const notApplicable = (mode === "asis" && !verdict.accepted) || (mode === "replay" && used === false);
     const res = notApplicable ? "Not tested" : match ? "Pass" : "Fail";
     const time = new Date().toLocaleTimeString("en-GB");
     const gotText = verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : gotName;
-    scoreRows.push({ time, order: id, name: MODE_NAME[mode], got: gotText, expected, res, attempt });
+    scoreRows.push({ time, order: id, name: label, got: gotText, expected, res, attempt });
     renderScore();
     saveBoard();
     return { mode, attempt, accepted: verdict.accepted, got: gotText, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
@@ -1149,7 +1160,7 @@
           <div class="why">${fetchCode()}</div></div>
         ${rec ? `<div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>` : ""}`;
       P.hydrateIcons($("result"));
-      if (!rec) { $("resp").setAttribute("aria-invalid", "true"); respMsg("No record yet: paste one, upload one, or load a sample.", true); }
+      if (!rec) { markBox("missing"); respMsg("No record yet: paste one, upload one, or load a sample.", "warn"); }
       reveal();
       return;
     }
@@ -1245,10 +1256,13 @@
       : "";
     const skippedNote = skipped.length ? `<p class="hint">${P.icon("minus")} Not run: ${skipped.map((s) => `${MODE_NAME[s.mode]} (${esc(s.reason)})`).join("; ")}.</p>` : "";
     const txNote = suiteTx ? `<p class="hint">Valid record on chain: ${explorer ? `<a class="mono" href="${explorer}/tx/${suiteTx.hash}" target="_blank" rel="noopener">${short(suiteTx.hash)}</a>` : `<span class="mono">${short(suiteTx.hash)}</span>`} (block ${suiteTx.block}).</p>` : "";
+    // the same count as the hero and the scoreboard: the valid record plus n attacks
+    const nAtk = suite.filter((s) => s.mode !== "asis").length;
+    const countText = `${valid ? "the valid record and " : ""}${nAtk} attack${nAtk === 1 ? "" : "s"}, ${nAtk + (valid ? 1 : 0) === 1 ? "" : "each "}`;
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
       <h2>The contract's verdict</h2>
-      <p class="hint">Tamper test on order #${order.id}${suiteTx ? ", then the replay" : ""}: ${suite.length} attempts, all ${term("simulated", "simulated")}${suiteTx ? " except the one real send" : ""}.</p>
+      <p class="hint">Tamper test on order #${order.id}: ${countText} ${term("simulated", "simulated")}${suiteTx ? "; the replay came after one real send of the valid record" : ""}.</p>
       <div class="verdict hero ${passed ? "ok" : suiteStopped ? "done" : notTested ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : notTested ? "clock" : "x")}</span>
         <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : notTested ? "Not tested" : "Not passed"}</div><div class="why">${why}</div>${notTested ? fix : ""}</div></div>
       ${replayStep}
@@ -1271,7 +1285,7 @@
     let outcome = "done";
     try {
       replayProgress(1, "simulate the valid record");
-      const v = await run("asis");
+      const v = await run("asis", "Submit as is (before the send)");
       if (!v || !v.accepted) { outcome = "refused"; return; } // the attempt's checklist stays on screen and says why
       if (stopRequested) { outcome = "stopped-before"; replayProgress(1, "stopped by you before the send. Nothing was sent."); await pause(1200); return; }
       replayProgress(2, "send it for real, then wait for the block");
@@ -1449,14 +1463,14 @@
   });
   $("clear-rec").addEventListener("click", () => {
     const saved = $("resp").value;
-    setBox(""); $("resp").removeAttribute("aria-invalid"); recordTs = null; recordUsed = null; recordOther = false; markAttacks();
+    setBox(""); markBox(null); recordTs = null; recordUsed = null; recordOther = false; markAttacks();
     if (!saved.trim()) { respMsg(""); $("resp").focus(); return; }
     respMsg(`Record cleared · <button type="button" class="link" id="undo-rec">Undo</button>`);
     offerUndo(saved);
     $("resp").focus();
   });
   let typing = null;
-  $("resp").addEventListener("input", () => { storeRecord(); clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
+  $("resp").addEventListener("input", () => { if ($("resp").classList.contains("missing")) markBox(null); storeRecord(); clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
   // the record kept from earlier in this tab (this page or the Simple view) comes back into an empty box
   try {
     const kept = JSON.parse(sessionStorage.getItem(REC_KEY) || "null");
