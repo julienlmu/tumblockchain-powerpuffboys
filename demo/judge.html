@@ -142,7 +142,9 @@
   .attacks button .d { color: var(--muted); font-weight: 400; font-size: var(--t-1); }
   /* the key and the contract's expected answer are on the button, not only in the guide; the key badge ends the
      button's text, as on every other button (here the expected-answer line) */
-  .attacks button .d.exp { display: flex; align-items: center; gap: 0; }
+  .attacks button .d.exp { display: flex; flex-wrap: wrap; align-items: center; gap: 0; }
+  .attacks button .d.exp .ans { white-space: nowrap; margin-right: 4px; } /* the arrow and the answer never part */
+  /* right-aligned after the answer; on a narrow button it takes its own line instead of crossing the border */
   .attacks button .d.exp .kb-k { margin-left: auto; flex: none; }
   .attacks button .d.exp .mono { font-size: 12px; color: var(--text); }
   /* neutral buttons: a red marker = an attack, the untouched record wears the record icon in the text colour; green
@@ -159,8 +161,6 @@
   .blk-note kbd { font-size: 11px; padding: 1px 4px; }
   .attacks button .l .blk-ic { margin-left: auto; flex: none; display: inline-flex; }
   .attacks button .l .blk-ic .i { color: var(--wait); }
-  .attacks button .d.blk { color: var(--wait); font-weight: 600; }
-  .attacks button .d.blk .i { color: var(--wait); }
   /* the expected answer's arrow is the icon set's, not a text glyph */
   .attacks button .d .i { width: 0.9em; height: 0.9em; vertical-align: -0.1em; margin-right: 2px; }
 
@@ -223,7 +223,6 @@
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
   table.score td { transition: background-color 600ms var(--ease); }
   table.score tr.flash > td { background: var(--accent-bg); }
-  .added .i.down { transform: rotate(90deg); }
   table.score tr.sep td { color: var(--muted); padding: var(--s3) 0 4px; white-space: normal; }
   .cd { color: var(--muted); font-weight: 400; } /* time left on an Undo or an armed send */
   /* a definition link: a light dotted line in running text; in tiles, tables and the check list (where every error name
@@ -284,6 +283,11 @@
     header h1 { grid-column: 1; grid-row: 1; }
     header .tagline { grid-column: 1 / -1; grid-row: 2; }
     header .head-links { grid-column: 2; grid-row: 1; }
+  }
+  /* below the video frame's width the two attempt groups stack, so every button keeps its answer on one line */
+  @media (min-width: 521px) and (max-width: 1099px) {
+    .attack-groups { grid-template-columns: minmax(0, 1fr); }
+    .attacks.real-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -411,17 +415,17 @@
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
-          <button type="button" class="valid" data-mode="asis" data-what="The loaded record, untouched"><span class="l" data-icon="file">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span><kbd class="kb-k" aria-hidden="true">1</kbd></span></button>
-          <button type="button" class="atk" data-mode="value" data-what="One value inside the signed data is edited; the signature stays"><span class="l" data-icon="target">(a) Edit value</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span><kbd class="kb-k" aria-hidden="true">2</kbd></span></button>
-          <button type="button" class="atk" data-mode="stale" data-what="The signed time is moved 1 h earlier"><span class="l" data-icon="target">(b) Too old</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span><kbd class="kb-k" aria-hidden="true">3</kbd></span></button>
-          <button type="button" class="atk" data-mode="request" data-what="The request hash of another company"><span class="l" data-icon="target">(c) Different request</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span><kbd class="kb-k" aria-hidden="true">4</kbd></span></button>
-          <button type="button" class="atk" data-mode="key" data-what="The untouched record, re-signed by a random key"><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span><kbd class="kb-k" aria-hidden="true">5</kbd></span></button>
-          <button type="button" class="atk" data-mode="replay" data-what="The same record a second time, after it was sent for real"><span class="l" data-icon="target">Replay</span><span class="d exp" data-icon="arrow-right"><span class="mono">Replayed</span><kbd class="kb-k" aria-hidden="true">6</kbd></span></button>
+          <button type="button" class="valid" data-mode="asis" data-what="The loaded record, untouched"><span class="l" data-icon="file">Submit as is</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">accepted</span></span><kbd class="kb-k" aria-hidden="true">1</kbd></span></button>
+          <button type="button" class="atk" data-mode="value" data-what="One value inside the signed data is edited; the signature stays"><span class="l" data-icon="target">(a) Edit value</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">WrongSigner</span></span><kbd class="kb-k" aria-hidden="true">2</kbd></span></button>
+          <button type="button" class="atk" data-mode="stale" data-what="The signed time is moved 1 h earlier"><span class="l" data-icon="target">(b) Too old</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">StaleResponse</span></span><kbd class="kb-k" aria-hidden="true">3</kbd></span></button>
+          <button type="button" class="atk" data-mode="request" data-what="The request hash of another company"><span class="l" data-icon="target">(c) Different request</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">WrongRequest</span></span><kbd class="kb-k" aria-hidden="true">4</kbd></span></button>
+          <button type="button" class="atk" data-mode="key" data-what="The untouched record, re-signed by a random key"><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">WrongSigner</span></span><kbd class="kb-k" aria-hidden="true">5</kbd></span></button>
+          <button type="button" class="atk" data-mode="replay" data-what="The same record a second time, after it was sent for real"><span class="l" data-icon="target">Replay</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">Replayed</span></span><kbd class="kb-k" aria-hidden="true">6</kbd></span></button>
         </div></div>
         <div class="ag"><div class="ag-head">Real, untouched records</div>
         <div class="attacks real-grid" role="group" aria-label="Real inputs: untouched records genuinely signed by the Airnode">
-          <button type="button" class="atk real" data-mode="realOld" data-what="A genuine, untouched record of this supplier, signed earlier (bundled with the page)"><span class="l" data-icon="file">(b) Real old record</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span><kbd class="kb-k" aria-hidden="true">7</kbd></span></button>
-          <button type="button" class="atk real" data-mode="realOther" data-what="A genuine, untouched record of another company (bundled with the page)"><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span><kbd class="kb-k" aria-hidden="true">8</kbd></span></button>
+          <button type="button" class="atk real" data-mode="realOld" data-what="A genuine, untouched record of this supplier, signed earlier (bundled with the page)"><span class="l" data-icon="file">(b) Real old record</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">StaleResponse</span></span><kbd class="kb-k" aria-hidden="true">7</kbd></span></button>
+          <button type="button" class="atk real" data-mode="realOther" data-what="A genuine, untouched record of another company (bundled with the page)"><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp"><span class="ans" data-icon="arrow-right"><span class="mono">WrongRequest</span></span><kbd class="kb-k" aria-hidden="true">8</kbd></span></button>
         </div></div>
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
@@ -439,7 +443,7 @@
   <div class="stack">
     <section class="panel">
       <div class="panel-head"><h2>Scoreboard</h2><span class="row"><span class="msg" id="score-undo" role="status"></span><button type="button" class="sm" id="copy-score" data-icon="copy" disabled>Copy as Markdown</button><button type="button" class="sm" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></span></div>
-      <p class="hint">Every attempt from this page in this tab, kept across reloads. Press an attempt's name to see its checks again.</p>
+      <p class="hint">Every attempt in this tab, kept across reloads.</p>
       <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
     </section>
@@ -662,19 +666,19 @@
   const all = (modes, t) => Object.fromEntries(modes.map((m) => [m, t]));
   // cause -> { why: in a few words, modes: { attempt: the error it answers instead, or "" }, line: said once instead }
   const BLOCKED = {
-    empty: { why: "needs a record", modes: all(SYNTH, ""), line: "The six attempts built in your browser need a record: load one in step 2." },
-    invalid: { why: "the record needs fixing", modes: all(SYNTH, ""), line: "The six attempts built in your browser need the record in step 2 fixed first." },
+    empty: { why: "needs a record", modes: all(SYNTH, ""), line: "The marked attempts need a record in step 2." },
+    invalid: { why: "the record needs fixing", modes: all(SYNTH, ""), line: "The marked attempts need the record in step 2 fixed." },
     held: { why: "order not active", modes: all([...SYNTH, "realOld", "realOther"], "NotActive") },
     other: { why: "record of another company", modes: all(["asis", "value", "stale", "key", "replay"], "WrongRequest") },
     stale: { why: "record too old", modes: all(["asis", "value", "key", "replay"], "StaleResponse") },
     used: { why: "already sent", modes: { asis: "Replayed", value: "NotNewer", key: "Replayed" } },
     // presentation only: the record is not on chain yet, so a replay of it is a first submission (no contract call)
-    notSent: { why: "tests only after a real send", modes: { replay: "" }, solo: "after a real send (S)" },
+    notSent: { why: "tests only after a real send (S)", modes: { replay: "" }, solo: true },
   };
   const listOf = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
   // A cause that stops several attempts is said once, above the buttons, with the attempts it stops and the error they
   // answer instead; each of those buttons carries only an amber mark (its words for screen readers, and in its tip).
-  // A cause of one attempt only (Replay before a real send) is said on that button.
+  // A cause of one attempt only (Replay before a real send) is the mark alone: its words are in the tip.
   let marked = null;
   function markAttacks() {
     const box = $("resp");
@@ -691,22 +695,24 @@
     const buttons = document.querySelectorAll(".attacks [data-mode]");
     for (const b of buttons) {
       const m = b.dataset.mode;
-      for (const old of b.querySelectorAll(".blk-ic, .blk-sr, .d.blk")) old.remove();
+      for (const old of b.querySelectorAll(".blk-ic, .blk-sr")) old.remove();
       delete b.dataset.blk;
       const why = reasons.find((r) => m in BLOCKED[r].modes);
       if (!why) continue;
       const ans = BLOCKED[why].modes[m];
       b.dataset.blk = `${BLOCKED[why].why}${ans ? `: answers <span class="mono">${ans}</span>` : ""}`;
-      if (BLOCKED[why].solo) { b.querySelector(".d.exp").insertAdjacentHTML("afterend", `<span class="d blk">${P.icon("alert")} ${BLOCKED[why].solo}</span>`); continue; }
       b.querySelector(".l").insertAdjacentHTML("beforeend", `<span class="blk-ic">${P.icon("alert")}</span><span class="sr-only blk-sr">With this record: ${b.dataset.blk}</span>`);
+      if (BLOCKED[why].solo) continue;
       if (!hits.has(why)) hits.set(why, new Map());
       const byAns = hits.get(why);
       byAns.set(ans, [...(byAns.get(ans) || []), m]);
     }
     const lines = [...hits].map(([r, byAns]) => {
       if (BLOCKED[r].line) return BLOCKED[r].line;
+      // one answer: "the marked attempts" (the marks show which); several: each named with its answer
       const n = [...byAns.values()].flat().length;
       const parts = [...byAns].map(([ans, ms]) => n === buttons.length ? `every attempt answers ${errLink(ans)}`
+        : byAns.size === 1 ? `the marked attempts answer ${errLink(ans)}`
         : `${listOf(ms.map((m) => SHORT[m]))} ${ms.length > 1 ? "answer" : "answers"} ${errLink(ans)}`);
       return `${BLOCKED[r].why[0].toUpperCase()}${BLOCKED[r].why.slice(1)}: ${parts.join("; ")}.`;
     });
@@ -1032,11 +1038,6 @@
     const newRow = $("score").querySelector("tr");
     newRow.classList.add("flash");
     setTimeout(() => newRow.classList.remove("flash"), 1600);
-    // a single attempt: when the scoreboard is out of sight, say where the row went
-    if (!suiteRunning && $("score").getBoundingClientRect().top > innerHeight) {
-      const v = $("result").querySelector(".verdict");
-      if (v) v.insertAdjacentHTML("afterend", `<button type="button" class="link added" data-to-score>${P.icon("arrow-right", "down")}Added to the scoreboard</button>`);
-    }
     return { mode, attempt, accepted: verdict.accepted, got: gotText, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
   }
 
@@ -1189,7 +1190,7 @@
           <div class="why">${rec ? `The contract accepts records at most ${maxAge} s old. With this record every attempt stops at the freshness check, so the attacks would not show their own errors.`
             : "Paste a signed record, upload one, or load a sample in step 2, then press Run again."}</div>
           ${noSetup}
-          <div class="why">For the full test, get a fresh signed record of ${esc(id)} ($0.01, paid over ${term("x402", "x402")}), paste it in step 2 and press Run again:</div>
+          <div class="why">For the full test, get a fresh signed record of ${esc(id)} ($0.01 over ${term("x402", "x402")}), paste it in step 2 and press Run again:</div>
           <div class="why">${fetchCode()}</div></div>
         ${rec ? `<div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>` : ""}`;
       P.hydrateIcons($("result"));
@@ -1295,7 +1296,7 @@
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
       <h2>The contract's verdict</h2>
-      <p class="hint">Tamper test on order #${order.id}: ${countText} ${term("simulated", "simulated")}${suiteTx ? "; the replay came after one real send of the valid record" : ""}.</p>
+      <p class="hint">Tamper test on order #${order.id}: ${countText} ${term("simulated", "simulated")}${suiteTx ? "; the replay followed one real send" : ""}.</p>
       <div class="verdict hero ${passed ? "ok" : suiteStopped ? "done" : notTested ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : notTested ? "clock" : "x")}</span>
         <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : notTested ? "Not tested" : "Not passed"}</div><div class="why">${why}</div>${notTested ? fix : ""}</div></div>
       ${replayStep}
@@ -1393,7 +1394,7 @@
     const reqText = v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id);
     $("kit").innerHTML = `
       <li>Contract: ${cfg.contract ? `${addr(cfg.contract)}${P.copyBtn(cfg.contract)} (${v1 ? "SupplierPulse v1" : "SupplierPulse+ v1.1"}) on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>${P.copyBtn(order.info.requestHash)}` : ""}.</li>
-      <li>Get your own fresh signed record ($0.01, paid over ${term("x402", "x402")}), then paste or upload the file: ${code(fetchCmd)}${v1 ? "" : PREREQ}</li>
+      <li>Get your own fresh signed record ($0.01 over ${term("x402", "x402")}), then paste or upload the file: ${code(fetchCmd)}${v1 ? "" : PREREQ}</li>
       <li><details><summary>Build the request yourself (AirnodeHub body and request hash)</summary>
         <p class="hint">Call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:</p>${code(body)}
         <p class="hint">The request hash is <code>keccak256(utf8(…))</code> of this string; the contract builds it on chain from the order's ${v1 ? "company number" : "source and id"}:</p>${code(reqText)}</details></li>
@@ -1594,14 +1595,6 @@
     else if (t.matches("[data-retry]") && retryRun) { const again = retryRun; Promise.resolve(again()).catch(failed(again)); }
     else if (t.dataset.retryMode) single(t.dataset.retryMode).catch(failed(() => single(t.dataset.retryMode)));
     else if (t.matches("[data-settings]")) openSettings();
-    else if (t.matches("[data-to-score]")) {
-      const row = $("score").querySelector("tr");
-      row.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-      const b = row.querySelector("[data-attempt]");
-      if (b) b.focus({ preventScroll: true });
-      row.classList.add("flash");
-      setTimeout(() => row.classList.remove("flash"), 1600);
-    }
   });
   // one filled primary at a time: when the verdict offers the next step, Run steps back
   new MutationObserver(() => $("suite").classList.toggle("primary", !$("result").querySelector("button.primary"))).observe($("result"), { childList: true, subtree: true });
@@ -1817,7 +1810,7 @@
     const vName = version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1";
     renderMeta([[vName, addr(cfg.contract)], ["Max age", `${maxAge} s`]]);
     $("meta").insertAdjacentHTML("afterbegin", `<span id="meta-live" aria-live="polite">${liveMeta()}</span>`);
-    $("cfg-note").innerHTML = `${found && version === 2 ? "Contract found automatically: the newest SupplierPulse+ v1.1 deployed by the team. " : ""}Every attempt is a ${term("simulated", "simulation")}, sent as if from <span class="mono">${short(P.DEAD)}</span>: no transaction, no gas.`;
+    $("cfg-note").innerHTML = `${found && version === 2 ? "Contract found automatically: the newest SupplierPulse+ v1.1 deployed by the team. " : ""}Every attempt is a ${term("simulated", "simulation")} from <span class="mono">${short(P.DEAD)}</span>.`;
     const dq = new URLSearchParams({ contract: cfg.contract });
     if (cfg.rpc !== P.DEFAULT_RPC) dq.set("rpc", cfg.rpc);
     dashQs.set("contract", cfg.contract);
