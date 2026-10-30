@@ -74,6 +74,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 ```
 
 ### 2026-10-30 · Orhun
+- Changed: docs/SUPPLIER_PULSE_SPEC.md: next-iteration spec (3-milestone demo, permit fields, dashboard, hack simulator, 48h refund, gap to the current contract). Ideas only, no code change.
+- Next: decide which spec items to build before feature freeze.
+
+### 2026-10-30 · Orhun
 - Changed: docs/SUPPLIERPULSE.md lists the insolvency-history and overdue-accounts rules as ideas for later (not built).
 - Next: decide after the demo works whether to build them.
 
