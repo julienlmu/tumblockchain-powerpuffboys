@@ -113,6 +113,8 @@ form.cfg input, select, textarea {
 }
 form.cfg input:hover, select:hover, textarea:hover { border-color: var(--muted); }
 form.cfg input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.85; }
+form.cfg input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--hold); box-shadow: inset 0 0 0 1px var(--hold); }
+form.cfg .field-err { color: var(--hold); font-size: 12px; min-height: 0; }
 form.cfg .btns { display: flex; gap: var(--s2); align-items: flex-end; }
 summary { cursor: pointer; color: var(--muted); font-size: var(--t-1); width: fit-content; border-radius: var(--r-sm); }
 summary:hover { color: var(--text); }

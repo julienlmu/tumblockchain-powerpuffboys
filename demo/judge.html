@@ -313,8 +313,9 @@
     const text = $("resp").value.trim();
     if (!text) throw new Error("No record loaded. Paste one, pick a sample or upload a file in step 2.");
     let obj;
-    try { obj = JSON.parse(text); } catch { throw new Error("The record is not valid JSON. Paste the whole file from fetch-evidence.sh, or load a sample."); }
-    return P.normalizeRecord(obj, order.info ? Number(order.info.source) : 0);
+    try { obj = JSON.parse(text); } catch (e) { throw new Error(`The record is not valid JSON (${e.message.replace(/^JSON\.parse: /, "")}). Paste the whole file from fetch-evidence.sh, or load a sample.`); }
+    try { return P.normalizeRecord(obj, order.info ? Number(order.info.source) : 0); }
+    catch (e) { throw new Error(`This is not a signed record: ${e.message}. Paste the whole file from fetch-evidence.sh, or load a sample.`); }
   }
   function setRecord(r, note = "") {
     $("resp").value = JSON.stringify(r, null, 2);
@@ -407,8 +408,13 @@
     return mode === "realOld" ? pool.find((s) => s.record.supplierId === id) : pool.find((s) => s.record.supplierId !== id);
   }
 
+  function noOrderVerdict() {
+    $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${P.icon("info")}<span>${contract ? "This contract has no orders yet" : "No contract connected"}</span></div>
+      <div class="why">${contract ? "The tamper test checks a record against an order. Run it once the buyer has created an order, or pick another contract in Settings." : "Enter the contract address in Settings."}</div></div>`;
+  }
+
   async function run(mode) {
-    if (!contract) { banner("error", `${P.icon("alert")}<span>No contract connected. Enter its address in Settings, then press the button again.</span>`); return null; }
+    if (!contract || !order.info) { noOrderVerdict(); return null; }
     let t;
     if (mode === "realOld" || mode === "realOther") {
       const s = realInput(mode);
@@ -533,7 +539,7 @@
       let signer;
       if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
       else {
-        if (!window.ethereum) { out.textContent = "No browser wallet found. Use api3/scripts/plus-submit.sh … --send instead."; return null; }
+        if (!window.ethereum) { out.textContent = "No browser wallet found. Install MetaMask, or send it from a terminal: api3/scripts/plus-submit.sh <order> response.json --send"; return null; }
         const bp = new ethers.BrowserProvider(window.ethereum);
         await bp.send("eth_requestAccounts", []);
         if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
@@ -555,7 +561,7 @@
       return { status: rc.status, hash: tx.hash, block: rc.blockNumber };
     } catch (e) {
       const err = P.decodeRevert(iface, e);
-      out.textContent = `Not sent: ${err ? err.name : e.shortMessage || e.message}`;
+      out.textContent = err ? `Not sent: the contract refuses it with ${err.name}. ${P.explain(err.name, err.args)}` : P.friendlyError(e, { rpc: cfg.rpc }).text;
       return null;
     }
   }
@@ -578,11 +584,7 @@
   }
 
   async function runSuite(force = false) {
-    if (!contract || !order.info) {
-      $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${P.icon("info")}<span>${contract ? "This contract has no orders yet" : "No contract connected"}</span></div>
-        <div class="why">${contract ? "The tamper test checks a record against an order. Run it once the buyer has created an order, or pick another contract in Settings." : "Enter the contract address in Settings."}</div></div>`;
-      return;
-    }
+    if (!contract || !order.info) { noOrderVerdict(); return; }
     let rec = null;
     try { rec = readRecord(); } catch { /* empty or not JSON */ }
     const maxAge = Number(await contract.maxAge());
@@ -736,7 +738,13 @@
   $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
   $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => banner("error", esc(err.message))));
-  const runFailed = (e) => { lockButtons(false); $("result").removeAttribute("aria-busy"); $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(e.shortMessage || e.message)}. Check the RPC URL in Settings and press the button again.</div></div>`; };
+  const runFailed = (e) => {
+    lockButtons(false);
+    $("result").removeAttribute("aria-busy");
+    const f = P.friendlyError(e, { rpc: cfg.rpc });
+    const fix = f.kind === "network" ? "" : " Nothing was sent. Your record is kept in step 2: check it there, then press the button again.";
+    $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(f.text)}${fix}</div></div>`;
+  };
   for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => run(b.dataset.mode).catch(runFailed));
   $("suite").addEventListener("click", () => runSuite().catch(runFailed));
   $("result").addEventListener("click", (e) => {
@@ -792,7 +800,14 @@
     $("dash-link").href = (version === 2 ? "index.html?" : "v1.html?orders=0,1&") + dq;
     await loadOrders();
   }
-  init().catch((e) => banner("error", `${P.icon("alert")}<span>Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network in Settings, then reload the page.</span>`));
+  init().catch((e) => {
+    const f = P.friendlyError(e, { rpc: cfg.rpc });
+    $("cfg-box").open = true;
+    $("cfg").elements[f.kind === "network" ? "rpc" : "contract"].setAttribute("aria-invalid", "true");
+    setNoOrder(true, "Connect a contract in Settings first.");
+    renderMeta([["Mode", "not connected"]]);
+    banner("error", `${P.icon("alert")}<span>Could not read the contract. ${esc(f.text)}${f.kind === "other" ? " Check the address, the RPC URL and the network in Settings." : ""} Then press Load contract.</span>`);
+  });
 })();
 </script>
 </body>

@@ -309,6 +309,19 @@
     return whole.toLocaleString("en") + frac;
   }
 
+  /** Plain words for a failed RPC or wallet call: { kind: "wallet" | "network" | "address" | "other", text }. */
+  function friendlyError(e, ctx = {}) {
+    const code = e && (e.code || (e.error && e.error.code) || (e.info && e.info.error && e.info.error.code));
+    const msg = (e && (e.shortMessage || e.message)) || String(e);
+    if (code === "ACTION_REJECTED" || code === 4001 || /user (rejected|denied)/i.test(msg)) return { kind: "wallet", text: "You cancelled in the wallet. Nothing was sent." };
+    if (code === "INSUFFICIENT_FUNDS") return { kind: "wallet", text: "The wallet has too little ETH to pay the gas. Nothing was sent." };
+    const m = msg.match(/no contract at (0x[0-9a-fA-F]{40}) on chain (\d+)/);
+    if (m) return { kind: "address", text: `There is no contract at ${short(m[1])} on ${NETWORKS[m[2]] || "chain " + m[2]}. Check the address, or the RPC URL if the contract lives on another network.` };
+    if (["NETWORK_ERROR", "TIMEOUT", "SERVER_ERROR"].includes(code) || /failed to fetch|fetch failed|ECONNREFUSED|network|timeout|could not detect/i.test(msg))
+      return { kind: "network", text: `The RPC${ctx.rpc ? " " + ctx.rpc : ""} did not answer. Check the RPC URL in Settings, or try again in a moment.` };
+    return { kind: "other", text: msg };
+  }
+
   // ---------------------------------------------------------------- icons (presentation only)
 
   // One authored inline-SVG set: 24 grid, stroke 2 (base.css .i), aria-hidden; the text label is always kept next to it.
@@ -350,7 +363,7 @@
     ABI, ABI_V1, V2_DEPLOYER, V11_VECTOR, V1_SEPOLIA, discoverV2, requestHashV1, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,
     ruleNames, failedLabels, evaluate, requestHashFor, supplierKeyOf, digestOf, normalizeRecord, parseFields,
-    tamper, decodeRevert, explain,
+    tamper, decodeRevert, explain, friendlyError,
     esc, short, nowSec, clock, dayClock, ago, span, duration, tokens,
   };
 })();
