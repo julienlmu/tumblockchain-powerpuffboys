@@ -88,6 +88,16 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - **Batu's note, repo visibility:** confirmed, the repo is **private** (`gh api`, Fri 18:12). I scanned the whole history of every branch for secrets: no `.env` was ever committed; no private keys, Blockfrost ids or seed phrases; only anvil's public test keys. Switching it to public is my decision as the owner (needed by Sat 14:30). Spec §7.4 corrected.
 - `docs/agent.md` and §6.3 are updated (failure table, refund rule, gas limit, runner).
 - **Emre**, for later: `airnode-fetch.mjs` exits 4 for any thrown error, including an unreachable Airnode before payment, so an Airnode outage pauses both registries for 15 min. A separate exit code for "Airnode unreachable, nothing paid" would let the agent pause one source only. Not urgent.
+### 2026-10-30 · Orhun · SupplierPulse+ v2 live on Ethereum Sepolia (C3 deploy)
+- Changed:
+  - `SupplierPulsePlus` v2 deployed at [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC), tx [`0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99`](https://sepolia.etherscan.io/tx/0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99), block 12028086.
+  - Constructor: CH airnode `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, GLEIF airnode `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c`, maxAge 300, tierCountGap 300, refundGrace 600. Values checked on chain with `cast call`.
+  - Recorded in `docs/evidence.md` (SupplierPulse+ live), `docs/SUPPLIERPULSE_PLUS.md` §3.2 and `api3/.env.example` (`PULSE_PLUS_ADDRESS`).
+- Next:
+  - **Emre:** real fetches + `plus-submit.sh` against this address.
+  - Demo orders A–E after Orhun's OK.
+- Notes: includes the C2.5 fixes; `forge test` 115/115 on source commit `c668c51`.
+
 ### 2026-10-30 · Orhun · C2.5 review fixes in `SupplierPulsePlus.sol` (Emre's findings 1 and 2)
 - Changed (storage and checks only, no ABI change):
   - **Finding 1:** `approveMilestone` stores the time of the first approval per milestone (`approvedAt`). The no-data exit now opens at `max(dueDate, approvedAt) + refundGrace`, in `refundRemaining` and in `orderSchedule.autoRefundAt`. A buyer who approves late can no longer approve and refund in the same block; the supplier always gets the full grace. Re-approving does not move the time.
