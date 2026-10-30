@@ -90,11 +90,36 @@
   @media (min-width: 900px) {
     /* a non-modal side sheet: the attack panel stays in view while you read about it */
     .meta-row #guide { position: absolute; margin: 0; }
-    #guide .guide-body { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; width: min(460px, 100vw); max-width: none; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
+    #guide .guide-body { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: none; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
       margin: 0; border-radius: 0; border-width: 0 0 0 1px; border-color: var(--line-strong); box-shadow: -16px 0 36px -14px rgb(0 0 0 / 0.4); animation: sheet-in 200ms var(--ease); }
     #guide .guide-head { border-radius: 0; top: calc(-1 * var(--s4)); } /* the sheet scrolls itself: stick at its very top */
     @keyframes sheet-in { from { transform: translateX(24px); opacity: 0; } }
   }
+  /* the sheet makes room for itself: the page narrows to one column beside it, nothing sits under it */
+  @media (min-width: 900px) {
+    :root { --sheet-w: min(460px, 40vw); }
+    #guide .guide-body { width: var(--sheet-w); }
+    body.guide-open { padding-right: var(--sheet-w); }
+  }
+  @media (min-width: 900px) and (max-width: 1719px) {
+    body.guide-open .layout { grid-template-columns: minmax(0, 1fr); }
+    body.guide-open #result { position: static; }
+  }
+  .guide-sub { margin: 0; font-size: var(--t-1); font-weight: 600; }
+  #guide caption { text-align: left; font-weight: 600; padding: var(--s2) 0 2px; }
+  table.keys th { white-space: nowrap; width: 1%; }
+  /* a definition, anchored to the word it explains (error names and domain words) */
+  .def-pop, .tip { inset: auto; margin: 0; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--card); color: var(--text);
+    box-shadow: 0 10px 28px -8px rgb(0 0 0 / 0.35); font-size: var(--t-1); line-height: 1.45; }
+  .def-pop { padding: var(--s3); width: max-content; max-width: min(340px, calc(100vw - 16px)); }
+  .def-pop:focus { outline: none; }
+  .def-pop p { margin: 0 0 var(--s2); }
+  .def-pop .def-name { font-weight: 600; }
+  .def-pop .def-name.mono { font-size: var(--t0); }
+  /* what an attempt changes, under its button on hover, keyboard focus or a long press */
+  .tip { padding: 6px 10px; max-width: min(280px, calc(100vw - 16px)); }
+  .tip .tip-blk { display: block; margin-top: 4px; color: var(--wait); font-weight: 600; }
+  .attacks button { -webkit-touch-callout: none; }
   .keys-toggle { display: inline-flex; gap: var(--s2); align-items: center; color: var(--text); }
   .keys-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
   details.gloss th { width: auto; white-space: nowrap; }
@@ -185,8 +210,8 @@
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
   table.score tr.sep td { color: var(--muted); padding: var(--s3) 0 4px; white-space: normal; }
   .cd { color: var(--muted); font-weight: 400; } /* time left on an Undo or an armed send */
-  a.err { color: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-  a.err:hover { text-decoration-style: solid; }
+  a.def { color: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a.def:hover { text-decoration-style: solid; }
   #guide tr:target > *, #guide tr.flash > * { background: var(--accent-bg); transition: background-color 600ms var(--ease); }
   .qual { color: var(--muted); font-family: var(--sans); font-size: 11.5px; }
   .res { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; white-space: nowrap; }
@@ -207,7 +232,7 @@
   .tile-open { all: unset; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
   .tile-open::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-md); }
   .tile:has(> .tile-open:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .tile a.err { position: relative; z-index: 1; }
+  .tile a.def { position: relative; z-index: 1; }
   .tile .n { font-weight: 600; font-size: var(--t-1); display: flex; gap: 6px; align-items: flex-start; }
   .tile .n .i { margin-top: 0.1em; }
   .tile .s { font-size: 11.5px; font-weight: 600; }
@@ -281,16 +306,15 @@
         </ol>
         <table class="kv"><thead><tr><th>Attempt</th><th>What changes</th><th>Expected answer</th></tr></thead><tbody>
           <tr><td>Submit as is</td><td>nothing</td><td>accepted</td></tr>
-          <tr><td>(a) Edit value</td><td>one value inside the signed data</td><td class="mono"><a class="err" href="#err-WrongSigner" data-err="WrongSigner">WrongSigner</a></td></tr>
-          <tr><td>(b) Too old, Real old record</td><td>the signed time, or a genuine earlier record</td><td class="mono"><a class="err" href="#err-StaleResponse" data-err="StaleResponse">StaleResponse</a></td></tr>
-          <tr><td>(c) Different request, Real, other company</td><td>the request, or a genuine record of another company</td><td class="mono"><a class="err" href="#err-WrongRequest" data-err="WrongRequest">WrongRequest</a></td></tr>
-          <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono"><a class="err" href="#err-WrongSigner" data-err="WrongSigner">WrongSigner</a></td></tr>
-          <tr><td>Replay</td><td>the same record a second time</td><td class="mono"><a class="err" href="#err-Replayed" data-err="Replayed">Replayed</a></td></tr></tbody></table>
+          <tr><td>(a) Edit value</td><td>one value inside the signed data</td><td class="mono"><a class="def" href="#err-WrongSigner">WrongSigner</a></td></tr>
+          <tr><td>(b) Too old, Real old record</td><td>the signed time, or a genuine earlier record</td><td class="mono"><a class="def" href="#err-StaleResponse">StaleResponse</a></td></tr>
+          <tr><td>(c) Different request, Real, other company</td><td>the request, or a genuine record of another company</td><td class="mono"><a class="def" href="#err-WrongRequest">WrongRequest</a></td></tr>
+          <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono"><a class="def" href="#err-WrongSigner">WrongSigner</a></td></tr>
+          <tr><td>Replay</td><td>the same record a second time</td><td class="mono"><a class="def" href="#err-Replayed">Replayed</a></td></tr></tbody></table>
         <p><b>Amber tile, or "Not tested":</b> the record could not test that attack, because it is too old, already sent, or for another order, so an earlier check stopped it. What to do: load a fresh record (<b>Fresh local record</b> on the local chain, <span class="mono">fetch-evidence.sh</span> elsewhere, see the Judge kit) and run again. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
-        <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> run all, <kbd>1</kbd>–<kbd>8</kbd> one attempt, <kbd>S</kbd> replay step, <kbd>B</kbd> back to the summary, <kbd>T</kbd> colour theme, <kbd>Esc</kbd> stop or close this guide, <kbd>?</kbd> this guide, <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs all.</p>
-        <p><label class="keys-toggle"><input type="checkbox" id="keys-on" checked> Single-key shortcuts (R, 1–8, S, B, T, ?) on</label></p>
-        <details class="gloss"><summary>What each contract error means</summary>
-          <table class="kv"><tbody>
+        <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a></p>
+        <details class="gloss" id="gloss"><summary>Glossary: the contract's errors and the words on this page</summary>
+          <table class="kv"><caption>Contract errors</caption><tbody>
             <tr id="err-WrongSigner" tabindex="-1"><th class="mono">WrongSigner</th><td>The signature recovers to another key than the Airnode the contract trusts: the signed bytes were edited, or another key signed.</td></tr>
             <tr id="err-WrongRequest" tabindex="-1"><th class="mono">WrongRequest</th><td>The record answers another request (company, operation or projection) than the one the order expects.</td></tr>
             <tr id="err-StaleResponse" tabindex="-1"><th class="mono">StaleResponse</th><td>Signed more than the maximum age (<span class="max-age">300</span> s) before the chain's time.</td></tr>
@@ -299,7 +323,28 @@
             <tr id="err-NotNewer" tabindex="-1"><th class="mono">NotNewer</th><td>The order already accepted a record signed at the same time or later.</td></tr>
             <tr id="err-NotActive" tabindex="-1"><th class="mono">NotActive</th><td>The order is held or closed, so it accepts no new evidence.</td></tr>
             <tr id="err-SupplierFailed" tabindex="-1"><th class="mono">SupplierFailed</th><td>A clean record older than a known register failure of this supplier.</td></tr>
+          </tbody></table>
+          <table class="kv"><caption>Words on this page</caption><tbody>
+            <tr id="term-airnode" tabindex="-1"><th>Airnode (the signer)</th><td>The API3 node that signs each register answer. The contract trusts one Airnode address per registry and acts only on records whose signature recovers to it. On the local chain a public anvil test key plays this part.</td></tr>
+            <tr id="term-request" tabindex="-1"><th>Request hash</th><td>A hash (keccak256) of the exact question asked: operation, company and the fields wanted. The contract builds the one it expects from the order's registry and supplier, so a record that answers another question fails with <span class="mono">WrongRequest</span>.</td></tr>
+            <tr id="term-digest" tabindex="-1"><th>Digest</th><td>The fingerprint of one signed record: keccak256 of its request hash, time and data. The Airnode signs it, and the contract stores each digest it accepts, so the same record cannot count twice (<span class="mono">Replayed</span>).</td></tr>
+            <tr id="term-maxage" tabindex="-1"><th>Max age</th><td>How old a record may be, measured against the chain's clock: <span class="max-age">300</span> s on this contract. An older record fails with <span class="mono">StaleResponse</span>.</td></tr>
+            <tr id="term-permit" tabindex="-1"><th>Payment permit</th><td>The contract's go-ahead to pay the order's next milestone to the supplier. A genuine, fresh record that passes every check and every rule issues it; it expires, and then a fresh record is needed.</td></tr>
+            <tr id="term-simulated" tabindex="-1"><th>Simulated</th><td>Each attempt is a simulation (an <span class="mono">eth_call</span>): the node runs <span class="mono">submitEvidence</span> as if <span class="mono">0x…dEaD</span> had sent it and returns the contract's answer. No transaction, no wallet, no gas; nothing changes on chain.</td></tr>
+            <tr id="term-x402" tabindex="-1"><th>x402</th><td>Pay per request over HTTP: AirnodeHub answers "402 Payment Required" until the $0.01 is paid (aUSD on Base Sepolia), then returns the signed record.</td></tr>
           </tbody></table></details>
+        <h3 class="guide-sub">Keys</h3>
+        <table class="kv keys"><tbody>
+          <tr><th><kbd>R</kbd></th><td>Run the full tamper test</td></tr>
+          <tr><th><kbd>1</kbd>–<kbd>8</kbd></th><td>One attempt (the number on its button)</td></tr>
+          <tr><th><kbd>S</kbd></th><td>The replay step: send the valid record, then replay it</td></tr>
+          <tr><th><kbd>B</kbd></th><td>Back to the tamper test summary</td></tr>
+          <tr><th><kbd>T</kbd></th><td>Colour theme</td></tr>
+          <tr><th><kbd>?</kbd></th><td>This guide</td></tr>
+          <tr><th><kbd>Esc</kbd></th><td>Stop a run, cancel an armed send, close this guide or a definition</td></tr>
+          <tr><th><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd></th><td>In the record box: run the full tamper test</td></tr>
+        </tbody></table>
+        <p><label class="keys-toggle"><input type="checkbox" id="keys-on" checked> Single-key shortcuts (R, 1–8, S, B, T, ?) on</label></p>
       </div>
     </details>
     <details class="cfg-box" id="cfg-box">
@@ -343,17 +388,17 @@
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
-          <button type="button" class="valid" data-mode="asis" title="Untouched; the contract should answer accepted" aria-description="untouched; expected answer: accepted"><kbd class="kb" aria-hidden="true">1</kbd><span class="l" data-icon="check">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span></span></button>
-          <button type="button" class="atk" data-mode="value" title="One value edited; the contract should answer WrongSigner" aria-description="one value edited; expected answer: WrongSigner"><kbd class="kb" aria-hidden="true">2</kbd><span class="l" data-icon="target">(a) Edit value</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
-          <button type="button" class="atk" data-mode="stale" title="Signed 1 h earlier; the contract should answer StaleResponse" aria-description="signed 1 h earlier; expected answer: StaleResponse"><kbd class="kb" aria-hidden="true">3</kbd><span class="l" data-icon="target">(b) Too old</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
-          <button type="button" class="atk" data-mode="request" title="Another company; the contract should answer WrongRequest" aria-description="another company; expected answer: WrongRequest"><kbd class="kb" aria-hidden="true">4</kbd><span class="l" data-icon="target">(c) Different request</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
-          <button type="button" class="atk" data-mode="key" title="Random key signs; the contract should answer WrongSigner" aria-description="random key signs; expected answer: WrongSigner"><kbd class="kb" aria-hidden="true">5</kbd><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
-          <button type="button" class="atk" data-mode="replay" title="Same record twice; the contract should answer Replayed" aria-description="same record twice; expected answer: Replayed"><kbd class="kb" aria-hidden="true">6</kbd><span class="l" data-icon="target">Replay</span><span class="d exp" data-icon="arrow-right"><span class="mono">Replayed</span></span></button>
+          <button type="button" class="valid" data-mode="asis" data-what="The loaded record, untouched"><kbd class="kb" aria-hidden="true">1</kbd><span class="l" data-icon="check">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span></span></button>
+          <button type="button" class="atk" data-mode="value" data-what="One value inside the signed data is edited; the signature stays"><kbd class="kb" aria-hidden="true">2</kbd><span class="l" data-icon="target">(a) Edit value</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
+          <button type="button" class="atk" data-mode="stale" data-what="The signed time is moved 1 h earlier"><kbd class="kb" aria-hidden="true">3</kbd><span class="l" data-icon="target">(b) Too old</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
+          <button type="button" class="atk" data-mode="request" data-what="The request hash of another company"><kbd class="kb" aria-hidden="true">4</kbd><span class="l" data-icon="target">(c) Different request</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
+          <button type="button" class="atk" data-mode="key" data-what="The untouched record, re-signed by a random key"><kbd class="kb" aria-hidden="true">5</kbd><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
+          <button type="button" class="atk" data-mode="replay" data-what="The same record a second time, after it was sent for real"><kbd class="kb" aria-hidden="true">6</kbd><span class="l" data-icon="target">Replay</span><span class="d exp" data-icon="arrow-right"><span class="mono">Replayed</span></span></button>
         </div></div>
         <div class="ag"><div class="ag-head">Real, untouched records</div>
         <div class="attacks real-grid" role="group" aria-label="Real inputs: untouched records genuinely signed by the Airnode">
-          <button type="button" class="atk real" data-mode="realOld" title="Genuine, signed earlier; the contract should answer StaleResponse" aria-description="genuine, signed earlier; expected answer: StaleResponse"><kbd class="kb" aria-hidden="true">7</kbd><span class="l" data-icon="file">(b) Real old record</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
-          <button type="button" class="atk real" data-mode="realOther" title="Genuine, other firm; the contract should answer WrongRequest" aria-description="genuine, other firm; expected answer: WrongRequest"><kbd class="kb" aria-hidden="true">8</kbd><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
+          <button type="button" class="atk real" data-mode="realOld" data-what="A genuine, untouched record of this supplier, signed earlier (bundled with the page)"><kbd class="kb" aria-hidden="true">7</kbd><span class="l" data-icon="file">(b) Real old record</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
+          <button type="button" class="atk real" data-mode="realOther" data-what="A genuine, untouched record of another company (bundled with the page)"><kbd class="kb" aria-hidden="true">8</kbd><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
         </div></div>
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
@@ -382,6 +427,11 @@
     </section>
   </div>
 </div>
+<div id="def-pop" class="def-pop" popover role="dialog" aria-labelledby="def-name" tabindex="-1">
+  <p id="def-name" class="def-name"></p><p id="def-text" class="def-text"></p>
+  <button type="button" class="link" id="def-more" data-icon="arrow-right" data-icon-end="1">More in How it works</button>
+</div>
+<div id="tip" class="tip" popover="manual" aria-hidden="true"></div>
 
 <script>
 (() => {
@@ -412,9 +462,16 @@
   const wbr = (t) => esc(t).replace(/([a-z])([A-Z])/g, "$1<wbr>$2");
   // a contract error name opens its glossary row in the guide (10b); other words stay plain
   const GLOSS = new Set(["WrongSigner", "WrongRequest", "StaleResponse", "FutureResponse", "Replayed", "NotNewer", "NotActive", "SupplierFailed"]);
-  const errLink = (name) => GLOSS.has(name) ? `<a class="err" href="#err-${name}" data-err="${name}" title="What ${name} means">${wbr(name)}</a>` : wbr(name);
-  // "accepted: permit" reads as "accepted (permit)", so the verdict and the expected answer use the same word
-  const gotHtml = (got) => { const m = /^accepted: (\w+)$/.exec(got); return m ? `accepted <span class="qual">(${m[1]})</span>` : errLink(got); };
+  const errLink = (name) => GLOSS.has(name) ? `<a class="def" href="#err-${name}" aria-haspopup="dialog">${wbr(name)}</a>` : wbr(name);
+  // a word of the domain (Airnode, digest, max age …) opens its one-line definition the same way (glossary rows term-*)
+  const term = (key, text) => `<a class="def" href="#term-${key}" aria-haspopup="dialog">${text}</a>`;
+  // "accepted: permit" reads "accepted · payment permit" (the words the verdict box uses), so the verdict and the
+  // expected answer share the word "accepted"; "accepted: hold" reads "accepted · holds the order"
+  const gotHtml = (got) => {
+    const m = /^accepted: (\w+)$/.exec(got);
+    if (!m) return errLink(got);
+    return `accepted <span class="qual">· ${m[1] === "permit" ? term("permit", "payment permit") : m[1] === "hold" ? "holds the order" : esc(m[1])}</span>`;
+  };
 
   try { localStorage.setItem("pulse-view", "detailed"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
@@ -656,8 +713,8 @@
       <tr><th>Supplier</th><td><span class="reg">${s.badge}</span> ${esc(s.name)} <a class="mono" href="${s.registerUrl(info.supplierId)}" target="_blank" rel="noopener">${esc(info.supplierId)}</a></td></tr>
       <tr><th>State</th><td>${P.STATE[info.state]}${info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : ""} · last check ${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</td></tr>
       <tr><th>Rules</th><td>${version === 2 ? P.ruleNames(source, info.rules).map(esc).join(", ") : "status active (v1)"}</td></tr>
-      <tr><th>Expected request</th><td><span class="mono" title="${info.requestHash}">${short(info.requestHash)}</span>${P.copyBtn(info.requestHash)}</td></tr>
-      <tr><th>Trusted signer</th><td>${known ? `${esc(known)} (${addr(airnode)})` : addr(airnode)}${P.copyBtn(airnode)}</td></tr>`;
+      <tr><th>Expected ${term("request", "request")}</th><td><span class="mono" title="${info.requestHash}">${short(info.requestHash)}</span>${P.copyBtn(info.requestHash)}</td></tr>
+      <tr><th>Trusted signer (${term("airnode", "Airnode")})</th><td>${known ? `${esc(known)} (${addr(airnode)})` : addr(airnode)}${P.copyBtn(airnode)}</td></tr>`;
     // a held or closed order stops every attempt at its first check: said here, before any press
     $("order-msg").innerHTML = info.state !== 0
       ? `<span class="warn">${P.icon("alert")} Order #${id} is ${P.STATE[info.state].toLowerCase()}, so every attempt stops at <span class="mono">NotActive</span>. Pick an active order to test the checks.</span>` : "";
@@ -720,9 +777,9 @@
 
   // The first thing in the verdict panel: the quickest way in, for this network, then the checks in the contract's
   // order with the error each one answers. The checklist after an attempt and the button warnings use the same words.
-  const checkNames = () => [["The order is active", "NotActive"], ["Request matches the order", "WrongRequest"], ["Not from the future", "FutureResponse"],
-    [`Fresh (at most ${maxAgeVal} s old)`, "StaleResponse"], ["Not used before", "Replayed"], ["Newer than the order's last record", "NotNewer"],
-    ["Signed by the trusted Airnode", "WrongSigner"], ...(version === 2 ? [["A clean record is newer than any known failure of this supplier", "SupplierFailed"]] : [])];
+  const checkNames = () => [["The order is active", "NotActive"], [`The ${term("request", "request")} matches the order`, "WrongRequest"], ["Not from the future", "FutureResponse"],
+    [`Fresh (at most ${term("maxage", `${maxAgeVal} s`)} old)`, "StaleResponse"], ["Not used before", "Replayed"], ["Newer than the order's last record", "NotNewer"],
+    [`Signed by the trusted ${term("airnode", "Airnode")}`, "WrongSigner"], ...(version === 2 ? [["A clean record is newer than any known failure of this supplier", "SupplierFailed"]] : [])];
   function startHint() {
     const h = $("start-hint");
     if (!h) return;
@@ -730,7 +787,7 @@
       ? `Press <b>Run the full tamper test</b>: a fresh local record is signed for you.`
       : `Fastest, no setup: press <b>(b) Real old record</b> or <b>(c) Real, other company</b>, genuine signed records bundled with the page. For the full test, load a fresh record in step 2, then press <b>Run the full tamper test</b>.`;
     if (!$("start-checks")) h.insertAdjacentHTML("afterend", `<p class="hint">The contract checks a record in this order and stops at the first check that fails, with its error:</p>
-      <ol class="checks-pre" id="start-checks">${checkNames().map(([t, err]) => `<li><span>${esc(t)}</span><span class="mono">${errLink(err)}</span></li>`).join("")}</ol>`);
+      <ol class="checks-pre" id="start-checks">${checkNames().map(([t, err]) => `<li><span>${t}</span><span class="mono">${errLink(err)}</span></li>`).join("")}</ol>`);
   }
   function noOrderVerdict() {
     if (connecting) { $("result").innerHTML = `<h2>The contract's verdict</h2><p class="waiting">${P.icon("loader", "spin")}Still connecting to the contract…</p>`; return; }
@@ -784,12 +841,12 @@
     // Off-chain checklist, in the contract's order of checks (§4.5), so the first ✗ is where the contract stops.
     const checks = [
       { ok: st.state === 0, t: "The order is active", d: `state ${P.STATE[st.state]}` },
-      { ok: r.requestHash.toLowerCase() === order.info.requestHash.toLowerCase(), t: "Request matches the order", d: `got ${short(r.requestHash)}, order expects ${short(order.info.requestHash)}` },
+      { ok: r.requestHash.toLowerCase() === order.info.requestHash.toLowerCase(), t: "The request matches the order", th: `The ${term("request", "request")} matches the order`, d: `got ${short(r.requestHash)}, order expects ${short(order.info.requestHash)}` },
       { ok: ts <= now + 60, t: "Not from the future", d: `signed ${P.dayClockS(ts)}, chain time ${P.dayClockS(now)}` },
-      { ok: age <= Number(maxAge), t: `Fresh (at most ${maxAge} s old)`, d: `age ${age < 0 ? "in the future" : age >= 120 ? `${P.span(age)} (${age.toLocaleString("en")} s)` : `${age} s`}` },
-      { ok: used === false, t: "Not used before", d: digest ? `this exact record (digest ${short(digest)}) ${used ? "was already used" : "is unused"}` : esc(recoverErr || "") },
+      { ok: age <= Number(maxAge), t: `Fresh (at most ${maxAge} s old)`, th: `Fresh (at most ${term("maxage", `${maxAge} s`)} old)`, d: `age ${age < 0 ? "in the future" : age >= 120 ? `${P.span(age)} (${age.toLocaleString("en")} s)` : `${age} s`}` },
+      { ok: used === false, t: "Not used before", d: digest ? `this exact signed record (its ${term("digest", "digest")} <span class="mono" title="${digest}">${short(digest)}</span>) ${used ? "was already used" : "is unused"}` : esc(recoverErr || "") },
       { ok: ts > st.lastCheck, t: "Newer than the order's last record", d: st.lastCheck ? `last record signed ${P.dayClockS(st.lastCheck)}` : "no record yet" },
-      { ok: !!recovered && recovered.toLowerCase() === airnode.toLowerCase(), t: "Signed by the trusted Airnode", d: recovered ? signerLine(recovered, airnode) : esc(recoverErr || "") },
+      { ok: !!recovered && recovered.toLowerCase() === airnode.toLowerCase(), t: "Signed by the trusted Airnode", th: `Signed by the trusted ${term("airnode", "Airnode")}`, d: recovered ? signerLine(recovered, airnode) : esc(recoverErr || "") },
     ];
     // v1.1: a clean record older than a known base failure of the supplier is refused (SupplierFailed)
     if (version === 2) checks.push({ ok: failed !== 0 || ts > lastFailure, t: "A clean record is newer than any known failure of this supplier", d: lastFailure ? `register status failed in a record signed ${P.dayClockS(lastFailure)}` : "no failure on record" });
@@ -849,7 +906,7 @@
       ${box}
       <h2>Checks, in the contract's order</h2>
       <ol class="checks">${checks.map((c, i) => `<li class="${i === stop ? "stop" : ""}">${ic(c.ok)}
-        <div><div class="t">${c.t}${i === stop ? `<span class="stop-tag">${P.icon("stop")} The contract stops here</span>` : ""}</div><div class="d">${c.d}</div></div></li>`).join("")}
+        <div><div class="t">${c.th || c.t}${i === stop ? `<span class="stop-tag">${P.icon("stop")} The contract stops here</span>` : ""}</div><div class="d">${c.d}</div></div></li>`).join("")}
         <li><span class="ic ${failed === null ? "q" : failed === 0 ? "y" : "l"}">${P.icon(failed === null ? "minus" : failed === 0 ? "check" : "lock")}</span><div><div class="t">Rules on the signed fields</div>
           <div class="d">${failed === null ? "the signed data is not JSON" : failed === 0 ? "every rule passes" : "fails: " + esc(P.failedLabels(source, failed).join(", "))} · signed data <span class="mono">${esc(rawShown || "")}</span></div></div></li>
       </ol>
@@ -879,7 +936,6 @@
   let scoreRows = [];
   // The scoreboard, newest first. Rows kept from before a reload or a view switch sit under one "Earlier in this tab" line.
   const RES = { Pass: ["pass", "check"], Fail: ["fail", "x"], "Not tested": ["na", "minus"] };
-  const gotTitle = (got) => ({ "accepted: permit": "accepted: would issue a payment permit", "accepted: hold": "accepted: would hold the order" })[got] || "";
   function renderScore() {
     const rows = [...scoreRows].reverse();
     $("clear-score").disabled = $("copy-score").disabled = !rows.length;
@@ -890,7 +946,7 @@
       const head = r.restored && !sep ? ((sep = true), `<tr class="sep"><td colspan="6">Earlier in this tab</td></tr>`) : "";
       const name = attempts[r.attempt] ? `<button type="button" class="link" data-attempt="${r.attempt}" title="Show this attempt's checks">${esc(r.name)}</button>` : esc(r.name);
       return `${head}<tr${r.restored ? ` class="old"` : ""}><td>${esc(r.time)}</td><td>#${esc(r.order)}</td><td>${name}</td>
-        <td class="v"${gotTitle(r.got) ? ` title="${gotTitle(r.got)}"` : ""}>${gotHtml(r.got)}</td><td class="v">${errLink(r.expected)}</td>
+        <td class="v">${gotHtml(r.got)}</td><td class="v">${errLink(r.expected)}</td>
         <td><span class="res ${cls}">${P.icon(ic)}${esc(r.res)}</span></td></tr>`;
     }).join("");
   }
@@ -1123,7 +1179,7 @@
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
       <h2>The contract's verdict</h2>
-      <p class="hint">Tamper test on order #${order.id}${suiteTx ? ", then the replay" : ""}: ${suite.length} attempts, all simulated${suiteTx ? " except the one real send" : ""}.</p>
+      <p class="hint">Tamper test on order #${order.id}${suiteTx ? ", then the replay" : ""}: ${suite.length} attempts, all ${term("simulated", "simulated")}${suiteTx ? " except the one real send" : ""}.</p>
       <div class="verdict hero ${passed ? "ok" : suiteStopped ? "done" : notTested ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : notTested ? "clock" : "x")}</span>
         <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : notTested ? "Not tested" : "Not passed"}</div><div class="why">${why}</div>${notTested ? fix : ""}</div></div>
       ${replayStep}
@@ -1426,33 +1482,78 @@
   // one filled primary at a time: when the verdict offers the next step, Run steps back
   new MutationObserver(() => $("suite").classList.toggle("primary", !$("result").querySelector("button.primary"))).observe($("result"), { childList: true, subtree: true });
   // the guide opens from the header; its button says whether it is open
-  // At >= 900 px it is a side sheet (fixed, scrolls on its own); on phones it stays in the page. Closing it returns
-  // focus to what opened it: the header button, or an error name.
+  // At >= 900 px it is a side sheet that makes room for itself: the page moves left and narrows (one column), so the
+  // sheet never covers what it explains and no focused control sits under it. On phones it stays in the page. Closing
+  // it returns focus to what opened it: the header button, or a definition's "More" link.
   const sheet = matchMedia("(min-width: 900px)");
   let guideReturn = null;
   function setGuide(open, focus = true, from = null) {
     if (open && !$("guide").open) guideReturn = from || $("guide-btn");
     $("guide").open = open;
+    document.body.classList.toggle("guide-open", open);
     $("guide-btn").setAttribute("aria-expanded", String(open));
     if (open && focus) { if (!sheet.matches) $("guide").scrollIntoView({ block: "nearest" }); $("guide").querySelector(".guide-body").focus({ preventScroll: true }); }
     if (!open && focus) { (guideReturn && guideReturn.isConnected ? guideReturn : $("guide-btn")).focus(); guideReturn = null; }
   }
-  // An error name opens the guide at its glossary row, expanded and in view.
-  function openGloss(name, from) {
-    const row = $(`err-${name}`);
+  // The guide at one glossary row (an error or a word), expanded and in view; the place it was opened from stays in view.
+  function openGloss(id, from) {
+    const row = $(id);
     if (!row) return;
     setGuide(true, false, from);
     row.closest("details").open = true;
+    if (from && from.isConnected && sheet.matches) from.scrollIntoView({ block: "nearest" });
     row.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     row.focus({ preventScroll: true });
     row.classList.add("flash");
     setTimeout(() => row.classList.remove("flash"), 1600);
   }
+  // A definition link (an error name or a domain word) opens a small popover anchored to it: the one-line meaning from
+  // the guide's glossary and "More in How it works". Esc or a click elsewhere closes it; focus goes back to the link.
+  const defPop = $("def-pop");
+  let defFrom = null, defClosedAt = 0;
+  function placeDef() {
+    if (!defFrom || !defFrom.isConnected) return;
+    const r = defFrom.getBoundingClientRect(), h = defPop.offsetHeight, w = defPop.offsetWidth;
+    const below = r.bottom + 6, above = r.top - 6 - h;
+    defPop.style.top = `${Math.round(below + h > innerHeight - 8 && above > 8 ? above : below)}px`;
+    defPop.style.left = `${Math.round(Math.max(8, Math.min(r.left, innerWidth - w - 8)))}px`;
+  }
+  function openDef(a) {
+    const id = a.hash.slice(1), row = $(id);
+    if (!row) return;
+    if (a === defFrom && (defPop.matches(":popover-open") || performance.now() - defClosedAt < 300)) { if (defPop.matches(":popover-open")) defPop.hidePopover(); return; }
+    defFrom = a;
+    $("def-name").innerHTML = row.querySelector("th").innerHTML;
+    $("def-name").className = `def-name${row.querySelector("th").classList.contains("mono") ? " mono" : ""}`;
+    $("def-text").innerHTML = row.querySelector("td").innerHTML;
+    $("def-more").dataset.row = id;
+    try { defPop.showPopover({ source: a }); } catch { defPop.showPopover(); }
+    placeDef();
+    defPop.focus({ preventScroll: true });
+  }
+  defPop.addEventListener("toggle", (e) => {
+    if (e.newState !== "closed") return;
+    defClosedAt = performance.now();
+    if (defFrom && defFrom.isConnected && (!document.activeElement || document.activeElement === document.body || defPop.contains(document.activeElement))) defFrom.focus({ preventScroll: true });
+  });
+  // Esc closes it here (not by the browser's own close request, which would hand focus to whatever had it before)
+  defPop.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault(); e.stopPropagation();
+    defPop.hidePopover();
+    if (defFrom && defFrom.isConnected) defFrom.focus({ preventScroll: true });
+  });
+  // Tab out of it (on to the next control) closes it too
+  defPop.addEventListener("focusout", () => setTimeout(() => { if (defPop.matches(":popover-open") && document.activeElement !== document.body && !defPop.contains(document.activeElement)) defPop.hidePopover(); }));
+  $("def-more").addEventListener("click", () => { const from = defFrom; defPop.hidePopover(); openGloss($("def-more").dataset.row, from); });
+  addEventListener("scroll", () => { if (defPop.matches(":popover-open")) placeDef(); }, { passive: true, capture: true });
+  addEventListener("resize", () => { if (defPop.matches(":popover-open")) defPop.hidePopover(); });
   document.addEventListener("click", (e) => {
-    const a = e.target.closest && e.target.closest("a[data-err]");
+    const a = e.target.closest && e.target.closest("a.def");
     if (!a) return;
     e.preventDefault();
-    openGloss(a.dataset.err, a);
+    // inside the guide the row is right there: go to it; anywhere else the definition opens where the word is
+    if (a.closest("#guide")) openGloss(a.hash.slice(1), a); else openDef(a);
   });
   $("guide").querySelector(".guide-body").tabIndex = -1;
   $("guide-btn").addEventListener("click", () => setGuide(!$("guide").open));
@@ -1472,7 +1573,51 @@
   applyKeys();
 
   // Keyboard accelerators; never while typing in a field.
-  document.querySelectorAll(".attacks [data-mode]").forEach((b, i) => { b.setAttribute("aria-keyshortcuts", String(i + 1)); b.title = `${b.title}. Key ${i + 1}`; });
+  document.querySelectorAll(".attacks [data-mode]").forEach((b, i) => b.setAttribute("aria-keyshortcuts", String(i + 1)));
+  // What each attempt changes, before a press: a tip under its button on hover, on keyboard focus (Tab) and on a long
+  // press (touch). Screen readers get the same words as the button's description. Esc closes it.
+  const tip = $("tip");
+  let tipFor = null, tipTimer = 0, tipHide = 0, tabbed = false;
+  const expOf = (b) => b.querySelector(".d.exp .mono").textContent;
+  function showTip(b) {
+    clearTimeout(tipHide); clearTimeout(tipTimer);
+    if (b.disabled || !b.isConnected) return;
+    tipFor = b;
+    tip.innerHTML = `<b>${esc(MODE_NAME[b.dataset.mode])}</b>: ${esc(b.dataset.what)}. Expected answer: <span class="mono">${esc(expOf(b))}</span>.`
+      + (b.dataset.blk ? `<span class="tip-blk">${P.icon("alert")} With this record: ${b.dataset.blk}</span>` : "");
+    if (!tip.matches(":popover-open")) tip.showPopover();
+    const r = b.getBoundingClientRect(), h = tip.offsetHeight, w = tip.offsetWidth;
+    tip.style.top = `${Math.round(r.bottom + 6 + h > innerHeight - 8 && r.top - 6 - h > 8 ? r.top - 6 - h : r.bottom + 6)}px`;
+    tip.style.left = `${Math.round(Math.max(8, Math.min(r.left, innerWidth - w - 8)))}px`;
+  }
+  function hideTip(delay = 0) {
+    clearTimeout(tipTimer); clearTimeout(tipHide);
+    tipHide = setTimeout(() => { if (tip.matches(":popover-open")) tip.hidePopover(); tipFor = null; }, delay);
+  }
+  document.addEventListener("keydown", (e) => { tabbed = e.key === "Tab"; }, true);
+  document.addEventListener("pointerdown", (e) => { tabbed = false; if (tipFor && !tipFor.contains(e.target) && !tip.contains(e.target)) hideTip(); }, true);
+  for (const b of document.querySelectorAll(".attacks [data-mode]")) {
+    b.setAttribute("aria-description", `${b.dataset.what}; expected answer: ${expOf(b)}`);
+    b.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") { clearTimeout(tipHide); clearTimeout(tipTimer); tipTimer = setTimeout(() => showTip(b), 350); } });
+    b.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hideTip(150); });
+    b.addEventListener("focus", () => { if (tabbed) showTip(b); });
+    b.addEventListener("blur", () => hideTip());
+    // touch: a long press shows the tip instead of pressing the button
+    b.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") return;
+      b._long = false; clearTimeout(tipTimer);
+      tipTimer = setTimeout(() => { b._long = true; showTip(b); }, 450);
+    });
+    b.addEventListener("pointerup", () => clearTimeout(tipTimer));
+    b.addEventListener("pointercancel", () => clearTimeout(tipTimer));
+    b.addEventListener("contextmenu", (e) => { if (b._long) e.preventDefault(); });
+    b.addEventListener("click", (e) => {
+      if (b._long) { b._long = false; e.preventDefault(); e.stopImmediatePropagation(); return; }
+      hideTip();
+    }, true);
+  }
+  tip.addEventListener("pointerenter", () => clearTimeout(tipHide));
+  tip.addEventListener("pointerleave", () => hideTip(150));
   $("suite").setAttribute("aria-keyshortcuts", "R");
   $("resp").setAttribute("aria-keyshortcuts", "Meta+Enter Control+Enter");
   // in the record box: Cmd/Ctrl+Enter runs the full test (the global keys stay off while typing)
@@ -1484,6 +1629,7 @@
     if (e.target.closest("input, textarea, select, [contenteditable], [popover]") && !(e.key === "Escape" && e.target.closest("#guide"))) return;
     const k = e.key;
     if (!keysOn && k !== "Escape") return;
+    if (k === "Escape" && tip.matches(":popover-open")) { e.preventDefault(); hideTip(); return; }
     if ((k === "r" || k === "R") && !suiteRunning) { e.preventDefault(); $("suite").click(); }
     else if (k === "Escape" && suiteRunning) { e.preventDefault(); $("suite").click(); }
     else if (k === "Escape" && document.querySelector("[data-armed]")) { e.preventDefault(); const b = document.querySelector("[data-armed]"); disarm(b); b.focus(); }
