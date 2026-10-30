@@ -25,7 +25,7 @@ Opening the files straight from disk also works (`file://`); sample data is a `.
 
 ## GitHub Pages
 
-The branch includes [a workflow](../.github/workflows/pages.yml) that publishes a labeled sample landing page, dashboard, and judge console at `https://julienlmu.github.io/tumblockchain-powerpuffgirls/`. The repository does not currently have GitHub Pages enabled, so [the first workflow run](https://github.com/julienlmu/tumblockchain-powerpuffgirls/actions/runs/41105403302) failed before publishing. A repository administrator must go to **Settings → Pages → Build and deployment**, select **GitHub Actions**, and then push a change under `demo/` to trigger deployment.
+The branch includes [a workflow](../.github/workflows/pages.yml) that publishes a labeled sample landing page, dashboard, and judge console at `https://julienlmu.github.io/tumblockchain-powerpuffgirls/`. The repository does not currently have GitHub Pages enabled, so both push-triggered attempts ([first](https://github.com/julienlmu/tumblockchain-powerpuffgirls/actions/runs/41105403302), [latest](https://github.com/julienlmu/tumblockchain-powerpuffgirls/actions/runs/41108177302)) failed before publishing. A repository administrator must go to **Settings → Pages → Build and deployment**, select **GitHub Actions**, and then push a change under `demo/` to trigger deployment.
 
 After deployment, the sample dashboard will be at `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/?sample=1` and the judge console at `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/judge.html`. These pages do not imply that v2 is deployed; live contract verdicts require a configured v2 address.
 

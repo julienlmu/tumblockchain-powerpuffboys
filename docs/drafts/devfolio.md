@@ -56,7 +56,7 @@ The v2 judge page is integrated at [`demo/judge.html`](../../demo/judge.html), w
 - “Try to break it” hosted URL: **pending Pages enablement** — expected `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/judge.html`; requires a v2 address for contract verdicts.
 - CLI: [`api3/scripts/plus-submit.sh`](../../api3/scripts/plus-submit.sh) simulates by default; add `--send` to broadcast. A reverted transaction consumes gas.
 
-The repository administrator must enable **Settings → Pages → Build and deployment → GitHub Actions**. The first deployment workflow attempt correctly stopped because Pages is disabled; it did not publish the site. Setup steps are in [`demo/README.md`](../../demo/README.md#github-pages).
+The repository administrator must enable **Settings → Pages → Build and deployment → GitHub Actions**. Both deployment workflow attempts correctly stopped because Pages is disabled; neither published the site ([latest run](https://github.com/julienlmu/tumblockchain-powerpuffgirls/actions/runs/41108177302)). Setup steps are in [`demo/README.md`](../../demo/README.md#github-pages).
 
 The v2 demonstration must first show an accepted fresh response that causes the intended outcome, then reject the edited value, stale response, different request, and wrong signer. Replay is an additional rejection case. Distinguish simulations from transactions actually sent on the testnet.
 
