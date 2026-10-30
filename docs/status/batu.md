@@ -2,6 +2,15 @@
 
 Newest on top.
 
+### 2026-10-30 ~12:56 · branch `batu/api3-setup`
+- Done: the three open checks for #6 (mining). Batu ran a scratch script that asks for the keystore password and keeps the key in memory only. The x402 client is copied from the official starter.
+- Spent: 0.01 aUSD, payment tx `0xf54d7b05d806a0e246472f3380438710f85020441797dca6cd5ec44b43eeaa91`. Balance now 9.99 aUSD.
+- Results:
+  - `historicalPrices` signs the price together with the requested moment (ISO 8601). Signer verified.
+  - The request-hash formula with array parameters matches (`cast keccak`).
+  - `nonEvmWalletBalances` for bitcoin returned 502 / upstream 404, not charged.
+- Details in `docs/decision-sheet.md`, section "Results of the paid checks".
+
 ### 2026-10-30 ~13:00 · branch `batu/api3-setup`
 - Done: API3 review of the mining payout idea (`docs/BRAINSTORMING.md` on `brainstorm/mining-payout-settlement`), added as section "#6" in `docs/decision-sheet.md`.
 - Checked: AirnodeHub catalogue (no mining pool, hashrate or block reward data). Two free live calls, no aUSD spent: Nodary `latestFeeds` (DOGE, LTC, BTC, ADA in USD) and dRPC `priceSymbols` (621 symbols for `historicalPrices`, incl. DOGE, BTC, LTC, ADA). Read the request-hash rules in `/docs/from-api-to-contract`.

@@ -72,6 +72,15 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: confirm the seller payout of `c00c4fcf…` (receipt), then a paid job with the real `eth-vault` app (needs the Sepolia `EVM_*` vars in `cardano-agent/.env`).
 - Notes: our agent is not on Sokosumi's agent list (`sokosumi --preprod agents list` shows 20 curated agents). Registering on Masumi does not list it there, so ask the Masumi team on site how to get listed. Qualification does not depend on it: the paid job runs through Masumi escrow on preprod.
 
+### 2026-10-30 · Batu (13:05)
+- Changed: `docs/decision-sheet.md` #6 now has the results of the paid checks. Docs only.
+- Next: Ulaş, Orhun and Batu decide. If #6: one coin, simulated pool rewards, credit = reward × signed `historicalPrices` at the reward time, hash built on-chain.
+- Notes:
+  - dRPC `historicalPrices` returns a signed `{"price":…,"timestamp":"2026-10-30T08:00:00+00:00"}` for the requested moment.
+  - The request hash is `keccak256('["historicalPrices",[["symbols",["DOGE"]],["timestamps",[<ms>]]]]')`.
+  - Signed Bitcoin balances failed (502), so the reward amount stays unsigned.
+  - Cost 0.01 aUSD, tx `0xf54d7b05d806a0e246472f3380438710f85020441797dca6cd5ec44b43eeaa91`.
+
 ### 2026-10-30 · Batu (13:00)
 - Changed: `docs/decision-sheet.md` has a new section "#6 Mining payout settlement: API3 review" for Ulaş's brainstorm branch. Docs only.
 - Next: Ulaş, Orhun and Batu discuss it. Three open checks (one $0.01 call each) are listed at the end of the section.

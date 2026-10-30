@@ -119,10 +119,33 @@ All four cases map cleanly [I]:
   - simulated pool rewards, clearly labelled
   - contract credits `reward × signed price at reward time` once per reward id
   - the pitch says plainly that the reward amount is a trusted pool report and the valuation is trustless
-- Open checks before deciding (each one paid call, $0.01 aUSD, Batu's OK needed):
-  1. `historicalPrices` response shape: does the signed data include the requested timestamp?
-  2. Can the request hash for array parameters be rebuilt on-chain?
-  3. Does `nonEvmWalletBalances` return a usable signed balance for a BTC address?
+- Open checks before deciding: **done 30 Oct ~12:56**, see below.
+
+### Results of the paid checks (30 Oct, ~12:56)
+
+Two paid calls from Batu's wallet `0xA545…FB4c`, using the x402 client copied from the official starter (`src/x402.ts`, commit `52933ae`).
+- Cost: **0.01 aUSD in total.** Payment tx `0xf54d7b05d806a0e246472f3380438710f85020441797dca6cd5ec44b43eeaa91` on Base Sepolia, checked with `cast receipt`.
+- Balance after: 9.99 aUSD. The failed call was not charged.
+
+1. **`historicalPrices` gives a signed price bound to the requested moment: [F] yes.**
+   - Request: `{"operation":"historicalPrices","parameters":{"symbols":["DOGE"],"timestamps":[1793347200000]}}`, i.e. 30 Oct 2026 08:00:00 UTC.
+   - Signed `data`: `{"data":{"DOGE":[{"price":0.07564,"timestamp":"2026-10-30T08:00:00+00:00"}]}}`
+   - The signed data carries the requested moment as ISO 8601. The starter's `IsoTimestamp` reads the `+00:00` form (`contracts/IsoTimestamp.sol`), so the contract can require `data time == reward time`.
+   - Signature time 11:56:15 UTC is fresh, while the value is from 08:00. The docs warn exactly about this: "a fresh signature can cover an old value". Here it is intended, so check both.
+   - Recovered signer `0x511AcE8648D2f64260d50D036F8f8ce622d92137`, the dRPC Airnode listed in the catalogue.
+   - [I] Only one data point was seen. The price granularity (per minute or per hour?) is not known.
+2. **Request hash for array parameters: [F] the off-chain formula holds.**
+   - The response's `requestHash` `0x59f68cc5…5388f` equals `keccak256('["historicalPrices",[["symbols",["DOGE"]],["timestamps",[1793347200000]]]]')`, checked with `cast keccak`.
+   - So the contract has to build exactly that string from (symbol, reward time in ms).
+   - [I] This is straightforward string building: a quoted symbol and an unquoted integer below 2^53. The docs build Nodary hashes on-chain for ~5,500 gas. **Not compiled or tested on-chain yet.**
+   - A projection (e.g. `price` → `/data/DOGE/0/price`, `time` → `/data/DOGE/0/timestamp`) would flatten the data for `ProjectedJson`. It changes the hash, and the starter has `escapePointerToken` for building it on-chain.
+3. **Signed Bitcoin wallet balance: [F] failed, inconclusive.**
+   - `nonEvmWalletBalances` for `bitcoin` / `1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa` (genesis address) returned HTTP 502 `{"error":"Upstream responded with 404 ","upstreamStatus":404}`. Not charged.
+   - Proof that a pool payout really arrived therefore stays open. The reward amount remains a trusted input.
+
+**Updated verdict [I]:**
+- The valuation half of #6 is now technically proven: a signed price bound to the reward's own moment, with a request hash the contract can rebuild.
+- The reward-amount half is still unsigned. So #6 stays behind #3 on "signed data matters" (30%), but clearly ahead of #0 on novelty and the agent bonus.
 
 ## Comparison
 
