@@ -74,9 +74,36 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 ```
 
 ### 2026-10-30 · Ulaş · SupplierPulse+ story
-- Changed: aligned the README, Devfolio draft, pitch, and video storyboard to distinguish the live v1 evidence from the v2 design; updated the research note with a Companies House example screened out as not meeting the liquidation-timeline requirement. Updated agent validation: 54 tests (53 passed, 1 skipped because `cast` is unavailable) and a 45-tick fake-chain run.
-- Next: verify any live v1 hedge results in `docs/evidence.md`; after integration, verify the v2 deployment, dashboard, judge page, actual signed data fields, paid calls, testnet agent run, and video. Do not treat fake-chain transactions or dry-run tamper rejections as live evidence.
+- Changed: tracked the v2 contract merge and am integrating verified data/UI workstreams, while keeping live and simulated evidence distinct.
+- Next: run the v2 local contract/data/dashboard flow; then record Sepolia deployment, paid-run, agent, judge, and video evidence only after they are actually verified.
 - Notes: the 2025/26 company-level liquidation timeline remains unverified. The agent fake run is synthetic, and its fake transaction hashes/spend are not submission evidence.
+
+### 2026-10-30 · Orhun · SupplierPulse+ contract (§6.1, Phase A, spec v1.1)
+- Changed: the contract part (§6.1) is built against spec v1.1. It is on `orhun/plus-contract` and merged into `supplierpulse-plus`.
+  - `api3/src/ISupplierPulsePlus.sol` (§4.4 v1.1 verbatim), `SupplierPulsePlus.sol`, `JsonFields.sol` (`parseBool`).
+  - Contract features:
+    - Companies House rules `0x02`/`0x04` (`0x01` is reserved and reverts `BadRules`);
+    - a verification history that counts only the base status and only moves forward;
+    - permits that are never extended;
+    - the supplier-wide stop: `lastBaseFailureAt`, `SupplierFailed` in `submitEvidence` and `release`, and `applySupplierFailure`;
+    - `refundRemaining` with the held path and the no-data exit (`NotRefundable`, `OrderRefunded.noDataExit`);
+    - `autoRefundAt` for both paths.
+  - `api3/test/SupplierPulsePlus.t.sol`: 64 tests. They cover the §4.2 v1.1 vectors, every bad-input error, each rule, every tamper case (edited value, stale, future, other request, CH response on a GLEIF order, wrong key, replay, not newer, high-s), permits, `NotDue`, all four `checkAndRelease` outcomes, the history (gap, older records, rule-only failures, base failures, `TierChanged`, shared record), every supplier-wide stop case, both refund paths with all their errors, and event arguments. `forge test`: 100 passed, including v1's 36. v1 files are unchanged.
+  - `api3/script/DeploySupplierPulsePlus.s.sol`, the `api3/scripts/plus-{lib,local,create-order,approve,refund,status,demo-orders}.sh` scripts, and new lines in `api3/.env.example`.
+  - `plus-local.sh` creates the six §4.8 orders. Tested on anvil:
+    - a cast-signed clean record paid order 0 M1;
+    - liquidation held order 1 with labels, and the buyer refunded it;
+    - `applySupplierFailure(4)` held order 4 without new evidence;
+    - order 5 (no data) was refunded through the no-data exit after due + grace;
+    - errors decode by name (`WrongSigner`, `NotRefundable`, `BadSupplierId`).
+- Next:
+  - C1a: tests with Emre's real fixtures. If a Companies House field is dropped (§4.2 fallback), I change the two constants.
+  - C2: `plus-local.sh` for the integration.
+  - C3: Sepolia deploy and `plus-demo-orders.sh`.
+- Notes:
+- Local orders use `permitTtl` 300; demo orders use `PERMIT_TTL` (default 1800).
+- Demo due dates are fixed for Saturday CET: A M2 at 11:45, A M3 at 15:30, the others at 12:00.
+- A missing field of an enabled rule makes `submitEvidence` revert with `KeyNotFound` or `NoBool`. That never pays, and the no-data exit covers it.
 
 ### 2026-10-30 · Julien · v1.0 → v1.1 checklists for Orhun and Emre
 - Changed: nothing in code. `orhun/plus-contract` and `emre/plus-data` were built on spec v1.0 (`864fe18`), before v1.1 (`3181439`, ~17:00). Great speed. These are the exact deltas so both fit the agent and each other at C2.
