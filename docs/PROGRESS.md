@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · review of the SupplierPulse+ plan
+- Changed: `docs/reviews/office-hours-2026-10-30.md`, a read-only review of `supplierpulse-plus` at `864fe18`: customer questions, premises to discuss (keep Cardano, scope, ABI dependency, real tamper reverts), three approaches with a recommendation, and repo issues judges will notice. No code changed.
+- Next: 10-minute team talk on the premises in §4, mainly whether to keep the Cardano entry.
+
 ### 2026-10-30 · Julien · SupplierPulse+ build spec
 - Changed: `docs/SUPPLIERPULSE_PLUS.md` is the complete build spec for SupplierPulse+ (API3 track only, decided ~16:00). It contains:
   - frozen interfaces: contract ABI, request templates with test vectors, signed fields and rules, CLI tools, a local test chain;
