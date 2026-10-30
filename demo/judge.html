@@ -462,7 +462,7 @@
   setInterval(() => {
     for (const el of document.querySelectorAll(".rec-age")) {
       el.textContent = ageText();
-      el.classList.toggle("warn", isStale() || recordUsed !== null);
+      el.classList.toggle("warn", isStale()); // a fresh age is good news, even on a used record
     }
     markAttacks();
   }, 1000);
@@ -500,7 +500,7 @@
     recordUsed = digest && sentDigests.has(digest) ? sentDigests.get(digest) : null;
     recordOther = !!(order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase());
     markAttacks();
-    const parts = [`<span class="okc">${P.icon("check")}</span> ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, <span class="rec-age" aria-hidden="true">${ageText()}</span><span class="sr-only">signed ${age >= 0 ? P.ago(age) : "in the future"}</span>.`];
+    const parts = [`<span class="okc">${P.icon("check")}</span> ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, <span class="rec-age${isStale() ? " warn" : ""}" aria-hidden="true">${ageText()}</span><span class="sr-only">signed ${age >= 0 ? P.ago(age) : "in the future"}</span>.`];
     if (recordUsed !== null) parts.push(`<span class="warn">Already sent in this tab (block ${recordUsed}): attacks on it stop early. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Load a fresh record"} to test each check.</span>`);
     else if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Get a fresh one (Judge kit, below)"} to test each check.</span>`);
     if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
@@ -630,7 +630,8 @@
     lastCandidate = { record: r, mode, rejected: false };
     $("result").setAttribute("aria-busy", "true");
     // the previous verdict stays on screen, dimmed (CSS), with the new question on top: no collapse and re-expand
-    const asking = `<div class="what">${esc(t.what)}</div><p class="waiting">${P.icon("loader", "spin")}Asking the contract…</p>`;
+    // during a run the progress is repeated here, so on a phone the panel in view shows both progress and answer
+    const asking = `<div class="what">${esc(t.what)}</div><p class="waiting">${P.icon("loader", "spin")}${runStep ? `${runStep}: asking the contract…` : "Asking the contract…"}</p>`;
     const top = $("result").querySelector(".asking");
     if (top) top.innerHTML = asking;
     else if ($("result").querySelector(".verdict, .tiles")) $("result").querySelector("h2").insertAdjacentHTML("afterend", `<div class="asking">${asking}</div>`);
@@ -755,19 +756,28 @@
     if (!a) return;
     lastCandidate = a.candidate;
     $("result").innerHTML = (suite.length && !suiteRunning ? `<button type="button" class="link" data-summary aria-keyshortcuts="B">${P.icon("arrow-left")} Tamper test summary<kbd class="kb-k" aria-hidden="true">B</kbd></button>` : "") + a.html;
+    if (a.sent && $("send")) { const b = $("send"); b.disabled = true; b.dataset.sent = "1"; b.innerHTML = a.sent.label; $("send-msg").innerHTML = a.sent.msg; }
     // a send button drawn during a run is part of the run's lock
     if (suiteRunning) for (const b of $("result").querySelectorAll("button")) b.disabled = true;
   }
 
+  // A real send shows its state from the press: the button rests (no second transaction) and the message says what
+  // happens now. It comes back only when nothing was sent; once included it says so and stays off.
   async function sendForReal(onSent = null) {
     const out = $("send-msg");
     if (!lastCandidate) return null;
     const r = lastCandidate.record;
+    const btn = $("send");
+    const attempt = attempts.find((a) => a.candidate === lastCandidate);
+    const spin = P.icon("loader", "spin");
+    const pending = (on) => { if (btn) { btn.disabled = on || suiteRunning; if (on) btn.setAttribute("aria-busy", "true"); else btn.removeAttribute("aria-busy"); } };
+    if (chainId !== 31337 && !window.ethereum) { out.textContent = "No browser wallet found. Install MetaMask, or send it from a terminal: api3/scripts/plus-submit.sh <order> response.json --send"; return null; }
+    pending(true);
+    out.innerHTML = `${spin} ${chainId === 31337 ? "Sending with the local agent key…" : "Confirm in MetaMask, or reject there…"}`;
     try {
       let signer;
       if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
       else {
-        if (!window.ethereum) { out.textContent = "No browser wallet found. Install MetaMask, or send it from a terminal: api3/scripts/plus-submit.sh <order> response.json --send"; return null; }
         const bp = new ethers.BrowserProvider(window.ethereum);
         await bp.send("eth_requestAccounts", []);
         if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
@@ -780,16 +790,21 @@
       const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature, overrides);
       if (onSent) onSent(tx);
       const link = explorer ? `<a class="mono" href="${explorer}/tx/${tx.hash}" target="_blank" rel="noopener">${short(tx.hash)}</a>` : `<span class="mono">${short(tx.hash)}</span>`;
-      out.innerHTML = `sent ${link}, waiting…`;
+      out.innerHTML = `${spin} Sent ${link}, waiting for the block…`;
       let rc;
       try { rc = await tx.wait(); } catch (e) { rc = e.receipt || null; if (!rc) throw e; } // ethers 6 throws on a reverted receipt
       if (rc.status === 1) sentDigests.set(P.digestOf(r.requestHash, r.timestamp, r.data).toLowerCase(), rc.blockNumber);
       out.innerHTML = rc.status === 1
         ? `included in block ${rc.blockNumber}: ${link}. Now try Replay.`
         : `<b>reverted on chain</b> in block ${rc.blockNumber}, as the simulation said: ${link}`;
+      // included: this record cannot be sent again usefully, so the button keeps saying what happened
+      const label = `${P.icon(rc.status === 1 ? "check" : "x")}${rc.status === 1 ? "Sent" : "Reverted"} in block ${rc.blockNumber}`;
+      if (btn) { btn.removeAttribute("aria-busy"); btn.dataset.sent = "1"; btn.innerHTML = label; }
+      if (attempt) attempt.sent = { label, msg: out.innerHTML };
       await selectOrder(order.id);
       return { status: rc.status, hash: tx.hash, block: rc.blockNumber };
     } catch (e) {
+      pending(false);
       const err = P.decodeRevert(iface, e);
       out.textContent = err ? `Not sent: the contract refuses it with ${err.name}. ${P.explain(err.name, err.args)}` : P.friendlyError(e, { rpc: cfg.rpc }).text;
       return null;
@@ -811,18 +826,18 @@
     $("result").focus({ preventScroll: true });
   }
   const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
-  let stopRequested = false, runFlow = "suite";
+  let stopRequested = false, runFlow = "suite", runStep = "";
   // While a run goes, the run button is the way out: the suite stops after the current attempt, send-and-replay before the send.
   function lockButtons(on, flow = "suite") {
     suiteRunning = on;
     stopRequested = false;
     runFlow = flow;
-    for (const b of document.querySelectorAll(RUN_LOCKED)) b.disabled = (on && b.id !== "suite") || (noOrder && (b.matches(ORDER_CONTROLS) || b.id === "order"));
+    for (const b of document.querySelectorAll(RUN_LOCKED)) b.disabled = (on && b.id !== "suite") || (noOrder && (b.matches(ORDER_CONTROLS) || b.id === "order")) || b.hasAttribute("data-sent");
     const sb = $("suite");
     sb.setAttribute("aria-busy", String(on));
     sb.innerHTML = on ? `${P.icon("stop")}${flow === "replay" ? "Stop before sending" : "Stop after this attempt"}<kbd class="kb-k" aria-hidden="true">Esc</kbd>`
       : `${P.icon("play")}Run the full tamper test<kbd class="kb-k" aria-hidden="true">R</kbd>`;
-    if (!on) $("suite-progress").hidden = true;
+    if (!on) { $("suite-progress").hidden = true; runStep = ""; }
     // a disabled button drops keyboard focus to <body>; give it back so the keyboard path continues from here
     if (!on && (!document.activeElement || document.activeElement === document.body)) sb.focus({ preventScroll: true });
   }
@@ -875,7 +890,8 @@
         if (stopRequested) { suiteStopped = true; break; }
         const pr = $("suite-progress");
         pr.hidden = false;
-        pr.innerHTML = `<span>Attempt ${i + 1} of ${SUITE.length}: ${MODE_NAME[m]}</span><span class="track" aria-hidden="true"><span style="width:${Math.round((i + 1) / SUITE.length * 100)}%"></span></span>`;
+        runStep = `Attempt ${i + 1} of ${SUITE.length}`;
+        pr.innerHTML = `<span>${runStep}: ${MODE_NAME[m]}</span><span class="track" aria-hidden="true"><span style="width:${Math.round((i + 1) / SUITE.length * 100)}%"></span></span>`;
         const r = await run(m);
         if (r) suite.push(r);
         else if (skipReason) skipped.push({ mode: m, reason: skipReason });
@@ -954,7 +970,8 @@
   function replayProgress(step, text) {
     const pr = $("suite-progress");
     pr.hidden = false;
-    pr.innerHTML = `<span>Replay step ${step} of 3: ${text}</span><span class="track" aria-hidden="true"><span style="width:${Math.round(step / 3 * 100)}%"></span></span>`;
+    runStep = `Replay step ${step} of 3`;
+    pr.innerHTML = `<span>${runStep}: ${text}</span><span class="track" aria-hidden="true"><span style="width:${Math.round(step / 3 * 100)}%"></span></span>`;
   }
   async function sendThenReplay() {
     lockButtons(true, "replay");
