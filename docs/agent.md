@@ -123,7 +123,7 @@ Voice-over (≈60 words): *"Nobody presses a button here. The agent watches ever
 
 ```sh
 cd api3/agent
-python3 -m unittest discover -s tests                   # 82 tests, no network
+python3 -m unittest discover -s tests                   # 86 tests, no network
 python3 pulse_agent.py run --fake --ticks 45            # whole flow against an in-memory contract, simulated clock
 python3 pulse_agent.py report --fake
 
@@ -137,6 +137,7 @@ python3 pulse_agent.py plan                             # what the next tick wou
 ./run-forever.sh                                        # supervised loop: restarts after a crash, stops on a
                                                         # config error or a second agent on the same state
 python3 pulse_agent.py report --markdown                # every transaction with explorer links, for docs/evidence.md
+python3 c3_check.py                                     # Sepolia acceptance (§6.3): PASS or WAIT per demo order, read-only
 ```
 
 One agent runs per state directory (`state/` for v2, `state/v1/` for v1): a second `run` or `once` on the same one refuses to start, while `plan` and `report` work alongside it. The v1 hedge and the v2 agent can run at the same time.

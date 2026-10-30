@@ -73,6 +73,12 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (agent) · Sepolia acceptance check; heads-up on C and E for the video
+- Changed: `python3 api3/agent/c3_check.py` checks the Sepolia acceptance of §6.3 against the live v2 contract and the agent's log. It is read-only and costs nothing. It finds the demo orders by supplier id, so B2 and dry-run orders don't confuse it. It prints PASS or WAIT for each point: A and D milestone 1 paid by the agent, B held then refunded, C and E held, A's tier risen, ≥ 10 cycles, no failed actions. Live now: 20 cycles, clean, the order lines wait for orders A–E.
+- **Heads-up for the video (Ulaş, Orhun, Batu):** the agent refunds *every* held order once its grace period is over (P1, §6.3), not only B. Overnight, **C and E will also be refunded** 10 minutes after they are held. On Saturday the dashboard shows them as refunded, with their failed rules.
+  - If the video needs an order that is still *held* (0:35 – 1:05, "C held: accounts overdue"), create a fresh one shortly before recording: the agent holds it at its first check, and it stays held for 10 minutes. Or use B2, which is created live.
+  - If you would rather have the agent leave C and E alone overnight, tell me; that is a small change.
+
 ### 2026-10-30 · Julien · C2.5: judge page tamper code reviewed; agent material for the video
 - **C2.5 review of the judge page's tamper code against §4.7: passes, nothing to change.** I ran `demo/common.js` and Emre's `api3/x402/tamper.mjs` side by side on all 5 real fixtures in `api3/fixtures/`. (a) value, (b) stale, (c) request and replay give byte-identical records. (d) key re-signs the untouched digest with a random key that is not an Airnode, in both. The request templates match §4.2 v1.1, and the v1 fallback uses v1's template. The comparison is a 40-line Node script; Batu or Emre, I can add it to your folder as a test if you want it.
 - `docs/agent.md` now shows real log lines from the live Sepolia run instead of the example. A new section, "For the video (1:45 – 2:10)", gives **Ulaş** four shots and a 60-word voice-over for the agent part.
