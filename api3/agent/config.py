@@ -84,7 +84,10 @@ def read_env_file(path: Path) -> dict:
 def load(env: Optional[dict] = None, profile: Optional[str] = None, require_chain: bool = True) -> Config:
     """Build the config. require_chain=False allows commands that only read local files (report)."""
     if env is None:
-        env = {**read_env_file(AGENT_DIR / ".env"), **os.environ}
+        for key, value in read_env_file(AGENT_DIR / ".env").items():
+            if value:  # exported, so FETCH_CMD gets PAYER_PRIVATE_KEY from this file too; empty means not set
+                os.environ.setdefault(key, value)
+        env = dict(os.environ)
     name = profile or env.get("AGENT_PROFILE", "demo")
     if name not in PROFILES:
         raise ValueError("AGENT_PROFILE must be one of %s" % ", ".join(PROFILES))
@@ -106,7 +109,7 @@ def load(env: Optional[dict] = None, profile: Optional[str] = None, require_chai
         contract=env.get("PULSE_PLUS_ADDRESS", ""),
         rpc_urls=rpc_urls,
         contract_version=version,
-        agent_key=env.get("AGENT_PRIVATE_KEY") or env.get("EVM_PRIVATE_KEY", ""),
+        agent_key=env.get("AGENT_PRIVATE_KEY", ""),  # never EVM_PRIVATE_KEY: that is the buyer or admin wallet
         fetch_cmd=fetch_cmd,
         fetch_cost_usd=num("FETCH_COST_USD", float, 0.0 if local_fetch else 0.01),
         state_dir=Path(env.get("STATE_DIR") or AGENT_DIR / ("state/v1" if version == "v1" else "state")),

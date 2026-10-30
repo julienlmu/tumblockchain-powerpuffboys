@@ -22,7 +22,7 @@ from chain import Chain
 from chain_v1 import ChainV1
 from evidence import Fetcher
 from executor import Executor
-from journal import Journal, report
+from journal import Journal, report, report_markdown
 from ledger import Ledger
 from policy import plan
 
@@ -44,6 +44,23 @@ def build(args):
     return cfg, chain, Executor(chain, fetcher, ledger, journal, cfg)
 
 
+def lock_state(state_dir):
+    """One running agent per state directory: a second run or once would fetch twice, and the last save
+    would lose spend. Returns the open lock file (keep it open), or None while another agent holds it."""
+    try:
+        import fcntl
+    except ImportError:  # not POSIX: no lock
+        return True
+    state_dir.mkdir(parents=True, exist_ok=True)
+    handle = open(state_dir / "agent.lock", "w")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return None
+    return handle
+
+
 def banner(cfg, chain, fake: bool) -> None:
     hosts = ", ".join(urlparse(u).netloc or u for u in cfg.rpc_urls) or "-"  # never print full URLs (may hold keys)
     target = "FAKE chain and registry" if fake else "%s contract %s" % (cfg.contract_version, cfg.contract)
@@ -62,12 +79,14 @@ def main(argv=None) -> int:
     ap.add_argument("--profile", choices=sorted(config.PROFILES), help="default: AGENT_PROFILE or demo")
     ap.add_argument("--ticks", type=int, default=0, help="run: stop after N ticks (0 = forever)")
     ap.add_argument("--quiet", action="store_true", help="log to the file only")
+    ap.add_argument("--markdown", action="store_true", help="report: transactions as a table for docs/evidence.md")
     args = ap.parse_args(argv)
 
     if args.command == "report":
         cfg = config.load(profile=args.profile, require_chain=False)
         state_dir = cfg.state_dir / "fake" if args.fake else cfg.state_dir
-        print(report(Journal(state_dir / "cycles.jsonl").read(), Ledger(state_dir / "state.json").data["spend"]))
+        render = report_markdown if args.markdown else report
+        print(render(Journal(state_dir / "cycles.jsonl").read(), Ledger(state_dir / "state.json").data["spend"]))
         return 0
 
     try:
@@ -86,6 +105,10 @@ def main(argv=None) -> int:
             print("nothing to do")
         return 0
 
+    lock = lock_state(cfg.state_dir)
+    if lock is None:
+        print("another agent is running on %s (plan and report work alongside it)" % cfg.state_dir, file=sys.stderr)
+        return 3
     banner(cfg, chain, args.fake)
     ticks = 1 if args.command == "once" else args.ticks
     done = 0

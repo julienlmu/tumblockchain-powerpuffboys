@@ -73,6 +73,21 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (agent) · independent review of the agent: 5 findings fixed
+- An independent review of `api3/agent/` (fresh reviewer, its own throwaway anvil with Orhun's contract) found 5 issues, 2 of them high. All are fixed in `3265a3f`:
+  1. **High: a broken fetch setup refunded clean orders.** Keys in `api3/agent/.env` never reached `FETCH_CMD` (exit 2), and *any* failed fetch counted towards the no-data refund. Now `.env` is exported, and only a "no data" answer (exit 3) after the due date can lead to the refund. A setup error, failed payment, timeout, mismatch or RPC problem alerts instead. The agent key no longer falls back to `EVM_PRIVATE_KEY` (the buyer/admin wallet).
+  2. **High: after a paid fetch, a failed write bought a new record every tick** (for example without gas). Every failure after a fetch now backs off, and no action runs while the wallet cannot pay for two writes (one alert).
+  3. Failed fetches that may have paid (exit 5, timeout, crash) now count against the daily budget.
+  4. A transaction is broadcast once (`cast send --async`) and then followed by its hash, so an RPC failover never sends it twice.
+  5. Exit 2 pauses paid fetches like exit 4. Logged errors no longer carry the agent key or full RPC URLs, and one agent per state directory (lock).
+- **Batu's finding (blocking for Sepolia), fixed in `aadf973`:** `cast send` used the exact gas estimate as the gas limit. On a chain that mines in intervals, 18 of 24 sends ran out of gas in Batu's test; anvil's automine hid it. Every write now has a fixed limit of 600,000, the change Batu tested. Unused gas is refunded.
+- Checks: 80 tests (Python 3.8 and 3.13), `c2_check.py --fake` 8/8. **Real C2 8/8 twice**: with automine (188 s, 15 transactions through the new send path, 0 errors), and on an anvil that mines a block every 2 s like Sepolia (183 s, 15 writes, 0 errors, 0 out of gas).
+- New for the overnight run: `api3/agent/run-forever.sh` restarts the agent after a crash, but stops on a config error or a second agent on the same state. `pulse_agent.py report --markdown` prints every transaction with explorer links for `docs/evidence.md`.
+- The v1 hedge was restarted on the new code at 18:09 (cycle 127). Nothing was lost: its state and cycle count continue.
+- **Orhun's note:** `fakes.py` now opens the no-data exit at `max(due date, first approval) + grace`, and refuses `permitTtl < maxAge`, like the contract. 2 tests, 82 in total.
+- **Batu's note, repo visibility:** confirmed, the repo is **private** (`gh api`, Fri 18:12). I scanned the whole history of every branch for secrets: no `.env` was ever committed; no private keys, Blockfrost ids or seed phrases; only anvil's public test keys. Switching it to public is my decision as the owner (needed by Sat 14:30). Spec §7.4 corrected.
+- `docs/agent.md` and §6.3 are updated (failure table, refund rule, gas limit, runner).
+- **Emre**, for later: `airnode-fetch.mjs` exits 4 for any thrown error, including an unreachable Airnode before payment, so an Airnode outage pauses both registries for 15 min. A separate exit code for "Airnode unreachable, nothing paid" would let the agent pause one source only. Not urgent.
 ### 2026-10-30 · Orhun · SupplierPulse+ v2 live on Ethereum Sepolia (C3 deploy)
 - Changed:
   - `SupplierPulsePlus` v2 deployed at [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC), tx [`0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99`](https://sepolia.etherscan.io/tx/0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99), block 12028086.

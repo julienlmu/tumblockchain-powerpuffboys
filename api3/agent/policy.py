@@ -2,8 +2,8 @@
 
 plan() returns what to do this tick, in priority order (docs/SUPPLIERPULSE_PLUS.md §6.3):
   P0 stop     the supplier's register status failed on another order: hold this order too (no fetch)
-  P1 refund   a held order after its grace period, or the no-data exit once the agent's own try after
-              the due date failed (until then P3 tries once more, ignoring the retry backoff)
+  P1 refund   a held order after its grace period, or the no-data exit once the registry answered
+              "no data" to the agent after the due date (P3 tries at once if nothing was tried since)
   P2 release  a due milestone with a valid permit and the buyer's approval: pay it
   P3 due      a milestone due within the lead time without a permit that covers it: fetch and submit
   P4 monitor  a supplier not checked for its tier's interval: fetch and submit to its nearest order
@@ -69,14 +69,15 @@ def plan(snap: Snapshot, ledger: Ledger, cfg: Config) -> Plan:
             out.actions.append(Action("stop", o.id, o.supplier, "supplier failed on another order"))
         elif refund_due and o.state == HELD:
             out.actions.append(Action("refund", o.id, o.supplier, "grace period over"))
-        elif refund_due and ledger.failed_since(o.id, o.next_due_date):
+        elif refund_due and ledger.no_data_since(o.id, o.next_due_date):
             out.actions.append(Action("refund", o.id, o.supplier, "no verified data since the due date"))
         elif o.state == ACTIVE and o.next_due_date and o.permit_valid and o.next_approved and now >= o.next_due_date:
             out.actions.append(Action("release", o.id, o.supplier, "milestone due"))
         elif needs_due_check(o, now, cfg):
-            reason = "last try before the no-data refund" if refund_due else "milestone due soon"
+            reason = "check before the no-data refund" if refund_due else "milestone due soon"
             action = Action("due_check", o.id, o.supplier, reason, cfg.fetch_cost_usd)
-            if refund_due or ledger.backoff_ok(o.id, now):  # the last try does not wait for the backoff
+            first_try = refund_due and not ledger.failed_since(o.id, o.next_due_date)  # skips the backoff once
+            if first_try or ledger.backoff_ok(o.id, now):
                 due.append(action)
             else:
                 out.skipped.append((action, "retry backoff"))

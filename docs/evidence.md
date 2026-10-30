@@ -149,14 +149,20 @@ Agent wallet [`0xED3418aE93669a640650728E70f7aA712083253a`](https://sepolia.ethe
 
 Contract [`0x91d7…74d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7) from "SupplierPulse live run" above. The agent re-checks each open order's supplier once per tier interval (10 min for Standard in the demo profile) and logs every cycle to `api3/agent/state/v1/cycles.jsonl`.
 
-| Cycle | Time (CET) | Order / supplier | Why | x402 payment (Base Sepolia) | Contract tx (Sepolia) | Outcome |
-|---|---|---|---|---|---|---|
-| 1 | 17:03:38 | 0 / `ch:09729896` | re-check by tier | [`0x9069fa…cf75`](https://sepolia.basescan.org/tx/0x9069fade4a8fe5f66b6e5458006953d82261649ba1337c3ef161cb389db4cf75) | [`0x1c8733…7bab`](https://sepolia.etherscan.io/tx/0x1c8733b6ee2140758cf31b8783afd3bff1c9cdada6c907779a0dcf8da6b27bab) | clean |
-| 20 | 17:13:50 | 0 / `ch:09729896` | re-check by tier | [`0x40fc05…7031`](https://sepolia.basescan.org/tx/0x40fc05a3f9e88c1708cc36e153cc8bb1297f04d911ae2e058bd59cd9ec587031) | [`0x73bbe9…b932`](https://sepolia.etherscan.io/tx/0x73bbe9913af03ae62d80da3c7933b481b46f0649d8f6f781444c96c38737b932) | clean |
-| 39 | 17:23:49 | 0 / `ch:09729896` | re-check by tier | [`0x237d9d…05c0`](https://sepolia.basescan.org/tx/0x237d9d02da086a85cefcbf7835a4a8ff94957223fde3ee85bdee5b6e84d705c0) | [`0x90135a…0e2b`](https://sepolia.etherscan.io/tx/0x90135a2c16f0a6a651530dbb06832be9453c6bd0dc3379b066043bd144240e2b) | clean |
-| 59 | 17:34:26 | 0 / `ch:09729896` | re-check by tier | [`0xa7ae47…2612`](https://sepolia.basescan.org/tx/0xa7ae47d86ac2c198d7f4bd343edf1236aea6ebe0fa948a7992d4e5d574aa2612) | [`0x2dee76…5932`](https://sepolia.etherscan.io/tx/0x2dee762a376f4a34c3d12e782964bd1496eb3f97391e68f40035ead70e4d5932) | clean |
+| Cycle | Time (CET) | Order / supplier | Why | Action | x402 payment (Base Sepolia) | Contract tx (Sepolia) | Outcome |
+|---|---|---|---|---|---|---|---|
+| 1 | 30 Oct 17:03:38 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x9069fa…cf75`](https://sepolia.basescan.org/tx/0x9069fade4a8fe5f66b6e5458006953d82261649ba1337c3ef161cb389db4cf75) | [`0x1c8733…7bab`](https://sepolia.etherscan.io/tx/0x1c8733b6ee2140758cf31b8783afd3bff1c9cdada6c907779a0dcf8da6b27bab) | clean |
+| 20 | 30 Oct 17:13:50 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x40fc05…7031`](https://sepolia.basescan.org/tx/0x40fc05a3f9e88c1708cc36e153cc8bb1297f04d911ae2e058bd59cd9ec587031) | [`0x73bbe9…b932`](https://sepolia.etherscan.io/tx/0x73bbe9913af03ae62d80da3c7933b481b46f0649d8f6f781444c96c38737b932) | clean |
+| 39 | 30 Oct 17:23:49 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x237d9d…05c0`](https://sepolia.basescan.org/tx/0x237d9d02da086a85cefcbf7835a4a8ff94957223fde3ee85bdee5b6e84d705c0) | [`0x90135a…0e2b`](https://sepolia.etherscan.io/tx/0x90135a2c16f0a6a651530dbb06832be9453c6bd0dc3379b066043bd144240e2b) | clean |
+| 59 | 30 Oct 17:34:26 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0xa7ae47…2612`](https://sepolia.basescan.org/tx/0xa7ae47d86ac2c198d7f4bd343edf1236aea6ebe0fa948a7992d4e5d574aa2612) | [`0x2dee76…5932`](https://sepolia.etherscan.io/tx/0x2dee762a376f4a34c3d12e782964bd1496eb3f97391e68f40035ead70e4d5932) | clean |
+| 79 | 30 Oct 17:44:49 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x4d7dcb…bef9`](https://sepolia.basescan.org/tx/0x4d7dcbea275c2f9af4cfeb4d56e5ffb590163bfe372866adb361c357cfecbef9) | [`0x301eed…9c4a`](https://sepolia.etherscan.io/tx/0x301eed19474732761791d76b6bf952f237ce0b9e27626f183b3557a242f39c4a) | clean |
+| 99 | 30 Oct 17:55:13 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x2a698b…93d4`](https://sepolia.basescan.org/tx/0x2a698b33884db2ea402ea89627fe497f03c8fa284528b6527927d5b1226893d4) | [`0xb4e30f…484c`](https://sepolia.etherscan.io/tx/0xb4e30f4a6dbd4fa261e1b8f6cebded439c2395b4dd1bd9d56b4bca335957484c) | clean |
+| 119 | 30 Oct 18:05:37 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x96c168…ebe7`](https://sepolia.basescan.org/tx/0x96c16869bad16e5a28a07be033f0dcc2d681661b14c59489cf7f0ab36060ebe7) | [`0x19e8d1…0492`](https://sepolia.etherscan.io/tx/0x19e8d106d92114e91124eb4527899220f8171f2f8432aace7cecbb6c4cd20492) | clean |
+| 140 | 30 Oct 18:16:14 | 0 / `ch:09729896` | re-check by tier | `submitEvidence` | [`0x5b486a…e7ca`](https://sepolia.basescan.org/tx/0x5b486a3834d6376a29abd8cd4ec0fdf1f6ba02e765454db930fefd591503e7ca) | [`0xf90491…d0f7`](https://sepolia.etherscan.io/tx/0xf9049107c93102a52a4e84f00f314fdb3506aa987934f5ff884fcbeaba33d0f7) | clean |
 
-At 17:42: 74 cycles, 4 paid checks ($0.04 of the $1.00 daily budget), 0 alerts, 0 errors. All other cycles had nothing due.
+140 cycles from 30 Oct 17:03 to 30 Oct 18:16 (CET): 8 transactions, $0.08 spent on paid checks, 0 alerts, 0 errors. All other cycles had nothing due.
+
+Generated with `AGENT_CONTRACT_VERSION=v1 python3 api3/agent/pulse_agent.py report --markdown`. The agent was restarted on the reviewed code at 18:09 (cycle 127) without a gap in the log. Cycle 140 is its first paid check on the new send path: gas limit 600,000, 205,073 used, success.
 
 Checked on chain for cycle 59: the payment tx (a facilitator batch sent to Multicall3) contains an aUSD `Transfer` of 0.01 (`0x2710`, 6 decimals) from the agent wallet to the AirnodeHub payee `0x1505fd562ac2fb4307b85bc6c672ffeafb4d57a7`, and the contract tx succeeded on `0x91d7…74d7`.
 

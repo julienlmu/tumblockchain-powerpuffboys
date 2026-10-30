@@ -8,9 +8,9 @@ from __future__ import annotations
 from typing import Optional
 
 import policy
-from chain import ChainError, Reverted
+from chain import GAS_LIMIT, ChainError, Reverted
 from config import Config
-from evidence import FetchFailed, PaymentFailed, VerificationFailed
+from evidence import FetchFailed, PaymentFailed, SetupFailed, VerificationFailed
 from journal import Journal
 from ledger import Ledger
 from model import ACTIVE, OUTCOME_NAMES, SOURCES, TIER_NAMES, Action, Evidence, Order, Snapshot, evaluate, failed_labels
@@ -22,11 +22,14 @@ QUARANTINE_REVERTS = {"WrongRequest", "WrongSigner", "InvalidSigner", "InvalidSi
 EXPECTED_REVERTS = {"NotActive", "NotDue", "NotApproved", "NoValidPermit", "PermitExpired", "RefundNotYet", "NotHeld",
                     "NotRefundable", "SupplierFailed", "NoNewerFailure"}
 WRITE_ONLY = {"stop": "applySupplierFailure", "refund": "refundRemaining", "release": "release"}
+MIN_WRITES = 2  # the agent wallet must afford this many writes at their gas limit and the current gas price
 
 
 class Executor:
     def __init__(self, chain, fetcher, ledger: Ledger, journal: Journal, cfg: Config):
         self.chain, self.fetcher, self.ledger, self.journal, self.cfg = chain, fetcher, ledger, journal, cfg
+        self._low_balance = False
+        self._redact = getattr(chain, "redact", lambda text: text)  # keeps the key and RPC URLs out of the log
 
     def tick(self) -> Optional[policy.Plan]:
         cycle = self.ledger.next_cycle()
@@ -47,7 +50,7 @@ class Executor:
                     self._execute(action, snap, cycle)
                 except Exception as e:  # one broken action must not stop the loop
                     self.journal.write(cycle=cycle, action=action.kind, orderId=action.order_id,
-                                       supplier=action.supplier, outcome="error", error=repr(e)[:300])
+                                       supplier=action.supplier, outcome="error", error=self._redact(repr(e))[:300])
         elif not plan.actions:
             self.journal.write(cycle=cycle, action="idle", outcome="nothing due",
                                orders=len(snap.orders), spentTodayUsd=self.ledger.spent(snap.now))
@@ -56,8 +59,11 @@ class Executor:
 
     # ---- helpers
     def _gas_ok(self, cycle: int) -> bool:
+        """Writes are affordable: gas price under the cap, and the agent wallet holds enough ETH. Otherwise no
+        action runs this tick, so no record is bought that could not be submitted."""
         try:
             gwei = self.chain.gas_price_gwei()
+            balance = self.chain.balance_wei()
         except ChainError as e:
             self.journal.write(cycle=cycle, action="gas", outcome="error", error=str(e)[:300])
             return False
@@ -65,6 +71,15 @@ class Executor:
             self.journal.write(cycle=cycle, action="gas", outcome="skipped",
                                reason="gas price %.1f gwei above %.1f" % (gwei, self.cfg.max_gas_price_gwei))
             return False
+        needed = max(int(gwei * 1e9) * GAS_LIMIT * MIN_WRITES, 1)
+        if balance < needed:
+            outcome = "skipped" if self._low_balance else "alert"  # alert once, not every tick
+            self._low_balance = True
+            self.journal.write(cycle=cycle, action="gas", outcome=outcome,
+                               reason="agent wallet holds %.6f ETH, needs %.6f for %d writes" % (
+                                   balance / 1e18, needed / 1e18, MIN_WRITES))
+            return False
+        self._low_balance = False
         return True
 
     def _log_tier_changes(self, cycle: int, snap: Snapshot) -> None:
@@ -112,6 +127,9 @@ class Executor:
             self._handle_revert(r, order, snap.now, entry)
             return
         except ChainError as e:
+            # the record is paid for: back off instead of buying a new one every tick
+            self.ledger.record_failure(order.id, snap.now, self.cfg.max_fetch_attempts,
+                                       self.cfg.exhausted_wait_seconds, "chain_error")
             self.journal.write(outcome="error", error=str(e)[:300], **entry)
             return
         self.ledger.clear_failures(order.id)
@@ -124,15 +142,19 @@ class Executor:
     def _fetch(self, order: Order, now: int, base: dict) -> Optional[Evidence]:
         try:
             evidence = self.fetcher.fetch(SOURCES[order.source], order.supplier_id)
-        except PaymentFailed as e:
-            self.ledger.pause_paid(now, self.cfg.payment_pause_seconds)
-            self.journal.write(action="fetch", outcome="alert",
-                               error="payment failed, paid fetches paused for %ss: %s" % (self.cfg.payment_pause_seconds, e),
-                               **base)
-            return None
         except FetchFailed as e:
-            count, exhausted = self.ledger.record_failure(order.id, now, self.cfg.max_fetch_attempts,
-                                                          self.cfg.exhausted_wait_seconds)
+            if e.maybe_paid:
+                self.ledger.add_spend(now, self.cfg.fetch_cost_usd)  # the payment may have settled
+            # only "no data" (exit 3) can lead to the no-data refund; every failure backs off
+            attempts = 1 if isinstance(e, VerificationFailed) else self.cfg.max_fetch_attempts  # mismatch: next window
+            count, exhausted = self.ledger.record_failure(order.id, now, attempts, self.cfg.exhausted_wait_seconds, e.kind)
+            if isinstance(e, (PaymentFailed, SetupFailed)):
+                # every fetch fails the same way until a human fixes it
+                self.ledger.pause_paid(now, self.cfg.payment_pause_seconds)
+                self.journal.write(action="fetch", outcome="alert",
+                                   error="%s, paid fetches paused for %ss: %s" % (
+                                       e.kind.replace("_", " "), self.cfg.payment_pause_seconds, e), **base)
+                return None
             outcome = "alert" if exhausted or isinstance(e, VerificationFailed) else e.kind
             self.journal.write(action="fetch", outcome=outcome, attempt=count, error=str(e), **base)
             return None
@@ -142,17 +164,22 @@ class Executor:
     def _handle_revert(self, r: Reverted, order: Order, now: int, entry: dict) -> None:
         if r.name in RETRY_REVERTS:
             _, exhausted = self.ledger.record_failure(order.id, now, self.cfg.max_fetch_attempts,
-                                                      self.cfg.exhausted_wait_seconds)
+                                                      self.cfg.exhausted_wait_seconds, "retry")
             outcome = "alert" if exhausted else "retry"
         elif r.name in DROP_REVERTS:
+            self.ledger.record_failure(order.id, now, self.cfg.max_fetch_attempts,
+                                       self.cfg.exhausted_wait_seconds, "dropped")  # no new record every tick
             outcome = "dropped"
         elif r.name in QUARANTINE_REVERTS:
             self.ledger.quarantine(order.id, str(r))
             outcome = "quarantined"
         elif r.name in EXPECTED_REVERTS:
+            self.ledger.record_failure(order.id, now, self.cfg.max_fetch_attempts,
+                                       self.cfg.exhausted_wait_seconds, "expected")  # the next snapshot decides
             outcome = "expected"
         else:
-            self.ledger.record_failure(order.id, now, self.cfg.max_fetch_attempts, self.cfg.exhausted_wait_seconds)
+            self.ledger.record_failure(order.id, now, self.cfg.max_fetch_attempts,
+                                       self.cfg.exhausted_wait_seconds, "reverted")
             outcome = "alert"
         self.journal.write(outcome=outcome, error=str(r), **entry)
 

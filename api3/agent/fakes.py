@@ -46,17 +46,21 @@ class FakeChain:
         self.used = set()
         self.sent: List[tuple] = []
         self.gas_gwei = 1.0
+        self.balance = 10 ** 18  # the agent wallet, in wei
         self.address = "0xagent"
 
     # ---- setup and clock
     def add_order(self, source: int, supplier_id: str, rules: int, amounts: Iterable[int],
                   due_offsets: Iterable[int], approved: Iterable[int] = (), permit_ttl: int = 3600) -> int:
         amounts, dues = list(amounts), [self.t + d for d in due_offsets]
+        if permit_ttl < self.max_age:  # the oldest accepted record must still give a usable permit
+            raise Reverted("BadOrder")
         oid = len(self.orders)
         key = fake_supplier_key(source, supplier_id)
         self.orders[oid] = dict(
             source=source, supplier_id=supplier_id, key=key, rules=rules, amounts=amounts, due=dues,
             approved=[i in set(approved) for i in range(len(amounts))], state=ACTIVE, paid_count=0,
+            approved_at=[self.t if i in set(approved) else 0 for i in range(len(amounts))],
             permit_until=0, permit_milestone=0, permit_evidence_at=0, last_check=0, held_at=0, last_failed=0,
             ttl=permit_ttl, paid=0)
         self.suppliers.setdefault(key, dict(streak=0, checks=0, failures=0, last_counted=0, last_check_at=0,
@@ -64,8 +68,14 @@ class FakeChain:
         return oid
 
     def approve(self, order_id: int, milestone: int) -> None:
-        """What the buyer does with approveMilestone."""
-        self.orders[order_id]["approved"][milestone] = True
+        """What the buyer does with approveMilestone. Re-approving does not move the time."""
+        o = self.orders[order_id]
+        if not o["approved"][milestone]:
+            o["approved"][milestone], o["approved_at"][milestone] = True, self.t
+
+    def _no_data_exit_at(self, o: dict, m: int) -> int:
+        """A late approval restarts the grace period, so the supplier always gets all of it (§2.4a)."""
+        return max(o["due"][m], o["approved_at"][m]) + self.refund_grace
 
     def advance(self, seconds: int) -> None:
         self.t += seconds
@@ -75,6 +85,9 @@ class FakeChain:
 
     def gas_price_gwei(self) -> float:
         return self.gas_gwei
+
+    def balance_wei(self) -> int:
+        return self.balance
 
     # ---- reads
     def _remaining(self, o: dict) -> int:
@@ -89,7 +102,7 @@ class FakeChain:
             return o["held_at"] + self.refund_grace
         m = o["paid_count"]
         if o["state"] == ACTIVE and o["approved"][m] and not self._permit_valid(o):
-            return o["due"][m] + self.refund_grace  # the no-data exit
+            return self._no_data_exit_at(o, m)  # the no-data exit
         return 0
 
     def snapshot(self) -> Snapshot:
@@ -230,7 +243,7 @@ class FakeChain:
                 raise Reverted("NotApproved", detail="(%d)" % m)
             if self._permit_valid(o):
                 raise Reverted("NotRefundable")
-            if self.t < o["due"][m] + self.refund_grace:
+            if self.t < self._no_data_exit_at(o, m):
                 raise Reverted("RefundNotYet")
         else:
             raise Reverted("NotRefundable")

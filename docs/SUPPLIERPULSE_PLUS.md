@@ -1175,13 +1175,13 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
             a quarantined order gets no action at all (no fetch, release, refund or stop)
 P0 stop     state=Active and supplier.lastBaseFailureAt > order.lastCheck   → applySupplierFailure(order)   (no fetch)
 P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0, and either state=Held (a hold after
-            its grace period) or the agent's own try at or after nextDueDate failed (the no-data exit;
-            until then P3 tries once more, ignoring the backoff)  → refundRemaining(order)  (no fetch)
+            its grace period) or the registry answered "no data" (fetch exit 3) at or after nextDueDate
+            (the no-data exit; P3 tries at once if nothing was tried since)  → refundRemaining(order)  (no fetch)
 P2 release  state=Active and permitValid and nextApproved and now ≥ nextDueDate → release(order)          (no fetch)
 P3 due      state=Active and now ≥ nextDueDate − min(DUE_LEAD, permitTtl − 60 s)  # its permit covers the due date
             and not (permitValid and permitValidUntil ≥ max(now, nextDueDate))
             and (nextApproved or now < nextDueDate)        # don't pay for checks while waiting for the buyer
-            and backoff elapsed (or P1's last try)       → fetch(source, id) →
+            and backoff elapsed (or P1's first try)      → fetch(source, id) →
                                                           now ≥ nextDueDate ? checkAndRelease : submitEvidence
 P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer and without a P0–P3 action this tick,
             and no P3 due check for that supplier (run or skipped):
@@ -1198,15 +1198,19 @@ Every write is **simulated first** (`cast call`) and sent only if the simulation
 
 | Event | Reaction |
 |---|---|
-| Fetch exit 3 (no data) | Backoff 30 s, then 2 min, then 8 min. After `MAX_FETCH_ATTEMPTS`: an `alert` entry, wait for the next scheduled window |
+| Fetch exit 3 (no data) | Backoff 30 s, then 2 min, then 8 min. After `MAX_FETCH_ATTEMPTS`: an `alert` entry, wait for the next scheduled window. The only failure that can lead to the no-data refund |
+| Fetch exit 2 (setup: usage, no `PAYER_PRIVATE_KEY`) | Like exit 4: pause all paid fetches for 15 min, `alert` |
 | Fetch exit 4 (payment failed, e.g. no aUSD) | Pause all paid fetches for 15 min, `alert` |
-| Fetch exit 5 (verification failed) | `alert`, do not submit, retry at the next interval |
-| Revert `StaleResponse` / `FutureResponse` | Fetch again next tick (counts as an attempt) |
-| Revert `Replayed` / `NotNewer` | Drop the record, no retry |
+| Fetch exit 5 (verification failed) | `alert`, do not submit, wait for the next window; count the $0.01 |
+| Fetch timeout, crash or unreadable output | Count the $0.01 (it may have settled), backoff |
+| Write fails after a paid fetch (RPC, gas) | Backoff, never a new record every tick |
+| Gas price over the cap, or less than two writes of ETH | No action this tick; one `alert` for a low balance |
+| Revert `StaleResponse` / `FutureResponse` | Fetch again after the backoff (counts as an attempt) |
+| Revert `Replayed` / `NotNewer` | Drop the record, backoff |
 | Revert `WrongRequest` / `WrongSigner` | `alert` and **quarantine the order** (stop acting on it). This means a config mismatch or tampering |
 | Revert `NotActive` | Refresh the snapshot. The order was held or closed |
 | Outcome `NotDue` / `AwaitingApproval` | Expected, logged as such |
-| RPC or network error | Retry next tick |
+| RPC or network error | Next RPC, then retry next tick. A transaction is broadcast once and followed by its hash: never sent twice |
 | Crash | The process is restarted by its runner (overnight: `while true; do python3 api3/agent/pulse_agent.py run; sleep 5; done`). State comes back from `state.json` |
 
 **Log.** JSONL in `api3/agent/state/cycles.jsonl`, one line per action:
@@ -1442,7 +1446,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 | 09:30 – 10:30 | **Dry run** of the whole video flow on Sepolia with separate orders. Save every step's tx as a pre-run proof, in case a live moment fails during recording |
 | 11:00 | **Feature freeze** |
 | 11:00 – 13:00 | Video (A M2 is due at 11:45, D M2 at 12:00; B2 is created live; the tamper cases are sent as real transactions) |
-| 13:00 | Julien merges `supplierpulse-plus` into `main`. The repo is public (it already is) |
+| 13:00 | Julien merges `supplierpulse-plus` into `main` and makes the repo public if it is not yet. It was still **private** on Fri 18:12 (Batu's check); the whole history was scanned for secrets then and is clean, apart from anvil's public test keys |
 | 14:30 | Submit |
 | 15:00 – 17:00 | API3 booth: everyone present; who speaks is decided at 08:00 |
 
