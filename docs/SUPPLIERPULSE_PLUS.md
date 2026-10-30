@@ -332,7 +332,7 @@ Demo suppliers found and verified live by Emre at C1a, with the v1.0 fields. Bef
 | Companies House Airnode | `https://airnode-companies-house.fly.dev/`, signer `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF` |
 | GLEIF Airnode | `https://airnode-gleif.fly.dev/`, signer `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c` |
 | v1 contract (fallback) | `0x91d7dbae109029b2b1245179a68ac362799674d7` |
-| **v2 contract** | *set at C3 by Orhun (also in `docs/evidence.md` and `api3/.env.example`)* |
+| **v2 contract** | `0xf25Aae1772326C95294D1923399D55c658493DfC` (deployed 30 Oct, includes the C2.5 fixes; https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) |
 | Agent wallet | `0xED3418aE93669a640650728E70f7aA712083253a` (Julien). Funded at ~16:55: 0.047 Sepolia ETH, and 10 aUSD minted by the wallet itself on Base Sepolia (mint tx `0xa0cf7101…0c70`) |
 | Buyer wallet (demo orders) | Orhun's deployer `0xEb3EB6da882798062b30CeC11AAaDe306287ce41` |
 | Supplier payout wallets | Fresh addresses the team controls. **Never anvil test addresses on Sepolia**, because anyone can sweep them |

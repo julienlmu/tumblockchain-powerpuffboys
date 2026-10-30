@@ -117,6 +117,30 @@ for t in value stale request key; do ORDER_ID=0 scripts/pulse-submit.sh r.json $
 scripts/pulse-status.sh 0; scripts/pulse-status.sh 1
 ```
 
+## SupplierPulse+ live (Ethereum Sepolia)
+
+| Item | Value |
+|---|---|
+| Contract | [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) (Ethereum Sepolia, chain 11155111) |
+| Deploy tx | [`0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99`](https://sepolia.etherscan.io/tx/0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99) |
+| Block | 12028086 |
+| Deployer / admin | `0xEb3EB6da882798062b30CeC11AAaDe306287ce41` |
+| Source commit | `c668c51869e9f6a80c0dbc841967c171572dd717` (`supplierpulse-plus`, includes the C2.5 fixes; `forge test` 115/115) |
+| CH airnode (`airnodeOf(0)`) | `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF` (Companies House) |
+| GLEIF airnode (`airnodeOf(1)`) | `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c` |
+| maxAge / tierCountGap / refundGrace | 300 s / 300 s / 600 s |
+| Gas | 25,498,993 gas × 10,017 wei = 0.000000255423412881 ETH |
+
+Verified on chain after the deploy (`cast call`): `maxAge()` = 300, `tierCountGap()` = 300, `refundGrace()` = 600, `airnodeOf(0)` = `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, `airnodeOf(1)` = `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c`, `admin()` = `0xEb3EB6da882798062b30CeC11AAaDe306287ce41`, `ordersLength()` = 0; receipt status 1 (success). All as expected.
+
+Deploy command (from `api3/`, `EVM_PRIVATE_KEY` in the environment):
+
+```
+MAX_AGE=300 TIER_COUNT_GAP=300 REFUND_GRACE=600 forge script script/DeploySupplierPulsePlus.s.sol --rpc-url https://ethereum-sepolia-rpc.publicnode.com --broadcast --slow --gas-estimate-multiplier 800
+```
+
+Demo orders A–E: not created yet.
+
 ## SupplierPulse+ autonomous agent (Julien, `api3/agent/`)
 
 Agent wallet [`0xED3418aE93669a640650728E70f7aA712083253a`](https://sepolia.etherscan.io/address/0xED3418aE93669a640650728E70f7aA712083253a): it pays the gas on Ethereum Sepolia and the x402 fees in aUSD on Base Sepolia, and is never a buyer or a supplier. A paid check is one $0.01 aUSD x402 payment for a fresh signed Companies House record, then one contract transaction with that record. Schedule, limits and failure handling: `docs/agent.md`.
