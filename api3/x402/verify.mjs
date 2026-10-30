@@ -3,6 +3,7 @@
 //   --local also accepts the local Airnode signers (anvil #1 / #2) for that source.
 // Exit: 0 valid, 1 invalid, 2 usage
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { hexToString, isAddressEqual, isHex, recoverMessageAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { RULES, evaluateRules, requestHash, sourceOf } from './requests.mjs';
@@ -67,7 +68,7 @@ export async function verifyRecord(r, { maxAge = 300, local = false, now = Math.
   return results;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   const file = args.find((a) => !a.startsWith('--') && args[args.indexOf(a) - 1] !== '--max-age');
   const maxAgeArg = args.includes('--max-age') ? args[args.indexOf('--max-age') + 1] : '300';

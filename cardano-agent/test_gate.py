@@ -5,9 +5,11 @@ Run from cardano-agent/: venv/bin/python -m unittest -v
 import dataclasses
 import sys
 import tempfile
+import time
 import unittest
+from unittest.mock import AsyncMock, patch
 
-from gate import ExecutorError, deadline_for, load_app, parse_verdict, run_gate
+from gate import ExecutorError, Verdict, deadline_for, load_app, parse_verdict, run_gate
 from receipt import transactions
 from refunds import RefundStore
 
@@ -75,9 +77,23 @@ class SupplierPulseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(verdict.evidence["outcome"], "Held")
 
     async def test_no_data_retries_then_fails(self):
-        verdict, attempts = await check_supplier(pulse(), "99999999")
+        no_data = Verdict(False, True, "no data", {"outcome": "NoData"})
+        with patch("gate.run_executor", new=AsyncMock(return_value=no_data)):
+            verdict, attempts = await run_gate(
+                pulse(retry_interval_s=0.01),
+                {"order_id": 3, "company_number": "99999999"},
+                deadline=time.time() + 0.03,
+                log=lambda *_: None,
+            )
         self.assertFalse(verdict.passed)
         self.assertGreater(len(attempts), 1)
+        self.assertEqual(verdict.evidence["outcome"], "NoData")
+
+    async def test_supplier_executor_marks_no_data_retryable(self):
+        verdict, attempts = await check_supplier(pulse(max_wait_s=0), "99999999")
+        self.assertFalse(verdict.passed)
+        self.assertTrue(verdict.retryable)
+        self.assertEqual(len(attempts), 1)
         self.assertEqual(verdict.evidence["outcome"], "NoData")
 
     async def test_rejected_evidence_is_final(self):

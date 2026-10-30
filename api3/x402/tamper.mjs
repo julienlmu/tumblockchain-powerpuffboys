@@ -4,6 +4,7 @@
 // Exit: 0 ok, 2 usage
 import { hexToString, toHex } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { pathToFileURL } from 'node:url';
 import { requestHash } from './requests.mjs';
 import { digestOf } from './sign-local.mjs';
 import { loadRecord } from './verify.mjs';
@@ -57,7 +58,7 @@ export async function tamper(r, mode) {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [file, mode] = process.argv.slice(2);
   try {
     if (!file || !mode) throw new Error('usage: node tamper.mjs <file> <value|stale|request|key|replay>');

@@ -4,6 +4,7 @@
 // env: LOCAL_CH_KEY, LOCAL_GLEIF_KEY (default: anvil accounts #1 and #2, public test keys, never use them on a real network)
 import { encodePacked, keccak256, toHex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { pathToFileURL } from 'node:url';
 import { normalizeId, requestHash, sourceOf } from './requests.mjs';
 
 export const LOCAL_KEYS = {
@@ -40,7 +41,7 @@ export async function signRecord(source, id, raw, { key = LOCAL_KEYS[source], ti
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [source, id, raw, timestamp] = process.argv.slice(2);
   try {
     if (!source || !id || !raw) throw new Error('usage: node sign-local.mjs <ch|gleif> <id> \'<data json>\' [timestamp]');

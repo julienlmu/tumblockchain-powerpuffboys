@@ -8,7 +8,7 @@ SupplierPulse+ is a prototype for milestone-based supplier payments gated by fre
 
 ## Try it
 
-**Status:** this branch integrates the SupplierPulse+ v2 contract and tests, local deployment scripts, signed-data tools and fixtures, dashboard, and judge page. V2 has **not** been deployed to Sepolia, so there is no verified v2 on-chain payment/tamper run yet. The live contract transactions below are for v1; the paid API3 fetches in [`docs/data-sources.md`](docs/data-sources.md) are live data-source evidence, not v2 contract evidence.
+**Status:** this branch integrates the SupplierPulse+ v2 contract and tests, local deployment scripts, signed-data tools and fixtures, dashboard, and judge page. A current-branch Anvil run verified clean and held evidence, replay/tamper rejection, an approved 500-token milestone payout, and a held-order refund. This is local-chain validation only: v2 has **not** been deployed to Sepolia, so there is no public-network v2 payment/tamper evidence. The live contract transactions below are for v1; the paid API3 fetches in [`docs/data-sources.md`](docs/data-sources.md) are live data-source evidence, not v2 contract evidence.
 
 ### Existing v1 test flow
 
@@ -40,7 +40,7 @@ In another shell, start the static dashboard from the repository root:
 python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 ```
 
-Open `http://localhost:8765/?sample=1` for illustrative data without a chain. To use the local Anvil deployment, follow [`demo/README.md`](demo/README.md) and source `api3/.local/plus-local.env`. The current browser sample mode has been checked; the v1.1 Anvil end-to-end integration still needs a rerun. Neither sample data nor local-chain interactions are Sepolia evidence. The browser judge page is [`demo/judge.html`](demo/judge.html); real v2 deployment, testnet transactions, and overnight agent evidence remain pending. Do not use a local signer or fixture as public-network evidence.
+Open `http://localhost:8765/?sample=1` for illustrative data without a chain. To use the local Anvil deployment, follow [`demo/README.md`](demo/README.md) and source `api3/.local/plus-local.env`. The current-branch local integration and browser sample mode have been checked. Neither sample data nor local-chain interactions are Sepolia evidence. The browser judge page is [`demo/judge.html`](demo/judge.html); real v2 deployment, testnet transactions, overnight agent evidence, and video export remain pending. Do not use a local signer or fixture as public-network evidence.
 
 ## SupplierPulse+ v2 design
 

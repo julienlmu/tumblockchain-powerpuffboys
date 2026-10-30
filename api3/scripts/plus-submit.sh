@@ -63,12 +63,13 @@ timestamp="$(jq -er '.timestamp | tostring' "$candidate")"
 data="$(jq -er '.data' "$candidate")"
 signature="$(jq -er '.signature' "$candidate")"
 function_sig="submitEvidence(uint256,bytes32,uint256,bytes,bytes)"
+call_sig="$function_sig(bool)"
 args=("$order_id" "$request_hash" "$timestamp" "$data" "$signature")
 
 if simulation="$(cast call --rpc-url "$EVM_RPC_URL" --from 0x000000000000000000000000000000000000dEaD \
-  "$PULSE_PLUS_ADDRESS" "$function_sig" "${args[@]}" 2>&1)"; then
+  "$PULSE_PLUS_ADDRESS" "$call_sig" "${args[@]}" 2>&1)"; then
   clean="$(plus_num "$simulation")"
-  if [[ "$clean" == "true" ]]; then
+  if [[ "$clean" == "true" || "$clean" == "1" ]]; then
     echo "ACCEPTED clean" >&2
   else
     if ! order_info="$(cast call --rpc-url "$EVM_RPC_URL" --json "$PULSE_PLUS_ADDRESS" \
@@ -83,10 +84,10 @@ if simulation="$(cast call --rpc-url "$EVM_RPC_URL" --from 0x0000000000000000000
     if [[ "$source_id" == 0 ]]; then
       [[ "$(jq -r '.status // ""' <<<"$raw")" == "active" ]] || failed=$((failed | 0x80))
       if (( rules & 0x02 )); then
-        [[ "$(jq -r '.accounts_overdue // ""' <<<"$raw")" == "false" ]] || failed=$((failed | 0x02))
+        [[ "$(jq -r 'if has("accounts_overdue") then .accounts_overdue else "" end' <<<"$raw")" == "false" ]] || failed=$((failed | 0x02))
       fi
       if (( rules & 0x04 )); then
-        [[ "$(jq -r '.confirmation_overdue // ""' <<<"$raw")" == "false" ]] || failed=$((failed | 0x04))
+        [[ "$(jq -r 'if has("confirmation_overdue") then .confirmation_overdue else "" end' <<<"$raw")" == "false" ]] || failed=$((failed | 0x04))
       fi
     else
       [[ "$(jq -r '.entity_status // ""' <<<"$raw")" == "ACTIVE" ]] || failed=$((failed | 0x80))

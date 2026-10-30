@@ -55,11 +55,15 @@ If the CDN is unreachable, both pages load the bundled copy in `vendor/ethers.um
 
 ## Validation status
 
-The local Anvil checks below were reported by the original UI workstream before this branch integrated the v1.1 contract and data layer. The UI has since been aligned to v1.1, so those checks do **not** establish current end-to-end compatibility:
+The current branch was exercised against a fresh local Anvil deployment:
 
-- The earlier judge run reported accepted/rejected cases on its local chain, including a valid record, four tamper cases, and replay.
-- The earlier dashboard run reported paid, held, and refunded states plus agent activity.
+- A clean signed record was accepted and submitted; replay and the `value`, `stale`, `request`, and `key` tamper cases were rejected.
+- A buyer-approved milestone released **500 demo tokens** to the supplier after fresh clean evidence.
+- A held order was refunded to the buyer and closed with no remaining balance.
+- CLI status labels correctly distinguished clean and failed-rule booleans.
+
+These are local-chain results only. They are not Sepolia transactions and do not establish public-network deployment or paid live-agent behavior.
 
 Current browser validation of this branch covers the no-chain sample mode and static judge data: the dashboard renders six orders without horizontal overflow at 375 px; the Companies House request-hash vector matches v1.1; all four judge samples recover to their expected local signers and match their request hashes; and the Companies House/GLEIF sample rules match their displayed failed-rule bits.
 
-**Still unverified:** the v1.1 Anvil end-to-end flow, loading Emre's live fixtures against a v1.1 contract, Sepolia v2 (not deployed), and MetaMask transaction flows.
+**Still unverified:** loading Emre's live fixtures against a v1.1 contract, Sepolia v2 (not deployed), and MetaMask transaction flows.

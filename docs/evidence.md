@@ -140,7 +140,27 @@ venv/bin/python buy_job.py --input '{"order_id": 0, "company_number": "99999999"
 
 ## SupplierPulse+ v2 integration and evidence status
 
-The v2 contract, tests and local deployment scripts, data tools and fixtures, dashboard, and judge page are integrated in this branch. **V2 is not deployed on Sepolia.** There is no v2 deployment address, on-chain payment/hold/refund run, or testnet tamper transaction to report. The live v1 contract evidence above must not be presented as v2 evidence. Earlier UI-workstream Anvil checks were performed before the v1.1 integration and have not been rerun against the current branch; current browser-only validation is summarized in [`demo/README.md`](../demo/README.md).
+The v2 contract, tests and local deployment scripts, data tools and fixtures, dashboard, and judge page are integrated in this branch. **V2 is not deployed on Sepolia.** There is no v2 deployment address, public testnet payment/hold/refund run, or testnet tamper transaction to report. The live v1 contract evidence above must not be presented as v2 evidence.
+
+### Local Anvil verification (chain 31337; not public-network evidence)
+
+A fresh local deployment of the current branch verified the end-to-end contract paths:
+
+- Clean signed evidence was accepted; replay and the `value`, `stale`, `request`, and `key` tamper cases were rejected.
+- Fresh clean evidence enabled the buyer-approved first milestone to release **500 demo tokens** to the supplier. The order view confirmed 500 tokens paid and 500 remaining.
+- A separately held order was refunded to its buyer; the order view confirmed it was closed with zero remaining.
+- The CLI displayed clean and failed-rule boolean labels correctly.
+
+The local payout and refund were mined only on ephemeral Anvil and have no public explorer links. This run does not demonstrate Sepolia deployment, Sepolia transactions, live paid API3 requests, or the overnight agent. Current browser checks are summarized in [`demo/README.md`](../demo/README.md).
+
+### Automated validation
+
+| Suite | Result |
+|---|---|
+| Foundry contract tests | 100 passed |
+| API3 request/data tests | 11 passed |
+| API3 agent Python tests | 54 passed, 1 skipped (`cast` unavailable on the original system PATH) |
+| Cardano agent gate tests | 17 passed |
 
 ### Live API3 data fetches (Base Sepolia)
 

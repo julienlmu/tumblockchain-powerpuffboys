@@ -42,15 +42,15 @@ Within those **two queried status groups**, lapsed records were **1,215,130 / (1
 
 The counts are returned in the API response's `meta.pagination.total`; the one-record page size is used to retrieve the count without downloading the full dataset.
 
-## Company-level timeline: verification still needed
+## Company-level timeline: JR LIQUIDATIONS LIMITED
 
-The requested example is a UK company whose **status changed to liquidation in 2025 or 2026**, verified against its Companies House filing history. I have not yet identified a company meeting both the date and source requirements, so this draft does not claim one.
+[JR LIQUIDATIONS LIMITED (company 16355878)](https://find-and-update.company-information.service.gov.uk/company/16355878) is currently listed by Companies House with status **Liquidation**. Its filing history records an extraordinary resolution to wind up dated **29 September 2026**; the resolution was filed on **14 October 2026**, the same date the appointment of a voluntary liquidator was filed. The company was incorporated on **1 April 2025**.
 
-The Companies House page for [A K Motor Services (Plymouth) Ltd, company 07418033](https://find-and-update.company-information.service.gov.uk/company/07418033) is a useful check against accidentally using an old example: it currently shows the company in liquidation, and its filing history records a voluntary liquidator appointment on **31 March 2022**. That is outside the requested period and must **not** be presented as a 2025/26 timeline.
+This is a verified 2026 liquidation timeline, not evidence that SupplierPulse+ predicted the event or prevented a loss. It supports only a narrow counterfactual: if a buyer had required a fresh registry check before a later milestone, the status available at that check could have triggered the contract's hold rule. It says nothing about earlier payments, a specific buyer's exposure, or whether the prototype would have detected the change before the filing appeared.
 
-I also checked [LIQUIDATION CENTRE LIMITED, company 15312797](https://find-and-update.company-information.service.gov.uk/company/15312797). Companies House reports that it was **dissolved on 14 July 2026**; the profile does not establish that its status changed to liquidation in 2025/26. It is not a qualifying timeline example and should not be used as one.
+**Sources:** [Companies House company profile](https://find-and-update.company-information.service.gov.uk/company/16355878) and [filing history](https://find-and-update.company-information.service.gov.uk/company/16355878/filing-history) (accessed 30 October 2026). The filing history identifies the resolution date separately from its filing date; do not describe 29 September as the date the document was filed.
 
-Before using a dated line in the pitch, verify the company profile's current status and the filing that marks the start of liquidation. State only the verified filing date and frame the product implication as a counterfactual about the next payment after a fresh check. Do not imply the contract would have stopped payments made before the record changed, or that it would have predicted the change.
+For comparison, [A K Motor Services (Plymouth) Ltd, company 07418033](https://find-and-update.company-information.service.gov.uk/company/07418033) currently shows as in liquidation, but its voluntary liquidator appointment was filed on **31 March 2022**. It is outside the 2025/26 period. [LIQUIDATION CENTRE LIMITED, company 15312797](https://find-and-update.company-information.service.gov.uk/company/15312797) was dissolved on **14 July 2026**, which does not establish a qualifying liquidation start date.
 
 ## Prior art and claim boundaries
 
@@ -70,6 +70,6 @@ This is a narrow scan of public product and documentation pages, not an exhausti
 - The September 2026 insolvency figures are for **England and Wales** and are aggregate monthly data.
 - The Carillion estimate is from the NAO's 2018 report and concerns government/taxpayer costs; it is not a measured loss for private counterparties.
 - The LEI percentage is a dated ratio over the two statuses queried, not all legal entities, and not a credit or insolvency statistic.
-- The 2025/26 company-level liquidation timeline remains open; do not use a placeholder in the submission.
+- The JR LIQUIDATIONS LIMITED filing dates establish a 2026 liquidation timeline, not a financial-distress prediction or a measured avoided loss.
 - Product pages describe vendors' own offerings. The comparison above is descriptive and does not establish feature-by-feature equivalence.
 - Verify Companies House and GLEIF field paths against actual signed Airnode responses before making claims about the prototype's live data.
