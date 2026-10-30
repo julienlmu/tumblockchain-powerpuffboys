@@ -129,6 +129,8 @@
   /* kept in Simple: the sentence that says who may refund, and from when (a disabled refund button never shows without
      its reason), and which order caused a supplier-wide stop, and when */
   body.view-simple .held-box > p[id^="who-"] { display: block; }
+  /* a refund message that points to the script: the script shows in Simple too */
+  body.view-simple .card details.ways.keep { display: block; }
   .agent:empty { display: none; } /* nothing read yet: no empty frame above the loading cards */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
   .agent-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; justify-content: space-between; }
@@ -726,7 +728,7 @@
       const off = env.sample || !enabled || busyNow;
       const waysKey = `ways-${o.id}`;
       return `<div class="row"><button type="button"${env.sample ? "" : ' class="primary"'} data-claim="${o.id}"${off ? " disabled" : ""}${busyNow ? ' aria-busy="true"' : ""} aria-describedby="${whoId}${env.sample ? " sample-note" : ""}">${busyNow ? I("loader", "spin") + "Waiting for MetaMask…" : I("refund") + (env.sample ? "Refund to buyer (sample)" : "Refund to buyer (MetaMask)")}</button></div>${msg}
-        <details class="ways" data-key="${waysKey}"${isOpen(waysKey, false) ? " open" : ""}><summary>Other ways to refund</summary>
+        <details class="ways${claimMsg[o.id] ? " keep" : ""}" data-key="${waysKey}"${isOpen(waysKey, false) ? " open" : ""}><summary>Other ways to refund</summary>
           <div class="ways-body">${env.sample ? sampleCmdNote(o) : ""}<p>Without a browser wallet: <code class="cmd">api3/scripts/plus-refund.sh ${o.id}</code>${P.copyBtn(`api3/scripts/plus-refund.sh ${o.id}`)} (signs with the buyer key in <span class="mono">api3/.env</span>).</p></div></details>`;
     };
     // when the refund opens, in one phrase
