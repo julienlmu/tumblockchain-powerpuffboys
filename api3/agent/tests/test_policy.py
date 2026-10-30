@@ -197,6 +197,18 @@ class PolicyTest(unittest.TestCase):
         waiting = order(next_due_date=NOW - 10, next_approved=False)
         self.assertEqual(plan(snapshot(waiting, last_check_at=0), self.ledger, cfg()).actions, [])
 
+    def test_a_due_check_in_backoff_is_not_skipped_again_as_monitoring(self):
+        # seen in the real C2 run: every tick logged order 5 twice, as due check and as monitor
+        self.ledger.record_failure(0, NOW, max_attempts=3, exhausted_wait=1800)
+        p = plan(snapshot(order(next_due_date=NOW + 100), last_check_at=0), self.ledger, cfg())
+        self.assertEqual([(a.kind, r) for a, r in p.skipped], [("due_check", "retry backoff")])
+
+    def test_no_monitoring_of_an_order_refunded_this_tick(self):
+        self.ledger.record_failure(0, NOW - 100, max_attempts=3, exhausted_wait=1800)  # backoff over at NOW - 70
+        o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        p = plan(snapshot(o, last_check_at=0), self.ledger, cfg())  # a never-verified supplier is due for monitoring
+        self.assertEqual(self.kinds(p), [("refund", 0)])  # no paid fetch for an order that closes this tick
+
     def test_quarantine_blocks_release_and_refund(self):
         pay = order(0, next_due_date=NOW - 1, permit_valid=True, permit_valid_until=NOW + 100)
         held = order(1, state=HELD, auto_refund_at=NOW)

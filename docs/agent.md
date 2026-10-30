@@ -23,7 +23,7 @@ The agent works in priority order, every tick:
 | 1 | A held order's refund grace period is over, or the no-data exit applies (an approved milestone is overdue by the grace period without a permit) **and the agent's own last try after the due date failed** | `refundRemaining`: the remaining balance goes back to the buyer | gas |
 | 2 | A milestone is due, the permit is valid and the buyer has approved | `release`: the milestone is paid to the supplier | gas |
 | 3 | A milestone is due within the check window and no permit covers the due date. Also the last try before a no-data refund | Fetch a fresh signed record, then `submitEvidence` (before the due date) or `checkAndRelease` (once due) | $0.01 + gas |
-| 4 | A supplier was not checked for its tier's interval | Fetch a fresh signed record and submit it to that supplier's order with the nearest due date. A failing supplier is held *before* its next payment is due. Orders whose due milestone waits for the buyer are left out | $0.01 + gas |
+| 4 | A supplier was not checked for its tier's interval | Fetch a fresh signed record and submit it to that supplier's order with the nearest due date. A failing supplier is held *before* its next payment is due. Left out: orders whose due milestone waits for the buyer, orders with an action of priority 0–3 this tick, and suppliers with a due-date check (run or waiting) | $0.01 + gas |
 
 **Timing per profile:**
 
@@ -41,7 +41,7 @@ The tier comes from the contract's **verification history**: the supplier's veri
 **Rules the schedule follows:**
 - **One paid check per milestone.** The check window opens at the due date minus the lead time, or minus `permitTtl − 60 s` if the order's permit lifetime is shorter. The permit from that check still covers the due date, so the agent does not fetch again every tick.
 - **No paid check while a due milestone waits for the buyer's approval**, neither a due-date check (priority 3) nor monitoring (priority 4). The check before the due date already issued a permit. When the buyer approves while that permit is still valid, the agent pays with `release` and no new check.
-- **One last try before the no-data refund.** When an approved milestone reaches its no-data exit, the data may be back. The agent fetches once more, even during a retry backoff. It refunds only if that try fails. A failed x402 payment does not count: it is the agent's problem, not missing data, and must not cost the supplier the order. The buyer can always call `refundRemaining` directly.
+- **One last try before the no-data refund.** When an approved milestone reaches its no-data exit, the data may be back. Unless one of its own tries already failed after the due date, the agent fetches once more, even during a retry backoff, and refunds only if that try fails. A failed x402 payment does not count: it is the agent's problem, not missing data, and must not cost the supplier the order. The buyer can always call `refundRemaining` directly.
 - **A quarantined order gets no action at all**: no fetch, release, refund or stop.
 - **At most one fetch per supplier per tick**, and at most `MAX_FETCHES_PER_TICK` fetches in total.
 
@@ -92,13 +92,15 @@ Every action is one JSON line in `api3/agent/state/cycles.jsonl`:
 
 `python3 api3/agent/pulse_agent.py report` summarises a run: cycles, actions by outcome, spend per day, tier changes, transactions and alerts.
 
+**Live since Fri 17:03 (v1 hedge):** the agent runs on the deployed v1 contract on Sepolia. Each paid re-check is an x402 payment on Base Sepolia plus a contract transaction; both are linked per cycle in `docs/evidence.md` ("SupplierPulse+ autonomous agent").
+
 *Overnight run on Sepolia: the report and tx links are added on Sat morning (C4).*
 
 ## Run it
 
 ```sh
 cd api3/agent
-python3 -m unittest discover -s tests                   # 61 tests, no network
+python3 -m unittest discover -s tests                   # 63 tests, no network
 python3 pulse_agent.py run --fake --ticks 45            # whole flow against an in-memory contract, simulated clock
 python3 pulse_agent.py report --fake
 

@@ -13,6 +13,8 @@
 > - real signed responses for the tamper demo (§4.7);
 > - an agent hedge on v1 tonight (§6.3).
 >
+> **Amendment (Fri ~17:55, no ABI change):** Emre's C2.5 review of the contract. The no-data exit counts from the approval when it came after the due date (§2.4a, §4.5), and `createOrder` requires `permitTtl ≥ maxAge` (§4.5).
+>
 > Code against this version.
 
 ## How to use this file
@@ -255,9 +257,9 @@ Rule-specific failures (accounts or confirmation statement overdue, LEI renewal)
 **No-data exit.** The buyer gets the remaining balance back when all three hold:
 - the buyer has approved the next milestone;
 - there is no valid permit;
-- the due date has passed by more than `refundGrace`.
+- the due date, or the approval if it came later, has passed by more than `refundGrace`.
 
-`refundRemaining` can then be called by anyone, and the money always goes to the buyer. This covers data that stays unavailable: the register or the Airnode is down, or a field is missing. Milestones already paid stay paid. Without approval there is no exit, because then it is the buyer who has not released the payment.
+`refundRemaining` can then be called by anyone, and the money always goes to the buyer. This covers data that stays unavailable: the register or the Airnode is down, or a field is missing. Milestones already paid stay paid. Without approval there is no exit, because then it is the buyer who has not released the payment. A late approval starts the grace period again, so the supplier (through the agent) always gets the full `refundGrace` to bring evidence; otherwise a buyer could approve and refund in the same block.
 
 ### 2.5 Demo scenario
 
@@ -560,7 +562,8 @@ interface ISupplierPulsePlus {
     ) external payable returns (uint256 orderId);
     function approveMilestone(uint256 orderId, uint256 milestone) external;
     /// Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the next
-    /// milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
+    /// milestone is approved, has no valid permit and is overdue by refundGrace (counted from the due date or the
+    /// later approval). The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external;
 
     // ---- anyone (agent, judges)
@@ -674,14 +677,14 @@ The library errors can also surface and must be decodable by the tools:
 1. `source ≤ 1`, otherwise `BadSource`.
 2. The id format from §4.2, otherwise `BadSupplierId`.
 3. `rules` is valid for the source (Companies House ⊆ `0x06`, GLEIF ⊆ `0x08`), otherwise `BadRules`.
-4. `supplier != 0`, `amounts.length ≥ 1`, `amounts.length == dueDates.length`, every amount > 0, due dates are non-decreasing, `permitTtl > 0`, and `msg.value == sum(amounts)`. Otherwise `BadOrder`.
+4. `supplier != 0`, `amounts.length ≥ 1`, `amounts.length == dueDates.length`, every amount > 0, due dates are non-decreasing, `permitTtl ≥ maxAge` (a record that is still fresh must give a permit that has not expired), and `msg.value == sum(amounts)`. Otherwise `BadOrder`.
 
 Effects:
 - Store `requestHash = requestHashFor(source, id)` and `supplierKey = supplierKeyOf(source, id)`.
 - `approved = new bool[](n)`.
 - Emit `OrderCreated`.
 
-**`approveMilestone`.** Only the buyer (`NotAuthorized`); the milestone must be `< n` (`BadOrder`). Sets `approved[m] = true` and emits `MilestoneApproved`.
+**`approveMilestone`.** Only the buyer (`NotAuthorized`); the milestone must be `< n` (`BadOrder`). Sets `approved[m] = true`, stores `approvedAt[m] = now` on the first approval (internal storage, not in the ABI), and emits `MilestoneApproved`.
 
 **`submitEvidence`.** The order of checks matters, because it decides which error each tamper case produces:
 1. The order exists (`BadOrder`).
@@ -737,7 +740,7 @@ It reverts only on verification failures and on `SupplierFailed`.
 - **Active (no-data exit):** with `m = paidCount`:
   - `approved[m]` (`NotApproved(m)`);
   - no valid permit for `m` (`NotRefundable`);
-  - `now ≥ dueDates[m] + refundGrace` (`RefundNotYet(dueDates[m] + refundGrace)`).
+  - `now ≥ max(dueDates[m], approvedAt[m]) + refundGrace` (`RefundNotYet` with that time).
 
   Anyone may call it. `noDataExit = true`.
 - **Closed:** `NotRefundable`.
@@ -749,7 +752,7 @@ A hold is final: there is no un-hold.
 - `orderSchedule.nextDueDate` is `dueDates[paidCount]`, or `0` when closed.
 - `autoRefundAt`:
   - `heldAt + refundGrace` when held;
-  - `dueDates[m] + refundGrace` when active, the next milestone is approved and there is no valid permit (the no-data exit);
+  - `max(dueDates[m], approvedAt[m]) + refundGrace` when active, the next milestone is approved and there is no valid permit (the no-data exit);
   - otherwise `0`.
 - `tier` is the supplier's current tier.
 - `orderStatus.permitValid` follows v1: active, permit exists for `paidCount`, and `now ≤ validUntil`.
@@ -1000,7 +1003,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
    - **Verification history** that counts only the base check and only moves forward, the supplier-wide stop (`lastBaseFailureAt`, the `SupplierFailed` checks, `applySupplierFailure`), `release` with `NotDue`, the `checkAndRelease` outcomes, `refundRemaining` with both paths (§4.5), all views, and admin.
 3. **Forge tests.** Use the same style as `SupplierPulse.t.sol` (custom `Vm`, `vm.sign`). At least these:
    - **Hashes and keys:** `requestHashFor` and `supplierKeyOf` reproduce the §4.2 vectors.
-   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x01` and `0x08` on a Companies House order, `0x02` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` of 0). `BadSource`.
+   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x01` and `0x08` on a Companies House order, `0x02` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` below `maxAge`). `BadSource`.
    - **Companies House:** a clean record issues a permit valid for exactly `permitTtl`. `0x02` and `0x04` fail alone. Status `liquidation` gives `0x80` plus whatever else is enabled. A disabled rule is ignored.
    - **GLEIF:** clean; `LAPSED` with `0x08` is held; `INACTIVE` gives `0x80`.
    - **Tamper:** an edited value (`WrongSigner`), stale, future, another request (`WrongRequest`), a wrong key (`WrongSigner`), replay (`Replayed`), not newer (`NotNewer`), a high-s signature (`InvalidSignatureS`). A Companies House response on a GLEIF order gives `WrongRequest`. A held order rejects new evidence (`NotActive`).
@@ -1022,7 +1025,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
      - a rule-only failure on B does not stop A.
    - **Refund:**
      - Held: the buyer at once; a stranger before the grace period gets `RefundNotYet`, after it the refund reaches the buyer.
-     - No-data exit: approved, no permit, overdue by the grace period, so anyone can refund to the buyer with `noDataExit = true`. It gives `NotApproved` when the milestone is not approved, `NotRefundable` with a valid permit, `RefundNotYet` before due date + grace, and `NotRefundable` on a closed order.
+     - No-data exit: approved, no permit, overdue by the grace period, so anyone can refund to the buyer with `noDataExit = true`. It gives `NotApproved` when the milestone is not approved, `NotRefundable` with a valid permit, `RefundNotYet` before due date + grace, and `NotRefundable` on a closed order. **Late approval:** approve after due date + grace, then refund in the same block → `RefundNotYet(approvedAt + refundGrace)`; after the grace the refund works (Emre's PoC).
    - **Events:** every event fires with the exact arguments.
 4. **Deploy script.** `DeploySupplierPulsePlus.s.sol` reads env `EVM_PRIVATE_KEY`, `CH_AIRNODE` (default the real one), `GLEIF_AIRNODE` (default the real one), `MAX_AGE=300`, `TIER_COUNT_GAP=300` and `REFUND_GRACE=600`.
 5. **Scripts.**
@@ -1133,7 +1136,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
 
-**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass. **C2 passed (~17:20)** against Orhun's v1.1 contract on a local chain (`api3/agent/c2_check.py`, 8/8). **C2.5 review fixes (~17:45):** the check window respects `permitTtl`, no monitoring while a due milestone waits for the buyer, quarantine blocks every action, and one last try before the no-data refund. 61 tests pass.
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass. **C2 passed (~17:20)** against Orhun's v1.1 contract on a local chain (`api3/agent/c2_check.py`, 8/8). **C2.5 review fixes (~17:45):** the check window respects `permitTtl`, no monitoring while a due milestone waits for the buyer, quarantine blocks every action, and one last try before the no-data refund. **C2 with Emre's real `fetch-local.sh` passed (~17:40, 8/8)**; it showed that P4 could pay for a fetch on an order refunded in the same tick, now fixed. 63 tests pass.
 
 **Modules (`api3/agent/`):**
 
@@ -1180,7 +1183,8 @@ P3 due      state=Active and now ≥ nextDueDate − min(DUE_LEAD, permitTtl −
             and (nextApproved or now < nextDueDate)        # don't pay for checks while waiting for the buyer
             and backoff elapsed (or P1's last try)       → fetch(source, id) →
                                                           now ≥ nextDueDate ? checkAndRelease : submitEvidence
-P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer, and no P3 fetch this tick:
+P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer and without a P0–P3 action this tick,
+            and no P3 due check for that supplier (run or skipped):
             now − lastCheckAt ≥ interval(tier)            → fetch once → submitEvidence to that supplier's
                                                           Active order with the nearest nextDueDate
 Budget      P3 only if spentToday + cost ≤ DAILY_BUDGET_USD

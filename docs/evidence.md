@@ -117,6 +117,49 @@ for t in value stale request key; do ORDER_ID=0 scripts/pulse-submit.sh r.json $
 scripts/pulse-status.sh 0; scripts/pulse-status.sh 1
 ```
 
+## SupplierPulse+ autonomous agent (Julien, `api3/agent/`)
+
+Agent wallet [`0xED3418aE93669a640650728E70f7aA712083253a`](https://sepolia.etherscan.io/address/0xED3418aE93669a640650728E70f7aA712083253a): it pays the gas on Ethereum Sepolia and the x402 fees in aUSD on Base Sepolia, and is never a buyer or a supplier. A paid check is one $0.01 aUSD x402 payment for a fresh signed Companies House record, then one contract transaction with that record. Schedule, limits and failure handling: `docs/agent.md`.
+
+### v1 hedge run (live v1 contract, demo profile, since 30 Oct 17:03)
+
+Contract [`0x91d7…74d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7) from "SupplierPulse live run" above. The agent re-checks each open order's supplier once per tier interval (10 min for Standard in the demo profile) and logs every cycle to `api3/agent/state/v1/cycles.jsonl`.
+
+| Cycle | Time (CET) | Order / supplier | Why | x402 payment (Base Sepolia) | Contract tx (Sepolia) | Outcome |
+|---|---|---|---|---|---|---|
+| 1 | 17:03:38 | 0 / `ch:09729896` | re-check by tier | [`0x9069fa…cf75`](https://sepolia.basescan.org/tx/0x9069fade4a8fe5f66b6e5458006953d82261649ba1337c3ef161cb389db4cf75) | [`0x1c8733…7bab`](https://sepolia.etherscan.io/tx/0x1c8733b6ee2140758cf31b8783afd3bff1c9cdada6c907779a0dcf8da6b27bab) | clean |
+| 20 | 17:13:50 | 0 / `ch:09729896` | re-check by tier | [`0x40fc05…7031`](https://sepolia.basescan.org/tx/0x40fc05a3f9e88c1708cc36e153cc8bb1297f04d911ae2e058bd59cd9ec587031) | [`0x73bbe9…b932`](https://sepolia.etherscan.io/tx/0x73bbe9913af03ae62d80da3c7933b481b46f0649d8f6f781444c96c38737b932) | clean |
+| 39 | 17:23:49 | 0 / `ch:09729896` | re-check by tier | [`0x237d9d…05c0`](https://sepolia.basescan.org/tx/0x237d9d02da086a85cefcbf7835a4a8ff94957223fde3ee85bdee5b6e84d705c0) | [`0x90135a…0e2b`](https://sepolia.etherscan.io/tx/0x90135a2c16f0a6a651530dbb06832be9453c6bd0dc3379b066043bd144240e2b) | clean |
+| 59 | 17:34:26 | 0 / `ch:09729896` | re-check by tier | [`0xa7ae47…2612`](https://sepolia.basescan.org/tx/0xa7ae47d86ac2c198d7f4bd343edf1236aea6ebe0fa948a7992d4e5d574aa2612) | [`0x2dee76…5932`](https://sepolia.etherscan.io/tx/0x2dee762a376f4a34c3d12e782964bd1496eb3f97391e68f40035ead70e4d5932) | clean |
+
+At 17:42: 74 cycles, 4 paid checks ($0.04 of the $1.00 daily budget), 0 alerts, 0 errors. All other cycles had nothing due.
+
+Checked on chain for cycle 59: the payment tx (a facilitator batch sent to Multicall3) contains an aUSD `Transfer` of 0.01 (`0x2710`, 6 decimals) from the agent wallet to the AirnodeHub payee `0x1505fd562ac2fb4307b85bc6c672ffeafb4d57a7`, and the contract tx succeeded on `0x91d7…74d7`.
+
+### C2 integration (local anvil, v1.1 contract, `api3/agent/c2_check.py`)
+
+All six sample orders of `plus-local.sh` (§4.8), the agent at 10 s ticks, 8 checks on chain and in the agent log.
+
+| When | Code | Fetch | Result |
+|---|---|---|---|
+| 30 Oct 17:22 | Orhun's v1.1 contract, `julien/plus-agent` | scratchpad v1.1 signer (stand-in) | 8/8 in 180 s. Found the bare-`0x` bug in calls without return values (fixed) |
+| 30 Oct 17:39 | `supplierpulse-plus` `2b6ca9c` + `emre/plus-data` `8a1bedd` | Emre's `fetch-local.sh` | 8/8 in 181 s. Order 5: failed tries at +0, +31 and +158 s, then the no-data refund at the first tick after its refund time. Showed that monitoring could pay for a fetch on an order refunded in the same tick (fixed in `29d35c3`) |
+| 30 Oct 17:45 | the same + `29d35c3` (monitoring fix) | Emre's `fetch-local.sh` | 8/8 in 181 s. Order 5 refunded after three failed tries; no waiting check logged twice |
+
+### Commands
+
+```sh
+# v1 hedge on Sepolia, from the repo root. The key goes into the environment from a local, uncommitted .env.
+export AGENT_CONTRACT_VERSION=v1 AGENT_PROFILE=demo PULSE_PLUS_ADDRESS=0x91d7dbae109029b2b1245179a68ac362799674d7
+export EVM_RPC_URLS=https://ethereum-sepolia-rpc.publicnode.com,https://sepolia.gateway.tenderly.co
+export AGENT_PRIVATE_KEY=<agent key> PAYER_PRIVATE_KEY=<agent key>     # never printed or committed
+while true; do python3 api3/agent/pulse_agent.py run --quiet; echo "agent exited $?, restarting in 5 s"; sleep 5; done
+AGENT_CONTRACT_VERSION=v1 python3 api3/agent/pulse_agent.py report      # cycles, spend, alerts
+
+# C2 on a local chain (free local fetch, anvil keys only)
+python3 api3/agent/c2_check.py            # --fake: the same 8 checks in memory
+```
+
 ## Exact run commands
 
 ```sh

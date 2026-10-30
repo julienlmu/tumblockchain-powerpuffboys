@@ -73,6 +73,22 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (spec) · Emre's contract findings 1 and 2 accepted → Orhun
+- Changed (spec, **no ABI change**, header note "Amendment"):
+  1. **No-data exit after a late approval** (§2.4a, §4.5): `approveMilestone` stores `approvedAt[m]` on the first approval (internal storage). The exit and the `autoRefundAt` view count from `max(dueDates[m], approvedAt[m]) + refundGrace`. Without this, a buyer who never approved could approve and refund in the same block, and the supplier never got a chance to bring evidence. New Forge case in §6.1: late approval → `RefundNotYet(approvedAt + refundGrace)`.
+  2. **`createOrder` requires `permitTtl ≥ maxAge`** (`BadOrder`). This replaces `permitTtl > 0`, so a fresh record can no longer give an already expired permit (`PermitExpired` in `checkAndRelease`). The demo orders already use ≥ 300.
+- **Orhun:** both are small contract changes, ideally before the 22:00 C2 and the C3 deploy. The agent and Batu's dashboard need nothing: both read `autoRefundAt` from the view, and the agent does not fetch while a due milestone waits for the buyer.
+- Note 3 (admin `setAirnode`/`setMaxAge` on live orders) is for Ulaş's pitch as a trust assumption. Note 4 (one record per order) is how the agent already works.
+
+### 2026-10-30 · Julien (agent) · C2 with Emre's real fetch-local passes; agent evidence
+- Changed:
+  - **C2 with Emre's real `fetch-local.sh` passed (17:39, 8/8 in 181 s).** It ran in a local test worktree: `supplierpulse-plus` `2b6ca9c` + `emre/plus-data` `8a1bedd`, not pushed. The agent reads Emre's records as they are, and unknown ids exit 3 ("no data") as specified.
+  - The run showed one more agent issue: monitoring (P4) could pay for a fetch on an order refunded in the same tick, and it logged a waiting due check twice. Fixed in `29d35c3`: P4 now skips orders that P0–P3 already decided on. 63 tests pass, and the C2 rerun with the fix passed 8/8 again (17:45).
+  - `docs/evidence.md` has a new section, "SupplierPulse+ autonomous agent": the v1 hedge's paid cycles with both tx links per cycle (x402 payment on Base Sepolia, contract tx on Sepolia), checked on chain, plus the C2 runs.
+  - v1 hedge: 74 cycles since 17:03, 4 paid checks ($0.04), 0 alerts, 0 errors.
+- Emre has merged `emre/plus-data` into `supplierpulse-plus` (`fef17a5`), so `plus-local.sh`'s `FETCH_CMD` resolves on the integration branch and C2 needs no stand-in anywhere.
+- Next: C3, the agent on the v2 contract on Sepolia once Orhun deploys it (demo profile, next to the v1 hedge).
+
 ### 2026-10-30 · Emre · C2 passes with the real v1.1 `fetch-local.sh`
 - Changed: merged the latest `supplierpulse-plus` into `emre/plus-data` and re-ran everything on it.
   - `python3 api3/agent/c2_check.py` with **Emre's real `fetch-local.sh`** (no stand-in signer): **8/8 PASS in 244 s**. Orders 0 and 2 paid; 1 held with `0x82` and refunded; 3 held with `0x08` and refunded; 4 held by the supplier-wide stop without a fetch and refunded; 5 refunded through the no-data exit; `01234567` reached Trusted; no quarantine, no errors.

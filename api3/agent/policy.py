@@ -105,12 +105,14 @@ def plan(snap: Snapshot, ledger: Ledger, cfg: Config) -> Plan:
     order_by_id = {o.id: o for o in snap.orders}
     for action in sorted(due, key=lambda a: (order_by_id[a.order_id].next_due_date, a.order_id)):
         try_fetch(action, cfg.daily_budget_usd)
-    due_suppliers = {a.supplier for a in due}  # their due check covers monitoring too, run or not
+    decided = list(out.actions) + [a for a, _ in out.skipped]  # P0-P3, run or skipped: P4 leaves these alone
+    decided_orders = {a.order_id for a in decided}
+    due_suppliers = {a.supplier for a in decided if a.kind == "due_check"}  # their due check covers monitoring
 
     for key, sup in sorted(snap.suppliers.items(), key=lambda kv: (kv[1].last_check_at, kv[0])):
         open_orders = [o for o in snap.orders
                        if o.supplier_key == key and o.state == ACTIVE and not ledger.is_quarantined(o.id)
-                       and not waiting_for_buyer(o, now)]
+                       and not waiting_for_buyer(o, now) and o.id not in decided_orders]
         if not open_orders:
             continue
         if sup.last_check_at and now - sup.last_check_at < cfg.monitor_interval(sup.tier):
