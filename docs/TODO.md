@@ -19,6 +19,14 @@ Rule for tonight: no contract change, no new deployment, no dependency upgrade.
 - [ ] **Batu (F10):** `demo/index.html` treats a supplier as stopped whenever `lastBaseFailureAt > 0` (also on `batu/plus-ui`), even after newer clean evidence lets the contract pay again. Show "earlier failure on record" separately from "payment blocked now".
 - [ ] **Julien:** merge `orhun/doc-tools` (document hash, verify and change report; works with the live v2). The hash script now fails on errors instead of printing an empty hash, and the language-model summary runs only with `--summary`.
 
+## Pitch and demo (weak spots a judge will ask about)
+
+- [ ] **Ulaş:** one concrete customer instead of a general story, e.g. "a mid-sized German manufacturer pays an advance to a UK supplier; if the supplier goes under, the money is gone". Add one real number, such as how many companies Companies House dissolves per year.
+- [ ] **Ulaş / team:** a ready answer on one slide for "how do you know this wallet belongs to that company?": the buyer gets the supplier's payout wallet when signing the contract with a supplier it has already vetted (KYC), the same way it gets an IBAN today. The contract does not prove this link.
+- [ ] **Team:** one story in the video and pitch: order → signed API3 registry check → payment or stop → tamper rejections. Document hash, tiers and the second registry go in the README under "More features", not in the video.
+- [ ] **Julien / Emre:** one command for judges that runs the existing `api3/x402/tamper.mjs` (one valid response pays, four tampered ones are rejected), linked from the README next to `demo/judge.html`.
+- [ ] **Team:** video recorded by Sat 13:00, submission by Sat 14:30.
+
 ## Say it correctly in the pitch (no code change)
 
 - **Admin:** the admin can change the expected Airnode address and `maxAge` (`setAirnode`, `setMaxAge`). Only the order's document hash is locked, not the whole contract. In production: timelock or multisig.

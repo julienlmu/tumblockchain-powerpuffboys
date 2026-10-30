@@ -76,7 +76,7 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 ### 2026-10-30 · Orhun · security review findings → docs/TODO.md
 - Changed: `docs/TODO.md`, the to-do list before submission with an owner for each item (public repo, README, Devfolio/video texts, agent order allowlist, x402 limit, dashboard stop label, merge of `orhun/doc-tools`), pitch wording and known limits.
 - Notes: each finding checked against `main`. Document-tool fixes are on `orhun/doc-tools` (71be4ed). No contract change, no deploy.
-- Next: each owner ticks their items.
+- Next: each owner ticks their items. Added a "Pitch and demo" section: one concrete customer, a ready answer on wallet ownership, one story for the video, one command for the judges' tamper test, video by Sat 13:00.
 
 ### 2026-10-30 · Orhun · v2 source verified on Etherscan
 - Changed: Etherscan exact match for `0xf25Aae1772326C95294D1923399D55c658493DfC` (built from `c668c51`); `docs/evidence.md` updated.
