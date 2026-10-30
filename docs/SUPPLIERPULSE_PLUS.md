@@ -267,12 +267,14 @@ Rule-specific failures (accounts or confirmation statement overdue, LEI renewal)
 
 | Order | Supplier | Registry | Rules | Milestones (tokens), due | Expected |
 |---|---|---|---|---|---|
-| **A** "PO-1001 Motor supply" | `09729896` (active, flags to verify) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
+| **A** "PO-1001 Motor supply" | `03778796` Electric Motors International Ltd (clean on every field) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
 | **B** "PO-1002 Gearbox" | `07418033` (liquidation) | Companies House | `0x06` | 1,000 (C3 + 20 min), 2,000 | Held at the first check. The agent triggers the refund after the grace period |
-| **C** "PO-1003 Sensors" | active company with **accounts overdue** (Emre finds it) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
-| **D** "PO-1004 Cable harness (DE)" | German company with an LEI, `ACTIVE`/`ISSUED` (Emre finds it) | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
-| **E** "PO-1005 Castings" | LEI with registration **LAPSED** (Emre finds it) | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
+| **C** "PO-1003 Sensors" | `09729896` (active, **accounts and confirmation statement overdue**) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
+| **D** "PO-1004 Cable harness (DE)" | `391200JI69LS8L648F30` ASR Component GmbH, `ACTIVE`/`ISSUED` | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
+| **E** "PO-1005 Castings" | `52990092KBQJF8QBGJ50` MoKa Projekt GmbH, registration **LAPSED** | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
 | **B2** (created live in the video) | `07418033` | Companies House | `0x06` | 1,000, 2,000 (due in 2 minutes) | Held at once by the **supplier-wide stop** (order B already showed `liquidation`), without a new fetch. The refund countdown and the "Claim now" option appear on screen |
+
+Demo suppliers found and verified live by Emre at C1a, with the v1.0 fields. Before C3 they need one check each with the v1.1 fields (`/accounts/next_accounts/overdue`), about $0.05.
 
 **Approvals at creation:** A: M1 and M2. B: M1. C: M1. D: M1 and M2. E: M1. The buyer approves A's M3 live, as the "dual lock" moment.
 
@@ -1131,7 +1133,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
 
-**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass.
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass. **C2 passed (~17:20)** against Orhun's v1.1 contract on a local chain (`api3/agent/c2_check.py`, 8/8). **C2.5 review fixes (~17:45):** the check window respects `permitTtl`, no monitoring while a due milestone waits for the buyer, quarantine blocks every action, and one last try before the no-data refund. 61 tests pass.
 
 **Modules (`api3/agent/`):**
 
@@ -1167,16 +1169,18 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 **Plan, once per tick.** `now` is the chain time. Actions are listed by priority:
 
 ```text
+            a quarantined order gets no action at all (no fetch, release, refund or stop)
 P0 stop     state=Active and supplier.lastBaseFailureAt > order.lastCheck   → applySupplierFailure(order)   (no fetch)
-P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0     → refundRemaining(order)        (no fetch)
-            (a hold after its grace period, or the no-data exit of an approved milestone without a permit)
+P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0, and either state=Held (a hold after
+            its grace period) or the agent's own try at or after nextDueDate failed (the no-data exit;
+            until then P3 tries once more, ignoring the backoff)  → refundRemaining(order)  (no fetch)
 P2 release  state=Active and permitValid and nextApproved and now ≥ nextDueDate → release(order)          (no fetch)
-P3 due      state=Active and now ≥ nextDueDate − DUE_LEAD
+P3 due      state=Active and now ≥ nextDueDate − min(DUE_LEAD, permitTtl − 60 s)  # its permit covers the due date
             and not (permitValid and permitValidUntil ≥ max(now, nextDueDate))
             and (nextApproved or now < nextDueDate)        # don't pay for checks while waiting for the buyer
-            and not quarantined and backoff elapsed      → fetch(source, id) →
+            and backoff elapsed (or P1's last try)       → fetch(source, id) →
                                                           now ≥ nextDueDate ? checkAndRelease : submitEvidence
-P4 monitor  per supplierKey with ≥ 1 Active order and no P3 fetch this tick:
+P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer, and no P3 fetch this tick:
             now − lastCheckAt ≥ interval(tier)            → fetch once → submitEvidence to that supplier's
                                                           Active order with the nearest nextDueDate
 Budget      P3 only if spentToday + cost ≤ DAILY_BUDGET_USD
@@ -1392,7 +1396,7 @@ Required policy tests:
    - order 2 paid;
    - order 3 held (LEI renewal overdue);
    - order 4 (same supplier as order 1) held by `applySupplierFailure`, **without a fetch**;
-   - order 5 (no data) refunded through the no-data exit 120 s after its due date;
+   - order 5 (no data) refunded through the no-data exit 120 s after its due date, once the agent's last try failed;
    - order 0's supplier climbs tiers as monitoring checks pass the 60 s gap.
 4. **Batu:** the dashboard on `rpc=http://127.0.0.1:8545` shows all of this live, and the judge page verdicts equal step 2.
 5. **Ulaş:** follows the README draft against what actually happens, and notes demo moments.
@@ -1413,7 +1417,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 ### 7.2 C3: Sepolia launch (00:00)
 
 1. **Orhun** deploys v2 with the demo constants and records the address in §3.2, `docs/evidence.md` and `api3/.env.example`.
-2. **Emre** confirms the demo supplier ids and exports `DEMO_CH_A=09729896`, `DEMO_CH_B=07418033`, `DEMO_CH_C=…`, `DEMO_LEI_D=…`, `DEMO_LEI_E=…`.
+2. **Emre** confirms the demo supplier ids, re-verified with the v1.1 fields, and exports `DEMO_CH_A=03778796`, `DEMO_CH_B=07418033`, `DEMO_CH_C=09729896`, `DEMO_LEI_D=391200JI69LS8L648F30`, `DEMO_LEI_E=52990092KBQJF8QBGJ50`.
 3. **Orhun** runs `plus-demo-orders.sh` (orders A to E plus the approvals in §2.5). The supplier wallets are fresh team addresses.
 4. **Batu** sends at least 2 aUSD on Base Sepolia to the agent wallet, and **Julien** checks the balances.
 5. **Julien** starts the agent in the supervised loop with `AGENT_PROFILE=demo` and watches the first cycles: A M1 and D M1 paid; B, C and E held.

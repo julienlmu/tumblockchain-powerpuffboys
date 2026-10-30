@@ -73,6 +73,22 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (agent) · C2 check passes against Orhun's v1.1 contract; C2.5 review fixed
+- Changed:
+  - `api3/agent/c2_check.py` runs the C2 integration (§7.1) as one command. It runs `plus-local.sh`, then the agent at 10 s ticks with the local fetch, and checks the 8 expected outcomes on chain and in the agent log. `--fake` runs the same checks in memory.
+  - **First real integration passed (~17:22):** the agent with Orhun's v1.1 contract on anvil, all 8 checks in 180 s. Payments, holds with labels, the supplier-wide stop without a fetch, the no-data exit, and the tier rising. Emre's v1.1 `fetch-local.sh` is not in `supplierpulse-plus` yet, so a scratchpad v1.1 signer stood in.
+  - **The check found a real agent bug:** functions without return values (`release`, `applySupplierFailure`, `refundRemaining`) print a bare `0x`, which the agent read as an error. Fixed, with a test.
+  - **Batu's C2.5 review: all three points fixed** (§6.3 and `docs/agent.md` updated):
+    1. no monitoring while a due milestone waits for the buyer;
+    2. a quarantined order gets no action at all, including release and refund;
+    3. the no-data refund comes only after the agent's own try at or after the due date failed. That last try ignores the retry backoff. A failed x402 payment does not count as missing data.
+  - **One more fix of my own:** the check before a due date now waits until its permit still covers the due date (`permitTtl − 60 s` if that is shorter than the lead time). Before, a buyer's short `permitTtl` meant a paid fetch every tick.
+  - 61 tests pass (Python 3.8 and 3.13); `c2_check.py --fake` passes 8/8.
+  - Spec §2.5/§7.2 now has Emre's demo suppliers: A `03778796`, B `07418033`, C `09729896`, D `391200JI69LS8L648F30`, E `52990092KBQJF8QBGJ50`.
+- Batu's pages are already on v1.1 (`2c09a7c`), so no checklist for him.
+- **Orhun:** please start anvil with `--block-time 1` in `plus-local.sh` (Batu's finding: an idle anvil lags, and fresh records then simulate as `FutureResponse`). The C2 check mines a block before every tick as a safety net.
+- Next: C2 again with Emre's real v1.1 `fetch-local.sh` (in a test worktree until `emre/plus-data` is merged).
+
 ### 2026-10-30 · Orhun · real Companies House tests (C1a done)
 - Changed: 7 new tests run Emre's v1.1 Companies House records (`4267d11`, pointers verified live) against the contract:
   - the three request hashes match;
