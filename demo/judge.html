@@ -57,11 +57,26 @@
   table.score { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.score th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); }
   table.score td { padding: 6px 8px 6px 0; border-bottom: 1px dashed var(--line); vertical-align: top; overflow-wrap: anywhere; }
+  table.score td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
   .pass { color: var(--ok); font-weight: 700; } .fail { color: var(--hold); font-weight: 700; } .na { color: var(--muted); }
   .kit code { background: var(--bg); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
   .kit ul { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
   .wide { grid-column: 1 / -1; }
   .msg { font-size: 13px; }
+
+  /* the full tamper test, one click */
+  button.suite { width: 100%; padding: 12px; font-size: 15px; font-weight: 700; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .tile { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; }
+  .tile:hover { border-color: currentColor; }
+  .tile .n { font-weight: 700; font-size: 13px; }
+  .tile .v { font-family: var(--mono); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
+  .tile .x { font-size: 11px; }
+  .tile.pass { background: var(--ok-bg); color: var(--ok); }
+  .tile.fail { background: var(--hold-bg); color: var(--hold); }
+  .tile.near { background: var(--wait-bg); color: var(--wait); }
+  .tile.na { background: var(--done-bg); color: var(--muted); }
+  button.link { background: none; border: none; padding: 0; color: var(--accent); font-size: 13px; align-self: flex-start; }
   @media (max-width: 860px) {
     .layout { grid-template-columns: 1fr; }
   }
@@ -113,7 +128,8 @@
       <div class="msg" id="resp-msg"></div>
 
       <h2><span class="step">3</span>Attack it</h2>
-      <p class="hint">Run all six as simulations first: nothing changes on chain. Then send the valid record for real and press Replay.</p>
+      <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. Or press them one by one.</p>
+      <button type="button" class="primary suite" id="suite">▶ Run the full tamper test</button>
       <div class="attacks">
         <button type="button" class="valid" data-mode="asis">Submit as is</button>
         <button type="button" class="atk" data-mode="value">(a) Edit value</button>
@@ -293,13 +309,13 @@
   }
 
   async function run(mode) {
-    if (!contract) { banner("error", "Connect a contract in Settings to get the contract's verdict."); return; }
+    if (!contract) { banner("error", "Connect a contract in Settings to get the contract's verdict."); return null; }
     let t;
     if (mode === "realOld" || mode === "realOther") {
       const s = realInput(mode);
       if (!s) {
         respMsg(mode === "realOld" ? `No earlier signed record of ${esc(order.info.supplierId)} is bundled. Upload one from api3/fixtures/ and press "Submit as is".` : "No record of another company is bundled for this registry.", true);
-        return;
+        return null;
       }
       const rec = P.normalizeRecord(s.record, Number(order.info.source));
       t = mode === "realOld"
@@ -307,7 +323,7 @@
         : { record: rec, what: `(c) Real record of another company, untouched: ${s.label}.`, expect: "WrongRequest" };
     } else {
       let base;
-      try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); return; }
+      try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); return null; }
       t = await P.tamper(base, mode, version === 1 ? { requestHashFor: P.requestHashV1 } : {});
     }
     const r = t.record;
@@ -379,6 +395,7 @@
 
     const rawShown = r.raw != null ? r.raw : (() => { try { return ethers.toUtf8String(r.data); } catch { return null; } })();
     $("result").innerHTML = `
+      ${suite.length && !suiteRunning ? `<button type="button" class="link" data-summary>← Tamper test summary</button>` : ""}
       <h2>The contract's verdict</h2>
       <div class="what">${esc(t.what)}</div>
       ${box}
@@ -400,17 +417,18 @@
       <td>${verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : esc(gotName)}</td><td>${esc(expected)}</td>
       <td class="${notApplicable ? "na" : match ? "pass" : "fail"}">${notApplicable ? "–" : match ? "✓" : "✗"}</td>`;
     $("score").prepend(row);
+    return { mode, accepted: verdict.accepted, got: row.children[3].textContent, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
   }
 
   async function sendForReal() {
     const out = $("send-msg");
-    if (!lastCandidate) return;
+    if (!lastCandidate) return null;
     const r = lastCandidate.record;
     try {
       let signer;
       if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
       else {
-        if (!window.ethereum) { out.textContent = "No browser wallet found. Use api3/scripts/plus-submit.sh … --send instead."; return; }
+        if (!window.ethereum) { out.textContent = "No browser wallet found. Use api3/scripts/plus-submit.sh … --send instead."; return null; }
         const bp = new ethers.BrowserProvider(window.ethereum);
         await bp.send("eth_requestAccounts", []);
         if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
@@ -429,10 +447,108 @@
         ? `included in block ${rc.blockNumber}: ${link}. Now try Replay.`
         : `<b>reverted on chain</b> in block ${rc.blockNumber}, as the simulation said: ${link}`;
       await selectOrder(order.id);
+      return { status: rc.status, hash: tx.hash, block: rc.blockNumber };
     } catch (e) {
       const err = P.decodeRevert(iface, e);
       out.textContent = `Not sent: ${err ? err.name : e.shortMessage || e.message}`;
+      return null;
     }
+  }
+
+  // ---------------------------------------------------------------- the full tamper test, one click
+
+  // The valid record first, then every attack, as eth_call simulations. Replay needs the valid record on chain,
+  // so it is a second, explicit step that sends a real transaction.
+  const SUITE = ["asis", "value", "stale", "request", "key", "realOld", "realOther"];
+  let suite = [], suiteRunning = false, suiteTx = null;
+  const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  function lockButtons(on) {
+    suiteRunning = on;
+    for (const b of document.querySelectorAll("[data-mode], #suite, #fresh, #result button")) b.disabled = on;
+  }
+
+  async function runSuite(force = false) {
+    if (!contract || !order.info) {
+      $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${contract ? "This contract has no orders yet" : "No contract connected"}</div>
+        <div class="why">${contract ? "The tamper test checks a record against an order. Run it once the buyer has created an order, or pick another contract in Settings." : "Enter the contract address in Settings."}</div></div>`;
+      return;
+    }
+    let rec = null;
+    try { rec = readRecord(); } catch { /* empty or not JSON */ }
+    const maxAge = Number(await contract.maxAge());
+    let age = rec ? (await chainNow()) - Number(rec.timestamp) : Infinity;
+    // A stale record stops every attempt at the freshness check, so the attacks would not test their own check.
+    if (age > maxAge && chainId === 31337 && version === 2) { await freshLocal(); rec = readRecord(); age = 0; }
+    if (age > maxAge && !force) {
+      const s = P.SOURCES[order.info.source], id = order.info.supplierId;
+      $("result").innerHTML = `<h2>The contract's verdict</h2>
+        <div class="verdict warn"><div class="big">${rec ? `This record is ${P.span(age)} old` : "No record loaded"}</div>
+          <div class="why">The contract accepts records at most ${maxAge} s old. With ${rec ? "this record" : "no record"}, every attempt stops at the freshness check,
+            so the attacks would not show their own errors. Get a fresh signed record ($0.01 over x402), paste it, and press the button again:</div>
+          <div class="why"><code>${version === 1 ? `api3/scripts/supplier-fetch.sh ${esc(id)}` : `api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json`}</code></div></div>
+        <div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>`;
+      return;
+    }
+    suite = []; suiteTx = null;
+    lockButtons(true);
+    try {
+      for (const m of SUITE) {
+        const r = await run(m);
+        if (r) suite.push(r);
+        await pause(350); // long enough to see each verdict go by in the video
+      }
+    } finally { lockButtons(false); }
+    renderSuite();
+  }
+
+  function tileOf(s) {
+    const cls = s.notApplicable ? "na" : s.mode === "asis" ? (s.accepted ? "pass" : "fail") : s.accepted ? "fail" : s.match ? "pass" : "near";
+    const icon = { pass: "✓", fail: "✗", near: "✓", na: "–" }[cls];
+    const note = cls === "near" ? `rejected earlier, at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
+    return `<button type="button" class="tile ${cls}" data-show="${s.mode}" title="Show this attempt's checks">
+      <span class="n">${icon} ${MODE_NAME[s.mode]}</span><span class="v">${esc(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
+  }
+
+  function renderSuite() {
+    if (!suite.length) return;
+    const valid = suite.find((s) => s.mode === "asis");
+    const attacks = suite.filter((s) => s.mode !== "asis" && !s.notApplicable);
+    const validOk = !!valid && valid.accepted;
+    const allRejected = attacks.every((s) => !s.accepted);
+    const passed = validOk && allRejected;
+    const replayed = suite.some((s) => s.mode === "replay" && !s.notApplicable);
+    const why = passed
+      ? `The valid record is accepted and all ${attacks.length} attacks are rejected by the contract itself (eth_call of submitEvidence, no gas).`
+      : !validOk ? "The valid record was not accepted: it is old, already used, or for another order. Load a fresh record of this order's supplier."
+      : "The contract accepted an attack.";
+    const replayStep = validOk && !replayed
+      ? `<h2>Last step: Replay</h2>
+        <p class="hint">A replay is only a replay once the original is on chain. This sends the valid record as a real transaction
+          (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then simulates it again.</p>
+        <div class="row"><button type="button" class="primary" id="suite-replay">Send the valid record, then replay it</button><span class="msg" id="send-msg"></span></div>`
+      : "";
+    const txNote = suiteTx ? `<p class="hint">Valid record on chain: ${explorer ? `<a class="mono" href="${explorer}/tx/${suiteTx.hash}" target="_blank" rel="noopener">${short(suiteTx.hash)}</a>` : `<span class="mono">${short(suiteTx.hash)}</span>`} (block ${suiteTx.block}).</p>` : "";
+    $("result").innerHTML = `
+      <h2>Tamper test · order #${order.id}</h2>
+      <div class="verdict ${passed ? "ok" : "bad"}"><div class="big">${passed ? "✅ Passed" : "❌ Not passed"}</div><div class="why">${why}</div></div>
+      <div class="tiles">${suite.map(tileOf).join("")}</div>
+      <p class="hint">Green: rejected with the attack's own error. Amber: rejected, but by an earlier check. Press a tile for its checklist.</p>
+      ${txNote}${replayStep}`;
+  }
+
+  async function sendThenReplay() {
+    lockButtons(true);
+    try {
+      const v = await run("asis");
+      if (!v || !v.accepted) return;
+      const sent = await sendForReal();
+      if (!sent || sent.status !== 1) return;
+      suiteTx = sent;
+      await pause(400);
+      const r = await run("replay");
+      if (r) { suite = suite.filter((s) => s.mode !== "replay"); suite.push(r); }
+    } finally { lockButtons(false); }
+    renderSuite();
   }
 
   async function freshLocal() {
@@ -500,8 +616,16 @@
   });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
   $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => banner("error", esc(err.message))));
-  for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => {
-    run(b.dataset.mode).catch((e) => { $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">Could not run</div><div class="why">${esc(e.shortMessage || e.message)}</div></div>`; });
+  const runFailed = (e) => { lockButtons(false); $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">Could not run</div><div class="why">${esc(e.shortMessage || e.message)}</div></div>`; };
+  for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => run(b.dataset.mode).catch(runFailed));
+  $("suite").addEventListener("click", () => runSuite().catch(runFailed));
+  $("result").addEventListener("click", (e) => {
+    const t = e.target.closest("button");
+    if (!t || t.disabled) return;
+    if (t.matches("[data-summary]")) renderSuite();
+    else if (t.dataset.show) run(t.dataset.show).catch(runFailed);
+    else if (t.id === "suite-force") runSuite(true).catch(runFailed);
+    else if (t.id === "suite-replay") sendThenReplay().catch(runFailed);
   });
 
   async function init() {
