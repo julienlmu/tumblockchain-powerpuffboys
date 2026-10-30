@@ -2,6 +2,12 @@
 
 Newest on top.
 
+### 2026-10-30 ~12:25 · branch `batu/api3-setup`
+- Done: installed Foundry 1.8.7 (forge, anvil, cast; official `foundryup`, binaries hash-verified) into `~/.foundry/bin`, and pnpm 12.16.1 via `npm install -g pnpm`.
+- Verified: `cd api3 && forge test` passes 15/15. `./scripts/local-demo.sh` runs on anvil: tamper `value`, `stale` and `request` are rejected, the valid response executes, the replay is rejected, and `agent-run.sh` returns `executed: true`.
+- **Bug (for Orhun):** the wrong-key tamper case does not run with Foundry 1.8.7. `api3/scripts/submit.sh:24` reads `cast wallet new --json | jq -r '.[0].private_key'`, but 1.8.7 wraps the output as `{"schema_version":1,"success":true,"data":[...]}`. jq fails with `Cannot index object with number`, so tamper case (d) is never submitted. Possible fix that works with old and new Foundry: `jq -r '(.data // .)[0].private_key'`. Not changed yet, since it is Orhun's script. `cast send --json` is not affected.
+- Open: Foundry is not on PATH in new terminals yet. Batu adds it to `~/.zshenv` by hand (the agent was not allowed to edit shell config).
+
 ### 2026-10-30 ~12:10 · branch `batu/api3-setup` (from `origin/batu/decision-sheet`)
 - Role: API3 track with Orhun (tentative). Ulaş + Julien own Cardano.
 - Waiting: idea decision with Orhun, #0 price vault vs #3 supplier approval gate (see `docs/decision-sheet.md`). No feature code until both confirm.

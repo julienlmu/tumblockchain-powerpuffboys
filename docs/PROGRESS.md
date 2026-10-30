@@ -87,6 +87,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: agree on the proposals with Orhun, then implement 1 and 3 in `cardano-agent/agent.py`.
 - Notes: Sokosumi preprod: CLI 1.0.4 is broken (`404 route_not_found` on Personal Workspace commands), use 1.1.0. Vendor `powerpuffboys` and Coworker `powerpuffboys-agent` are registered on Julien's account (quickstart path, may not be needed for the MIP-003 agent). Julien's laptop: Node 24, Postgres 17, Foundry; no Docker or cloudflared yet.
 
+### 2026-10-30 · Batu (12:25)
+- Changed: nothing in code. Batu's laptop now has Foundry 1.8.7 and pnpm 12.16.1. `forge test` in `api3/` passes 15/15; `local-demo.sh` runs on anvil.
+- Next: Orhun to fix the wrong-key tamper case (below), then the idea decision (#0 vs #3).
+- Notes: **Foundry 1.8.7 breaks tamper case (d).** `cast wallet new --json` now returns `{"data":[...]}`, so `api3/scripts/submit.sh:24` (`jq -r '.[0].private_key'`) fails with `Cannot index object with number`. Suggested fix, works with old and new Foundry: `jq -r '(.data // .)[0].private_key'`. Judges with a current Foundry would hit this.
+
 ### 2026-10-30 · Batu (12:10)
 - Changed: new branch `batu/api3-setup` for the API3 track (Batu + Orhun, tentative). Added `.local/` and `cache/` to `.gitignore` (required by `CLAUDE.md` §7). Status log in `docs/status/batu.md`.
 - Next: Batu and Orhun pick #0 (price vault) or #3 (supplier approval gate). Then Foundry setup and `forge test` on Batu's laptop.
