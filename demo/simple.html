@@ -138,7 +138,8 @@
     <a class="brand" id="dash-link" href="index.html">SupplierPulse<span class="plus">+</span></a>
     <div class="head-links">
       <nav class="view-switch" aria-label="View"><a href="simple.html" aria-current="page">Simple</a><a id="detailed-link" href="judge.html">Detailed</a></nav>
-      <button type="button" id="theme-btn" aria-keyshortcuts="T" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span><kbd class="kb-k" aria-hidden="true">T</kbd></button>
+      <button type="button" id="guide-btn" data-icon="info" aria-label="Guide: a short walk through this page">Guide</button>
+      <button type="button" id="theme-btn" aria-keyshortcuts="T" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
     </div>
   </header>
 
@@ -146,27 +147,27 @@
     <div class="col">
       <div class="intro">
         <h1>Try to break it</h1>
-        <p>The contract pays a supplier only on a fresh company-register record (Companies House or GLEIF) signed by API3's Airnode. Forge one four ways and see whether the live contract would pay on any of them. Every attempt is a free simulation: no wallet, no gas.</p>
+        <p>Forge a signed register record four ways. The contract should refuse every forgery.</p>
         <p class="ctx" id="ctx">Connecting to the contract…</p>
       </div>
 
       <section class="card" id="rec-card" aria-labelledby="rec-h">
-        <h2 id="rec-h">The signed record</h2>
-        <div class="order"><label for="order">Purchase order the record must match</label>
+        <h2 id="rec-h" class="sr-only">The signed record</h2>
+        <div class="order"><label for="order">Order</label>
           <select id="order" aria-describedby="order-hint" disabled><option>Reading the orders…</option></select>
-          <span id="order-hint"></span></div>
+          <span id="order-hint" class="sr-only"></span></div>
         <p class="rec-line" id="rec-line"></p>
         <p class="sr-only" id="rec-sr" role="status" aria-live="polite"></p>
         <div class="acts" id="local-acts" hidden>
-          <button type="button" id="resign" data-icon="key">Sign a new one</button>
-          <button type="button" class="link" id="own-toggle" aria-expanded="false" aria-controls="own">Use my own record instead</button>
+          <button type="button" id="resign" data-icon="key">New record</button>
+          <button type="button" class="link" id="own-toggle" aria-expanded="false" aria-controls="own">Use my own</button>
         </div>
         <div id="own" hidden>
-          <textarea id="resp" rows="4" spellcheck="false" aria-label="Signed record (JSON)" aria-keyshortcuts="Meta+Enter Control+Enter" placeholder="Paste the signed record JSON (from fetch-evidence.sh), or drop the file anywhere on the page · ⌘/Ctrl+Enter runs"></textarea>
+          <textarea id="resp" rows="4" spellcheck="false" aria-label="Signed record (JSON)" aria-keyshortcuts="Meta+Enter Control+Enter" placeholder="Paste or drop a signed record (JSON)"></textarea>
           <div class="acts" style="margin-top: var(--s2)">
             <button type="button" id="upload-btn" data-icon="upload">Upload file</button><input type="file" id="file" accept=".json,application/json" hidden>
             <button type="button" class="link" id="clear-rec" disabled>Clear</button>
-            <details class="how" id="how"><summary>Get a fresh record</summary><div class="how-body" id="how-body"></div></details>
+            <details class="how" id="how"><summary>Get one</summary><div class="how-body" id="how-body"></div></details>
           </div>
         </div>
       </section>
@@ -178,12 +179,11 @@
       <div class="card-head"><h2 id="res-h">What the contract says</h2><button type="button" class="link" id="expand-all" aria-pressed="false">Expand all</button></div>
       <div id="verdict" tabindex="-1"></div>
       <div id="rows"></div>
-      <details class="help" id="help"><summary aria-keyshortcuts="?">How the contract decides<kbd class="kb-k" aria-hidden="true">?</kbd></summary><div class="help-body" id="help-body"></div></details>
+      <details class="help" id="help"><summary aria-keyshortcuts="?">How the contract decides</summary><div class="help-body" id="help-body"></div></details>
     </section>
     <p class="sr-only" id="verdict-sr" role="status" aria-live="polite"></p>
   </main>
 
-  <p class="foot">The <a id="detailed-foot" href="judge.html">detailed view</a> adds attacks with genuine old records, every check per attempt, a scoreboard and the judge kit.</p>
 </div>
 
 <script>
@@ -206,22 +206,19 @@
   };
   // The real record, the four tamper cases of the API3 track (named as in the detailed view), then the replay.
   const ROWS = [
-    { mode: "asis", name: "The real record", sub: "untouched", expect: "accepted", check: "should be accepted",
+    { mode: "asis", name: "The real record", sub: "untouched", expect: "accepted", check: "should pass",
       before: "The record as the Airnode signed it. The contract should accept it: genuine, fresh and meant for this order." },
-    { mode: "value", name: "(a) Edit value", sub: "one value in the signed data changed, signature kept", expect: "WrongSigner", check: "the signer check should stop it",
+    { mode: "value", name: "(a) Edit value", sub: "one value in the signed data changed, signature kept", expect: "WrongSigner", check: "signer check",
       before: "One value in the signed data is changed (for example status \"active\" → \"liquidation\") and the signature is kept. The signature then recovers to another address, so the signer check should reject it: WrongSigner." },
-    { mode: "stale", name: "(b) Too old", sub: "signed time moved one hour back", expect: "StaleResponse", check: "the freshness check should stop it",
+    { mode: "stale", name: "(b) Too old", sub: "signed time moved one hour back", expect: "StaleResponse", check: "freshness check",
       before: "The signed time is moved one hour back. The freshness check should reject it: StaleResponse." },
-    { mode: "request", name: "(c) Different request", sub: "another company's request", expect: "WrongRequest", check: "the request check should stop it",
+    { mode: "request", name: "(c) Different request", sub: "another company's request", expect: "WrongRequest", check: "request check",
       before: "The request of another company is swapped in. The request check should reject it: WrongRequest." },
-    { mode: "key", name: "(d) Wrong key", sub: "re-signed by a random key", expect: "WrongSigner", check: "the signer check should stop it",
+    { mode: "key", name: "(d) Wrong key", sub: "re-signed by a random key", expect: "WrongSigner", check: "signer check",
       before: "The untouched record is re-signed with a random key. The signer check should reject it: WrongSigner." },
   ];
-  const REPLAY = { mode: "replay", name: "Replay", sub: "the real record, a second time", expect: "Replayed", check: "the replay check should stop it",
+  const REPLAY = { mode: "replay", name: "Replay", sub: "the real record, a second time", expect: "Replayed", check: "replay check",
     before: "After a passed test the real record is sent for real (the one real transaction), then submitted once more. The replay check should reject it: Replayed." };
-  // The plain name of the check behind each contract answer (the help lists them in the contract's order)
-  const CHECK = { NotActive: "the order check", WrongRequest: "the request check", FutureResponse: "the date check", StaleResponse: "the freshness check",
-    Replayed: "the replay check", NotNewer: "the newer-record check", WrongSigner: "the signer check", SupplierFailed: "the supplier-failure check" };
   // durations in one style: "5 min", "4 min 58 s"
   const dur = (sec) => (sec >= 60 && sec % 60 === 0 ? `${sec / 60} min` : P.span(sec));
   // Not tested: what helps depends on why the contract refused the real record
@@ -247,7 +244,7 @@
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
   function applyTheme() {
     if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>${keysOn() ? `<kbd class="kb-k" aria-hidden="true">T</kbd>` : ""}`;
+    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>`;
     $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
   }
   function nextTheme() {
@@ -307,7 +304,7 @@
     if (cfg.contract) q.set("contract", cfg.contract);
     if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
     const dq = q.toString();
-    $("detailed-link").href = $("detailed-foot").href = detailedHref();
+    $("detailed-link").href = detailedHref();
     $("dash-link").href = (version === 1 ? "v1.html?orders=0,1" + (dq ? "&" + dq : "") : "index.html" + (dq ? "?" + dq : ""));
   }
   // Errors in plain words. This page has no Settings panel: where the shared text points there, it links the detailed
@@ -338,43 +335,36 @@
   }
   // "local Companies House key, anvil #1" -> "local Companies House test key"; the address and index live in the help
   const signerName = (a) => ((a && P.KNOWN_SIGNERS[a.toLowerCase()]) || "an Airnode key").replace(/^local (.*) key, anvil #\d+$/, "local $1 test key");
-  // the signed values, in plain words: "status active · accounts overdue no"
-  function signedValues(r) {
-    const f = P.parseFields(r.data);
-    if (!f || typeof f !== "object") return "";
-    return Object.entries(f).map(([k, v]) => `${esc(k.replace(/_/g, " "))} <b>${esc(v === true ? "yes" : v === false ? "no" : String(v))}</b>`).join(" · ");
-  }
-  const noSetupLink = () => `<a href="${detailedHref()}">attack two genuine old records in the detailed view</a>`;
+  const noSetupLink = () => `<a href="${detailedHref()}">try without one</a>`;
   // Says what the loaded record is, and what is wrong with it, before Run is pressed.
   function showRecord() {
     if (!order.info) return;
     const who = record ? describe(record) : "";
     if (order.info.state !== 0) {
-      recLine("warn", `Order #${order.id} is ${esc(P.STATE[order.info.state])}: the contract refuses every record for it (<span class="mono">NotActive</span>). <span class="sub">Pick an Active order.</span>`, `Order ${order.id} is ${P.STATE[order.info.state]}: pick an Active order.`);
+      recLine("warn", `Order #${order.id} is ${esc(P.STATE[order.info.state])} and refuses every record. Pick an Active order.`);
       return;
     }
     if (recordErr) { recLine("bad", esc(recordErr)); return; }
     if (!record) {
-      if (needRecord) recLine("warn", `Run needs a signed record first: paste it, upload the file, or get one below.${isLocal() ? "" : ` <span class="sub">No setup? ${noSetupLink()}.</span>`}`, "Run needs a signed record first.");
+      if (needRecord) recLine("warn", `Paste or upload a signed record first.${isLocal() ? "" : ` <span class="sub">Or ${noSetupLink()}.</span>`}`);
       else if (isLocal() && !ownMode) recLine("info", "No record yet.");
-      else recLine("info", `No record yet. A fresh one is one command away: $0.01 in test aUSD, valid ${dur(maxAge)} (below). No setup? ${noSetupLink()}.`, "No record yet.");
+      else recLine("info", `No record yet. <span class="sub">Or ${noSetupLink()}.</span>`);
       return;
     }
     const age = nowSec() - Number(record.timestamp);
     if (record.supplierId && String(record.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase()) {
       const k = allOrders.findIndex((o) => o.state === 0 && String(o.supplierId).toUpperCase() === String(record.supplierId).toUpperCase());
-      recLine("warn", `A record of ${who}, but this order is for <span class="mono">${esc(order.info.supplierId)}</span>. <span class="sub">Every attempt would stop at the request check.</span>
-        ${k >= 0 ? `<button type="button" class="link" data-switch="${k}">Switch to order #${k} (${esc(P.SOURCES[allOrders[k].source].name)} ${esc(allOrders[k].supplierId)})</button>` : `<span class="sub">No active order is for this company: load a record of ${esc(order.info.supplierId)}.</span>`}`,
-        "The record is for another company than this order.");
+      recLine("warn", `This record is for ${who}, not this order.
+        ${k >= 0 ? `<button type="button" class="link" data-switch="${k}">Switch to order #${k}</button>` : ""}`, "The record is for another company than this order.");
     }
     else if (sent.has(digestOf(record)))
-      recLine("info", `This record of ${who} was sent for real in block ${sent.get(digestOf(record))}. <span class="sub">${isLocal() && !ownMode ? "Press Run: a new one is signed for you." : "Load a fresh one to test again."}</span>`, "The record was sent for real.");
+      recLine("info", `Sent in block ${sent.get(digestOf(record))}. <span class="sub">${isLocal() && !ownMode ? "Run signs a new one." : "Load a fresh one to test again."}</span>`, "The record was sent for real.");
     else if (age > maxAge)
-      recLine("warn", `A record of ${who}, signed ${P.ago(age)}. <span class="sub">Too old: the contract accepts at most ${dur(maxAge)}, so every forgery would stop at the freshness check.${isLocal() && !ownMode ? " Press Run: a new one is signed for you." : " Get a fresh one below."}</span>`, "The record is too old.");
+      recLine("warn", `Too old: signed ${P.ago(age)}, the limit is ${dur(maxAge)}. <span class="sub">${isLocal() && !ownMode ? "Run signs a new one." : "Get a fresh one below."}</span>`, "The record is too old.");
     else if (maxAge - age < 60 && !(isLocal() && !ownMode))
-      recLine("warn", `A record of ${who}, signed ${P.ago(Math.max(0, age))}. <span class="sub">Fresh for ${P.span(maxAge - age)} more: run now, or get a new one.</span>`, "The record expires in less than a minute.");
+      recLine("warn", `Expires in ${P.span(maxAge - age)}: run now.`, "The record expires in less than a minute.");
     else
-      recLine("ok", `A fresh record of ${who}: ${signedValues(record)}. <span class="sub">Signed ${P.ago(Math.max(0, age))}${isLocal() && !ownMode ? " in your browser with the public local test key" : ""}, fresh for ${P.span(maxAge - age)} more.</span>`, "A fresh record is loaded.");
+      recLine("ok", `Fresh record of ${who} <span class="sub">· valid ${P.span(maxAge - age)}</span>`, "A fresh record is loaded.");
   }
   setInterval(() => { if (record && !recordErr) showRecord(); replayFresh(); }, 1000);
   $("rec-line").addEventListener("click", (e) => {
@@ -452,7 +442,7 @@
     ownMode = on;
     $("own").hidden = !on;
     $("own-toggle").setAttribute("aria-expanded", String(on));
-    $("own-toggle").textContent = on ? "Use a record signed in the browser instead" : "Use my own record instead";
+    $("own-toggle").textContent = on ? "Sign one in the browser" : "Use my own";
     if (on) { readBox(); if (focus) $("resp").focus(); } else if (isLocal() && order.info) signFresh().catch(() => {});
     showRecord(); markStale();
   }
@@ -489,7 +479,7 @@
 
   function rowHtml(row) {
     return `<li data-mode="${row.mode}"><details><summary><span class="st" aria-hidden="true"><span class="dot"></span></span>
-      <span class="nm"><b>${esc(row.name)}</b><span class="sub">${esc(row.sub)}</span></span><span class="out">${esc(row.check)}</span></summary>
+      <span class="nm"><b>${esc(row.name)}</b></span><span class="out">${esc(row.check)}</span></summary>
       <div class="more"><p>${esc(row.before)}</p></div></details></li>`;
   }
   function resetResults() {
@@ -556,10 +546,9 @@
   }
   // the plain check stays next to the contract's own error name after the run
   function outText(row, a, state) {
-    if (a.accepted) return row.mode === "asis" ? `Accepted<span>${a.clean ? "would release the next milestone payment" : "would hold the order"}</span>` : "Accepted: not stopped";
+    if (a.accepted) return row.mode === "asis" ? (a.clean ? "Accepted" : "Accepted, held") : "Accepted!";
     const name = `<span class="mono">${esc(a.err.name)}</span>`;
-    const check = CHECK[a.err.name] || "a check";
-    return row.mode === "asis" ? `Refused by ${check}${name}` : state === "pass" ? `Rejected by ${check}${name}` : `Stopped earlier, by ${check}${name}`;
+    return row.mode === "asis" ? `Refused${name}` : state === "pass" ? `Rejected${name}` : `Stopped earlier${name}`;
   }
   function moreText(row, a, state) {
     const why = a.accepted
@@ -649,7 +638,7 @@
     haveResults = true;
     if (stopped) {
       for (const row of ROWS.slice(results.length)) setRow(row.mode, "", "not asked");
-      verdict("done", "Stopped", `Stopped by you after ${results.length} of ${ROWS.length} attempts. Nothing was sent; press Run to test again.`);
+      verdict("done", "Stopped", `After ${results.length} of ${ROWS.length}. Nothing was sent.`);
       runLabel(); settleFocus();
       return;
     }
@@ -657,12 +646,12 @@
     const caught = attacks.filter((x) => !x.a.accepted).length;
     if (valid.a.accepted && caught === attacks.length) {
       lastPass = { record };
-      verdict("ok", "Passed", `Not broken: the contract accepted the real record and rejected all four forgeries. Press a row to see why.`, replayAction());
+      verdict("ok", "Passed", "All four forgeries rejected.", replayAction());
     } else if (caught === attacks.length) {
       const n = valid.a.err.name;
-      verdict("warn", "Not tested", `The contract refused the real record itself (<span class="mono">${esc(n)}</span>: ${esc(P.explain(n, valid.a.err.args))}), so the forgeries never reached their own checks. Nothing failed in the contract: ${esc(FIX[n] || "load a fresh record and run again")}.`);
+      verdict("warn", "Not tested", `The real record was refused (<span class="mono">${esc(n)}</span>): ${esc(FIX[n] || "load a fresh record and run again")}.`);
     } else {
-      verdict("bad", "Not passed", `Broken: the contract accepted ${attacks.length - caught === 1 ? "a forgery" : `${attacks.length - caught} forgeries`}: ${attacks.filter((x) => x.a.accepted).map((x) => esc(x.row.name)).join(", ")}. Open the accepted row to see what the contract returned; the <a href="${detailedHref()}">detailed view</a> shows every check.`);
+      verdict("bad", "Not passed", `Accepted: ${attacks.filter((x) => x.a.accepted).map((x) => esc(x.row.name)).join(", ")}.`);
     }
     runLabel();
     settleFocus();
@@ -678,7 +667,7 @@
   const sendLabel = () => `${P.icon("send")}Send for real, then replay${keysOn() ? `<kbd class="kb-k" aria-hidden="true">S</kbd>` : ""}`;
   function replayAction(msg = "") {
     return `<div class="next"><button type="button" class="primary" id="replay-btn" aria-keyshortcuts="S">${sendLabel()}</button>
-      <span>${isLocal() ? "Sent with the local test chain's agent key." : "MetaMask asks first; it costs a little Sepolia gas."} <span class="fresh" id="replay-fresh"></span></span>${msg ? `<span class="msg" role="status">${msg}</span>` : ""}</div>`;
+      <span class="fresh" id="replay-fresh"></span>${msg ? `<span class="msg" role="status">${msg}</span>` : ""}</div>`;
   }
   // the record behind the replay button keeps ageing: say how long it can still be sent, and stop it once it cannot
   function replayFresh() {
@@ -686,8 +675,10 @@
     if (!b || !f || !lastPass || busy) return;
     const left = maxAge - (nowSec() - Number(lastPass.record.timestamp));
     f.className = "fresh" + (left < 60 ? " warn" : "");
-    if (left > 0) f.textContent = `Record fresh for ${P.span(left)} more.`;
-    else { f.textContent = "Record expired: run again with a fresh one."; b.disabled = true; }
+    // quiet while there is time; said only when it matters
+    if (left > 60) f.textContent = "";
+    else if (left > 0) f.textContent = `Record valid ${P.span(left)}.`;
+    else { f.textContent = "Record expired: run again."; b.disabled = true; }
   }
   // armed: the second press (or S) sends; Cancel, Esc or the visible 8 s countdown put it back
   let armTimer = null;
@@ -767,7 +758,7 @@
         `<p class="what">Sent for real in block ${s.block} (${txLink(s.hash)}), then submitted once more.</p><p>${esc(a.accepted ? "The contract accepted it a second time." : P.explain(a.err.name, a.err.args))}</p>`);
       lastPass = null;
       setBusy(false); $("run").disabled = false; // the verdict is announced outside a busy region
-      if (state === "pass") verdict("ok", "Passed, replay included", `Not broken: the real record was accepted and sent once (block ${s.block}, ${txLink(s.hash)}); the four forgeries and the replay were rejected.`);
+      if (state === "pass") verdict("ok", "Passed, replay included", `Sent once in block ${s.block} (${txLink(s.hash)}); the copy was rejected.`);
       else verdict("bad", "Not passed", a.accepted ? "Broken: the contract accepted the same record twice." : `The replay was rejected, but by an earlier check (<span class="mono">${esc(a.err.name)}</span>).`);
     } catch (e) {
       setRow("replay", "", "not asked");
@@ -795,6 +786,23 @@
     if (t.id === "replay-btn") { if (armed(t)) { disarm(t); replay().catch(() => setBusy(false)); } }
     else if (t.id === "replay-cancel") { const b = $("replay-btn"); disarm(b); if (b) b.focus(); }
   });
+
+  // ---------------------------------------------------------------- the guide: the page, one step at a time
+
+  function guideSteps() {
+    return [
+      { title: "Try to break it", text: "The contract pays a supplier only on a fresh company-register record (Companies House or GLEIF) signed by API3's Airnode. Here you forge that record four ways. A sound contract refuses every forgery and accepts only the real record." },
+      { el: ".view-switch", title: "Simple or Detailed", text: "Simple runs the whole test in one click. Detailed adds attacks with genuine old records, every check per attempt, a scoreboard and the judge kit." },
+      { el: "#ctx", title: "The live contract", text: "Every answer comes from this contract. Each attempt is an <span class=\"mono\">eth_call</span> simulation from <span class=\"mono\">0x…dEaD</span>: nothing is sent, no wallet, no gas." },
+      { el: "#order", title: "Pick an order", text: "A purchase order pays its supplier milestone by milestone. The record must be about this order's supplier; a held or closed order refuses every record." },
+      { el: "#rec-card", title: "The signed record", text: isLocal() ? "On the local test chain a fresh record is signed for you with a public test key. <b>Use my own</b> lets you paste one instead." : `Paste, upload or drop a record from <span class="mono">fetch-evidence.sh</span> ($0.01 in test aUSD, valid ${dur(maxAge)}). No record? <b>Try without one</b> attacks two genuine old records in the detailed view.` },
+      { el: "#run", title: "Run the test", text: "One click asks the contract about the real record and four forgeries: (a) one signed value edited, (b) dated an hour earlier, (c) another company's request, (d) re-signed by a random key. Key: <kbd>R</kbd>; <kbd>Esc</kbd> stops." },
+      { el: "#rows", title: "Read the result", text: "Each row is the contract's own answer, with its error name. Green means it behaved as it should. Open a row for the exact change and the reason; <b>Copy result</b> copies all of it." },
+      { el: () => $("replay-btn") || $("rows").querySelector('li[data-mode="replay"]'), title: "Then the replay", text: "After a pass, send the real record once for real (the only transaction), then submit it again: the contract must refuse the copy. On the local chain the button asks twice." },
+      { el: "#help", title: "More", text: "<b>How the contract decides</b> lists every check in order and which forgery it stops. Keys: <kbd>R</kbd> run, <kbd>S</kbd> send, <kbd>?</kbd> help, <kbd>T</kbd> theme; you can switch them off there." },
+    ];
+  }
+  $("guide-btn").addEventListener("click", () => P.tour(guideSteps(), { returnTo: $("guide-btn") }));
 
   // ---------------------------------------------------------------- keys: R run, Esc stop, S send and replay, ? help, T theme
 
@@ -860,7 +868,7 @@
     catch { version = 1; contract = new ethers.Contract(cfg.contract, P.ABI_V1, provider); iface = contract.interface; }
     maxAge = Number(await contract.maxAge());
     const contractLink = explorer ? `<a class="mono" href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">${short(cfg.contract)}</a>` : `<span class="mono">${short(cfg.contract)}</span>`;
-    $("ctx").innerHTML = `<span class="live-dot"></span>Live on <b>${esc(P.NETWORKS[chainId] || `chain ${chainId}`)}</b> · ${version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1"} ${contractLink}`;
+    $("ctx").innerHTML = `<span class="live-dot"></span><b>${esc(P.NETWORKS[chainId] || `chain ${chainId}`)}</b> · ${contractLink}`;
     $("local-acts").hidden = !isLocal();
     $("own").hidden = isLocal();
     ownMode = !isLocal();
