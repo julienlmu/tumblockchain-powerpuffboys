@@ -336,8 +336,8 @@
     header { gap: var(--s2) var(--s5); }
     .meta-row { margin-top: var(--s2); }
     .meta { line-height: 1.4; }
-    #theme-btn .pre { display: none; }
-    #theme-btn .val { text-transform: capitalize; }
+    #theme-btn .lbl, #guide-btn .lbl { display: none; } /* phones: icon buttons, named by aria-label */
+    #theme-btn, #guide-btn { padding: 6px 9px; }
   }
 </style>
 </head>
@@ -350,6 +350,7 @@
     </div>
     <div class="head-links">
       <div class="view-switch" role="group" aria-label="View"><button type="button" data-view="simple" aria-pressed="false">Simple</button><button type="button" data-view="detailed" aria-pressed="false">Detailed</button></div>
+      <button type="button" id="guide-btn" data-icon="info" aria-label="Guide: a short walk through this page"><span class="lbl">Guide</span></button>
       <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
       <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl"><span class="pre">Theme: </span><span class="val">auto</span></span></button>
     </div>
@@ -368,10 +369,11 @@
         <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (<button type="button" class="link-order show-detailed" data-show="details-box">Contract details</button>: max age), and only once.</dd>
         <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (<button type="button" class="link-order show-detailed" data-show="details-box">Contract details</button>: trusted signers).</dd>
         <dt>Rules</dt><dd>The register status check always runs; per order the buyer can add accounts filed, confirmation statement filed or LEI registration issued.</dd>
-        <dt id="g-stop" tabindex="-1">Payments stopped, supplier-wide</dt><dd>A failed register status on any order stops payments on every order of that supplier. Held: the money is locked for the buyer, who can refund at once. Not held yet: the agent holds the order on its next pass, without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
+        <dt id="g-stop" tabindex="-1">Payments stopped, supplier-wide</dt><dd>A failed register status on any order stops payments on every order of that supplier: no permit from before the failure can pay. Held: the money is locked for the buyer, who can refund at once. Not held yet: the agent holds the order on its next pass, without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
         <dt id="g-grace" tabindex="-1">Grace period, no-data exit</dt><dd>After a hold the buyer can refund at once, and anyone can once the grace period passed. When an approved milestone is overdue and no valid record came within the grace period (the no-data exit), anyone can send the rest back to the buyer. The money only ever goes to the buyer.</dd>
         <dt id="g-tiers" tabindex="-1">Verification history</dt><dd>Standard (0 to 2 clean checks in a row), Trusted (3 to 5), Premium (6 or more). Only the register status counts, at most once per tier gap; a failed status resets it to 0. A tier only changes how often the agent re-checks between due dates. It is not a credit score.</dd>
         <dt id="g-unit" tabindex="-1">Tokens</dt><dd id="g-unit-text"></dd>
+        <dt id="g-balance" tabindex="-1">Protected balance, bar</dt><dd>The big number on a card is the money still locked in the contract for that order. It goes to the supplier milestone by milestone, or back to the buyer, never anywhere else. The bar shows the paid part in green; Detailed adds "Paid n of total".</dd>
         <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
       </dl>
       <p id="g-keys" tabindex="-1"><button type="button" role="switch" class="keys-toggle" id="keys-toggle" aria-checked="true">Single-key shortcuts <span class="state" aria-hidden="true">on</span></button>Turn them off for speech input or if keys fire by accident (Esc and Enter keep working). Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide (back to what opened it), or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
@@ -738,7 +740,7 @@
   const STATES = {
     ok: { cls: "ok", icon: "check", label: "Eligible to pay", def: "A fresh record passed every rule." },
     rule: { cls: "hold", icon: "x", label: "Payments stopped", def: "A genuine record failed a rule, on this order or on another order of the same supplier." },
-    nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid record since the due date." },
+    nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid record since the due date. Nothing bad is known about the supplier, only no proof." },
     pending: { cls: "muted", icon: "search", label: "Awaiting check", def: "No valid payment permit yet." },
     paid: { cls: "ok", icon: "shield", label: "Fully paid", def: "Every milestone was paid." },
     closed: { cls: "done", icon: "refund", label: "Refunded", def: "Closed: the rest went back to the buyer." },
@@ -1464,9 +1466,9 @@
   // ---------------------------------------------------------------- the guide ("How this page works")
 
   const DO = {
-    ok: `Approve the next milestone once its work is delivered: “Approve milestone <i>n</i> (script)” on the card (under the next step in Simple, under the milestone in Detailed) holds the exact <span class="mono">api3/scripts/plus-approve.sh</span> command, numbers filled in, with Copy. The agent pays it when it is due.`,
+    ok: `Approve the next milestone once its work is delivered: in the Detailed view, “Approve milestone <i>n</i> (script)” under the milestone holds the exact <span class="mono">api3/scripts/plus-approve.sh</span> command, numbers filled in, with Copy. The agent pays it when it is due.`,
     rule: "Once the order is held: refund the rest from the buyer's wallet now, or let anyone (the agent) do it after the grace period. An order not held yet is held by the agent on its next pass, without a new paid check.",
-    nodata: "Wait for the grace period; then anyone can send the rest back to you. Nothing bad is known about the supplier.",
+    nodata: "Wait for the grace period; then anyone can send the rest back to you.",
     pending: "Nothing: the agent fetches a fresh record before the due date.",
     paid: "Nothing.",
     closed: "Nothing; the audit trail shows who triggered the refund.",
@@ -1538,6 +1540,33 @@
     sum.focus({ preventScroll: true });
   }
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-show]"); if (b) showInDetailed(b.dataset.show, b); });
+  // ---------------------------------------------------------------- starter guide (the Guide button)
+
+  // A short walk through the page (P.tour, common.js): one or two sentences per step. Steps whose element the current
+  // view hides are skipped (filters, milestones in Simple); the long text stays in "How this page works".
+  const visibleIn = (sel) => [...document.querySelectorAll(sel)].find((e) => e.getClientRects().length) || null;
+  function tourSteps() {
+    return [
+      { title: "Orders that pay only on proof", text: "Each card is a purchase order. Its money stays locked in a contract, and a milestone pays only after a fresh register check of the supplier, signed by API3's Airnode." },
+      { el: ".view-switch", title: "Simple or Detailed", text: "Simple shows each order's state and money. Detailed adds filters, search, milestones, the audit trail and the contract's settings." },
+      { el: "#agent", title: "The agent", text: "An agent buys each signed record ($0.01 over x402), submits it, and pays or holds milestones on its own. Its latest transaction is here." },
+      { el: () => visibleIn("#orders article.card"), title: "One order", text: "The badge is its state (click it for what that means). The big number is the money still protected; the bar shows how much is paid." },
+      { el: () => { const b = visibleIn("#orders [data-claim]"); return b ? b.closest(".held-box") : null; }, title: "Refund", text: "After a failed check, or when no data came, the money can only go back to the buyer: the buyer at once, anyone after the grace period. The button asks once more before the wallet signs." },
+      { el: "#states", title: "Filter and find", text: "Filter by state (keys <kbd>1</kbd>–<kbd>6</kbd>), find an order by name or supplier id, or sort the ones that need action first." },
+      { el: () => visibleIn("#orders ol.ms"), title: "Milestones and Details", text: "Each milestone shows its permit, the buyer's approval and its due date, with the approve script. Details hold the rules, the last record and the audit trail." },
+      { el: "#judge-link", title: "Try to break it", text: "Forge a signed record four ways and watch the contract refuse each one. Nothing is sent." },
+      { el: view === "detailed" ? "#guide > summary" : undefined, title: "Reference and keys", text: `Every state and term: <button type="button" class="link-order" data-ref>How this page works</button> (key <kbd>?</kbd>). Keys: <kbd>S</kbd> / <kbd>D</kbd> view, <kbd>J</kbd> / <kbd>K</kbd> next order, <kbd>T</kbd> theme; you can switch them off there.` },
+    ];
+  }
+  $("guide-btn").addEventListener("click", () => P.tour(tourSteps(), { returnTo: $("guide-btn") }));
+  // "How this page works" inside the last step: the walk ends, the reference opens (and returns to Guide on close)
+  document.addEventListener("click", (e) => {
+    if (!(e.target.closest && e.target.closest(".tour-card [data-ref]"))) return;
+    const end = document.querySelector('.tour-card [data-tour="end"]');
+    if (end) end.click();
+    openGuide(null, $("guide-btn"));
+  });
+
   // ---------------------------------------------------------------- help at the term (a bubble)
 
   // A term or badge outside the guide shows its entry right where it is: a small popover cloned from the guide's own
