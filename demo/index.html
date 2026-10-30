@@ -12,104 +12,146 @@
 <script src="common.js"></script>
 <script src="sample/sample.js"></script>
 <link rel="stylesheet" href="base.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232457d6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <style>
   /* the three verification states, also a filter */
-  .states { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 18px; }
-  .state-btn { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
-  .state-btn:hover { border-color: var(--muted); }
-  .state-btn.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  .state-btn .top { display: flex; align-items: baseline; gap: 10px; }
-  .state-btn .count { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .state-btn .def { color: var(--muted); font-size: 12px; line-height: 1.4; }
-  .states .rest { color: var(--muted); font-size: 13px; align-self: center; }
-  .link-order { font: inherit; background: none; border: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; }
+  .states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--s3); margin-top: var(--s5); align-items: stretch; }
+  .state-btn { font: inherit; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: var(--s1); padding: var(--s3) var(--s4); min-height: 0; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .state-btn:hover { border-color: var(--line-strong); background: var(--card); }
+  .state-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .state-btn .top { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+  .state-btn .count { font-size: var(--t3); font-weight: 700; line-height: 1; }
+  .state-btn .def { color: var(--muted); font-size: var(--t-1); line-height: 1.4; font-weight: 400; text-wrap: pretty; }
+  .states .rest { color: var(--muted); font-size: var(--t-1); align-self: center; display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+  .link-order { font: inherit; background: none; border: none; padding: 0; min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline; }
+  .link-order:hover { background: none; color: var(--text); }
 
   /* agent panel */
-  .agent { margin-top: 18px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; }
-  .agent-head { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; justify-content: space-between; }
-  .agent-head h2 { margin: 0; font-size: 16px; }
-  .agent-head .sub { color: var(--muted); font-size: 13px; }
-  .agent ol { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
-  .agent li { display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); align-items: baseline; }
+  .agent { margin-top: var(--s4); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); }
+  .agent-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; justify-content: space-between; }
+  .agent-head h2 { margin: 0; font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: center; }
+  .agent-head .sub { color: var(--muted); font-size: var(--t-1); }
+  .agent ol { list-style: none; margin: var(--s2) 0 0; padding: 0; font-size: var(--t-1); }
+  .agent li { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: var(--s3); padding: 6px 0; border-top: 1px solid var(--line); align-items: baseline; }
   .agent li:first-child { border-top: none; }
-  .agent .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .agent .t { color: var(--muted); }
+  .agent details > summary { margin-top: var(--s1); }
+  .flow { display: inline; }
+  .flow .i { width: 0.95em; height: 0.95em; color: var(--muted); margin: 0 3px; }
 
   /* order cards */
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; margin-top: 20px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-  .card.is-held { border-color: var(--hold); box-shadow: 0 0 0 1px var(--hold); }
-  .card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-  .card-head h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
-  .card-head .sub { color: var(--muted); font-size: 13px; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
-  .badge { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s4); align-items: start; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; scroll-margin-top: var(--s4); }
+  .card.is-held { border-color: color-mix(in srgb, var(--hold) 70%, transparent); }
+  .card.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .card-head { display: flex; justify-content: space-between; gap: var(--s3); align-items: flex-start; }
+  .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .card-head h2 .id { color: var(--muted); font-weight: 500; margin-right: 6px; }
+  .card-head .sub { color: var(--muted); font-size: var(--t-1); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px var(--s2); align-items: center; }
+  .badge { flex: none; display: inline-flex; gap: 5px; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: var(--t-1); font-weight: 600; white-space: nowrap; }
   .ok { color: var(--ok); background: var(--ok-bg); }
   .hold { color: var(--hold); background: var(--hold-bg); }
   .wait { color: var(--wait); background: var(--wait-bg); }
   .done { color: var(--done); background: var(--done-bg); }
   .muted { color: var(--muted); background: var(--done-bg); }
   .info { color: var(--accent); background: var(--accent-bg); }
-  .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 6px; color: var(--accent); background: var(--accent-bg); }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
-  .chip.rule { color: var(--text); background: transparent; border: 1px solid var(--line); }
+  .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: var(--r-sm); color: var(--accent); background: var(--accent-bg); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--s1) 6px; }
+  .chip { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; padding: 1px 7px; border-radius: var(--r-sm); white-space: nowrap; }
   .chip.agent { color: var(--sample); background: var(--sample-bg); font-weight: 600; }
-  .hero { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; }
-  .hero .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
-  .hero .big { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-  .hero .small { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .hero .unit { font-size: 0.5em; color: var(--muted); font-weight: 600; margin-left: 5px; }
-  .bar { height: 8px; border-radius: 999px; background: var(--done-bg); overflow: hidden; display: flex; }
+
+  .hero { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s5); align-items: flex-end; justify-content: space-between; }
+  .hero .label { color: var(--muted); font-size: var(--t-1); }
+  .hero .big { font-size: var(--t4); font-weight: 700; line-height: 1.1; letter-spacing: -0.015em; }
+  .hero .paid { font-size: var(--t-1); color: var(--muted); text-align: right; }
+  .hero .paid b { color: var(--text); font-weight: 600; font-size: var(--t0); }
+  .hero .unit { font-size: var(--t0); color: var(--muted); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+  .bar { height: 6px; border-radius: 999px; background: var(--done-bg); overflow: hidden; display: flex; margin-top: calc(-1 * var(--s1)); }
   .bar span { display: block; height: 100%; }
   .bar .p { background: var(--ok); } .bar .r { background: var(--accent); opacity: 0.35; } .bar .h { background: var(--hold); opacity: 0.55; } .bar .x { background: var(--done); opacity: 0.4; }
 
-  .held-box { border-radius: 12px; padding: 12px 14px; background: var(--hold-bg); color: var(--hold); display: flex; flex-direction: column; gap: 8px; }
-  .held-box b { font-size: 15px; }
-  .held-box .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .held-box .cmd { font-family: var(--mono); font-size: 12px; background: var(--card); color: var(--text); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
-  .msg { font-size: 12px; }
-  .closed-box { border-radius: 12px; padding: 10px 14px; background: var(--done-bg); color: var(--done); font-weight: 600; }
+  .next-step { padding: var(--s2) var(--s3); border-radius: var(--r-md); font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; }
+  .next-step .i { margin-top: 0.15em; }
 
-  ol.ms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  ol.ms li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); }
+  /* supplier-wide stop: one strip, same look on the order that caused it and on the orders it stops */
+  .stop-strip { border: 1px solid color-mix(in srgb, var(--hold) 55%, transparent); border-radius: var(--r-md); padding: var(--s2) var(--s3); display: flex; flex-direction: column; gap: var(--s1); font-size: var(--t-1); }
+  .stop-strip .head { display: flex; gap: 6px; align-items: center; color: var(--hold); font-weight: 600; font-size: var(--t0); }
+  .stop-strip .orders { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); align-items: center; }
+  .order-chip { font: 600 var(--t-1)/1.2 var(--sans); min-height: 30px; padding: 4px 10px; border-radius: 999px; color: var(--hold); background: var(--hold-bg); border: 1px solid color-mix(in srgb, var(--hold) 40%, transparent); }
+  .order-chip:hover { border-color: var(--hold); background: var(--hold-bg); }
+  .stop-strip .note { color: var(--muted); }
+
+  .held-box { border-radius: var(--r-md); padding: var(--s3); background: var(--hold-bg); color: var(--hold); display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t-1); }
+  .held-box.nodata { background: var(--wait-bg); color: var(--wait); }
+  .held-box .title { font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: flex-start; }
+  .held-box .title .i { margin-top: 0.2em; }
+  .held-box p { margin: 0; color: var(--text); }
+  .held-box .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  .held-box .cmd { font-family: var(--mono); font-size: 12px; background: var(--card); color: var(--text); padding: 4px 8px; border-radius: var(--r-sm); overflow-wrap: anywhere; }
+  .held-box .why-off { color: var(--muted); font-size: 12px; }
+  .msg { font-size: var(--t-1); color: var(--text); }
+  .closed-box { border-radius: var(--r-md); padding: var(--s2) var(--s3); background: var(--done-bg); color: var(--done); font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; }
+  .closed-box .i { margin-top: 0.15em; }
+
+  ol.ms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s1); }
+  ol.ms li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s2); align-items: start; padding: 6px var(--s2); border-radius: var(--r-md); border: 1px solid var(--line); }
   ol.ms li.next { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   ol.ms li.paid { background: var(--ok-bg); border-color: transparent; }
   ol.ms li.held { background: var(--hold-bg); border-color: transparent; }
   ol.ms li.refunded { background: var(--done-bg); border-color: transparent; }
-  .ms .n { font-weight: 700; color: var(--muted); font-size: 13px; padding-top: 1px; }
-  .ms .line1 { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
-  .ms .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
-  .ms .due { color: var(--muted); font-size: 12px; }
-  .ms .chips { margin-top: 5px; }
+  .ms .st { padding-top: 1px; color: var(--muted); }
+  .ms li.paid .st { color: var(--ok); } .ms li.held .st { color: var(--hold); } .ms li.next .st { color: var(--accent); }
+  .ms .line1 { display: flex; flex-wrap: wrap; gap: 0 var(--s2); align-items: baseline; font-size: var(--t-1); }
+  .ms .n { font-weight: 600; color: var(--muted); }
+  .ms .amt { font-weight: 600; color: var(--text); }
+  .ms .due { color: var(--muted); }
+  .ms .line2 { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 var(--s2); }
+  .ms .line2 .ok, .ms .line2 .wait, .ms .line2 .hold, .ms .line2 .info, .ms .line2 .done { background: none; font-weight: 600; }
 
-  table.rows { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.rows th { text-align: left; font-weight: 500; color: var(--muted); padding: 7px 12px 7px 0; vertical-align: top; width: 34%; }
-  table.rows td { padding: 7px 0; vertical-align: top; overflow-wrap: anywhere; }
-  table.rows tr + tr th, table.rows tr + tr td { border-top: 1px solid var(--line); }
-  .tier { font-weight: 700; padding: 2px 9px; border-radius: 999px; font-size: 13px; }
+  dl.facts { margin: 0; display: grid; grid-template-columns: minmax(110px, 34%) minmax(0, 1fr); font-size: var(--t-1); }
+  dl.facts dt { color: var(--muted); padding: 6px var(--s3) 6px 0; border-top: 1px solid var(--line); }
+  dl.facts dd { margin: 0; padding: 6px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+  dl.facts dt:first-of-type, dl.facts dt:first-of-type + dd { border-top: none; }
+  .tier { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; padding: 1px 8px; border-radius: 999px; font-size: 12px; }
   .tier.t0 { color: var(--done); background: var(--done-bg); }
   .tier.t1 { color: var(--accent); background: var(--accent-bg); }
   .tier.t2 { color: var(--gold); background: var(--gold-bg); }
   .small-muted { color: var(--muted); font-size: 12px; }
-  .next-step { padding: 10px 12px; border-radius: 10px; font-weight: 600; font-size: 14px; }
+  .good { color: var(--ok); font-weight: 600; } .bad { color: var(--hold); font-weight: 600; } .late { color: var(--wait); font-weight: 600; }
+  details.inline > summary { display: inline; font-size: 12px; }
+  details.inline[open] > summary { margin-bottom: 2px; }
 
-  details.trail { border-top: 1px solid var(--line); padding-top: 10px; }
-  ol.trail { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
-  ol.trail li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line); }
+  details.trail { border-top: 1px solid var(--line); padding-top: var(--s2); }
+  ol.trail { list-style: none; margin: var(--s2) 0 0; padding: 0; font-size: var(--t-1); }
+  ol.trail li { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--line); }
   ol.trail li:first-child { border-top: none; }
-  ol.trail .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+  ol.trail .t { color: var(--muted); }
   ol.trail .ev-ok { color: var(--ok); font-weight: 600; }
   ol.trail .ev-hold { color: var(--hold); font-weight: 600; }
-  .evd { margin-top: 4px; padding: 6px 8px; border-radius: 8px; background: var(--bg); font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
+  .evd { margin-top: var(--s1); padding: 6px var(--s2); border-radius: var(--r-sm); background: var(--bg); font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
   .evd code { overflow-wrap: anywhere; }
-  .evd.by-agent { box-shadow: inset 3px 0 0 var(--sample); }
+  .empty-state { grid-column: 1 / -1; padding: var(--s6) var(--s4); border: 1px dashed var(--line-strong); border-radius: var(--r-lg); color: var(--muted); text-align: center; display: flex; flex-direction: column; gap: var(--s2); align-items: center; }
+  .empty-state b { color: var(--text); font-size: var(--t0); }
+  .skeleton { height: 420px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); }
 
-  footer { margin-top: 28px; color: var(--muted); font-size: 13px; max-width: 780px; }
-  @media (max-width: 460px) {
-    .grid { grid-template-columns: 1fr; }
-    .hero .big { font-size: 30px; }
-    .card { padding: 16px; }
-    table.rows th { width: 38%; }
-    .agent li { grid-template-columns: 60px 1fr; }
+  footer { margin-top: var(--s6); color: var(--muted); font-size: var(--t-1); max-width: 72ch; text-wrap: pretty; }
+  @media (max-width: 1000px) {
+    .states { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .states .rest { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; gap: var(--s1) var(--s3); }
+  }
+  @media (max-width: 640px) {
+    .states { grid-template-columns: 1fr; }
+    .hero .big { font-size: var(--t3); }
+    .card { padding: var(--s3); }
+    dl.facts { grid-template-columns: 1fr; }
+    dl.facts dt { padding-bottom: 0; }
+    dl.facts dd { border-top: none; padding-top: 2px; }
+    .agent li { grid-template-columns: 60px minmax(0, 1fr); }
     .agent li .lnk { grid-column: 2; }
   }
 </style>
@@ -118,37 +160,37 @@
 <div class="wrap">
   <header>
     <div>
-      <h1>SupplierPulse<small>+</small></h1>
+      <h1>SupplierPulse<span class="plus">+</span></h1>
       <p class="tagline">Your supplier was approved last month. That should not approve today's payment. Every milestone below pays only with a fresh, signed register record the contract checked first.</p>
     </div>
     <div class="head-links">
-      <a class="btn" id="judge-link" href="judge.html">Try to break it →</a>
-      <button type="button" id="theme-btn" title="Switch light / dark">◐ Theme</button>
+      <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
+      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
     </div>
   </header>
   <div class="meta" id="meta"></div>
-  <div id="banner"></div>
+  <div id="banner" role="status" aria-live="polite"></div>
   <details class="cfg-box" id="cfg-box">
     <summary>Settings: contract, network, orders, agent</summary>
     <form class="cfg" id="cfg">
-      <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false"></label>
-      <label>RPC URL<input name="rpc" spellcheck="false"></label>
-      <label>Order IDs (empty = all)<input name="orders" placeholder="0,1,2"></label>
-      <label>Agent address to highlight<input name="agent" placeholder="default: the team's agent wallet" spellcheck="false"></label>
-      <label>Events from block (deploy block)<input name="from" placeholder="default: last 9000 blocks"></label>
-      <label>Wei per token<input name="unit" placeholder="1000000000000"></label>
-      <label>Order names (comma-separated, matched to orderRef)<input name="names" placeholder="PO-2001 Bearings"></label>
-      <div class="btns"><button class="primary" type="submit">Load</button><button type="button" id="sample-btn">Sample data</button></div>
+      <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
+      <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
+      <label>Order IDs (empty = all)<input name="orders" placeholder="0,1,2…" autocomplete="off"></label>
+      <label>Agent address to highlight<input name="agent" placeholder="default: the team's agent wallet" spellcheck="false" autocomplete="off"></label>
+      <label>Events from block (deploy block)<input name="from" placeholder="default: last 9000 blocks" inputmode="numeric" autocomplete="off"></label>
+      <label>Wei per token<input name="unit" placeholder="1000000000000" inputmode="numeric" autocomplete="off"></label>
+      <label>Order names (comma-separated, matched to orderRef)<input name="names" placeholder="PO-2001 Bearings, …" autocomplete="off"></label>
+      <div class="btns"><button class="primary" type="submit">Load contract</button><button type="button" id="sample-btn">Show sample data</button></div>
     </form>
   </details>
-  <div class="states" id="states"></div>
-  <section class="agent" id="agent"></section>
-  <div class="grid" id="orders"></div>
+  <div class="states" id="states" role="group" aria-label="Filter orders by verification state"></div>
+  <section class="agent" id="agent" aria-label="Agent activity"></section>
+  <div class="grid" id="orders" aria-live="off"><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
   <footer>
     A signature proves the register said it, not that the supplier will deliver. Delivery stays the buyer's approval:
     each milestone needs both a valid permit from a fresh signed record and the buyer's approval.
     Signed records come from API3 AirnodeHub (Companies House, GLEIF); the contract checks signer, request, freshness and replay before acting.
-    <br>v1 screen: <a href="v1.html">v1.html</a> · Judges: <a href="judge.html" id="judge-link2">try to break it</a>.
+    <br>v1 screen: <a href="v1.html">v1.html</a>. Judges: <a href="judge.html" id="judge-link2">try to break it</a>.
   </footer>
 </div>
 
@@ -185,8 +227,10 @@
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
   function applyTheme() {
     if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-    $("theme-btn").textContent = `◐ ${theme[0].toUpperCase()}${theme.slice(1)}`;
+    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>`;
+    $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
   }
+  P.hydrateIcons();
   $("theme-btn").addEventListener("click", () => {
     theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
     try { localStorage.setItem("pulse-theme", theme); } catch { /* storage blocked */ }
@@ -227,6 +271,8 @@
   const cd = (ts, done = "now") => `<span class="cd" data-until="${ts}" data-done="${esc(done)}">${cdText(ts, done)}</span>`;
   const since = (ts) => `<span class="since" data-since="${ts}">${ago(nowSec() - ts)}</span>`;
   const chip = (cls, text) => `<span class="chip ${cls}">${text}</span>`;
+  const I = P.icon;
+  const arrow = `<span class="flow">${I("arrow-right")}</span>`; // "leads to", in agent and history lines
   const tierBadge = (t) => `<span class="tier t${t}">${P.TIERS[t] || "?"}</span>`;
 
   // UI state that must survive re-renders: open audit trails and claim messages.
@@ -261,23 +307,24 @@
 
   function milestoneView(o, i) {
     const now = nowSec(), due = o.dueDates[i];
-    let cls = "", chips = [];
-    if (i < o.next) { cls = "paid"; chips.push(chip("ok", "paid ✓")); }
-    else if (o.state === 1) { cls = "held"; chips.push(chip("hold", "held 🔒")); }
-    else if (o.state === 2) { cls = "refunded"; chips.push(chip("done", "refunded to the buyer")); }
+    let cls = "", ic = "clock", parts = [];
+    const word = (c, t) => `<span class="${c}">${t}</span>`;
+    if (i < o.next) { cls = "paid"; ic = "check"; parts.push(word("ok", "Paid")); }
+    else if (o.state === 1) { cls = "held"; ic = "lock"; parts.push(word("hold", "Held")); }
+    else if (o.state === 2) { cls = "refunded"; ic = "refund"; parts.push(word("done", "Refunded to the buyer")); }
     else {
       if (i === o.next) {
         cls = "next";
-        if (permitValid(o)) chips.push(chip("ok", `permit valid until ${clock(o.permitValidUntil)} · ${cd(o.permitValidUntil, "expired")} left`));
-        else if (o.permitValidUntil > 0) chips.push(chip("wait", "permit expired: needs a fresh record"));
-        else chips.push(chip("muted", "no permit yet"));
-      }
-      chips.push(o.approved[i] ? chip("info", "approved by buyer") : chip("wait", "awaiting approval"));
-      chips.push(due > now ? chip("muted", `not due yet · in ${cd(due)}`) : chip("muted", "due"));
+        if (permitValid(o)) parts.push(word("ok", `Permit valid until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`));
+        else if (o.permitValidUntil > 0) parts.push(word("wait", "Permit expired: needs a fresh record"));
+        else parts.push("No permit yet");
+      } else ic = "minus";
+      parts.push(o.approved[i] ? "approved by buyer" : word("wait", "awaiting approval"));
+      parts.push(due > now ? `not due yet, in ${cd(due)}` : "due");
     }
-    return `<li class="${cls}"><span class="n">M${i + 1}</span><div>
-      <div class="line1"><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
-      <div class="chips">${chips.join("")}</div></div></li>`;
+    return `<li class="${cls}"><span class="st">${I(ic)}</span><div>
+      <div class="line1"><span class="n">M${i + 1}</span><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
+      <div class="line2">${parts.map((x) => `<span>${x}</span>`).join("")}</div></div></li>`;
   }
 
   function nextStep(o, total) {
@@ -305,8 +352,8 @@
         const raw = a.raw != null ? a.raw : (() => { try { return ethers.toUtf8String(a.data); } catch { return a.data; } })();
         return {
           cls: a.clean ? "ev-ok" : "ev-hold",
-          text: a.clean ? "Signed register record accepted: clean ✓" : `Signed register record accepted: failed (${labels.join(", ")})`,
-          detail: `<div class="evd${isAgent(a.submitter) ? " by-agent" : ""}">
+          text: a.clean ? `${I("check")} Signed register record accepted: clean` : `${I("x")} Signed register record accepted: failed (${labels.join(", ")})`,
+          detail: `<div class="evd">
             <div>signed data <code>${esc(raw)}</code></div>
             <div>signed at ${dayClock(a.timestamp)} · digest <span class="mono" title="${esc(a.digest)}">${short(a.digest)}</span></div>
             <div>submitted by ${addr(a.submitter)} ${isAgent(a.submitter) ? chip("agent", "agent") : ""}</div></div>`,
@@ -316,7 +363,7 @@
       case "MilestonePaid": return { cls: "ev-ok", text: `Milestone ${Number(a.milestone) + 1} paid: ${tok(a.amount)} tokens to the supplier` };
       case "OrderHeld": return { cls: "ev-hold", text: `Order held: ${P.failedLabels(src, a.failedRules).join(", ")}. ${tok(a.remaining)} tokens protected; anyone can trigger the refund from ${dayClock(a.autoRefundAt)}` };
       case "OrderRefunded": return { text: `${tok(a.amount)} tokens refunded to the buyer${a.noDataExit ? " (no-data exit)" : ""}, triggered by ${isAgent(a.triggeredBy) ? "the agent" : a.triggeredBy && o.info.buyer && a.triggeredBy.toLowerCase() === o.info.buyer.toLowerCase() ? "the buyer" : addr(a.triggeredBy)}` };
-      case "TierChanged": return { text: `Verification history ${P.TIERS[Number(a.oldTier)]} → ${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
+      case "TierChanged": return { text: `Verification history ${P.TIERS[Number(a.oldTier)]}${arrow}${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
       default: return { text: e.name };
     }
   }
@@ -327,12 +374,12 @@
 
   // The three states the buyer reads first: eligible, rule failed, no data. The rest are waiting or closed.
   const STATES = {
-    ok: { cls: "ok", label: "Eligible", def: "A fresh signed record passed every rule. The payment permit is valid." },
-    rule: { cls: "hold", label: "Rule failed", def: "A genuine record failed the buyer's rules, on this order or another order of the same supplier. Payments stop; the balance stays protected for the buyer." },
-    nodata: { cls: "wait", label: "No data", def: "No valid signed record since the due date. Says nothing bad about the supplier. The buyer gets the money back after the grace period." },
-    pending: { cls: "muted", label: "Awaiting check" },
-    paid: { cls: "ok", label: "Fully paid" },
-    closed: { cls: "done", label: "Refunded" },
+    ok: { cls: "ok", icon: "check", label: "Eligible", def: "A fresh signed record passed every rule. The payment permit is valid." },
+    rule: { cls: "hold", icon: "x", label: "Rule failed", def: "A genuine record failed the buyer's rules, on this order or another order of the same supplier. Payments stop; the balance stays protected for the buyer." },
+    nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid signed record since the due date. Says nothing bad about the supplier. The buyer gets the money back after the grace period." },
+    pending: { cls: "muted", icon: "clock", label: "Awaiting check" },
+    paid: { cls: "ok", icon: "check", label: "Fully paid" },
+    closed: { cls: "done", icon: "refund", label: "Refunded" },
   };
   const totalOf = (o) => o.amounts.reduce((x, y) => x + y, 0n);
   const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2;
@@ -354,8 +401,9 @@
       || same.find((x) => x.state === 1 && (x.lastFailedRules & P.BASE_FAILED)) || null;
   }
   const orderName = (o) => `#${o.id} ${esc(orderTitle(o) || "Order " + short(o.info.orderRef))}`;
-  const orderLink = (o) => `<button type="button" class="link-order" data-goto="${o.id}">${orderName(o)}</button>`;
+  const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}${orderName(o)}</button>`;
 
+  // Card order, top to bottom: state, protected balance, supplier-wide stop, next step or hold, milestones, facts, audit trail.
   function renderOrder(o, env, ctx) {
     const s = P.SOURCES[o.info.source] || { badge: "?", name: "unknown", registerUrl: () => "#" };
     const total = o.amounts.reduce((x, y) => x + y, 0n);
@@ -363,104 +411,118 @@
     const held = o.state === 1, closed = o.state === 2, refunded = closed && o.paid < total;
 
     const vs = STATES[stateOf(o)];
-    const badge = [vs.cls, vs.label + (held ? " · held 🔒" : "")];
+    const badge = `<span class="badge ${vs.cls}">${I(held ? "lock" : vs.icon)}${vs.label}${held ? ", held" : ""}</span>`;
     const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
-    const bar = `<div class="bar" title="paid / ${held ? "held" : refunded ? "refunded" : "remaining"}">
+    const restWord = held ? "held" : refunded ? "refunded" : "remaining";
+    const bar = `<div class="bar" role="img" aria-label="${tok(o.paid)} of ${tok(total)} tokens paid, ${tok(total - o.paid)} ${restWord}" title="paid / ${restWord}">
       <span class="p" style="width:${pct(o.paid)}%"></span><span class="${held ? "h" : refunded ? "x" : "r"}" style="width:${pct(total - o.paid)}%"></span></div>`;
 
-    // §2.4a: a failed base check on any order stops payments on every order of the supplier
+    // §2.4a: a failed base check on any order stops payments on every order of the supplier. One strip, shown on
+    // the order whose record caused it ("also stops") and on every order it stops ("stopped by").
     const cause = ctx.cause, byOther = cause && cause.id !== o.id;
-    const supplierStop = !supplierStopped(o) ? ""
-      : byOther ? `Stopped by ${orderLink(cause)}: a signed record of the same supplier (${esc(o.info.supplierId)}) failed the register status on ${dayClock(o.rec.lastBaseFailureAt)}. Payments to this supplier are stopped on every order.`
-      : `Register status failed on ${dayClock(o.rec.lastBaseFailureAt)}: payments to this supplier are stopped on every order.`;
-    const alsoStops = ctx.stops.length ? `<div>This record also stops ${ctx.stops.map(orderLink).join(", ")}: same supplier.</div>` : "";
-    const claimRow = (label, enabled) => `<div class="row"><button type="button" class="danger" data-claim="${o.id}"${env.sample || !enabled ? ` disabled title="${env.sample ? "sample data" : "not yet"}"` : ""}>${label}</button>
-          <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span></div>${claimMsg[o.id] ? `<div class="msg">${claimMsg[o.id]}</div>` : ""}`;
+    let stopStrip = "";
+    if (supplierStopped(o) || ctx.stops.length) {
+      const when = o.rec.lastBaseFailureAt ? dayClock(o.rec.lastBaseFailureAt) : "";
+      const lines = [];
+      if (supplierStopped(o) && byOther) {
+        lines.push(`<div class="orders">Stopped by ${orderLink(cause)}</div>
+          <div>A signed record of the same supplier (<span class="mono">${esc(o.info.supplierId)}</span>) failed the register status on ${when}. Payments to this supplier are stopped on every order.</div>`);
+      } else if (supplierStopped(o)) {
+        lines.push(`<div>Register status failed on ${when}: payments to this supplier are stopped on every order.</div>`);
+      }
+      if (ctx.stops.length) lines.push(`<div class="orders">This record also stops the same supplier's ${ctx.stops.map(orderLink).join("")}</div>`);
+      if (supplierStopped(o) && !held && !closed) lines.push(`<div class="note">This order is not held yet. The agent can hold it without a new paid check (<span class="mono">applySupplierFailure</span>), and no permit from before the failure can pay.</div>`);
+      stopStrip = `<div class="stop-strip"><div class="head">${I("stop")}Supplier-wide stop</div>${lines.join("")}</div>`;
+    }
+
+    const claimRow = (label, enabled) => {
+      const off = env.sample ? "Sample data: nothing to send." : !enabled ? "Opens when the grace period ends." : "";
+      return `<div class="row"><button type="button" class="danger" data-claim="${o.id}"${off ? " disabled" : ""}>${I("refund")}${label}</button>
+          <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span>${off ? `<span class="why-off">${off}</span>` : ""}</div>${claimMsg[o.id] ? `<div class="msg" role="status">${claimMsg[o.id]}</div>` : ""}`;
+    };
     let statusBox = "";
     if (held) {
       const labels = P.failedLabels(o.info.source, o.lastFailedRules);
       const open = nowSec() >= o.autoRefundAt;
       statusBox = `<div class="held-box">
-        <b>🔒 Payment held: ${esc(labels.join(", ") || "failed register check")}</b>
-        ${supplierStop ? `<div>${supplierStop}</div>` : ""}${alsoStops}
-        <div>${tok(o.remaining)} tokens are protected and can only go back to the buyer. The buyer can claim them now;
-          ${open ? "<b>anyone (the agent) can trigger the refund now.</b>" : `anyone (the agent) can trigger the refund in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</div>
+        <div class="title">${I("lock")}<span>Payment held: ${esc(labels.join(", ") || "failed register check")}</span></div>
+        <p>${tok(o.remaining)} tokens are protected and can only go back to the buyer. The buyer can claim them now;
+          ${open ? "<b>anyone (the agent) can trigger the refund now.</b>" : `anyone (the agent) can trigger the refund in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</p>
         ${claimRow("Claim now (MetaMask)", true)}
       </div>`;
     } else if (!closed && o.autoRefundAt > 0) {
       // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
       const open = nowSec() >= o.autoRefundAt;
-      statusBox = `<div class="held-box" style="background:var(--wait-bg);color:var(--wait)">
-        <b>No verified data since the due date of M${o.next + 1}</b>
-        ${supplierStop ? `<div style="color:var(--hold)">${supplierStop}</div>` : ""}
-        <div>No signed register record has allowed this payment. That says nothing bad about the supplier, only that there is no proof.
-          The remaining ${tok(o.remaining)} tokens can go back to the buyer ${open ? "<b>now</b>; anyone can trigger it." : `from ${dayClock(o.autoRefundAt)} (<b>${cd(o.autoRefundAt, "now")}</b>); anyone can trigger it then.`}</div>
+      statusBox = `<div class="held-box nodata">
+        <div class="title">${I("clock")}<span>No verified data since the due date of M${o.next + 1}</span></div>
+        <p>No signed register record has allowed this payment. That says nothing bad about the supplier, only that there is no proof.
+          The remaining ${tok(o.remaining)} tokens can go back to the buyer ${open ? "<b>now</b>; anyone can trigger it." : `from ${dayClock(o.autoRefundAt)} (<b>${cd(o.autoRefundAt, "now")}</b>); anyone can trigger it then.`}</p>
         ${claimRow("Return to buyer (MetaMask)", open)}
       </div>`;
-    } else if (supplierStop) {
-      statusBox = `<div class="held-box"><b>⛔ ${supplierStop}</b>
-        <div>This order is not held yet. The agent can hold it without a new paid check (<span class="mono">applySupplierFailure</span>), and no permit from before the failure can pay.</div></div>`;
     } else if (refunded) {
       const ev = o.events.find((e) => e.name === "OrderRefunded");
       const how = ev && ev.args.noDataExit ? "Closed by the no-data exit" : "Closed after a hold";
-      statusBox = `<div class="closed-box">${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</div>`;
+      statusBox = `<div class="closed-box">${I("refund")}<span>${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</span></div>`;
     }
     if (closed && !refunded) {
-      statusBox = `<div class="closed-box">Fully paid: every milestone was paid against its own fresh signed record.</div>`;
+      statusBox = `<div class="closed-box">${I("check")}<span>Fully paid: every milestone was paid against its own fresh signed record.</span></div>`;
     }
 
     const step = nextStep(o, total);
+    const stepIcon = { ok: "arrow-right", wait: "clock", info: "arrow-right" };
     const lastCheck = o.lastCheck
-      ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span><div class="chips" style="margin-top:4px">${
-          o.lastFailedRules === 0 ? chip("ok", "clean ✓") : P.failedLabels(o.info.source, o.lastFailedRules).map((l) => chip("hold", esc(l))).join("")}</div>`
-      : "no signed record yet";
+      ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span><div>${
+          o.lastFailedRules === 0 ? `<span class="good">${I("check")} clean</span>` : `<span class="bad">${I("x")} ${esc(P.failedLabels(o.info.source, o.lastFailedRules).join(", "))}</span>`}</div>`
+      : `<span class="small-muted">no signed record yet</span>`;
     let permitRow;
     if (held) permitRow = `<span class="small-muted">cleared by the hold</span>`;
     else if (closed) permitRow = `<span class="small-muted">none (order closed)</span>`;
-    else if (permitValid(o)) permitRow = `<b style="color:var(--ok)">valid</b> for M${o.next + 1} until ${clock(o.permitValidUntil)} · ${cd(o.permitValidUntil, "expired")} left`;
-    else if (o.permitValidUntil > 0) permitRow = `<span style="color:var(--wait)">expired at ${clock(o.permitValidUntil)}</span>`;
+    else if (permitValid(o)) permitRow = `<span class="good">valid</span> for M${o.next + 1} until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`;
+    else if (o.permitValidUntil > 0) permitRow = `<span class="late">expired</span> at ${clock(o.permitValidUntil)}`;
     else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid M${o.next}` : "none yet"}</span>`;
     permitRow += `<div class="small-muted">each permit lasts ${duration(o.info.permitTtl)} from the signed time</div>`;
 
     const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
-    const trailKey = `trail-${o.id}`;
+    const trailKey = `trail-${o.id}`, histKey = `hist-${o.id}`;
     const trail = evs.length ? `<details class="trail" data-key="${trailKey}"${openTrails.has(trailKey) ? " open" : ""}>
         <summary>Audit trail (${evs.length} on-chain events, newest first)</summary>
         <ol class="trail">${evs.map((e) => {
           const l = eventLine(e, o);
           return `<li><span class="t">${e.time ? clock(e.time) : "#" + e.block}</span><div>
-            <span class="${l.cls || ""}">${l.text}</span>${txLink(e.tx) ? " · " + txLink(e.tx) : ""}
-            ${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", "agent") : ""}${l.detail || ""}</div></li>`;
+            <span class="${l.cls || ""}">${l.text}</span>${txLink(e.tx) ? " " + txLink(e.tx) : ""}
+            ${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", I("agent") + "agent") : ""}${l.detail || ""}</div></li>`;
         }).join("")}</ol></details>`
-      : `<div class="small-muted">No events found${env.sample ? "" : " in the searched block range (set the deploy block in Settings)"}.</div>`;
+      : `<div class="small-muted">No events found${env.sample ? "" : " in the searched block range. Set the deploy block in Settings to load older events"}.</div>`;
 
     return `
-      <article class="card${held ? " is-held" : ""}" id="order-${o.id}">
+      <article class="card${held ? " is-held" : ""}" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
         <div class="card-head">
-          <div><h2>#${o.id} · ${esc(title || "Order " + short(o.info.orderRef))}</h2>
-            <div class="sub"><span class="reg">${s.badge}</span>
-              <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono">${esc(o.info.supplierId)}</a>
-              <span>· supplier wallet ${addr(o.info.supplier)}</span></div></div>
-          <span class="badge ${badge[0]}">${badge[1]}</span>
+          <div><h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
+            <div class="sub"><span class="reg" title="${esc(s.name)}">${s.badge}</span>
+              <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono" title="Open the register page">${esc(o.info.supplierId)}</a>
+              <span>supplier wallet ${addr(o.info.supplier)}</span></div></div>
+          ${badge}
         </div>
-        <div class="chips">${P.ruleNames(o.info.source, o.info.rules).map((r) => chip("rule", esc(r))).join("")}</div>
         <div class="hero">
           <div><div class="label">Protected remaining balance</div><div class="big">${tok(o.remaining)}<span class="unit">tokens</span></div></div>
-          <div><div class="label">Paid</div><div class="small">${tok(o.paid)}<span class="unit">of ${tok(total)}</span></div></div>
+          <div class="paid">Paid <b>${tok(o.paid)}</b> of ${tok(total)}</div>
         </div>
         ${bar}
+        ${stopStrip}
+        ${step ? `<div class="next-step ${step[0]}">${I(stepIcon[step[0]] || "arrow-right")}<span>Next: ${step[1]}</span></div>` : ""}
         ${statusBox}
-        <ol class="ms">${o.amounts.map((_, i) => milestoneView(o, i)).join("")}</ol>
-        <table class="rows">
-          <tr><th>Payment permit</th><td>${permitRow}</td></tr>
-          <tr><th>Verification history</th><td>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} · ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"} · ${o.rec.failures} failed</span>
-            <div class="small-muted">register checks of this supplier across all orders, not a credit score. A longer clean history only means fewer paid re-checks.</div></td></tr>
-          <tr><th>Last signed record</th><td>${lastCheck}</td></tr>
-          <tr><th>Agent's last decision</th><td>${ctx.agent
-            ? `${agentWords(ctx.agent, o)} <span class="small-muted">· ${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}`
-            : `<span class="small-muted">no agent transaction on this order yet</span>`}</td></tr>
-        </table>
-        ${step ? `<div class="next-step ${step[0]}">Next: ${step[1]}</div>` : ""}
+        <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i)).join("")}</ol>
+        <dl class="facts">
+          <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
+          <dt>Payment permit</dt><dd>${permitRow}</dd>
+          <dt>Last signed record</dt><dd>${lastCheck}</dd>
+          <dt>Agent's last decision</dt><dd>${ctx.agent
+            ? `${agentWords(ctx.agent, o)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}`
+            : `<span class="small-muted">no agent transaction on this order yet</span>`}</dd>
+          <dt>Verification history</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed</span>
+            <details class="inline" data-key="${histKey}"${openTrails.has(histKey) ? " open" : ""}><summary>Register checks, not a credit score</summary>
+            <div class="small-muted">Register checks of this supplier across all orders, not a credit score. A longer clean history only means fewer paid re-checks.</div></details></dd>
+        </dl>
         ${trail}
       </article>`;
   }
@@ -481,22 +543,22 @@
   function agentWord(e, o) {
     const a = e.args;
     switch (e.name) {
-      case "EvidenceAccepted": return a.clean ? "check clean ✓" : `check failed: ${P.failedLabels(o.info.source, a.failedRules).join(", ")}`;
+      case "EvidenceAccepted": return a.clean ? "check clean" : `check failed: ${P.failedLabels(o.info.source, a.failedRules).join(", ")}`;
       case "PermitIssued": return `permit M${Number(a.milestone) + 1}`;
       case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b> (${tok(a.amount)})`;
-      case "OrderHeld": return "<b>held 🔒</b>";
+      case "OrderHeld": return "<b>held</b>";
       case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
-      case "TierChanged": return `history → ${P.TIERS[Number(a.newTier)]}`;
+      case "TierChanged": return `history${arrow}${P.TIERS[Number(a.newTier)]}`;
       default: return e.name;
     }
   }
   // a hold without evidence in the same transaction is applySupplierFailure: no paid fetch
   const isSupplierStop = (g) => !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
-  const agentWords = (g, o) => `${isSupplierStop(g) ? "supplier-wide stop, no fetch → " : ""}${g.evs.map((e) => agentWord(e, o)).join(" → ")}`;
+  const agentWords = (g, o) => `${isSupplierStop(g) ? `supplier-wide stop, no fetch${arrow}` : ""}${g.evs.map((e) => agentWord(e, o)).join(arrow)}`;
 
   function renderAgent(orders, rows) {
     const byId = Object.fromEntries(orders.map((o) => [o.id, o]));
-    const head = `<div class="agent-head"><h2>Agent activity</h2>
+    const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
       <span class="sub">${agentAddr ? `agent ${addr(agentAddr)} · ${rows.length} autonomous transactions${rows[0] && rows[0].time ? ` · last ${since(rows[0].time)}` : ""}` : "set an agent address in Settings to highlight its transactions"}</span></div>`;
     const li = (g) => {
       const o = byId[g.order];
@@ -505,38 +567,53 @@
         <span>#${g.order} ${name}: ${o ? agentWords(g, o) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
     const more = rows.length > 5
-      ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - 5} earlier</summary><ol>${rows.slice(5, 60).map(li).join("")}</ol></details>`
+      ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - 5} earlier transactions</summary><ol>${rows.slice(5, 60).map(li).join("")}</ol></details>`
       : "";
-    $("agent").innerHTML = head + (rows.length ? `<ol>${rows.slice(0, 5).map(li).join("")}</ol>${more}` : `<div class="small-muted" style="margin-top:8px">No agent transactions in the loaded history yet.</div>`);
+    $("agent").innerHTML = head + (rows.length ? `<ol>${rows.slice(0, 5).map(li).join("")}</ol>${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`);
   }
 
   let filter = null; // a STATES key: show only the orders in that state
   function renderStates(orders) {
     const count = {};
     for (const o of orders) { const k = stateOf(o); count[k] = (count[k] || 0) + 1; }
-    const btn = (k) => `<button type="button" class="state-btn${filter === k ? " on" : ""}" data-filter="${k}" title="${filter === k ? "Show all orders" : "Show only these orders"}">
-      <span class="top"><span class="badge ${STATES[k].cls}">${STATES[k].label}</span><span class="count">${count[k] || 0}</span></span>
+    const btn = (k) => `<button type="button" class="state-btn" data-filter="${k}" aria-pressed="${filter === k}" title="${filter === k ? "Show all orders" : "Show only these orders"}">
+      <span class="top"><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span></span>
       <span class="def">${STATES[k].def}</span></button>`;
-    const rest = ["pending", "paid", "closed"].filter((k) => count[k]).map((k) => `${count[k]} ${STATES[k].label.toLowerCase()}`);
+    const rest = ["pending", "paid", "closed"].filter((k) => count[k]).map((k) => `<span>${count[k]} ${STATES[k].label.toLowerCase()}</span>`);
     $("states").innerHTML = btn("ok") + btn("rule") + btn("nodata")
-      + `<div class="rest">${rest.join(" · ")}${filter ? `${rest.length ? " · " : ""}<button type="button" class="link-order" data-filter="">show all</button>` : ""}</div>`;
+      + `<div class="rest">${rest.join("")}${filter ? `<button type="button" class="link-order" data-filter="">Show all orders</button>` : ""}</div>`;
   }
 
   let lastEnv = { sample: false };
+  // The page re-renders every 12 s; keep keyboard focus on the same control across it.
+  function focusKey() {
+    const el = document.activeElement;
+    if (!el || el === document.body) return null;
+    for (const a of ["data-claim", "data-goto", "data-filter"]) if (el.hasAttribute(a)) return `[${a}="${el.getAttribute(a)}"]`;
+    const d = el.closest("details[data-key]");
+    if (d && el.tagName === "SUMMARY") return `details[data-key="${d.dataset.key}"] > summary`;
+    if (el.matches("article.card")) return `#${el.id}`;
+    return null;
+  }
   function renderAll(orders, env) {
     lastEnv = env;
+    const keep = focusKey();
     const rows = agentGroups(orders);
     renderStates(orders);
     renderAgent(orders, rows);
     const shown = filter ? orders.filter((o) => stateOf(o) === filter) : orders;
-    $("orders").innerHTML = shown.map((o) => {
-      const cause = causeOf(o, orders);
-      const stops = orders.filter((x) => x.id !== o.id && supplierStopped(x) && causeOf(x, orders) === o);
-      return renderOrder(o, env, { cause, stops, agent: rows.find((g) => g.order === o.id) || null });
-    }).join("");
+    $("orders").innerHTML = !orders.length
+      ? `<div class="empty-state">${I("file")}<b>No orders on this contract yet</b><span>A buyer creates one with <span class="mono">api3/scripts/plus-create-order.sh</span>; it appears here within 12 s.</span></div>`
+      : shown.map((o) => {
+        const cause = causeOf(o, orders);
+        const stops = orders.filter((x) => x.id !== o.id && supplierStopped(x) && causeOf(x, orders) === o);
+        return renderOrder(o, env, { cause, stops, agent: rows.find((g) => g.order === o.id) || null });
+      }).join("");
+    if (keep) { const el = document.querySelector(keep); if (el) el.focus({ preventScroll: true }); }
   }
 
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, val]) => `<span>${k} <b>${val}</b></span>`).join(""); }
+  renderMeta([["Mode", cfg.sample ? "sample" : "reading the contract…"]]);
   function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
 
   // ---------------------------------------------------------------- live data
@@ -650,7 +727,7 @@
     const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
     renderMeta([["Mode", "sample"], ["Max age", `${data.maxAge} s`], ["Tier gap", duration(data.tierCountGap)], ["Refund grace", duration(data.refundGrace)],
       ["Protected now", `${tok(protectedTotal)} tokens`], ["Updated", clock(nowSec())]]);
-    banner("sample", "<b>Sample data, not read from a chain.</b> Orders follow the demo scenario (§2.5) with illustrative amounts, wallets, ids and times. Add <span class=\"mono\">?contract=0x…</span> for live data.");
+    banner("sample", I("info") + "<span><b>Sample data, not read from a chain.</b> Orders follow the demo scenario (§2.5) with illustrative amounts, wallets, ids and times. Add <span class=\"mono\">?contract=0x…</span> for live data.</span>");
     lastOrders = orders;
     renderAll(orders, { sample: true });
   }
@@ -687,7 +764,13 @@
       // the order that stopped this supplier may be filtered out: show all, then jump to it
       if (filter && lastOrders) { filter = null; renderAll(lastOrders, lastEnv); }
       const card = $(`order-${g.dataset.goto}`);
-      if (card) { card.scrollIntoView({ behavior: "smooth", block: "start" }); card.animate([{ boxShadow: "0 0 0 3px var(--accent)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 1200 }); }
+      if (card) {
+        const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        card.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+        card.focus({ preventScroll: true }); // keyboard users land on the order they jumped to
+        card.classList.add("flash");
+        setTimeout(() => card.classList.remove("flash"), 1600);
+      }
     }
   });
   $("states").addEventListener("click", (e) => {
@@ -733,7 +816,10 @@
     if (busy) return;
     busy = true;
     try { await loadLive(); }
-    catch (e) { banner("error", `Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network.`); }
+    catch (e) {
+      banner("error", `${I("alert")}<span>Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network in Settings; the page retries every 12 s.</span>`);
+      if (!lastOrders) $("orders").innerHTML = "";
+    }
     finally { busy = false; }
   }
 
@@ -743,6 +829,7 @@
   }
   function notConfigured(html) {
     $("cfg-box").open = true;
+    $("orders").innerHTML = "";
     renderMeta([["Mode", "not configured"]]);
     $("agent").hidden = true;
     banner("sample", html);
