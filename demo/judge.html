@@ -183,6 +183,8 @@
   table.score td:nth-child(3) { overflow-wrap: normal; } /* attempt names break between words only */
   table.score td.v { font-family: var(--mono); font-size: 12px; overflow-wrap: normal; word-break: normal; }
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
+  table.score tr.sep td { color: var(--muted); padding: var(--s3) 0 4px; white-space: normal; }
+  .cd { color: var(--muted); font-weight: 400; } /* time left on an Undo or an armed send */
   a.err { color: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
   a.err:hover { text-decoration-style: solid; }
   #guide tr:target > *, #guide tr.flash > * { background: var(--accent-bg); transition: background-color 600ms var(--ease); }
@@ -369,7 +371,7 @@
   <div class="stack">
     <section class="panel">
       <div class="panel-head"><h2>Scoreboard</h2><span class="row"><span class="msg" id="score-undo" role="status"></span><button type="button" class="sm" id="copy-score" data-icon="copy" disabled>Copy as Markdown</button><button type="button" class="sm" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></span></div>
-      <p class="hint">Every attempt in this browser tab. Press an attempt's name to see its checks again.</p>
+      <p class="hint">Every attempt from this page in this tab, kept across reloads. Press an attempt's name to see its checks again.</p>
       <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
     </section>
@@ -494,19 +496,39 @@
     try { return P.normalizeRecord(obj, order.info ? Number(order.info.source) : 0); }
     catch (e) { throw new Error(`This is not a signed record: ${e.message}. Paste the whole file from fetch-evidence.sh, or load a sample.`); }
   }
+  // The record box survives a reload and the Simple/Detailed switch (simple.html reads the same key): its text is kept
+  // for this tab whenever it changes; a record sent for real is used, so it is dropped then.
+  const REC_KEY = "pulse-record";
+  function storeRecord() { try { sessionStorage.setItem(REC_KEY, JSON.stringify({ text: $("resp").value, at: Date.now() })); } catch { /* storage blocked */ } }
+  function setBox(text) { $("resp").value = text; storeRecord(); }
+  // A short-lived offer (Undo, the armed send) shows its time left: "· 9 s" after its label, for the eye only (the
+  // live regions around it would otherwise read every second). onEnd runs when it runs out; the result cancels it.
+  function countdown(host, secs, onEnd) {
+    const cd = document.createElement("span");
+    cd.className = "cd"; cd.setAttribute("aria-hidden", "true");
+    host.append(cd);
+    let left = secs;
+    const show = () => { cd.textContent = `· ${left} s`; };
+    show();
+    const t = setInterval(() => {
+      if (!cd.isConnected) { clearInterval(t); return; }
+      if (--left <= 0) { clearInterval(t); cd.remove(); onEnd(); } else show();
+    }, 1000);
+    return () => { clearInterval(t); cd.remove(); };
+  }
   // Every replacement of the record box can be undone for 10 s, like Clear: a pasted record cost a fetch and $0.01.
-  let recUndo = null;
+  let recUndo = () => {};
   function offerUndo(saved, msg) {
-    clearTimeout(recUndo);
+    recUndo();
     const b = $("undo-rec");
     if (!b) return;
-    b.addEventListener("click", () => { clearTimeout(recUndo); $("resp").value = saved; checkRecordInput("Record restored."); $("resp").focus(); });
-    recUndo = setTimeout(() => { const u = $("undo-rec"); if (u) u.remove(); }, 10000);
+    b.addEventListener("click", () => { recUndo(); setBox(saved); checkRecordInput("Record restored."); $("resp").focus(); });
+    recUndo = countdown(b, 10, () => { const u = $("undo-rec"); if (u) u.remove(); });
     if (msg) b.focus({ preventScroll: true });
   }
   function setRecord(r, note = "") {
     const saved = $("resp").value;
-    $("resp").value = JSON.stringify(r, null, 2);
+    setBox(JSON.stringify(r, null, 2));
     clearTimeout(typing); // a pending input check would overwrite the note
     const replaced = saved.trim() && saved.trim() !== $("resp").value.trim();
     checkRecordInput(note + (replaced ? ` Previous record replaced · <button type="button" class="link" id="undo-rec">Undo</button>` : ""));
@@ -844,24 +866,53 @@
 
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
     const notApplicable = (mode === "asis" && !verdict.accepted) || (mode === "replay" && used === false);
-    const row = document.createElement("tr");
-    const res = notApplicable ? ["na", "minus", "Not tested"] : match ? ["pass", "check", "Pass"] : ["fail", "x", "Fail"];
+    const res = notApplicable ? "Not tested" : match ? "Pass" : "Fail";
     const time = new Date().toLocaleTimeString("en-GB");
     const gotText = verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : gotName;
-    scoreRows.push({ time, order: id, name: MODE_NAME[mode], got: gotText, expected, res: res[2] });
-    row.innerHTML = `<td>${time}</td><td>#${id}</td><td><button type="button" class="link" data-attempt="${attempt}" title="Show this attempt's checks">${MODE_NAME[mode]}</button></td>
-      <td class="v"${verdict.accepted ? ` title="${verdict.clean ? "accepted: would issue a payment permit" : "accepted: would hold the order"}"` : ""}>${gotHtml(gotText)}</td><td class="v">${errLink(expected)}</td>
-      <td><span class="res ${res[0]}">${P.icon(res[1])}${res[2]}</span></td>`;
-    const empty = $("score").querySelector(".empty");
-    if (empty) empty.remove();
-    $("score").prepend(row);
-    $("clear-score").disabled = false;
-    $("copy-score").disabled = false;
+    scoreRows.push({ time, order: id, name: MODE_NAME[mode], got: gotText, expected, res, attempt });
+    renderScore();
+    saveBoard();
     return { mode, attempt, accepted: verdict.accepted, got: gotText, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
   }
 
   const attempts = [];
   let scoreRows = [];
+  // The scoreboard, newest first. Rows kept from before a reload or a view switch sit under one "Earlier in this tab" line.
+  const RES = { Pass: ["pass", "check"], Fail: ["fail", "x"], "Not tested": ["na", "minus"] };
+  const gotTitle = (got) => ({ "accepted: permit": "accepted: would issue a payment permit", "accepted: hold": "accepted: would hold the order" })[got] || "";
+  function renderScore() {
+    const rows = [...scoreRows].reverse();
+    $("clear-score").disabled = $("copy-score").disabled = !rows.length;
+    if (!rows.length) { $("score").innerHTML = EMPTY_SCORE; return; }
+    let sep = false;
+    $("score").innerHTML = rows.map((r) => {
+      const [cls, ic] = RES[r.res] || RES.Fail;
+      const head = r.restored && !sep ? ((sep = true), `<tr class="sep"><td colspan="6">Earlier in this tab</td></tr>`) : "";
+      const name = attempts[r.attempt] ? `<button type="button" class="link" data-attempt="${r.attempt}" title="Show this attempt's checks">${esc(r.name)}</button>` : esc(r.name);
+      return `${head}<tr${r.restored ? ` class="old"` : ""}><td>${esc(r.time)}</td><td>#${esc(r.order)}</td><td>${name}</td>
+        <td class="v"${gotTitle(r.got) ? ` title="${gotTitle(r.got)}"` : ""}>${gotHtml(r.got)}</td><td class="v">${errLink(r.expected)}</td>
+        <td><span class="res ${cls}">${P.icon(ic)}${esc(r.res)}</span></td></tr>`;
+    }).join("");
+  }
+  // The scoreboard is the judge's evidence: it is kept for this tab (per contract and RPC), so Settings, the view switch
+  // and a reload do not lose it. Kept with it: each attempt's checklist and the records this tab sent for real.
+  const boardKey = () => `pulse-judge-board:${String(cfg.contract).toLowerCase()}|${cfg.rpc}`;
+  function saveBoard() {
+    if (!cfg.contract) return;
+    try {
+      sessionStorage.setItem(boardKey(), JSON.stringify({ rows: scoreRows, sent: [...sentDigests],
+        attempts: attempts.map((a) => ({ html: a.html, candidate: a.candidate, sent: a.sent || null })) }));
+    } catch { /* storage full or blocked: the board lives in this page only */ }
+  }
+  function restoreBoard() {
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(boardKey()) || "null"); } catch { /* storage blocked */ }
+    if (!saved || !Array.isArray(saved.rows) || attempts.length) return;
+    for (const a of saved.attempts || []) attempts.push({ html: a.html, candidate: a.candidate, sent: a.sent || undefined });
+    for (const [d, blk] of saved.sent || []) sentDigests.set(d, blk);
+    scoreRows = saved.rows.map((r) => ({ ...r, restored: true }));
+    renderScore();
+  }
   function showAttempt(i) {
     const a = attempts[i];
     if (!a) return;
@@ -912,6 +963,8 @@
       const label = `${P.icon(rc.status === 1 ? "check" : "x")}${rc.status === 1 ? "Sent" : "Reverted"} in block ${rc.blockNumber}`;
       if (btn) { btn.removeAttribute("aria-busy"); btn.dataset.sent = "1"; btn.innerHTML = label; }
       if (attempt) attempt.sent = { label, msg: out.innerHTML };
+      saveBoard();
+      if (rc.status === 1) try { sessionStorage.removeItem(REC_KEY); } catch { /* storage blocked */ } // the record is used now
       await selectOrder(order.id).then(() => orderError(null), (err) => orderError(err, order.id));
       return { status: rc.status, hash: tx.hash, block: rc.blockNumber };
     } catch (e) {
@@ -1243,16 +1296,16 @@
   $("resp").addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (!f || $("resp").disabled) return; e.preventDefault(); loadFile(f); });
   const EMPTY_SCORE = $("score").innerHTML;
   // Clearing is undoable for 10 s: a misclick next to "Copy as Markdown" costs nothing.
-  let scoreUndo = null;
+  let scoreUndo = () => {};
   $("clear-score").addEventListener("click", () => {
-    const saved = { html: $("score").innerHTML, rows: scoreRows.slice() };
-    $("score").innerHTML = EMPTY_SCORE; scoreRows = []; $("clear-score").disabled = $("copy-score").disabled = true;
+    const saved = scoreRows.slice();
+    scoreRows = []; renderScore(); saveBoard();
     $("score-undo").innerHTML = `Scoreboard cleared · <button type="button" class="link" id="undo-score">Undo</button>`;
-    clearTimeout(scoreUndo);
-    scoreUndo = setTimeout(() => { $("score-undo").innerHTML = ""; }, 10000);
+    scoreUndo();
+    scoreUndo = countdown($("undo-score"), 10, () => { $("score-undo").innerHTML = ""; });
     $("undo-score").addEventListener("click", () => {
-      $("score").innerHTML = saved.html; scoreRows = saved.rows; $("clear-score").disabled = $("copy-score").disabled = false;
-      $("score-undo").innerHTML = ""; clearTimeout(scoreUndo); $("clear-score").focus();
+      scoreUndo(); scoreRows = saved; renderScore(); saveBoard();
+      $("score-undo").innerHTML = ""; $("clear-score").focus();
     });
     $("undo-score").focus();
   });
@@ -1271,14 +1324,19 @@
   });
   $("clear-rec").addEventListener("click", () => {
     const saved = $("resp").value;
-    $("resp").value = ""; $("resp").removeAttribute("aria-invalid"); recordTs = null; recordUsed = null; recordOther = false; markAttacks();
+    setBox(""); $("resp").removeAttribute("aria-invalid"); recordTs = null; recordUsed = null; recordOther = false; markAttacks();
     if (!saved.trim()) { respMsg(""); $("resp").focus(); return; }
     respMsg(`Record cleared · <button type="button" class="link" id="undo-rec">Undo</button>`);
     offerUndo(saved);
     $("resp").focus();
   });
   let typing = null;
-  $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
+  $("resp").addEventListener("input", () => { storeRecord(); clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
+  // the record kept from earlier in this tab (this page or the Simple view) comes back into an empty box
+  try {
+    const kept = JSON.parse(sessionStorage.getItem(REC_KEY) || "null");
+    if (!$("resp").value.trim() && kept && typeof kept.text === "string" && kept.text.trim()) { $("resp").value = kept.text; checkRecordInput(); }
+  } catch { /* storage blocked or not JSON */ }
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(`Could not sign a fresh record. ${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)}`, true)));
   $("order").addEventListener("change", (e) => pickOrder(Number(e.target.value)));
   $("order-msg").addEventListener("click", (e) => {
@@ -1492,6 +1550,7 @@
     if (cfg.rpc !== P.DEFAULT_RPC) dq.set("rpc", cfg.rpc);
     dashQs.set("contract", cfg.contract);
     $("dash-link").href = (version === 2 ? "index.html?" : "v1.html?orders=0,1&") + dq;
+    restoreBoard();
     connecting = false;
     await loadOrders();
     startHint();
