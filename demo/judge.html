@@ -145,6 +145,11 @@
   .replay-row { align-items: center; }
   .rec-age.warn { color: var(--wait); font-weight: 600; }
 
+  ol.checks-pre { list-style: none; margin: 0; padding: 0; counter-reset: chk; font-size: var(--t-1); }
+  ol.checks-pre li { counter-increment: chk; display: flex; gap: var(--s2); align-items: baseline; padding: 4px 0; border-top: 1px solid var(--line); }
+  ol.checks-pre li:first-child { border-top: none; }
+  ol.checks-pre li::before { content: counter(chk); flex: none; width: 1.2em; color: var(--muted); }
+  ol.checks-pre .mono { margin-left: auto; padding-left: var(--s3); color: var(--muted); }
   ol.checks { list-style: none; margin: 0; padding: 0; font-size: var(--t-1); }
   ol.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--line); }
   ol.checks li:first-child { border-top: none; }
@@ -167,6 +172,7 @@
   .qual { color: var(--muted); font-family: var(--sans); font-size: 11.5px; }
   .res { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; white-space: nowrap; }
   .res.pass { color: var(--ok); } .res.fail { color: var(--hold); } .res.na { color: var(--muted); font-weight: 400; }
+  #kit-panel:focus { outline: none; }
   .kit code { background: var(--bg); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
   .kit ul { margin: 0; padding-left: 18px; font-size: var(--t-1); display: flex; flex-direction: column; gap: var(--s2); max-width: 110ch; }
   .msg { font-size: var(--t-1); }
@@ -346,8 +352,8 @@
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
     </section>
 
-    <section class="panel kit">
-      <div class="panel-head"><h2>Judge kit</h2><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener" class="small">Full guide (README)</a></div>
+    <section class="panel kit" id="kit-panel" tabindex="-1" aria-labelledby="kit-title">
+      <div class="panel-head"><h2 id="kit-title">Judge kit</h2><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener" class="small">Full guide (README)</a></div>
       <ul id="kit"></ul>
     </section>
   </div>
@@ -549,7 +555,7 @@
     markAttacks();
     const parts = [`<span class="okc">${P.icon("check")}</span> ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, <span class="rec-age${isStale() ? " warn" : ""}" aria-hidden="true">${ageText()}</span><span class="sr-only">signed ${age >= 0 ? P.ago(age) : "in the future"}</span>.`];
     if (recordUsed !== null) parts.push(`<span class="warn">Already sent in this tab (block ${recordUsed}): attacks on it stop early. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Load a fresh record"} to test each check.</span>`);
-    else if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Get a fresh one (Judge kit, below)"} to test each check.</span>`);
+    else if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : `Get a fresh one (<a href="#kit-panel">Judge kit</a>)`} to test each check.</span>`);
     if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
       parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>${order.info.state === 0 ? `: attempts stop at "Request matches the order"` : ""}.</span>`);
     $("resp-msg").innerHTML = (note ? `<span>${note}</span> ` : "") + parts.join(" ");
@@ -603,8 +609,8 @@
       <tr><th>Supplier</th><td><span class="reg">${s.badge}</span> ${esc(s.name)} <a class="mono" href="${s.registerUrl(info.supplierId)}" target="_blank" rel="noopener">${esc(info.supplierId)}</a></td></tr>
       <tr><th>State</th><td>${P.STATE[info.state]}${info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : ""} · last check ${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</td></tr>
       <tr><th>Rules</th><td>${version === 2 ? P.ruleNames(source, info.rules).map(esc).join(", ") : "status active (v1)"}</td></tr>
-      <tr><th>Expected request</th><td class="mono" title="${info.requestHash}">${short(info.requestHash)}</td></tr>
-      <tr><th>Trusted signer</th><td>${known ? `${esc(known)} (${addr(airnode)})` : addr(airnode)}</td></tr>`;
+      <tr><th>Expected request</th><td><span class="mono" title="${info.requestHash}">${short(info.requestHash)}</span>${P.copyBtn(info.requestHash)}</td></tr>
+      <tr><th>Trusted signer</th><td>${known ? `${esc(known)} (${addr(airnode)})` : addr(airnode)}${P.copyBtn(airnode)}</td></tr>`;
     // a held or closed order stops every attempt at its first check: said here, before any press
     $("order-msg").innerHTML = info.state !== 0
       ? `<span class="warn">${P.icon("alert")} Order #${id} is ${P.STATE[info.state].toLowerCase()}, so every attempt stops at <span class="mono">NotActive</span>. Pick an active order to test the checks.</span>` : "";
@@ -612,7 +618,7 @@
     $("fresh").hidden = chainId !== 31337 || version !== 2;
     simpleLink();
     // on the local chain the Fresh button says it all (its tooltip names the key); elsewhere, where fresh records come from
-    $("fresh-note").textContent = $("fresh").hidden ? "Fresh records: Judge kit, below" : "";
+    $("fresh-note").innerHTML = $("fresh").hidden ? `<a href="#kit-panel">Fresh records: Judge kit</a>` : "";
     renderKit();
     checkRecordInput();
   }
@@ -665,13 +671,19 @@
       <div class="why">${esc(msg)}</div><div class="why">Nothing was asked or sent. Your record in step 2 is kept: fix it there, then press the button again.</div></div>`;
   }
 
-  // The first thing in the verdict panel: the quickest way in, for this network.
+  // The first thing in the verdict panel: the quickest way in, for this network, then the checks in the contract's
+  // order with the error each one answers. The checklist after an attempt and the button warnings use the same words.
+  const checkNames = () => [["The order is active", "NotActive"], ["Request matches the order", "WrongRequest"], ["Not from the future", "FutureResponse"],
+    [`Fresh (at most ${maxAgeVal} s old)`, "StaleResponse"], ["Not used before", "Replayed"], ["Newer than the order's last record", "NotNewer"],
+    ["Signed by the trusted Airnode", "WrongSigner"], ...(version === 2 ? [["A clean record is newer than any known failure of this supplier", "SupplierFailed"]] : [])];
   function startHint() {
     const h = $("start-hint");
     if (!h) return;
     h.innerHTML = chainId === 31337 && version === 2
       ? `Press <b>Run the full tamper test</b>: a fresh local record is signed for you.`
       : `Fastest, no setup: press <b>(b) Real old record</b> or <b>(c) Real, other company</b>, genuine signed records bundled with the page. For the full test, load a fresh record in step 2, then press <b>Run the full tamper test</b>.`;
+    if (!$("start-checks")) h.insertAdjacentHTML("afterend", `<p class="hint">The contract checks a record in this order and stops at the first check that fails, with its error:</p>
+      <ol class="checks-pre" id="start-checks">${checkNames().map(([t, err]) => `<li><span>${esc(t)}</span><span class="mono">${err}</span></li>`).join("")}</ol>`);
   }
   function noOrderVerdict() {
     if (connecting) { $("result").innerHTML = `<h2>The contract's verdict</h2><p class="waiting">${P.icon("loader", "spin")}Still connecting to the contract…</p>`; return; }
