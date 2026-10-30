@@ -167,6 +167,39 @@ DEMO_SUPPLIER_1=0x535d7e4d7f6c3B13F34da2aC98afE379912bed4a DEMO_SUPPLIER_2=0x8cA
 
 The script stopped after creating C because one RPC call failed (no tx sent). C's approval, D and E were then sent one by one with `plus-approve.sh` and `plus-create-order.sh`, with the same arguments the script uses, after checking `ordersLength()` before each step. No order is duplicated.
 
+### Judge CLI against live v2 (Emre, 30 Oct 20:10 CET)
+
+Fresh real signed records, fetched with `api3/scripts/fetch-evidence.sh` ($0.01 aUSD each on Base Sepolia), then checked with `api3/scripts/plus-submit.sh` (an `eth_call` simulation of `submitEvidence`, so nothing is sent).
+Order states at 20:10: A (0) and D (3) active; B (1), C (2) and E (4) already held by the agent and refunded (closed).
+
+| Case | Record | Order | Contract verdict |
+|---|---|---|---|
+| Valid, timely | fresh `03778796` (`api3/fixtures/ch-03778796-202610301910.json`) | A (0) | `ACCEPTED clean` |
+| Valid, timely | fresh `391200JI69LS8L648F30` (`api3/fixtures/gleif-391200JI69LS8L648F30-202610301910.json`) | D (3) | `ACCEPTED clean` |
+| (a) value edited | the fresh A record, status `active` → `liquidation`, signature unchanged | A (0) | `REJECTED WrongSigner(0x6D3B…DeD3E)` |
+| (b) too old, mutated | the fresh A record, timestamp −1 h | A (0) | `REJECTED StaleResponse` |
+| (b) too old, **genuine** | untouched real A record from 17:14 (`api3/fixtures/ch-03778796-202610301614.json`) | A (0) | `REJECTED StaleResponse(1793376875, 1793387424)` |
+| (c) other request, mutated | the A record's request hash replaced by the one for `00000001` | A (0) | `REJECTED WrongRequest` |
+| (c) other request, **genuine** | untouched fresh real `07418033` record (`api3/fixtures/ch-07418033-202610301910.json`) | A (0) | `REJECTED WrongRequest(0xb3d4…67d6, 0xa6d1…f452)` |
+| (d) wrong key | the fresh A record re-signed by a random key | A (0) | `REJECTED WrongSigner(0xd494…6a9c)` |
+| Closed order | fresh `07418033` record | B (1) | `REJECTED NotActive(2)` |
+
+x402 payments for the three records (Base Sepolia): [`0x5eba18de…6749`](https://sepolia.basescan.org/tx/0x5eba18de17698c10a6504206eb47b15182465a1609831f6d8dd3637fb0576749), [`0x5a8d3b5d…7841`](https://sepolia.basescan.org/tx/0x5a8d3b5d3654f0611a975f25ca87cf4bb3bae4d26396f1c6269540a839437841), [`0x19f2e0d3…7b44`](https://sepolia.basescan.org/tx/0x19f2e0d3f9fc4ba429b1df14ca81de8d6874ad838388177712da4f7f6b317b44).
+The request hashes of all five demo suppliers from `requestHashFor` on v2 equal `api3/x402/requests.mjs`.
+
+Reproduce (any judge, no wallet needed for the simulation):
+
+```sh
+export EVM_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com PULSE_PLUS_ADDRESS=0xf25Aae1772326C95294D1923399D55c658493DfC
+api3/scripts/plus-submit.sh 0 api3/fixtures/ch-03778796-202610301614.json          # genuine stale  -> StaleResponse
+api3/scripts/plus-submit.sh 0 api3/fixtures/ch-07418033-202610301910.json          # genuine other  -> WrongRequest
+api3/scripts/fetch-evidence.sh ch 03778796 me.json                                  # your own fresh record ($0.01 aUSD)
+api3/scripts/plus-submit.sh 0 me.json                                               # -> ACCEPTED clean
+for m in value stale request key; do api3/scripts/plus-submit.sh 0 me.json $m; done  # -> 4 rejections
+```
+
+Real reverted transactions (`--send`) for the video follow on Saturday, once Emre's wallet has Sepolia ETH.
+
 ## SupplierPulse+ autonomous agent (Julien, `api3/agent/`)
 
 Agent wallet [`0xED3418aE93669a640650728E70f7aA712083253a`](https://sepolia.etherscan.io/address/0xED3418aE93669a640650728E70f7aA712083253a): it pays the gas on Ethereum Sepolia and the x402 fees in aUSD on Base Sepolia, and is never a buyer or a supplier. A paid check is one $0.01 aUSD x402 payment for a fresh signed Companies House record, then one contract transaction with that record. Schedule, limits and failure handling: `docs/agent.md`.
