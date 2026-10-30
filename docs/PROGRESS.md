@@ -190,6 +190,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Emre has merged `emre/plus-data` into `supplierpulse-plus` (`fef17a5`), so `plus-local.sh`'s `FETCH_CMD` resolves on the integration branch and C2 needs no stand-in anywhere.
 - Next: C3, the agent on the v2 contract on Sepolia once Orhun deploys it (demo profile, next to the v1 hedge).
 
+### 2026-10-30 · Emre · C3: real records and the judge CLI against live v2
+- Changed: verified v2 `0xf25A…3DfC` on chain: config 300/300/600, both signers, and `requestHashFor` equals `requests.mjs` for all five demo suppliers. Fresh real records for A, D and B ($0.03), then `plus-submit.sh` against the live orders: A and D `ACCEPTED clean`; (a) `WrongSigner`, (b) `StaleResponse` (mutated **and** the genuine 17:14 A record), (c) `WrongRequest` (mutated **and** a genuine fresh B record on A), (d) `WrongSigner`; B (closed) `NotActive(2)`. Table, payments and judge commands are in `docs/evidence.md` ("Judge CLI against live v2").
+- Next: real `--send` tamper transactions for the video on Saturday (needs Sepolia ETH in Emre's wallet; the faucet hasn't delivered yet).
+- Notes: created the two supplier payout wallets for the demo orders (`DEMO_SUPPLIER_1/2`); their keys are only on Emre's laptop (`api3/.local/`, gitignored). Spent $0.11 of aUSD in total.
+
 ### 2026-10-30 · Emre · C2 passes with the real v1.1 `fetch-local.sh`
 - Changed: merged the latest `supplierpulse-plus` into `emre/plus-data` and re-ran everything on it.
   - `python3 api3/agent/c2_check.py` with **Emre's real `fetch-local.sh`** (no stand-in signer): **8/8 PASS in 244 s**. Orders 0 and 2 paid; 1 held with `0x82` and refunded; 3 held with `0x08` and refunded; 4 held by the supplier-wide stop without a fetch and refunded; 5 refunded through the no-data exit; `01234567` reached Trusted; no quarantine, no errors.
