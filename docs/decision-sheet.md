@@ -61,7 +61,7 @@ With 1–3, #0 gets real "payment tied to result" and becomes eligible for the A
 
 What proposals 1–3 do **not** fix: real use case (40%) and novelty vs the Nodary starter (10%) [I].
 
-## #6 Mining payout settlement: API3 review (30 Oct, ~13:00)
+## #6 Mining payout settlement: API3 review (30 Oct, ~12:52)
 
 Idea from `docs/BRAINSTORMING.md` on branch `brainstorm/mining-payout-settlement` (12:37, marked "exploration only"):
 - A mining reward is valued at the coin price **at the moment it is earned** and credited in USD to the user's "savings box".
@@ -147,7 +147,7 @@ Two paid calls from Batu's wallet `0xA545…FB4c`, using the x402 client copied 
 - The valuation half of #6 is now technically proven: a signed price bound to the reward's own moment, with a request hash the contract can rebuild.
 - The reward-amount half is still unsigned. So #6 stays behind #3 on "signed data matters" (30%), but clearly ahead of #0 on novelty and the agent bonus.
 
-## SupplierPulse (#3 extended): API3 review (30 Oct, ~13:55)
+## SupplierPulse (#3 extended): API3 review (30 Oct, ~13:46)
 
 Reviewed:
 - `docs/SUPPLIERPULSE.md` (plan, "agreed by Orhun") and `api3/src/SupplierPulse.sol` + `api3/test/SupplierPulse.t.sol`, all on branch `supplier-pulse` (`9bef289`, Orhun, 13:38).

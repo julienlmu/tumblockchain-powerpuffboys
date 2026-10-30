@@ -67,17 +67,16 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
-### 2026-10-30 · Julien (Cardano) · refund path works
-- Changed: **Pay-on-pass is proven on preprod in both directions.** Fail job `a81464d0…`: check failed, no result on chain, buyer requested a refund, our refund guard authorized it 44 s later, and the 5 tADA went from escrow back to the buyer, 4.5 min after the job started (4 txs, in `docs/evidence.md`). Pass job `c00c4fcf…` with short deadlines: result on chain, escrow unlocks 13:47, then the seller's node collects. New `receipt.py` completes a proof after the escrow settles. It lists every tx from both sides and checks on chain (Koios) how much left escrow into the selling or purchasing wallet. `buy_job.py` now waits for the result tx before writing the proof.
-- Next: confirm the seller payout of `c00c4fcf…` (receipt), then a paid job with the real `eth-vault` app (needs the Sepolia `EVM_*` vars in `cardano-agent/.env`).
-- Notes: our agent is not on Sokosumi's agent list (`sokosumi --preprod agents list` shows 20 curated agents). Registering on Masumi does not list it there, so ask the Masumi team on site how to get listed. Qualification does not depend on it: the paid job runs through Masumi escrow on preprod.
+### 2026-10-30 · Batu (13:55)
+- Changed: rebased `batu/api3-setup` onto `68762a5`. Log sorted by time, and Batu's time labels corrected to the real commit times. No entry removed.
+- Next: force push of `batu/api3-setup` (Batu), then Orhun picks up the issues and samples for SupplierPulse.
 
-### 2026-10-30 · Batu (14:00)
+### 2026-10-30 · Batu (13:50)
 - Changed: added `docs/samples/companies-house/` with three real signed Companies House responses (active `09729896`, liquidation `07418033`, dissolved `12493325`), plus their request hashes and payment txs in `docs/decision-sheet.md`.
 - Next: Orhun can use these as fixtures, e.g. a `test_realCompaniesHouse*` test like `test_realNodaryResponse`.
 - Notes: a scratch Forge test (not committed) ran `SupplierPulse.sol` against the real responses, 6/6 pass. Cost 0.03 aUSD.
 
-### 2026-10-30 · Batu (13:55)
+### 2026-10-30 · Batu (13:46)
 - Changed: `docs/decision-sheet.md` has a new section "SupplierPulse (#3 extended): API3 review". Docs only.
 - Next: Orhun looks at the issues list. Batu can fetch real `getCompanyProfile` responses for the test companies ($0.01 each).
 - Notes:
@@ -86,7 +85,17 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - Free `advancedSearchCompanies` test candidates: active `09729896`, `10092605`; liquidation `07418033`; dissolved `12493325`.
   - One company won't change status during a live demo, so show two orders (paid vs held).
 
-### 2026-10-30 · Batu (13:05)
+### 2026-10-30 · Julien (Cardano) · refund path works
+- Changed: **Pay-on-pass is proven on preprod in both directions.** Fail job `a81464d0…`: check failed, no result on chain, buyer requested a refund, our refund guard authorized it 44 s later, and the 5 tADA went from escrow back to the buyer, 4.5 min after the job started (4 txs, in `docs/evidence.md`). Pass job `c00c4fcf…` with short deadlines: result on chain, escrow unlocks 13:47, then the seller's node collects. New `receipt.py` completes a proof after the escrow settles. It lists every tx from both sides and checks on chain (Koios) how much left escrow into the selling or purchasing wallet. `buy_job.py` now waits for the result tx before writing the proof.
+- Next: confirm the seller payout of `c00c4fcf…` (receipt), then a paid job with the real `eth-vault` app (needs the Sepolia `EVM_*` vars in `cardano-agent/.env`).
+- Notes: our agent is not on Sokosumi's agent list (`sokosumi --preprod agents list` shows 20 curated agents). Registering on Masumi does not list it there, so ask the Masumi team on site how to get listed. Qualification does not depend on it: the paid job runs through Masumi escrow on preprod.
+
+### 2026-10-30 · Julien (Cardano) · first paid job
+- Changed: **Cardano qualification done.** Agent registered on Masumi preprod (`ppb pay-on-pass agent`, 5 tADA per job, escrow). First paid job: 5 tADA locked in escrow (tx `cef9996c…49370a2`), check passed, result submitted (tx `4d622fc4…a6e9a34`). Full hashes and links are in `docs/evidence.md`. New `masumi_v2.py`: SDK 1.2.0 doesn't support the V2 registrations the current payment service creates (missing `supportedPaymentSourceIndex`, lists default to V1). Job deadlines are now configurable so the escrow pays the seller ~36 min after a job instead of ~30 h.
+- Next: a pass job with short deadlines for a real seller receipt, and a fail job for the refund path (both running). Then hire through Sokosumi.
+- Notes: `agent-run.sh` changes are compatible with `apps/eth-vault.json`. For your "agent loop (repeated cycles)": the gate already retries an executor that returns `"retryable": true` until a deadline, so a loop only needs `agent-run.sh` to reuse one order instead of creating one per call.
+
+### 2026-10-30 · Batu (12:57)
 - Changed: `docs/decision-sheet.md` #6 now has the results of the paid checks. Docs only.
 - Next: Ulaş, Orhun and Batu decide. If #6: one coin, simulated pool rewards, credit = reward × signed `historicalPrices` at the reward time, hash built on-chain.
 - Notes:
@@ -94,14 +103,6 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - The request hash is `keccak256('["historicalPrices",[["symbols",["DOGE"]],["timestamps",[<ms>]]]]')`.
   - Signed Bitcoin balances failed (502), so the reward amount stays unsigned.
   - Cost 0.01 aUSD, tx `0xf54d7b05d806a0e246472f3380438710f85020441797dca6cd5ec44b43eeaa91`.
-
-### 2026-10-30 · Batu (13:00)
-- Changed: `docs/decision-sheet.md` has a new section "#6 Mining payout settlement: API3 review" for Ulaş's brainstorm branch. Docs only.
-- Next: Ulaş, Orhun and Batu discuss it. Three open checks (one $0.01 call each) are listed at the end of the section.
-- Notes:
-  - AirnodeHub has no mining pool or reward data, so only the price would be signed.
-  - dRPC `historicalPrices` gives a signed price at a past timestamp ($0.01) for DOGE, BTC, LTC, ADA and more.
-  - Nodary serves DOGE/USD, LTC/USD, BTC/USD and ADA/USD for free.
 
 ### 2026-10-30 · Orhun
 - Changed: Deployed PriceTriggeredVault on Ethereum Sepolia at 0xBC68DB972A62cFf3161e600d92C475c29c22886A (Nodary signer, max age 300s). Live checks: real ETH/USD response accepted, replay and all four tampered responses (value, stale, request, key) rejected on-chain, agent-run created and executed order 0. Deploy needs `--slow --gas-estimate-multiplier 800`. submit.sh now reads revert errors from newer cast output. README has a Deployment section; .env.example points at Sepolia (Tenderly RPC).
@@ -112,32 +113,30 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: a real Nodary ETH/USD response (price 2246.485) was fetched and verified against the Nodary signer; it is now a test (`test_realNodaryResponse`), 17 tests pass. Fixed the `key` tamper mode for Foundry 1.8.x.
 - Next: choose the API3 use case (ETH vault, parametric insurance or esports escrow), deploy to Base Sepolia, add a timed loop to the agent for the agent bonus.
 
+### 2026-10-30 · Batu (12:52)
+- Changed: `docs/decision-sheet.md` has a new section "#6 Mining payout settlement: API3 review" for Ulaş's brainstorm branch. Docs only.
+- Next: Ulaş, Orhun and Batu discuss it. Three open checks (one $0.01 call each) are listed at the end of the section.
+- Notes:
+  - AirnodeHub has no mining pool or reward data, so only the price would be signed.
+  - dRPC `historicalPrices` gives a signed price at a past timestamp ($0.01) for DOGE, BTC, LTC, ADA and more.
+  - Nodary serves DOGE/USD, LTC/USD, BTC/USD and ADA/USD for free.
+
 ### 2026-10-30 · Batu (12:46)
 - Changed: nothing in code. Batu has a Base Sepolia test wallet `0xA54506DcE89ff9561534c76C043505a1a484FB4c` (encrypted Foundry keystore `batu-test`) with 10 aUSD and ~0.0001 ETH. Mint tx `0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f`.
 - Next: wait for Ulaş's Cardano + API3 idea branch, then the API3 contract work with Orhun.
 - Notes: aUSD on Base Sepolia (chain 84532) is `0xbeA34973e5f67F18F656A2C6070C64326C791808`, 6 decimals, faucet limit 10 aUSD per account, minted via `mintFromFaucet(uint256)` from the wallet itself (needs a little Base Sepolia ETH; Coinbase CDP faucet works). RPC `https://sepolia.base.org`.
 
-### 2026-10-30 · Batu (12:25)
+### 2026-10-30 · Batu (12:12)
 - Changed: nothing in code. Batu's laptop now has Foundry 1.8.7 and pnpm 12.16.1. `forge test` in `api3/` passes 15/15; `local-demo.sh` runs on anvil.
 - Next: Orhun to fix the wrong-key tamper case (below), then the idea decision (#0 vs #3).
 - Notes: **Foundry 1.8.7 breaks tamper case (d).** `cast wallet new --json` now returns `{"data":[...]}`, so `api3/scripts/submit.sh:24` (`jq -r '.[0].private_key'`) fails with `Cannot index object with number`. Suggested fix, works with old and new Foundry: `jq -r '(.data // .)[0].private_key'`. Judges with a current Foundry would hit this.
-
-### 2026-10-30 · Julien (Cardano) · first paid job
-- Changed: **Cardano qualification done.** Agent registered on Masumi preprod (`ppb pay-on-pass agent`, 5 tADA per job, escrow). First paid job: 5 tADA locked in escrow (tx `cef9996c…49370a2`), check passed, result submitted (tx `4d622fc4…a6e9a34`). Full hashes and links are in `docs/evidence.md`. New `masumi_v2.py`: SDK 1.2.0 doesn't support the V2 registrations the current payment service creates (missing `supportedPaymentSourceIndex`, lists default to V1). Job deadlines are now configurable so the escrow pays the seller ~36 min after a job instead of ~30 h.
-- Next: a pass job with short deadlines for a real seller receipt, and a fail job for the refund path (both running). Then hire through Sokosumi.
-- Notes: `agent-run.sh` changes are compatible with `apps/eth-vault.json`. For your "agent loop (repeated cycles)": the gate already retries an executor that returns `"retryable": true` until a deadline, so a loop only needs `agent-run.sh` to reuse one order instead of creating one per call.
 
 ### 2026-10-30 · Julien (Cardano)
 - Changed: `cardano-agent/` is now a generic pay-on-pass agent. What it sells is pluggable: `apps/*.json` plus an executor that prints `{"passed": …}`. Passed: the result goes on chain and the escrow releases. Not passed: no result; the buyer requests a refund and `refunds.py` authorizes it. Apps: `mock` (the buyer picks the outcome, for testing) and `eth-vault` (wraps `api3/scripts/agent-run.sh` and passes only if the vault executed, which is proposal 1). Retry until a deadline is built in (proposal 3), but `eth-vault` doesn't use it because `agent-run.sh` creates a new order per call. `buy_job.py` takes `--input JSON` and requests the refund when a job fails. 10 unit tests (`python -m unittest` in `cardano-agent/`).
 - Next: Docker and Masumi services, register the agent, then a first paid job (mock, pass) and one refund (mock, fail) on preprod.
 - Notes: the `agent-run.sh` interface is unchanged. A new API3 use case is a new app (executor + config) and needs no Cardano changes; see "Executor contract" in `cardano-agent/README.md`. `ALLOW_DRY_RUN` is gone; use `APP_CONFIG=apps/mock.json` to test without the EVM side.
 
-### 2026-10-30 · Julien
-- Changed: added "Proposals to discuss" above (pay on execution, customer story, watch until deadline, trust assumption, infra risk). Earlier push: `CLAUDE.md` with team rules, tracks and coding-agent context.
-- Next: agree on the proposals with Orhun, then implement 1 and 3 in `cardano-agent/agent.py`.
-- Notes: Sokosumi preprod: CLI 1.0.4 is broken (`404 route_not_found` on Personal Workspace commands), use 1.1.0. Vendor `powerpuffboys` and Coworker `powerpuffboys-agent` are registered on Julien's account (quickstart path, may not be needed for the MIP-003 agent). Julien's laptop: Node 24, Postgres 17, Foundry; no Docker or cloudflared yet.
-
-### 2026-10-30 · Batu (12:10)
+### 2026-10-30 · Batu (12:09)
 - Changed: new branch `batu/api3-setup` for the API3 track (Batu + Orhun, tentative). Added `.local/` and `cache/` to `.gitignore` (required by `CLAUDE.md` §7). Status log in `docs/status/batu.md`.
 - Next: Batu and Orhun pick #0 (price vault) or #3 (supplier approval gate). Then Foundry setup and `forge test` on Batu's laptop.
 - Notes: Batu's laptop has no Foundry or pnpm yet.
@@ -150,6 +149,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - Re Julien's proposal 1 (refund when the seller never submits): the Masumi refunds doc lists "no response before the deadline" as grounds for the buyer's `POST /purchase/request-refund`, but the seller must then `authorize-refund`, or it escalates to the Masumi team. Safer: our agent calls `POST /payment/authorize-refund` itself when the condition fails by the deadline. Confirm with Masumi. Source: https://www.masumi.network/dev/masumi/core-concepts/refunds-and-disputes.md
   - AirnodeHub: Nodary ETH/USD is free and first-party. The CoinGecko `simplePrice` used in `fetch-eth-usd.sh` costs $0.02 aUSD (x402).
   - API3 judging: real use case 40%, signed data matters 30%, execution 20%, novelty 10% ("beyond the unchanged starter"; the starter is already a Nodary ETH/USD consumer), +10 agent bonus. Projections let a contract read string fields such as Companies House `company_status`. Details in `docs/decision-sheet.md`.
+
+### 2026-10-30 · Julien
+- Changed: added "Proposals to discuss" above (pay on execution, customer story, watch until deadline, trust assumption, infra risk). Earlier push: `CLAUDE.md` with team rules, tracks and coding-agent context.
+- Next: agree on the proposals with Orhun, then implement 1 and 3 in `cardano-agent/agent.py`.
+- Notes: Sokosumi preprod: CLI 1.0.4 is broken (`404 route_not_found` on Personal Workspace commands), use 1.1.0. Vendor `powerpuffboys` and Coworker `powerpuffboys-agent` are registered on Julien's account (quickstart path, may not be needed for the MIP-003 agent). Julien's laptop: Node 24, Postgres 17, Foundry; no Docker or cloudflared yet.
 
 ### 2026-10-30 · Orhun
 - Changed: API3: added `api3/`, a Foundry vault that verifies AirnodeHub signed ETH/USD (signer, request hash, freshness, no replay) and pays out when the price crosses the threshold. 15 tests incl. all tamper cases; `scripts/local-demo.sh` runs the full flow on anvil. `scripts/submit.sh` for judges (tamper modes: value, stale, request, key), `scripts/agent-run.sh` for the Cardano agent.

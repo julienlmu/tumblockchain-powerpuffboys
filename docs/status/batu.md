@@ -2,12 +2,17 @@
 
 Newest on top.
 
+### 2026-10-30 ~13:55 · branch `batu/api3-setup`
+- Done: `git fetch origin && git rebase origin/main` onto Julien's `68762a5` (Cardano: first paid job and refund path on preprod). Every replayed commit conflicted in the `docs/PROGRESS.md` log. Resolved each time by keeping both sides and dropping exact duplicates. Checked afterwards: no log entry from `origin/main` or from the pre-rebase branch is missing, and the non-log part equals `origin/main`.
+- Fixed: log order by time. Some of Batu's time labels were 8–13 minutes later than the real commit times; they now use the commit times (`git log`), in PROGRESS, in this file and in `docs/decision-sheet.md`.
+- Next: push. A force push is needed because the rebase rewrote the branch; Batu runs it.
+
 ### 2026-10-30 ~13:50 · branch `batu/api3-setup`
 - Done: three paid `getCompanyProfile` calls (0.03 aUSD; balance 9.96 aUSD, checked on chain). `09729896` active, `07418033` liquidation, `12493325` dissolved. Signer and request hashes verified.
 - Verified: a scratch Forge test runs `SupplierPulse.sol` against the real responses, 6/6 pass (paid, held + refund, held, edited, other company, stale). The test file is not committed.
 - Added: `docs/samples/companies-house/*.json`, the three signed responses with request and payment tx, for Orhun's tests and the demo.
 
-### 2026-10-30 ~13:55 · branch `batu/api3-setup`
+### 2026-10-30 ~13:46 · branch `batu/api3-setup`
 - Done: API3 review of SupplierPulse (branch `supplier-pulse`, Orhun) in `docs/decision-sheet.md`.
 - Verified: `forge test` on a scratch copy passes 31/31 (SupplierPulse 14, vault 17). Companies House listing: signer `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, `getCompanyProfile` with `company_number`, $0.01.
 - Free calls only (no aUSD spent): `advancedSearchCompanies` found active and liquidation/dissolved motor companies for the demo.
@@ -32,7 +37,7 @@ Newest on top.
   - `nonEvmWalletBalances` for bitcoin returned 502 / upstream 404, not charged.
 - Details in `docs/decision-sheet.md`, section "Results of the paid checks".
 
-### 2026-10-30 ~13:00 · branch `batu/api3-setup`
+### 2026-10-30 ~12:52 · branch `batu/api3-setup`
 - Done: API3 review of the mining payout idea (`docs/BRAINSTORMING.md` on `brainstorm/mining-payout-settlement`), added as section "#6" in `docs/decision-sheet.md`.
 - Checked: AirnodeHub catalogue (no mining pool, hashrate or block reward data). Two free live calls, no aUSD spent: Nodary `latestFeeds` (DOGE, LTC, BTC, ADA in USD) and dRPC `priceSymbols` (621 symbols for `historicalPrices`, incl. DOGE, BTC, LTC, ADA). Read the request-hash rules in `/docs/from-api-to-contract`.
 - Finding: the signed price covers only the valuation. The reward amount would be unsigned or simulated, which is weak on "signed data matters" (30%). The strong mechanism is `historicalPrices` at the reward's own timestamp, with the request hash built on-chain (anti-cherry-picking), plus the agent loop.
@@ -45,13 +50,13 @@ Newest on top.
 - Wallet `batu-test` is ready as x402 payer and for testnet transactions. Faucet limit reached (10 aUSD per account).
 - Next: wait for Ulaş's idea branch. Meanwhile, read the AirnodeHub listings it will need (free GET only).
 
-### 2026-10-30 ~12:45 · branch `batu/api3-setup`
+### 2026-10-30 ~12:43 · branch `batu/api3-setup`
 - Done: Batu created an encrypted Foundry keystore `batu-test` (`~/.foundry/keystores/batu-test`, password known only to Batu).
 - Address (public): `0xA54506DcE89ff9561534c76C043505a1a484FB4c` (Base Sepolia). https://sepolia.basescan.org/address/0xA54506DcE89ff9561534c76C043505a1a484FB4c
 - Checked: balance 0 ETH, 0 aUSD.
 - Next: Batu gets Base Sepolia ETH from a faucet, then mints 10 aUSD.
 
-### 2026-10-30 ~12:45 · branch `batu/api3-setup`
+### 2026-10-30 ~12:39 · branch `batu/api3-setup`
 - Context: Ulaş is working on an idea that uses Cardano and API3 together, on his own branch. Until then Batu prepares what every option needs: an EVM test wallet with Base Sepolia ETH and aUSD.
 - Checked (read-only `cast call` on `https://sepolia.base.org`, chain id 84532):
   - aUSD token: `0xbeA34973e5f67F18F656A2C6070C64326C791808`, symbol `aUSD`, 6 decimals. Source: the faucet page bundle (https://api3dao.github.io/airnodehub-hackathon/faucet/) and the chain.
@@ -60,16 +65,16 @@ Newest on top.
 - Base Sepolia ETH faucets (https://docs.base.org/base-chain/network-information/network-faucets): Coinbase CDP (up to 0.1 ETH / 24 h), Alchemy (free account), QuickNode, thirdweb, ethfaucet.com.
 - Next: Batu creates an encrypted Foundry keystore (`cast wallet new batu-test`, password typed by Batu, key never in chat or git), gets ETH from a faucet, then mints aUSD.
 
-### 2026-10-30 ~12:20 · branch `batu/api3-setup`
+### 2026-10-30 ~12:16 · branch `batu/api3-setup`
 - Done: `git fetch origin && git rebase origin/main`, no conflicts. Main had a new commit from Julien (`af864ac`, pay-on-pass Cardano agent).
 - Done: after the rebase, moved Batu's PROGRESS entries back to the top of the log. Marked decision-sheet fact 2 as outdated, because `af864ac` now delivers a result only when the vault executed.
 - Next: push `batu/api3-setup` after Batu's OK. The branch also carries the four `batu/decision-sheet` commits, since those are not on `main` yet.
 
-### 2026-10-30 ~12:25 · branch `batu/api3-setup`
+### 2026-10-30 ~12:12 · branch `batu/api3-setup`
 - Done: installed Foundry 1.8.7 (forge, anvil, cast; official `foundryup`, binaries hash-verified) into `~/.foundry/bin`, and pnpm 12.16.1 via `npm install -g pnpm`.
 - Verified: `cd api3 && forge test` passes 15/15. `./scripts/local-demo.sh` runs on anvil: tamper `value`, `stale` and `request` are rejected, the valid response executes, the replay is rejected, and `agent-run.sh` returns `executed: true`.
 - **Bug (for Orhun):** the wrong-key tamper case does not run with Foundry 1.8.7. `api3/scripts/submit.sh:24` reads `cast wallet new --json | jq -r '.[0].private_key'`, but 1.8.7 wraps the output as `{"schema_version":1,"success":true,"data":[...]}`. jq fails with `Cannot index object with number`, so tamper case (d) is never submitted. Possible fix that works with old and new Foundry: `jq -r '(.data // .)[0].private_key'`. Not changed yet, since it is Orhun's script. `cast send --json` is not affected.
-- Resolved (~12:13): Batu added `~/.foundry/bin` to `~/.zshenv`. Checked in a new shell: `forge --version` gives 1.8.7.
+- Resolved (~12:14): Batu added `~/.foundry/bin` to `~/.zshenv`. Checked in a new shell: `forge --version` gives 1.8.7.
 - Wrong-key bug left to Orhun (Batu's call).
 
 ### 2026-10-30 ~12:10 · branch `batu/api3-setup` (from `origin/batu/decision-sheet`)
