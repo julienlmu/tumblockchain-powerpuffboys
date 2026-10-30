@@ -2,7 +2,7 @@
 # Entry point for the Cardano/Masumi agent (API3_SUBMIT_CMD).
 # Creates a vault order "pay out if ETH/USD < THRESHOLD_USD", fetches a signed ETH/USD from AirnodeHub,
 # submits it and executes if the condition holds. Logs go to stderr; the LAST stdout line is JSON:
-#   {"txHash":"0x..","price":"2987.41","executed":true,"chainId":84532,"vault":"0x..","orderId":3}
+#   {"txHash":"0x..","price":"2987.41","executed":true,"chainId":11155111,"vault":"0x..","orderId":3}
 # env: THRESHOLD_USD (int), EVM_RPC_URL, EVM_PRIVATE_KEY, VAULT_ADDRESS
 #      [BELOW=true] [ORDER_VALUE_WEI=1000000000000] [BENEFICIARY=sender] [RESPONSE_FILE=skip fetch]
 set -euo pipefail
@@ -14,7 +14,11 @@ chain_id="$(cast chain-id "${rpc[@]}")"
 below="${BELOW:-true}"
 threshold="$(cast to-wei "$THRESHOLD_USD" ether)"
 
-send() { cast send "${rpc[@]}" --private-key "$EVM_PRIVATE_KEY" --json "$@"; }
+# newer Foundry wraps --json output as {"success","data",...}; unwrap it so both formats work
+send() {
+  cast send "${rpc[@]}" --private-key "$EVM_PRIVATE_KEY" --json "$@" \
+    | jq '(if type == "object" and has("success") and has("data") then .data else . end)'
+}
 
 echo "creating order: pay ${ORDER_VALUE_WEI:-1000000000000} wei if ETH/USD $([[ $below == true ]] && echo '<' || echo '>') $THRESHOLD_USD" >&2
 rc="$(send --value "${ORDER_VALUE_WEI:-1000000000000}" "$VAULT_ADDRESS" \

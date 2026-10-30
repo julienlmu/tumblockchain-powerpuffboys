@@ -12,8 +12,12 @@ contract PriceTriggeredVaultTest is TestBase {
 
     uint256 constant AIRNODE_KEY = 0xA11CE;
     uint256 constant ATTACKER_KEY = 0xBAD;
-    bytes32 constant ETH_USD_REQUEST = keccak256('["coinPrice",{"ids":"ethereum","vs_currencies":"usd"}]');
-    bytes32 constant BTC_USD_REQUEST = keccak256('["coinPrice",{"ids":"bitcoin","vs_currencies":"usd"}]');
+    bytes32 constant ETH_USD_REQUEST = keccak256(
+        '["latestFeeds",[["name","ETH/USD"]],[["price","/ETH~1USD/value"],["updatedAt","/ETH~1USD/timestamp"]]]'
+    );
+    bytes32 constant BTC_USD_REQUEST = keccak256(
+        '["latestFeeds",[["name","BTC/USD"]],[["price","/BTC~1USD/value"],["updatedAt","/BTC~1USD/timestamp"]]]'
+    );
     uint256 constant MAX_AGE = 300;
     uint256 constant NOW = 1_800_000_000;
 
@@ -22,7 +26,9 @@ contract PriceTriggeredVaultTest is TestBase {
 
     function setUp() public {
         vm.warp(NOW);
-        vault = new PriceTriggeredVault(vm.addr(AIRNODE_KEY), ETH_USD_REQUEST, MAX_AGE, bytes('"usd":'), 0);
+        vault = new PriceTriggeredVault(
+            vm.addr(AIRNODE_KEY), ETH_USD_REQUEST, MAX_AGE, bytes('"price":'), 0, bytes('"updatedAt":')
+        );
         vm.deal(address(this), 10 ether);
         orderId = vault.createOrder{value: 1 ether}(beneficiary, 3000e18, true); // pay if ETH < $3000
     }
@@ -34,7 +40,22 @@ contract PriceTriggeredVaultTest is TestBase {
     }
 
     function _price(string memory p) internal pure returns (bytes memory) {
-        return abi.encodePacked('{"ethereum":{"usd":', p, "}}");
+        return _price(p, NOW - 5);
+    }
+
+    // Nodary format: {"price":2443.95,"updatedAt":1792403240691} (updatedAt in ms)
+    function _price(string memory p, uint256 updatedAt) internal pure returns (bytes memory) {
+        return abi.encodePacked('{"price":', p, ',"updatedAt":', _str(updatedAt * 1000), "}");
+    }
+
+    function _str(uint256 v) internal pure returns (string memory) {
+        if (v == 0) return "0";
+        bytes memory b;
+        while (v > 0) {
+            b = abi.encodePacked(bytes1(uint8(48 + v % 10)), b);
+            v /= 10;
+        }
+        return string(b);
     }
 
     // ------------------------------------------------------------ happy path
@@ -89,6 +110,15 @@ contract PriceTriggeredVaultTest is TestBase {
         vault.submitAndExecute(orderId, ETH_USD_REQUEST, ts, data, sig);
     }
 
+    function test_rejectsFreshSignatureOverOldPrice() public {
+        // signed just now, but the price itself was observed an hour ago
+        uint256 priceTs = NOW - 3600;
+        bytes memory data = _price("2987.41", priceTs);
+        bytes memory sig = _sign(AIRNODE_KEY, ETH_USD_REQUEST, NOW, data);
+        vm.expectRevert(abi.encodeWithSelector(PriceTriggeredVault.StalePrice.selector, priceTs, NOW));
+        vault.submitAndExecute(orderId, ETH_USD_REQUEST, NOW, data, sig);
+    }
+
     function test_rejectsFutureResponse() public {
         uint256 ts = NOW + 3600;
         bytes memory data = _price("2987.41");
@@ -99,7 +129,7 @@ contract PriceTriggeredVaultTest is TestBase {
 
     function test_rejectsOtherRequest() public {
         // validly signed by the trusted Airnode, but for BTC/USD, not ETH/USD
-        bytes memory data = abi.encodePacked('{"bitcoin":{"usd":67000}}');
+        bytes memory data = abi.encodePacked('{"price":67000,"updatedAt":', _str(NOW * 1000), "}");
         bytes memory sig = _sign(AIRNODE_KEY, BTC_USD_REQUEST, NOW, data);
         vm.expectRevert(abi.encodeWithSelector(PriceTriggeredVault.WrongRequest.selector, BTC_USD_REQUEST));
         vault.submitAndExecute(orderId, BTC_USD_REQUEST, NOW, data, sig);
@@ -179,6 +209,31 @@ contract PriceTriggeredVaultTest is TestBase {
         uint256 before = address(this).balance;
         vault.cancel(orderId);
         assertEq(address(this).balance, before + 1 ether, "refund");
+    }
+
+    // A real response fetched from the Nodary Airnode on 2026-10-30, checked against the real signer.
+    function test_realNodaryResponse() public {
+        address nodary = 0xE70f1e8b22a21e4Bb5188918a3033341b281E4c0;
+        bytes32 req = 0x180eae9387bb66a72380e61ebe0a00d19f8414a716a37ebe1df124b66acfff66;
+        uint256 ts = 1793358553;
+        bytes memory data = bytes('{"price":2246.485,"updatedAt":1793358553047}');
+        bytes memory sig =
+            hex"074296f4af24e056f6c94db2a3f5985a78eda834ab21f76437728b81ba904430185c5a9ca5b404439e491e8fad7a1b9288eec7d7829cc8ecae9c4dba2deb02b31c";
+
+        vm.warp(ts + 10);
+        PriceTriggeredVault real = new PriceTriggeredVault(nodary, req, MAX_AGE, bytes('"price":'), 0, bytes('"updatedAt":'));
+        uint256 id = real.createOrder{value: 1 ether}(beneficiary, 3000e18, true);
+
+        // one edited digit: rejected
+        bytes memory edited = bytes('{"price":2246.486,"updatedAt":1793358553047}');
+        address recovered = AirnodeVerifier.recover(req, ts, edited, sig);
+        vm.expectRevert(abi.encodeWithSelector(PriceTriggeredVault.WrongSigner.selector, recovered));
+        real.submitAndExecute(id, req, ts, edited, sig);
+
+        // untouched: accepted, 2246.485 < 3000 so the order pays out
+        real.submitAndExecute(id, req, ts, data, sig);
+        assertEq(real.latestPrice(), 2246.485e18, "price");
+        assertEq(beneficiary.balance, 1 ether, "paid out");
     }
 
     receive() external payable {}

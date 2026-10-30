@@ -21,7 +21,7 @@ case "$tamper" in
            echo "tampered data: $new" >&2 ;;
   stale)   ts=$((ts - 3600)); echo "tampered timestamp: $ts" >&2 ;;
   request) req="$(cast keccak "some-other-request")"; echo "tampered requestHash: $req" >&2 ;;
-  key)     k="$(cast wallet new --json | jq -r '.[0].private_key')"
+  key)     k="$(cast keccak "random-key-$RANDOM-$(date +%s)")"   # throwaway key, not the Airnode's
            d="$(cast keccak "$(cast concat-hex "$req" "$(cast to-uint256 "$ts")" "$data")")"
            sig="$(cast wallet sign --private-key "$k" "$d")"
            echo "re-signed with random key $(cast wallet address --private-key "$k")" >&2 ;;
@@ -37,17 +37,19 @@ fi
 # dry run first so a rejection shows the decoded custom error
 if ! out="$(cast call --rpc-url "$EVM_RPC_URL" --from "$(cast wallet address --private-key "$EVM_PRIVATE_KEY")" \
      "$VAULT_ADDRESS" "$fn" "${args[@]}" 2>&1)"; then
-  sel="$(echo "$out" | grep -oE 'custom error 0x[0-9a-f]{8}' | head -1 | awk '{print $3}')"
+  # older cast prints "custom error 0x<sel>", newer prints the revert data as data: "0x<sel>..."
+  sel="$(echo "$out" | grep -oE '(custom error |data: "?)0x[0-9a-f]{8}' | head -1 | grep -oE '0x[0-9a-f]{8}' || true)"
   name="unknown"
   for e in "WrongSigner(address)" "WrongRequest(bytes32)" "StaleResponse(uint256,uint256)" \
-           "FutureResponse(uint256,uint256)" "Replayed(bytes32)" "NotNewer(uint256,uint256)" \
+           "FutureResponse(uint256,uint256)" "StalePrice(uint256,uint256)" "Replayed(bytes32)" "NotNewer(uint256,uint256)" \
            "ConditionNotMet(uint256,uint256,bool)" "InvalidSignatureS()" "InvalidSignatureLength()" "BadOrder()"; do
     [[ "$(cast sig "$e")" == "$sel" ]] && name="$e"
   done
   echo "REJECTED by vault: $name" >&2
-  echo "$out" | grep -m1 -oE 'custom error.*' >&2 || echo "$out" >&2
+  echo "$out" | grep -m1 -oE '(custom error|execution reverted).*' >&2 || echo "$out" >&2
   exit 1
 fi
 cast send --rpc-url "$EVM_RPC_URL" --private-key "$EVM_PRIVATE_KEY" "$VAULT_ADDRESS" "$fn" "${args[@]}" --json \
-  | jq '{txHash: .transactionHash, status: .status}'
+  | jq '(if type == "object" and has("success") and has("data") then .data else . end)
+        | {txHash: .transactionHash, status: .status}'
 echo "latestPrice (1e18): $(cast call --rpc-url "$EVM_RPC_URL" "$VAULT_ADDRESS" 'latestPrice()(uint256)')"

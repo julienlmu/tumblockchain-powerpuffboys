@@ -23,8 +23,9 @@ contract PriceTriggeredVault {
     bytes32 public requestHash; // the only AirnodeHub request we accept (ETH/USD)
     uint256 public maxAge; // seconds a signed response stays valid
     uint256 public constant MAX_FUTURE_SKEW = 60;
-    bytes public priceKey; // JSON bytes right before the number, e.g. `"usd":`
+    bytes public priceKey; // JSON bytes right before the price, e.g. `"price":`
     uint8 public sourceDecimals;
+    bytes public updatedAtKey; // JSON bytes right before the price's own time in ms, e.g. `"updatedAt":` (empty: skip)
 
     uint256 public latestPrice; // 18 decimals
     uint256 public latestTimestamp; // AirnodeHub timestamp of latestPrice
@@ -41,6 +42,7 @@ contract PriceTriggeredVault {
     error WrongSigner(address recovered);
     error WrongRequest(bytes32 got);
     error StaleResponse(uint256 timestamp, uint256 nowTs);
+    error StalePrice(uint256 priceTimestamp, uint256 nowTs);
     error FutureResponse(uint256 timestamp, uint256 nowTs);
     error Replayed(bytes32 digest);
     error NotNewer(uint256 timestamp, uint256 latest);
@@ -55,7 +57,8 @@ contract PriceTriggeredVault {
         bytes32 _requestHash,
         uint256 _maxAge,
         bytes memory _priceKey,
-        uint8 _sourceDecimals
+        uint8 _sourceDecimals,
+        bytes memory _updatedAtKey
     ) {
         admin = msg.sender;
         airnode = _airnode;
@@ -63,6 +66,7 @@ contract PriceTriggeredVault {
         maxAge = _maxAge;
         priceKey = _priceKey;
         sourceDecimals = _sourceDecimals;
+        updatedAtKey = _updatedAtKey;
         emit ConfigUpdated(_airnode, _requestHash, _maxAge);
     }
 
@@ -92,6 +96,13 @@ contract PriceTriggeredVault {
 
         usedDigests[d] = true;
         price = PriceParser.parse(data, priceKey, sourceDecimals);
+        // a fresh signature can still carry an old observation, so check the price's own time too
+        if (updatedAtKey.length != 0) {
+            uint256 priceTs = PriceParser.parseUint(data, updatedAtKey) / 1000;
+            if (block.timestamp > priceTs && block.timestamp - priceTs > maxAge) {
+                revert StalePrice(priceTs, block.timestamp);
+            }
+        }
         latestPrice = price;
         latestTimestamp = timestamp;
         emit PriceAccepted(price, timestamp, d, msg.sender);

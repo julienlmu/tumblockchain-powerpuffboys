@@ -43,6 +43,11 @@ library PriceParser {
         price /= 10 ** sourceDecimals;
     }
 
+    /// @notice Integer part of the number after `key`, e.g. `"updatedAt":1792403240691` gives 1792403240691
+    function parseUint(bytes memory data, bytes memory key) internal pure returns (uint256) {
+        return parse(data, key, 0) / 1e18;
+    }
+
     function _find(bytes memory data, bytes memory key) private pure returns (uint256) {
         if (key.length == 0 || data.length < key.length) revert KeyNotFound();
         for (uint256 i = 0; i <= data.length - key.length; i++) {

@@ -1,23 +1,19 @@
 #!/usr/bin/env bash
-# Fetch a signed ETH/USD response from AirnodeHub (CoinGecko passthrough) and write it as JSON:
+# Fetch a signed ETH/USD response from the Nodary Airnode on AirnodeHub (free, no rate limit) and write it as JSON:
 #   {"airnode","requestHash","timestamp","data"(hex of the exact signed bytes),"signature","raw"}
 # Usage: scripts/fetch-eth-usd.sh [out.json]     (default: stdout)
-# env: AIRNODE_URL (default: CoinGecko passthrough for ethereum/usd)
+# env: AIRNODE_URL (default https://airnode-nodary.fly.dev/), FEED (default ETH/USD)
 set -euo pipefail
-URL="${AIRNODE_URL:-https://airnode-coingecko.fly.dev/api/simple/price?ids=ethereum&vs_currencies=usd}"
-tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+URL="${AIRNODE_URL:-https://airnode-nodary.fly.dev/}"
+FEED="${FEED:-ETH/USD}"
+ptr="/${FEED//\//~1}"   # JSON pointer: "/" becomes "~1"
+body="$(jq -nc --arg f "$FEED" --arg p "$ptr" \
+  '{operation:"latestFeeds", parameters:{name:$f}, responseProjection:{price:($p+"/value"), updatedAt:($p+"/timestamp")}}')"
 
-curl -sS --fail -D "$tmp/h" -o "$tmp/body" "$URL"
-hdr() { grep -i "^$1:" "$tmp/h" | tail -1 | cut -d: -f2- | tr -d ' \r\n'; }
+resp="$(curl -sS --fail -X POST "$URL" -H 'Content-Type: application/json' --data "$body")"
+data="$(echo "$resp" | jq -j .data)"   # the exact string the Airnode signed
+[[ -n "$data" && "$data" != "null" ]] || { echo "unexpected response: $resp" >&2; exit 1; }
 
-airnode="$(hdr x-airnode-address)"; req="$(hdr x-airnode-request-hash)"
-ts="$(hdr x-airnode-timestamp)"; sig="$(hdr x-airnode-signature)"
-if [[ -z "$sig" || -z "$req" || -z "$ts" ]]; then
-  echo "no attestation headers in response (payment needed? see AirnodeHub docs)" >&2
-  cat "$tmp/h" >&2; exit 1
-fi
-
-json="$(jq -n --arg a "$airnode" --arg r "$req" --arg t "$ts" --arg s "$sig" \
-  --arg d "0x$(od -An -v -tx1 "$tmp/body" | tr -d ' \n')" --rawfile raw "$tmp/body" \
-  '{airnode:$a, requestHash:$r, timestamp:$t, data:$d, signature:$s, raw:$raw}')"
+json="$(echo "$resp" | jq --arg d "0x$(printf '%s' "$data" | od -An -v -tx1 | tr -d ' \n')" \
+  '{airnode, requestHash, timestamp:(.timestamp|tostring), data:$d, signature, raw:.data}')"
 if [[ $# -ge 1 ]]; then echo "$json" > "$1"; else echo "$json"; fi
