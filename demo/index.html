@@ -442,8 +442,10 @@
     const li = (g) => {
       const o = byId[g.order];
       const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
+      // a hold without evidence in the same transaction is applySupplierFailure: no paid fetch
+      const stop = !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
-        <span>#${g.order} ${name}: ${g.evs.map((e) => word(e, o)).join(" → ")}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+        <span>#${g.order} ${name}: ${stop ? "supplier-wide stop, no fetch → " : ""}${g.evs.map((e) => word(e, o)).join(" → ")}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
     const more = rows.length > 5
       ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - 5} earlier</summary><ol>${rows.slice(5, 60).map(li).join("")}</ol></details>`
@@ -498,7 +500,7 @@
       if (ea) evState.txFrom[tx] = ea.args.submitter;
       else if (rf) evState.txFrom[tx] = rf.args.triggeredBy;
       else if (oc) evState.txFrom[tx] = oc.args.buyer;
-      else if (evs.some((e) => e.name === "MilestonePaid")) lookups.push(tx);
+      else if (evs.some((e) => e.name === "MilestonePaid" || e.name === "OrderHeld")) lookups.push(tx); // release, applySupplierFailure
     }
     await Promise.all(lookups.slice(0, 40).map(async (tx) => { try { const t = await provider.getTransaction(tx); if (t) evState.txFrom[tx] = t.from; } catch { /* leave unknown */ } }));
     const blocks = [...new Set(evState.list.map((e) => e.block))].filter((b) => !(b in evState.blockTime)).slice(-80);
