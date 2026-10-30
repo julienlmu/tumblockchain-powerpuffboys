@@ -73,6 +73,19 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · C2.5 review of `SupplierPulsePlus.sol` (early) → Orhun, Julien
+- Changed: nothing in Orhun's files. I reviewed `supplierpulse-plus` at `a1cd45e` against §2.4, §2.4a and §4.5 v1.1. `forge test`: 104/104 pass. The two findings were proven with throwaway Forge tests (not committed).
+- **Finding 1 (medium, design, Orhun + Julien): the buyer can bypass "without approval there is no exit".** After `due + refundGrace`, a buyer who never approved can call `approveMilestone(m)` and `refundRemaining()` in the same block. The agent skips unapproved milestones (P3), so there is never a permit at that moment, and the supplier gets no chance to bring evidence. PoC: an order due `NOW`, warp to `NOW + GRACE`, approve then refund → the buyer gets the full amount back, supplier balance 0. **Fix (storage only, no ABI change):** store `approvedAt[m]` and count the no-data exit from `max(dueDates[m], approvedAt[m]) + refundGrace`, in `refundRemaining` and in the `orderSchedule.autoRefundAt` view. The agent then always has the full grace period to fetch after an approval.
+- **Finding 2 (low, Orhun): `checkAndRelease` reverts `PermitExpired` when `permitTtl` < the record's age.** `validUntil = timestamp + permitTtl`, so with `permitTtl = 60` and a 120 s old record, `release` reverts and takes the whole call with it (spec: it reverts only on verification failures and `SupplierFailed`). The clean record and its $0.01 are lost. PoC: reverted `PermitExpired(1799999940, 1800000000)`. **Fix:** `createOrder` requires `permitTtl >= maxAge` (`BadOrder`). The demo orders already use ≥ 300.
+- Note 3 (pitch, Ulaş): the admin can `setAirnode` / `setMaxAge` on live orders. That's fine for the demo, but state it as a trust assumption (or lock it after deploy).
+- Note 4 (demo): `usedDigests` is global, so one signed record serves one order. Two orders of the same supplier (B and B2) need two fetches. That's correct and fits the agent.
+- Checked and fine:
+  - the check order is exactly §4.5, so the tamper errors match `plus-submit.sh`;
+  - the signer per source; replay across orders; "newer only";
+  - the forward-only history; the supplier-wide stop and `applySupplierFailure`;
+  - state is changed before every transfer (reentrancy);
+  - event arguments; `"status":` never matches `"entity_status":`; high-s signatures are rejected.
+
 ### 2026-10-30 · Emre · judge CLI `plus-submit.sh`, §6.2 Phase A done
 - Changed: `api3/scripts/plus-submit.sh <orderId> <file> [value|stale|request|key|replay] [--send]`. It simulates `submitEvidence` (from `0x…dEaD`, no wallet), prints `ACCEPTED clean` / `ACCEPTED held: <labels>` / `REJECTED <Error>(args)`, and exits 0/1/2. `--send` sends with a fixed gas limit, so a rejected record is mined as a failed tx (red "Fail" on Etherscan). It reads `EVM_RPC_URL`/`PULSE_PLUS_ADDRESS` from the env or `api3/.env` and reuses Orhun's `plus-lib.sh` error decoding.
 - Tested against Orhun's contract on `plus-local.sh` (the C2 checks of §6.2): order 0 `ACCEPTED clean`; order 1 `ACCEPTED held: registry status not active, accounts overdue`; order 3 `ACCEPTED held: LEI renewal overdue`; value → `WrongSigner`, stale → `StaleResponse`, request → `WrongRequest`, key → `WrongSigner(random)`, replay → `Replayed`; `--send` gives a success tx and a failed tx.
