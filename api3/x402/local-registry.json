@@ -1,0 +1,6 @@
+{
+  "ch:01234567": { "accounts_overdue": false, "confirmation_overdue": false, "insolvency": false, "status": "active" },
+  "ch:07654321": { "accounts_overdue": true, "confirmation_overdue": false, "insolvency": true, "status": "liquidation" },
+  "gleif:TESTLEI0000000000000": { "entity_status": "ACTIVE", "registration_status": "ISSUED" },
+  "gleif:TESTLEI0000000000001": { "entity_status": "ACTIVE", "registration_status": "LAPSED" }
+}
