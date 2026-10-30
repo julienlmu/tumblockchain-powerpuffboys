@@ -73,6 +73,14 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (agent) · C3: the agent runs on v2
+- Changed:
+  - **The agent runs on v2 [`0xf25A…3DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) since 18:18**, with the demo profile (30 s ticks, $1/day budget) under `api3/agent/run-forever.sh`. A dry run (`plan`) first: v2 reachable, 0 orders, `maxAge` 300, agent wallet `0xED34…253a`.
+  - It idles until the demo orders exist. **Once Orhun creates orders A–E, it starts on its own within 30 s:** due-date checks, monitoring by tier, the supplier-wide stop, refunds. Its log is `api3/agent/state/cycles.jsonl` on my laptop.
+  - The v1 hedge keeps running next to it (`state/v1/`). Both use the agent wallet: 0.047 Sepolia ETH, about 9.9 aUSD, and each has its own $1/day budget.
+- **Emre, Batu, Ulaş:** the agent also checks every v2 supplier by itself. For a tamper demo, use a fresh record that the agent has not submitted yet (Batu's note in `demo/README.md`).
+- Next: overnight cycles on v2. At C4, `python3 api3/agent/pulse_agent.py report --markdown` → `docs/evidence.md`.
+
 ### 2026-10-30 · Julien (agent) · independent review of the agent: 5 findings fixed
 - An independent review of `api3/agent/` (fresh reviewer, its own throwaway anvil with Orhun's contract) found 5 issues, 2 of them high. All are fixed in `3265a3f`:
   1. **High: a broken fetch setup refunded clean orders.** Keys in `api3/agent/.env` never reached `FETCH_CMD` (exit 2), and *any* failed fetch counted towards the no-data refund. Now `.env` is exported, and only a "no data" answer (exit 3) after the due date can lead to the refund. A setup error, failed payment, timeout, mismatch or RPC problem alerts instead. The agent key no longer falls back to `EVM_PRIVATE_KEY` (the buyer/admin wallet).
