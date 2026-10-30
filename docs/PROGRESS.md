@@ -73,6 +73,66 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · C2 passes with the real v1.1 `fetch-local.sh`
+- Changed: merged the latest `supplierpulse-plus` into `emre/plus-data` and re-ran everything on it.
+  - `python3 api3/agent/c2_check.py` with **Emre's real `fetch-local.sh`** (no stand-in signer): **8/8 PASS in 244 s**. Orders 0 and 2 paid; 1 held with `0x82` and refunded; 3 held with `0x08` and refunded; 4 held by the supplier-wide stop without a fetch and refunded; 5 refunded through the no-data exit; `01234567` reached Trusted; no quarantine, no errors.
+  - `forge test` 111/111; `test-requests.mjs` 11/11.
+  - `plus-submit.sh` on the fresh local deploy: order 0 `ACCEPTED clean`, 1 `ACCEPTED held: registry status not active, accounts overdue`, 2 clean, 3 `ACCEPTED held: LEI renewal overdue`; value/stale/request/key → `WrongSigner`/`StaleResponse`/`WrongRequest`/`WrongSigner`; `--send` success; replay → `Replayed`. The real A record on order 1 → `WrongRequest`.
+- Next: merge `emre/plus-data` into `supplierpulse-plus` (C1). Julien's C2 then no longer needs a stand-in signer. C3: real fetches + the judge CLI on Sepolia.
+
+### 2026-10-30 · Emre · C2.5 review of `SupplierPulsePlus.sol` (early) → Orhun, Julien
+- Changed: nothing in Orhun's files. I reviewed `supplierpulse-plus` at `a1cd45e` against §2.4, §2.4a and §4.5 v1.1. `forge test`: 104/104 pass. The two findings were proven with throwaway Forge tests (not committed).
+- **Finding 1 (medium, design, Orhun + Julien): the buyer can bypass "without approval there is no exit".** After `due + refundGrace`, a buyer who never approved can call `approveMilestone(m)` and `refundRemaining()` in the same block. The agent skips unapproved milestones (P3), so there is never a permit at that moment, and the supplier gets no chance to bring evidence. PoC: an order due `NOW`, warp to `NOW + GRACE`, approve then refund → the buyer gets the full amount back, supplier balance 0. **Fix (storage only, no ABI change):** store `approvedAt[m]` and count the no-data exit from `max(dueDates[m], approvedAt[m]) + refundGrace`, in `refundRemaining` and in the `orderSchedule.autoRefundAt` view. The agent then always has the full grace period to fetch after an approval.
+- **Finding 2 (low, Orhun): `checkAndRelease` reverts `PermitExpired` when `permitTtl` < the record's age.** `validUntil = timestamp + permitTtl`, so with `permitTtl = 60` and a 120 s old record, `release` reverts and takes the whole call with it (spec: it reverts only on verification failures and `SupplierFailed`). The clean record and its $0.01 are lost. PoC: reverted `PermitExpired(1799999940, 1800000000)`. **Fix:** `createOrder` requires `permitTtl >= maxAge` (`BadOrder`). The demo orders already use ≥ 300.
+- Note 3 (pitch, Ulaş): the admin can `setAirnode` / `setMaxAge` on live orders. That's fine for the demo, but state it as a trust assumption (or lock it after deploy).
+- Note 4 (demo): `usedDigests` is global, so one signed record serves one order. Two orders of the same supplier (B and B2) need two fetches. That's correct and fits the agent.
+- Checked and fine:
+  - the check order is exactly §4.5, so the tamper errors match `plus-submit.sh`;
+  - the signer per source; replay across orders; "newer only";
+  - the forward-only history; the supplier-wide stop and `applySupplierFailure`;
+  - state is changed before every transfer (reentrancy);
+  - event arguments; `"status":` never matches `"entity_status":`; high-s signatures are rejected.
+
+### 2026-10-30 · Emre · judge CLI `plus-submit.sh`, §6.2 Phase A done
+- Changed: `api3/scripts/plus-submit.sh <orderId> <file> [value|stale|request|key|replay] [--send]`. It simulates `submitEvidence` (from `0x…dEaD`, no wallet), prints `ACCEPTED clean` / `ACCEPTED held: <labels>` / `REJECTED <Error>(args)`, and exits 0/1/2. `--send` sends with a fixed gas limit, so a rejected record is mined as a failed tx (red "Fail" on Etherscan). It reads `EVM_RPC_URL`/`PULSE_PLUS_ADDRESS` from the env or `api3/.env` and reuses Orhun's `plus-lib.sh` error decoding.
+- Tested against Orhun's contract on `plus-local.sh` (the C2 checks of §6.2): order 0 `ACCEPTED clean`; order 1 `ACCEPTED held: registry status not active, accounts overdue`; order 3 `ACCEPTED held: LEI renewal overdue`; value → `WrongSigner`, stale → `StaleResponse`, request → `WrongRequest`, key → `WrongSigner(random)`, replay → `Replayed`; `--send` gives a success tx and a failed tx.
+- Next: C2 integration at 22:00, C2.5 review of the contract, C3 real fetches + judge CLI on Sepolia.
+- Notes: **Batu, Ulaş (video and judge page): run the tamper cases on a record that has NOT been accepted yet.** The contract checks replay and "newer" before the signer (§4.5), so tampering an already accepted record gives `NotNewer` (a) or `Replayed` (d) instead of `WrongSigner`. Order: tamper a fresh record (a)–(d) first, then submit it untouched (accepted), then replay it.
+
+### 2026-10-30 · Emre · data layer on spec v1.1, v1.1 pointers verified live (C1a)
+- Changed: Julien's v1.1 checklist for the data layer is done on `emre/plus-data` (merged `supplierpulse-plus` in):
+  - `requests.mjs`: the Companies House projection has 3 fields (`/accounts/next_accounts/overdue`), the rule `0x01` is gone, and the `0x08` label is "LEI renewal overdue". Tests 11/11 with the vector `0x6e84…7f0f`.
+  - `local-registry.json`: `ch:07654321` without `insolvency`; `99999999` stays unknown (exit 3).
+  - **The v1.1 pointers were verified live** for `03778796`, `07418033` and `09729896`: request hash and signer match. **No interface change.** The v1.0 Companies House fixtures were replaced by v1.1 ones.
+  - Genuine tamper inputs: (b) `api3/fixtures/ch-09729896-202610301614.json` (real, now stale); (c) a fresh `07418033` record against order A.
+- Next: `plus-submit.sh` (decodes `SupplierFailed`, `NoNewerFailure`, `NotRefundable`; `--send` for the video), once Foundry is installed.
+- Notes: `12493325` has no `/accounts/next_accounts/overdue` either (HTTP 400, not charged), so it cannot be the (c) input; `07418033` is used instead. All demo suppliers have every field, so fallback 1 of §4.2 applies and the template stays. Spent $0.08 in total.
+
+### 2026-10-30 · Emre · demo suppliers complete
+- Changed: **Order A supplier: `03778796` ELECTRIC MOTORS INTERNATIONAL LIMITED**, signed record clean on all four fields (fixture in `api3/fixtures/`). All five demo suppliers are now in `docs/data-sources.md`.
+- Next: `plus-submit.sh`.
+- Notes: Orhun, for C3: `DEMO_CH_A=03778796 DEMO_CH_B=07418033 DEMO_CH_C=09729896 DEMO_LEI_D=391200JI69LS8L648F30 DEMO_LEI_E=52990092KBQJF8QBGJ50`. Spent $0.05 in total.
+
+### 2026-10-30 · Emre · C1a: live fields verified, paid fetch, fixtures
+- Changed: **All §4.2 pointers verified live** (Companies House and GLEIF): request hashes and signers match, no interface change. `api3/scripts/fetch-evidence.sh <ch|gleif> <id> [out.json]` (paid, x402) with the §4.7 exit codes. Real signed fixtures in `api3/fixtures/`. Results in `docs/data-sources.md`.
+- Next: a clean UK company for order A, then `plus-submit.sh` (needs Foundry).
+- Notes:
+  - **Orhun / Ulaş: `09729896` is NOT clean.** Its signed record has accounts and confirmation statement overdue, so order A with rules `0x07` would be held. It fits order C (rules `0x02`) instead. Order A still needs a clean company; I'm looking.
+  - `12493325` has no `/accounts/overdue` → HTTP 400, no data (the §9 risk is real for some companies). 4xx answers are not charged.
+  - Demo picks: B `07418033`, C `09729896`, D `391200JI69LS8L648F30` (ASR Component GmbH, ACTIVE/ISSUED), E `52990092KBQJF8QBGJ50` (MoKa Projekt GmbH, LAPSED).
+  - Spent $0.04 of the $0.60 budget.
+
+### 2026-10-30 · Emre · verify and tamper tools (§6.2)
+- Changed: `node api3/x402/verify.mjs <file> [--max-age 300] [--local]` runs the contract's checks off chain (signer per source, request hash, age, projected fields) and prints a table; exit 0 valid, 1 invalid. `node api3/x402/tamper.mjs <file> <value|stale|request|key|replay>` writes the tampered record with the §4.7 semantics (value edits only the one field, the other bytes stay as signed). Tests: 11/11 in `test-requests.mjs`.
+- Next: live calls (C1a), `fetch-evidence.sh`, `plus-submit.sh`.
+- Notes: Batu, the judge page can copy `tamper.mjs` logic 1:1 (it only uses viem functions that have ethers equivalents).
+
+### 2026-10-30 · Emre · SupplierPulse+ data layer, local signer (§6.2)
+- Changed: started §6.2 on `emre/plus-data`.
+  - `api3/x402/requests.mjs`: sources, request bodies, request hashes, supplier keys and the §4.3 rule evaluation. `node api3/x402/test-requests.mjs` asserts all §4.2 vectors (8/8 pass).
+  - Local signer for everyone, free: `api3/scripts/fetch-local.sh <ch|gleif> <id> [out.json]` (from `api3/x402/local-registry.json`, §4.8) and `node api3/x402/sign-local.mjs <ch|gleif> <id> '<data json>' [timestamp]`. Output is the §4.1 format, signed by anvil #1 (CH) / #2 (GLEIF). Unknown id exits 3.
+- Next: live calls to verify the §4.2 pointers (C1a, ~$0.04, needs team OK and aUSD), fixtures, then `airnode-fetch.mjs`/`fetch-evidence.sh`, `verify.mjs`, `tamper.mjs`, `plus-submit.sh`.
+- Notes: the §4.2 pointers are still unverified live. Until then everything matches the spec as written.
 ### 2026-10-30 · Julien (agent) · C2 check passes against Orhun's v1.1 contract; C2.5 review fixed
 - Changed:
   - `api3/agent/c2_check.py` runs the C2 integration (§7.1) as one command. It runs `plus-local.sh`, then the agent at 10 s ticks with the local fetch, and checks the 8 expected outcomes on chain and in the agent log. `--fake` runs the same checks in memory.
