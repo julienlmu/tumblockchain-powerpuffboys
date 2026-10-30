@@ -72,6 +72,16 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: confirm the seller payout of `c00c4fcf…` (receipt), then a paid job with the real `eth-vault` app (needs the Sepolia `EVM_*` vars in `cardano-agent/.env`).
 - Notes: our agent is not on Sokosumi's agent list (`sokosumi --preprod agents list` shows 20 curated agents). Registering on Masumi does not list it there, so ask the Masumi team on site how to get listed. Qualification does not depend on it: the paid job runs through Masumi escrow on preprod.
 
+### 2026-10-30 · Batu (12:46)
+- Changed: nothing in code. Batu has a Base Sepolia test wallet `0xA54506DcE89ff9561534c76C043505a1a484FB4c` (encrypted Foundry keystore `batu-test`) with 10 aUSD and ~0.0001 ETH. Mint tx `0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f`.
+- Next: wait for Ulaş's Cardano + API3 idea branch, then the API3 contract work with Orhun.
+- Notes: aUSD on Base Sepolia (chain 84532) is `0xbeA34973e5f67F18F656A2C6070C64326C791808`, 6 decimals, faucet limit 10 aUSD per account, minted via `mintFromFaucet(uint256)` from the wallet itself (needs a little Base Sepolia ETH; Coinbase CDP faucet works). RPC `https://sepolia.base.org`.
+
+### 2026-10-30 · Batu (12:25)
+- Changed: nothing in code. Batu's laptop now has Foundry 1.8.7 and pnpm 12.16.1. `forge test` in `api3/` passes 15/15; `local-demo.sh` runs on anvil.
+- Next: Orhun to fix the wrong-key tamper case (below), then the idea decision (#0 vs #3).
+- Notes: **Foundry 1.8.7 breaks tamper case (d).** `cast wallet new --json` now returns `{"data":[...]}`, so `api3/scripts/submit.sh:24` (`jq -r '.[0].private_key'`) fails with `Cannot index object with number`. Suggested fix, works with old and new Foundry: `jq -r '(.data // .)[0].private_key'`. Judges with a current Foundry would hit this.
+
 ### 2026-10-30 · Julien (Cardano) · first paid job
 - Changed: **Cardano qualification done.** Agent registered on Masumi preprod (`ppb pay-on-pass agent`, 5 tADA per job, escrow). First paid job: 5 tADA locked in escrow (tx `cef9996c…49370a2`), check passed, result submitted (tx `4d622fc4…a6e9a34`). Full hashes and links are in `docs/evidence.md`. New `masumi_v2.py`: SDK 1.2.0 doesn't support the V2 registrations the current payment service creates (missing `supportedPaymentSourceIndex`, lists default to V1). Job deadlines are now configurable so the escrow pays the seller ~36 min after a job instead of ~30 h.
 - Next: a pass job with short deadlines for a real seller receipt, and a fail job for the refund path (both running). Then hire through Sokosumi.
@@ -86,11 +96,6 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Changed: added "Proposals to discuss" above (pay on execution, customer story, watch until deadline, trust assumption, infra risk). Earlier push: `CLAUDE.md` with team rules, tracks and coding-agent context.
 - Next: agree on the proposals with Orhun, then implement 1 and 3 in `cardano-agent/agent.py`.
 - Notes: Sokosumi preprod: CLI 1.0.4 is broken (`404 route_not_found` on Personal Workspace commands), use 1.1.0. Vendor `powerpuffboys` and Coworker `powerpuffboys-agent` are registered on Julien's account (quickstart path, may not be needed for the MIP-003 agent). Julien's laptop: Node 24, Postgres 17, Foundry; no Docker or cloudflared yet.
-
-### 2026-10-30 · Batu (12:25)
-- Changed: nothing in code. Batu's laptop now has Foundry 1.8.7 and pnpm 12.16.1. `forge test` in `api3/` passes 15/15; `local-demo.sh` runs on anvil.
-- Next: Orhun to fix the wrong-key tamper case (below), then the idea decision (#0 vs #3).
-- Notes: **Foundry 1.8.7 breaks tamper case (d).** `cast wallet new --json` now returns `{"data":[...]}`, so `api3/scripts/submit.sh:24` (`jq -r '.[0].private_key'`) fails with `Cannot index object with number`. Suggested fix, works with old and new Foundry: `jq -r '(.data // .)[0].private_key'`. Judges with a current Foundry would hit this.
 
 ### 2026-10-30 · Batu (12:10)
 - Changed: new branch `batu/api3-setup` for the API3 track (Batu + Orhun, tentative). Added `.local/` and `cache/` to `.gitignore` (required by `CLAUDE.md` §7). Status log in `docs/status/batu.md`.

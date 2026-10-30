@@ -2,6 +2,13 @@
 
 Newest on top.
 
+### 2026-10-30 ~12:46 · branch `batu/api3-setup`
+- Done: Base Sepolia ETH from the Coinbase CDP faucet (0.0001 ETH). Minted 10 aUSD with `mintFromFaucet(10000000)`.
+- Mint tx: `0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f`, https://sepolia.basescan.org/tx/0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f
+- Verified on chain (`cast receipt`, `cast call`): status success, sender `0xA54506DcE89ff9561534c76C043505a1a484FB4c`, balance now 10 aUSD and 0.0000994 ETH. The mint cost about 0.0000006 ETH.
+- Wallet `batu-test` is ready as x402 payer and for testnet transactions. Faucet limit reached (10 aUSD per account).
+- Next: wait for Ulaş's idea branch. Meanwhile, read the AirnodeHub listings it will need (free GET only).
+
 ### 2026-10-30 ~12:45 · branch `batu/api3-setup`
 - Done: Batu created an encrypted Foundry keystore `batu-test` (`~/.foundry/keystores/batu-test`, password known only to Batu).
 - Address (public): `0xA54506DcE89ff9561534c76C043505a1a484FB4c` (Base Sepolia). https://sepolia.basescan.org/address/0xA54506DcE89ff9561534c76C043505a1a484FB4c
