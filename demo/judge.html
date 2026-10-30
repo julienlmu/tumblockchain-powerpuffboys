@@ -85,6 +85,9 @@
   .progress .track { flex: 1; height: 4px; border-radius: 999px; background: var(--done-bg); overflow: hidden; }
   .progress .track span { display: block; height: 100%; background: var(--accent); transition: width 200ms var(--ease); }
   .waiting { display: flex; gap: var(--s2); align-items: center; color: var(--muted); font-size: var(--t-1); }
+  .asking { display: flex; flex-direction: column; gap: var(--s2); }
+  .replay-row { align-items: center; }
+  .rec-age.warn { color: var(--wait); font-weight: 600; }
 
   ol.checks { list-style: none; margin: 0; padding: 0; font-size: var(--t-1); }
   ol.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--line); }
@@ -231,7 +234,8 @@
       </div>
     </section>
 
-    <section class="panel" id="result" aria-live="polite" aria-label="The contract's verdict" tabindex="-1">
+    <p class="sr-only" id="verdict-live" role="status" aria-live="polite"></p>
+    <section class="panel" id="result" aria-live="off" aria-label="The contract's verdict" tabindex="-1">
       <h2>The contract's verdict</h2>
       <p class="hint">Pick an order, load a signed record and press <b>Run the full tamper test</b>, or one attack.</p>
     </section>
@@ -356,18 +360,36 @@
   }
   function setRecord(r, note = "") {
     $("resp").value = JSON.stringify(r, null, 2);
+    clearTimeout(typing); // a pending input check would overwrite the note
     checkRecordInput(note);
   }
+  // The loaded record's age, every second: when it runs out of the freshness window, the page says so before an attack.
+  let recordTs = null;
+  function ageText() {
+    if (recordTs === null) return "";
+    const age = nowSec() - recordTs;
+    if (age < 0) return "signed in the future";
+    if (maxAgeVal === null) return `signed ${P.ago(age)}`;
+    const left = maxAgeVal - age;
+    return left > 0 ? `signed ${P.ago(age)} · fresh for ${P.span(left)} more` : `signed ${P.ago(age)} · older than the ${maxAgeVal} s limit`;
+  }
+  setInterval(() => {
+    for (const el of document.querySelectorAll(".rec-age")) {
+      el.textContent = ageText();
+      el.classList.toggle("warn", recordTs !== null && maxAgeVal !== null && nowSec() - recordTs > maxAgeVal);
+    }
+  }, 1000);
   // Checks the record while it is typed or loaded, before any button is pressed: JSON, fields, age and supplier.
   function checkRecordInput(note = "") {
     const text = $("resp").value.trim();
-    if (!text) { respMsg(note); return; }
+    if (!text) { recordTs = null; respMsg(note); return; }
     let r;
     try { r = readRecord(); } catch (e) { $("resp").setAttribute("aria-invalid", "true"); respMsg(esc(e.message), true); return; }
     $("resp").removeAttribute("aria-invalid");
     const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
     const age = nowSec() - Number(r.timestamp);
-    const parts = [`<span class="okc">${P.icon("check")}</span> ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, signed ${age >= 0 ? P.ago(age) : "in the future"}.`];
+    recordTs = Number(r.timestamp);
+    const parts = [`<span class="okc">${P.icon("check")}</span> ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, <span class="rec-age" aria-hidden="true">${ageText()}</span><span class="sr-only">signed ${age >= 0 ? P.ago(age) : "in the future"}</span>.`];
     if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Get a fresh one (Judge kit, below)"} to test each check.</span>`);
     if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
       parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>: attempts stop at "Request matches the order".</span>`);
@@ -466,6 +488,7 @@
       const s = realInput(mode);
       if (!s) {
         const why = mode === "realOld" ? `No earlier signed record of ${order.info.supplierId} is bundled. Upload one from api3/fixtures/ and press "Submit as is".` : "No record of another company is bundled for this registry.";
+        skipReason = mode === "realOld" ? `no bundled earlier record of ${order.info.supplierId}` : "no bundled record of another company";
         respMsg(esc(why), true);
         if (!suiteRunning) attemptProblem(`${MODE_NAME[mode]}: no bundled record`, why);
         return null;
@@ -482,7 +505,12 @@
     const r = t.record;
     lastCandidate = { record: r, mode, rejected: false };
     $("result").setAttribute("aria-busy", "true");
-    $("result").innerHTML = `<h2>The contract's verdict</h2><div class="what">${esc(t.what)}</div><p class="waiting">${P.icon("loader", "spin")}Asking the contract…</p>`;
+    // the previous verdict stays on screen, dimmed (CSS), with the new question on top: no collapse and re-expand
+    const asking = `<div class="what">${esc(t.what)}</div><p class="waiting">${P.icon("loader", "spin")}Asking the contract…</p>`;
+    const top = $("result").querySelector(".asking");
+    if (top) top.innerHTML = asking;
+    else if ($("result").querySelector(".verdict, .tiles")) $("result").querySelector("h2").insertAdjacentHTML("afterend", `<div class="asking">${asking}</div>`);
+    else $("result").innerHTML = `<h2>The contract's verdict</h2><div class="asking">${asking}</div>`;
 
     const id = order.id, source = order.info.source;
     const now = await chainNow();
@@ -568,6 +596,7 @@
     const attempt = attempts.length - 1;
     $("result").removeAttribute("aria-busy");
     showAttempt(attempt);
+    $("verdict-live").textContent = `${MODE_NAME[mode]}: ${verdict.accepted ? (verdict.clean ? "accepted, would issue a permit" : "accepted, would hold the order") : `rejected with ${gotName}`}${t.expect ? (match ? ", as expected" : `, expected ${t.expect}`) : ""}.`;
 
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
     const notApplicable = (mode === "asis" && !verdict.accepted) || (mode === "replay" && used === false);
@@ -639,7 +668,7 @@
   // The valid record first, then every attack, as eth_call simulations. Replay needs the valid record on chain,
   // so it is a second, explicit step that sends a real transaction.
   const SUITE = ["asis", "value", "stale", "request", "key", "realOld", "realOther"];
-  let suite = [], suiteRunning = false, suiteTx = null, suiteStopped = false;
+  let suite = [], suiteRunning = false, suiteTx = null, suiteStopped = false, skipped = [], skipReason = "";
   // One column (phones): the verdict is below the attack panel, so bring it into view and give it focus.
   function reveal() {
     if (!matchMedia("(max-width: 900px)").matches) return;
@@ -694,16 +723,18 @@
       P.hydrateIcons($("result"));
       return;
     }
-    suite = []; suiteTx = null; suiteStopped = false;
+    suite = []; suiteTx = null; suiteStopped = false; skipped = [];
     lockButtons(true);
     try {
       for (const [i, m] of SUITE.entries()) {
+        skipReason = "";
         if (stopRequested) { suiteStopped = true; break; }
         const pr = $("suite-progress");
         pr.hidden = false;
         pr.innerHTML = `<span>Attempt ${i + 1} of ${SUITE.length}: ${MODE_NAME[m]}</span><span class="track" aria-hidden="true"><span style="width:${Math.round((i + 1) / SUITE.length * 100)}%"></span></span>`;
         const r = await run(m);
         if (r) suite.push(r);
+        else if (skipReason) skipped.push({ mode: m, reason: skipReason });
         await pause(350); // long enough to see each verdict go by in the video
       }
     } finally { lockButtons(false); }
@@ -752,12 +783,12 @@
       ? `The valid record is accepted and all ${attacks.length} attacks are rejected by the contract itself (eth_call of submitEvidence, no gas).`
       : notTested ? `The valid record ${valid ? NOT_USABLE[validGot] || `was refused (${esc(validGot)})` : "is missing"}, so the attacks could not reach their own checks. Nothing failed in the contract.`
       : "The contract accepted an attack.";
-    const replayStep = validOk && !replayed
-      ? `<h2>Last step: Replay</h2>
-        <p class="hint">A replay is only a replay once the original is on chain. This sends the valid record as a real transaction
-          (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then simulates it again.</p>
-        <div class="row"><button type="button" class="primary" id="suite-replay" data-icon="send">Send the valid record, then replay it</button><span class="msg" id="send-msg" role="status"></span></div>`
+    const replayStep = validOk && !replayed && !suiteStopped
+      ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay" data-icon="send">Send the valid record, then replay it</button>
+          <span class="hint">Last step. A replay is only a replay once the original is on chain: this sends the valid record for real
+          (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then simulates it again.</span><span class="msg" id="send-msg" role="status"></span></div>`
       : "";
+    const skippedNote = skipped.length ? `<p class="hint">${P.icon("minus")} Not run: ${skipped.map((s) => `${MODE_NAME[s.mode]} (${esc(s.reason)})`).join("; ")}.</p>` : "";
     const txNote = suiteTx ? `<p class="hint">Valid record on chain: ${explorer ? `<a class="mono" href="${explorer}/tx/${suiteTx.hash}" target="_blank" rel="noopener">${short(suiteTx.hash)}</a>` : `<span class="mono">${short(suiteTx.hash)}</span>`} (block ${suiteTx.block}).</p>` : "";
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
@@ -765,21 +796,32 @@
       <p class="hint">Tamper test on order #${order.id}${suiteTx ? ", then the replay" : ""}: ${suite.length} attempts, all simulated${suiteTx ? " except the one real send" : ""}.</p>
       <div class="verdict hero ${passed ? "ok" : suiteStopped || notTested ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : notTested ? "clock" : "x")}</span>
         <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : notTested ? "Not tested" : "Not passed"}</div><div class="why">${why}</div>${notTested ? fix : ""}</div></div>
+      ${replayStep}
       <div class="tiles">${suite.map(tileOf).join("")}</div>
       <ul class="legend">${legendOf(suite)}<li>Press a tile for its checklist.</li></ul>
-      ${txNote}${replayStep}`;
+      ${skippedNote}${txNote}`;
     P.hydrateIcons($("result"));
+    $("verdict-live").textContent = `Tamper test: ${passed ? "passed" : suiteStopped ? "stopped" : notTested ? "not tested, the valid record was refused" : "not passed, the contract accepted an attack"}.`;
   }
 
+  // The replay step: three parts, each shown in the progress line.
+  function replayProgress(step, text) {
+    const pr = $("suite-progress");
+    pr.hidden = false;
+    pr.innerHTML = `<span>Replay step ${step} of 3: ${text}</span><span class="track" aria-hidden="true"><span style="width:${Math.round(step / 3 * 100)}%"></span></span>`;
+  }
   async function sendThenReplay() {
     lockButtons(true);
     try {
+      replayProgress(1, "simulate the valid record");
       const v = await run("asis");
       if (!v || !v.accepted) return;
+      replayProgress(2, "send it for real, then wait for the block");
       const sent = await sendForReal();
       if (!sent || sent.status !== 1) return;
       suiteTx = sent;
       await pause(400);
+      replayProgress(3, "submit the same record again");
       const r = await run("replay");
       if (r) { suite = suite.filter((s) => s.mode !== "replay"); suite.push(r); }
     } finally { lockButtons(false); }
