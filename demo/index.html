@@ -168,6 +168,11 @@
   .card-head h2 { flex: 1 1 0; min-width: min-content; }
   .card-head .badge { margin-left: auto; }
   .card-head .sub { flex-basis: 100%; }
+  .nobr { white-space: nowrap; }
+  @media (max-width: 640px) { /* phones: every card reads the same, the title on its row and the state below it */
+    .card-head h2 { flex-basis: 100%; }
+    .card-head .badge { margin-left: 0; }
+  }
   .agent .wallet { margin: var(--s1) 0 0; }
   .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: break-word; } /* long ids break after "LOCAL-", not mid-number */
   .card-head h2 .id { color: var(--muted); font-weight: 500; margin-right: 6px; }
@@ -700,8 +705,11 @@
         && (Number(e.args.failedRules) & P.BASE_FAILED) && Number(e.args.timestamp) === o.rec.lastBaseFailureAt))
       || same.find((x) => x.state === 1 && (x.lastFailedRules & P.BASE_FAILED)) || null;
   }
-  const orderName = (o) => `#${o.id} ${esc(orderTitle(o) || "Order " + short(o.info.orderRef))}`;
-  const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}${orderName(o)}</button>`;
+  const orderName = (o) => `#${o.id} ${esc(orderTitle(o) || "Order " + short(o.info.orderRef))}`; // plain: attributes, options
+  // shown names keep a short hyphenated id whole ("PO-1006" never breaks after "PO-"); long ids may still break there
+  const nobr = (html) => html.replace(/(^|\s)([^\s<>]{1,7}-[^\s<>]{1,9})(?=\s|$)/g, '$1<span class="nobr">$2</span>');
+  const orderNameHTML = (o) => `#${o.id} ${nobr(esc(orderTitle(o) || "Order " + short(o.info.orderRef)))}`;
+  const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}${orderNameHTML(o)}</button>`;
 
   // Card order, top to bottom: title and state, protected balance, one status box (or the next step), milestones, and
   // one "Details" disclosure with the facts and the audit trail (open from 1000 px, closed on phones). Each fact is
@@ -830,9 +838,9 @@
     return `
       <article class="card" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
         ${backTo && backTo.target === o.id && lastOrders && lastOrders.some((x) => x.id === backTo.from)
-          ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}Back to ${orderName(lastOrders.find((x) => x.id === backTo.from))}</button>` : ""}
+          ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}Back to ${orderNameHTML(lastOrders.find((x) => x.id === backTo.from))}</button>` : ""}
         <div class="card-head">
-          <h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
+          <h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${nobr(esc(title || "Order " + short(o.info.orderRef)))}</h2>
           ${badge}
           <div class="sub"><span class="reg">${esc(s.name)}</span>
               <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono" data-tip="Opens the ${esc(s.name)} page of ${esc(o.info.supplierId)}" aria-describedby="tip">${esc(o.info.supplierId)}${EXT}</a>
@@ -852,7 +860,7 @@
             <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
             <dt>${term("Payment permit", "g-permit")}</dt><dd>${permitRow}</dd>
             <dt>Last signed record</dt><dd>${lastCheck}</dd>
-            ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o, ctx.cause, shownInBox)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
+            ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${cap(agentWords(ctx.agent, o, ctx.cause, shownInBox))} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
             <dt>${term("Verification history", "g-tiers")}</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} ${["(Trusted at 3)", "(Premium at 6)", "(Premium from 6)"][o.rec.tier] || ""}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed</span></dd>
           </dl>
           ${trail}
@@ -877,20 +885,22 @@
   function agentWord(e, o, brief) {
     const a = e.args;
     switch (e.name) {
-      case "EvidenceAccepted": return a.clean ? "Register check passed" : brief ? "Register check failed" : `Register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
+      case "EvidenceAccepted": return a.clean ? "register check passed" : brief ? "register check failed" : `register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
       case "PermitIssued": return `payment permit for milestone ${Number(a.milestone) + 1}`;
       case "MilestonePaid": return `<b>paid milestone ${Number(a.milestone) + 1}</b>: ${tok(a.amount)} tokens to the supplier`;
       case "OrderHeld": return "<b>payment held</b>";
       case "OrderRefunded": return `<b>refunded ${tok(a.amount)} tokens</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
-      case "TierChanged": return `Verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} to ${P.TIERS[Number(a.newTier)]}`;
+      case "TierChanged": return `verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} to ${P.TIERS[Number(a.newTier)]}`;
       default: return e.name;
     }
   }
+  // the first letter of a sentence in capitals, past any leading tags ("<b>refunded" -> "<b>Refunded")
+  const cap = (html) => html.replace(/^((?:<[^>]+>)*)(\p{Ll})/u, (m, tags, c) => tags + c.toUpperCase());
   // A hold without a record in the same transaction is the supplier-wide stop (applySupplierFailure): the failure is
   // already verified on chain, so the agent holds without paying for a new check.
   const isSupplierStop = (g) => !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
   const agentWords = (g, o, cause, brief = false) => isSupplierStop(g)
-    ? `<b>Payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderName(cause)}` : ""} (no new paid check needed)`
+    ? `<b>payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderNameHTML(cause)}` : ""} (no new paid check needed)`
     : g.evs.map((e) => agentWord(e, o, brief)).join(arrow);
 
   // Rows that arrived after the first render carry a "new" chip for 30 s.
@@ -909,19 +919,18 @@
     // run: the newest transaction of a run of identical ones (same order, same sentence), with how many and since when
     const li = (g, run = [g]) => {
       const o = byId[g.order];
-      const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
+      const name = o ? nobr(esc(orderTitle(o) || `order ${g.order}`)) : `order ${g.order}`;
       const first = run[run.length - 1];
-      const rep = run.length > 1 ? ` <span class="rep">×${run.length}${first.time ? ` since ${P.clock(first.time)}` : ""}</span>` : "";
+      const rep = run.length > 1 ? ` <span class="rep">×${run.length}${first.time ? ` since ${clock(first.time)}` : ""}</span>` : "";
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
-        <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${words(g)}${rep}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+        <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${cap(words(g))}${rep}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
     // Repeats fold: consecutive transactions with the same order and the same sentence show as one row, "×3 since
     // 22:28:57", linking the newest; every single transaction stays listed in the disclosure.
     const runs = [];
     for (const g of rows) { const k = `${g.order}|${words(g)}`, last = runs[runs.length - 1]; if (last && last.k === k) last.rows.push(g); else runs.push({ k, rows: [g] }); }
-    // Simple: the latest one; Detailed: the latest two, none on phones (the first order then shows first);
-    // the rest, and the agent's wallet, one click away in both views
-    const SHOWN = view === "simple" ? 1 : narrow.matches ? 0 : 2;
+    // Simple and phones: the latest one; Detailed: the latest two; the rest, and the agent's wallet, one click away
+    const SHOWN = view === "simple" || narrow.matches ? 1 : 2;
     const top = runs.slice(0, SHOWN), heads = new Set(top.map((x) => x.rows[0]));
     const rest = rows.filter((g) => !heads.has(g));
     const more = rest.length
@@ -1409,7 +1418,7 @@
     const card = guideFrom && guideFrom.el.closest("article.card"), o = card && lastOrders && lastOrders.find((x) => `order-${x.id}` === card.id);
     backBtn.remove();
     if (o && targetId) {
-      backBtn.innerHTML = `${I("arrow-left")}Back to ${orderName(o)}`;
+      backBtn.innerHTML = `${I("arrow-left")}Back to ${orderNameHTML(o)}`;
       const host = el.tagName === "DT" ? el.nextElementSibling : el.tagName === "TR" ? el.lastElementChild : el.tagName === "TABLE" ? null : el;
       if (host) host.append(backBtn); else el.after(backBtn);
     }
