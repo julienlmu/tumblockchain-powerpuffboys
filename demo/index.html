@@ -170,9 +170,8 @@
   .flow .i { width: 0.95em; height: 0.95em; color: var(--muted); margin: 0 3px; }
 
   /* order cards */
-  /* cards in a row share one height, so the grid has no ragged voids */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: stretch; }
-  body.view-simple .grid { align-items: start; } /* Simple cards differ in height: no stretched empty space */
+  /* each card is as tall as its content, in both views: no stretched empty space inside a card */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: start; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; scroll-margin-top: var(--s4); }
   .card.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
   /* a card whose on-chain facts just changed: a short tint that fades; a static outline under reduced motion */
@@ -212,6 +211,11 @@
   .hero .paid { font-size: var(--t-1); color: var(--muted); text-align: right; }
   .hero .paid b { color: var(--text); font-weight: 600; font-size: var(--t0); }
   .hero .unit { font-size: var(--t0); color: var(--muted); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+  /* the unit on a card: the tooltip cue only (the help mark is on the meta line, once); a click still shows its entry */
+  .hero .unit.term { text-decoration: none; border-bottom: 1px dashed var(--line-strong); }
+  .hero .unit.term:hover { color: var(--text); border-bottom-style: solid; }
+  .hero .unit .tl::after { content: none; }
+  .meta .term { font-weight: 500; }
   .bar { height: 6px; border-radius: 999px; background: var(--done-bg); overflow: hidden; display: flex; margin-top: calc(-1 * var(--s1)); }
   .bar span { display: block; height: 100%; }
   .bar .p { background: var(--ok); } .bar .r { background: var(--accent); opacity: 0.35; } .bar .x { background: var(--done); opacity: 0.4; }
@@ -311,7 +315,28 @@
     dl.facts { grid-template-columns: 1fr; }
     dl.facts dt { padding-bottom: 0; }
     dl.facts dd { border-top: none; padding-top: 2px; }
-    .agent li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    /* an agent row: its time and transaction on one line, the sentence below */
+    .agent li { grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--s2); }
+    .agent li > .t { grid-area: 1 / 1; }
+    .agent li > .lnk { grid-area: 1 / 2; }
+    .agent li > span:nth-child(2) { grid-area: 2 / 1 / 3 / 3; }
+    /* the header: the three controls on one row (the theme shows its icon and value, "Auto") */
+    .wrap { padding-top: var(--s4); }
+    h1 { font-size: var(--t2); }
+    .tagline { font-size: var(--t-1); }
+    /* tighter bands between the header and the first card, so its title and state are in the first screen */
+    .banner, .agent, .toolbar, .grid { margin-top: var(--s2); }
+    .filters { margin-top: var(--s2); }
+    .state-btn { min-height: 30px; }
+    .toolbar input[type="search"], .toolbar select, .jump-sel select { min-height: 32px; }
+    .head-links { flex-wrap: nowrap; gap: 6px; }
+    .view-switch button { padding: 5px 9px; }
+    .head-links .btn, #theme-btn { padding: 6px 10px; min-height: 32px; }
+    header { gap: var(--s2) var(--s5); }
+    .meta-row { margin-top: var(--s2); }
+    .meta { line-height: 1.4; }
+    #theme-btn .pre { display: none; }
+    #theme-btn .val { text-transform: capitalize; }
   }
 </style>
 </head>
@@ -320,12 +345,12 @@
   <header>
     <div>
       <h1>SupplierPulse<span class="plus">+</span></h1>
-      <p class="tagline">Every milestone pays only with a <button type="button" class="term" data-guide="g-permit" aria-haspopup="dialog">payment <span class="tl">permit</span></button>: the contract's short-lived go-ahead after a fresh, signed register check.</p>
+      <p class="tagline">Every milestone pays only with a <span class="nobr"><button type="button" class="term" data-guide="g-permit" aria-haspopup="dialog">payment <span class="tl">permit</span></button>:</span> the contract's short-lived go-ahead after a fresh, signed register check.</p>
     </div>
     <div class="head-links">
       <div class="view-switch" role="group" aria-label="View"><button type="button" data-view="simple" aria-pressed="false">Simple</button><button type="button" data-view="detailed" aria-pressed="false">Detailed</button></div>
       <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
-      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
+      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl"><span class="pre">Theme: </span><span class="val">auto</span></span></button>
     </div>
   </header>
   <div class="meta-row">
@@ -426,7 +451,7 @@
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
   function applyTheme() {
     if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>`;
+    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl"><span class="pre">Theme: </span><span class="val">${theme}</span></span>`;
     $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
   }
   P.hydrateIcons();
@@ -804,7 +829,8 @@
       const ownStop = byOther && o.lastFailedRules === P.BASE_FAILED;
       const failed = failedOf(o);
       box = `<div class="held-box">
-        <div class="title">${I("lock")}<span>${ownStop ? `${term("Payments stopped", "g-stop")}, supplier-wide` : `Payments stopped: ${esc(failed.join(", ") || "failed register check")}`}</span></div>
+        <div class="title">${I("lock")}<span>${ownStop ? `${term("Payments stopped", "g-stop")}, supplier-wide` : `Payments stopped: ${esc(failed[0] || "failed register check")}`}</span></div>
+        ${!ownStop && failed.length > 1 ? `<p class="keep">Also failed: ${esc(failed.slice(1).join(", "))}.</p>` : ""}
         ${ownStop ? stoppedBy : alsoStops}
         <p id="${whoId}">Held: the ${tok(o.remaining)} tokens can only go back to the buyer. ${nowSec() >= o.autoRefundAt ? `The buyer or ${term("anyone", "g-grace")} can refund <b>now</b>` : `The buyer can refund now, ${term("anyone", "g-grace")} ${opens(o.autoRefundAt)}`}${offNote}.</p>
         ${claimRow(true)}
@@ -949,7 +975,8 @@
     const isNew = (g) => nowMs - (agentNewAt.get(rowKey(g)) || 0) < 30000;
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
       <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : `to highlight its transactions, <button type="button" class="link-order" data-fix="agent">Open Settings</button> and set its address`}</span></div>`;
-    const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders)) : ""; };
+    // phones: a failed check in short ("register check failed"); the card's status box names the rules
+    const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders), narrow.matches) : ""; };
     // run: the newest transaction of a run of identical ones (same order, same sentence), with how many and since when
     const li = (g, run = [g]) => {
       const o = byId[g.order];
@@ -968,7 +995,7 @@
     const top = runs.slice(0, SHOWN), heads = new Set(top.map((x) => x.rows[0]));
     const rest = rows.filter((g) => !heads.has(g));
     const more = rest.length
-      ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rest.length} earlier transactions` : `${rest.length} transactions`}, all sent by the agent on its own</summary>
+      ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rest.length} earlier` : `${rest.length} transactions`}, all sent by the agent on its own</summary>
           <p class="small-muted wallet">Agent wallet ${addr(agentAddr)}</p><ol>${rest.slice(0, 60).map((g) => li(g)).join("")}</ol></details>`
       : "";
     setHTML($("agent"), head + (rows.length ? `${SHOWN ? `<ol>${top.map((x) => li(x.rows[0], x.rows)).join("")}</ol>` : ""}${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
@@ -1129,13 +1156,17 @@
     const items = [];
     if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
     else items.push(MODE_WORDS[status.mode]);
-    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b> (${ethers.formatEther(status.protectedTotal)} test ETH)`);
+    // the unit's help mark lives here, once for the page; each card's "tokens" keeps its tooltip
+    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} ${term("tokens", "g-unit", "", ' id="meta-unit"')}</b> (${ethers.formatEther(status.protectedTotal)} test ETH)`);
     if (cfg.unit) items.push(UNIT === BigInt(/^[1-9]\d*$/.test(cfg.unit) ? cfg.unit : 0)
       ? `<span class="warn">Custom unit: <b>1 token = ${UNIT.toLocaleString("en")} wei</b></span>`
       : `<span class="warn">Unit “${esc(cfg.unit)}” ignored: <b>1 token = 10¹² wei</b></span>`);
     if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${dayClock(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
     else if (status.readAt) items.push(`Updated <b>${dayClock(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
-    setHTML($("meta"), items.map((x) => `<span>${x}</span>`).join(""));
+    // one element per item, each written only when it changed: the 12 s "Updated" never replaces the unit's button
+    const meta = $("meta");
+    while (meta.children.length < items.length) meta.append(document.createElement("span"));
+    [...meta.children].forEach((el, i) => { el.hidden = i >= items.length; setHTML(el, items[i] || ""); });
     // while reads fail after a good one, the cards say so where the reader is: a slim strip that stays in view
     const stale = status.failed && status.readAt > 0;
     $("stale").hidden = !stale;
@@ -1253,7 +1284,7 @@
     Object.assign(status, { mode: "sample", readAt: nowSec(), protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n) });
     renderMeta();
     renderDetails({ maxAge: data.maxAge, tierCountGap: data.tierCountGap, refundGrace: data.refundGrace });
-    banner("sample", `${I("info")}<span><b>Sample data</b>, not read from a chain: illustrative amounts, wallets, ids and times; <span id="sample-note">nothing can be sent</span>.</span><button type="button" class="banner-btn" data-live>Use live data</button>`);
+    banner("sample", `${I("info")}<span><b>Sample data</b>: illustrative amounts, wallets, ids and times; <span id="sample-note">nothing can be sent</span>.</span><button type="button" class="banner-btn" data-live>Use live data</button>`);
     lastOrders = orders;
     renderAll(orders, { sample: true });
   }
@@ -1548,7 +1579,8 @@
     if (e.newState !== "closed") return;
     // focus back on the term when it was in the bubble (or nowhere)
     const a = document.activeElement;
-    if ((!a || a === document.body || bubble.contains(a)) && bubbleFor && bubbleFor.isConnected) bubbleFor.focus({ preventScroll: true });
+    const t = bubbleFor && (bubbleFor.isConnected ? bubbleFor : bubbleSel && document.querySelector(bubbleSel));
+    if ((!a || a === document.body || bubble.contains(a)) && t) t.focus({ preventScroll: true });
   });
   bubble.querySelector(".bubble-more").addEventListener("click", () => { const t = bubbleFor, id = bubbleId; bubble.hidePopover(); openGuide(id, t); });
   // a "(Detailed view)" control inside the bubble: the bubble goes, the place opens
