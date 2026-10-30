@@ -563,7 +563,7 @@
     const claimRow = (enabled) => {
       const msg = claimMsg[o.id] ? `<div class="msg" role="status">${claimMsg[o.id]}</div>` : "";
       if (claimState[o.id] === "confirm") return `<div class="confirm" role="group" aria-label="Confirm the refund">
-          <span>Refund <b>${tok(o.remaining)} tokens</b> of order #${o.id} to the buyer ${addr(o.info.buyer)}? Your wallet asks once more before anything is sent.</span>
+          <span>Refund <b>${tok(o.remaining)} tokens</b> of order #${o.id} to the buyer ${addr(o.info.buyer)}? This closes the order for good: the supplier can no longer be paid on it. Your wallet asks once more before anything is sent.</span>
           <div class="row"><button type="button" class="primary" data-claim-go="${o.id}">${I("send")}Continue in MetaMask</button><button type="button" data-claim-cancel="${o.id}">Cancel</button></div></div>${msg}`;
       const busyNow = claimState[o.id] === "busy";
       const off = env.sample || !enabled || busyNow;
@@ -827,6 +827,9 @@
     if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
     else items.push(`Mode <b>${MODE_WORDS[status.mode]}</b>`);
     if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b>`);
+    if (cfg.unit) items.push(UNIT === BigInt(/^[1-9]\d*$/.test(cfg.unit) ? cfg.unit : 0)
+      ? `<span class="warn">Custom unit: <b>1 token = ${UNIT.toLocaleString("en")} wei</b></span>`
+      : `<span class="warn">Unit “${esc(cfg.unit)}” ignored: <b>1 token = 10¹² wei</b></span>`);
     if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${dayClock(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
     else if (status.readAt) items.push(`Updated <b>${dayClock(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
     setHTML($("meta"), items.map((x) => `<span>${x}</span>`).join(""));
