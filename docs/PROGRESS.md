@@ -73,6 +73,15 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · data layer on spec v1.1, v1.1 pointers verified live (C1a)
+- Changed: Julien's v1.1 checklist for the data layer is done on `emre/plus-data` (merged `supplierpulse-plus` in):
+  - `requests.mjs`: the Companies House projection has 3 fields (`/accounts/next_accounts/overdue`), the rule `0x01` is gone, and the `0x08` label is "LEI renewal overdue". Tests 11/11 with the vector `0x6e84…7f0f`.
+  - `local-registry.json`: `ch:07654321` without `insolvency`; `99999999` stays unknown (exit 3).
+  - **The v1.1 pointers were verified live** for `03778796`, `07418033` and `09729896`: request hash and signer match. **No interface change.** The v1.0 Companies House fixtures were replaced by v1.1 ones.
+  - Genuine tamper inputs: (b) `api3/fixtures/ch-09729896-202610301614.json` (real, now stale); (c) a fresh `07418033` record against order A.
+- Next: `plus-submit.sh` (decodes `SupplierFailed`, `NoNewerFailure`, `NotRefundable`; `--send` for the video), once Foundry is installed.
+- Notes: `12493325` has no `/accounts/next_accounts/overdue` either (HTTP 400, not charged), so it cannot be the (c) input; `07418033` is used instead. All demo suppliers have every field, so fallback 1 of §4.2 applies and the template stays. Spent $0.08 in total.
+
 ### 2026-10-30 · Emre · demo suppliers complete
 - Changed: **Order A supplier: `03778796` ELECTRIC MOTORS INTERNATIONAL LIMITED**, signed record clean on all four fields (fixture in `api3/fixtures/`). All five demo suppliers are now in `docs/data-sources.md`.
 - Next: `plus-submit.sh`.

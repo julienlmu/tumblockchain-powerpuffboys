@@ -6,12 +6,12 @@ import { signRecord } from './sign-local.mjs';
 import { tamper } from './tamper.mjs';
 import { verifyRecord } from './verify.mjs';
 
-const CLEAN_CH = '{"accounts_overdue":false,"confirmation_overdue":false,"insolvency":false,"status":"active"}';
+const CLEAN_CH = '{"accounts_overdue":false,"confirmation_overdue":false,"status":"active"}';
 const failing = async (r) => (await verifyRecord(r, { local: true })).filter((x) => !x.ok).map((x) => x.check);
 
 const tests = {
   'requestHash ch 09729896': () =>
-    assert.equal(requestHash('ch', '09729896'), '0xde8d697c8cd5e5ead92f39da40c08b65459caf8ba0b60d4543b39369c65e7775'),
+    assert.equal(requestHash('ch', '09729896'), '0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f'),
   'requestHash gleif TESTLEI0000000000000': () =>
     assert.equal(requestHash('gleif', 'TESTLEI0000000000000'), '0x82e8da1da50a59eb4941e8461f35869cb1a4a95183dc1ea84075b99af97d790f'),
   'supplierKey ch 09729896': () =>
@@ -36,16 +36,15 @@ const tests = {
     assert.throws(() => normalizeId('nope', '1'));
   },
   'rules: clean and each failure': () => {
-    const clean = { accounts_overdue: false, confirmation_overdue: false, insolvency: false, status: 'active' };
-    assert.deepEqual(evaluateRules('ch', clean, 0x07), { failedRules: 0, labels: [] });
-    assert.equal(evaluateRules('ch', { ...clean, insolvency: true }, 0x07).failedRules, 0x01);
-    assert.equal(evaluateRules('ch', { ...clean, accounts_overdue: true }, 0x07).failedRules, 0x02);
-    assert.equal(evaluateRules('ch', { ...clean, confirmation_overdue: true }, 0x07).failedRules, 0x04);
-    assert.equal(evaluateRules('ch', { ...clean, accounts_overdue: true }, 0x01).failedRules, 0); // rule disabled
-    const liquidation = { accounts_overdue: true, confirmation_overdue: false, insolvency: true, status: 'liquidation' };
-    assert.deepEqual(evaluateRules('ch', liquidation, 0x07), {
-      failedRules: 0x83,
-      labels: ['registry status not active', 'insolvency history', 'accounts overdue'],
+    const clean = { accounts_overdue: false, confirmation_overdue: false, status: 'active' };
+    assert.deepEqual(evaluateRules('ch', clean, 0x06), { failedRules: 0, labels: [] });
+    assert.equal(evaluateRules('ch', { ...clean, accounts_overdue: true }, 0x06).failedRules, 0x02);
+    assert.equal(evaluateRules('ch', { ...clean, confirmation_overdue: true }, 0x06).failedRules, 0x04);
+    assert.equal(evaluateRules('ch', { ...clean, accounts_overdue: true }, 0x04).failedRules, 0); // rule disabled
+    const liquidation = { accounts_overdue: true, confirmation_overdue: false, status: 'liquidation' };
+    assert.deepEqual(evaluateRules('ch', liquidation, 0x06), {
+      failedRules: 0x82,
+      labels: ['registry status not active', 'accounts overdue'],
     });
     assert.equal(evaluateRules('gleif', { entity_status: 'ACTIVE', registration_status: 'ISSUED' }, 0x08).failedRules, 0);
     assert.equal(evaluateRules('gleif', { entity_status: 'ACTIVE', registration_status: 'LAPSED' }, 0x08).failedRules, 0x08);
@@ -71,8 +70,8 @@ const tests = {
   'tamper value: GLEIF and boolean fallback': async () => {
     const g = await signRecord('gleif', 'TESTLEI0000000000000', '{"entity_status":"ACTIVE","registration_status":"ISSUED"}');
     assert.equal((await tamper(g, 'value')).record.raw, '{"entity_status":"INACTIVE","registration_status":"ISSUED"}');
-    const b = await signRecord('ch', '01234567', '{"accounts_overdue":false,"insolvency":false}');
-    assert.equal((await tamper(b, 'value')).record.raw, '{"accounts_overdue":true,"insolvency":false}');
+    const b = await signRecord('ch', '01234567', '{"accounts_overdue":false,"confirmation_overdue":false}');
+    assert.equal((await tamper(b, 'value')).record.raw, '{"accounts_overdue":true,"confirmation_overdue":false}');
   },
 };
 
