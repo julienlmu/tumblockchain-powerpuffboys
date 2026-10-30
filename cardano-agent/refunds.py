@@ -17,6 +17,8 @@ import time
 
 import aiohttp
 
+from masumi_v2 import SOURCE_TYPE
+
 logger = logging.getLogger("refunds")
 
 STATE = pathlib.Path(__file__).resolve().parent / "state" / "refundable.json"
@@ -65,7 +67,12 @@ async def authorize_requested(session, payment_url: str, api_key: str, network: 
     async with session.get(
         f"{payment_url}/payment/",
         headers=headers,
-        params={"network": network, "filterOnChainState": "RefundRequested", "limit": "100"},
+        params={
+            "network": network,
+            "filterOnChainState": "RefundRequested",
+            "filterPaymentSourceType": SOURCE_TYPE,
+            "limit": "100",
+        },
     ) as r:
         r.raise_for_status()
         payments = (await r.json()).get("data", {}).get("Payments", [])

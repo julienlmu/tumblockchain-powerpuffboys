@@ -26,8 +26,11 @@ load_dotenv(pathlib.Path(__file__).with_name(".env"))
 
 from masumi import run  # noqa: E402
 
+import masumi_v2  # noqa: E402
 import refunds  # noqa: E402
 from gate import deadline_for, load_app, run_gate  # noqa: E402
+
+masumi_v2.install()
 
 logger = logging.getLogger("pay-on-pass-agent")
 

@@ -25,6 +25,11 @@ agent.py ──job input──▶ executor (app) ──▶ {"passed": true|false
 - `agent.py`: the seller (MIP-003 API via the `masumi` SDK). `APP_CONFIG` picks the app.
 - `gate.py`: runs the executor, retries while it asks to and the deadline allows.
 - `refunds.py`: records failed jobs and authorizes their refund requests.
+- `masumi_v2.py`: makes `masumi` SDK 1.2.0 work with V2 registrations (what the
+  payment service 0.29 creates). It adds `supportedPaymentSourceIndex` to payment and
+  purchase requests, and sets the job deadlines from `.env` (`PAY_BY_MINUTES`,
+  `SUBMIT_RESULT_MINUTES`, `UNLOCK_AFTER_RESULT_MINUTES`). With the SDK defaults
+  the escrow only pays the seller ~30 h after a job; the `.env.example` values make it ~36 min.
 - `buy_job.py`: the buyer. Starts a job, pays, waits, requests the refund if the
   job failed, and writes all Cardano tx hashes to `proofs/job-<id>.json`.
 - `apps/mock.json` + `executors/mock.py`: test app. The buyer picks the outcome.

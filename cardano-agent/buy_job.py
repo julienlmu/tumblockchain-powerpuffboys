@@ -22,7 +22,9 @@ import time
 
 import aiohttp
 from dotenv import load_dotenv
-from masumi import Config, Purchase
+from masumi import Config
+
+from masumi_v2 import SOURCE_TYPE, V2Purchase as Purchase
 
 PROOFS = pathlib.Path(__file__).parent / "proofs"
 REFUNDED = {"RefundWithdrawn"}
@@ -40,7 +42,7 @@ async def find_purchase(session, payment_url, headers, network, blockchain_ident
         session,
         f"{payment_url}/purchase/",
         headers=headers,
-        params={"network": network, "limit": "50", "includeHistory": "true"},
+        params={"network": network, "limit": "50", "includeHistory": "true", "filterPaymentSourceType": SOURCE_TYPE},
     )
     for p in data.get("data", {}).get("Purchases", []):
         if p.get("blockchainIdentifier") == blockchain_identifier:
