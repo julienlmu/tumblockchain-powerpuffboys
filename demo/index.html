@@ -35,7 +35,7 @@
   /* a state no order is in: muted, still a working filter */
   .state-btn.zero .badge { color: var(--muted); background: var(--done-bg); }
   .state-btn.zero .count { color: var(--muted); font-weight: 600; }
-  .link-order { font: inherit; background: none; border: none; padding: 0; min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline; }
+  .link-order { font: inherit; background: none; border: none; padding: 0; min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline-flex; align-items: center; vertical-align: baseline; }
   .link-order:hover { background: none; color: var(--text); }
   .card .back { align-self: flex-start; display: inline-flex; gap: 4px; align-items: center; font-size: var(--t-1); color: var(--muted); margin-bottom: calc(-1 * var(--s1)); }
 
@@ -43,16 +43,32 @@
   .toolbar b { color: var(--text); font-weight: 600; }
   .toolbar .keys { margin-left: auto; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
   .toolbar .keys kbd { font-size: 10.5px; }
-  /* a term that opens its entry in the guide */
-  .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 0; min-height: 0; display: inline; cursor: help;
+  /* One cue per behaviour. A term that opens its guide entry: dotted underline plus a small help mark.
+     A value with a tooltip (full address, digest): dashed bottom border. A link that leaves the page: the external mark. */
+  .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 4px 0; min-height: 0; display: inline; cursor: help;
     text-decoration: underline dotted; text-underline-offset: 3px; }
+  .term { overflow-wrap: normal; }
+  .term .tl { white-space: nowrap; } /* the last word keeps its help mark on its line */
+  .term .tl::after { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-left: 3px; vertical-align: -0.05em; background: var(--muted);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E") center / contain no-repeat; }
   .term:hover { background: none; color: var(--text); text-decoration-style: solid; }
   dl.facts dt .term { font-weight: 400; color: var(--muted); text-align: left; }
+  .i.ext { width: 0.8em; height: 0.8em; margin-left: 2px; vertical-align: -0.05em; }
+  /* hit areas: at least 24 px for standalone text controls (32 px on phones), without changing their look */
+  summary, .link-order, .order-chip { min-height: 24px; }
+  @media (max-width: 640px) {
+    summary, .link-order, .order-chip { position: relative; }
+    summary::after, .link-order::after, .order-chip::after { content: ""; position: absolute; inset: -4px 0; }
+    .term { padding: 8px 0; }
+  }
   /* the one tooltip: full addresses, digests, link targets; on hover and on keyboard focus, Esc hides it */
   #tip { position: fixed; z-index: 10; max-width: min(46ch, calc(100vw - 16px)); padding: 6px 8px; border-radius: var(--r-sm); background: var(--text); color: var(--bg);
     font: 400 12px/1.4 var(--sans); overflow-wrap: anywhere; pointer-events: none; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); }
   #tip.mono { font-family: var(--mono); }
-  .tipped { border-radius: 3px; cursor: default; text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-color: var(--line-strong); }
+  .tipped { cursor: default; text-decoration: none; border-bottom: 1px dashed var(--line-strong); }
+  a.tipped { cursor: pointer; }
+  a.tipped:hover { text-decoration: none; border-bottom-style: solid; border-bottom-color: currentColor; }
   .guide-body table td:first-child { white-space: nowrap; }
   .meta-row details.guide { min-width: 0; max-width: 100%; }
   @media (max-width: 640px) { /* the state table stacks: one state per block */
@@ -110,7 +126,9 @@
   @keyframes card-changed { from { background: var(--accent-bg); box-shadow: 0 0 0 2px var(--accent); } to { background: var(--card); box-shadow: 0 0 0 2px transparent; } }
   @media (prefers-reduced-motion: reduce) { .card.changed { outline: 2px solid var(--accent); outline-offset: 2px; } }
   .chip.new { color: var(--accent); background: var(--accent-bg); font-weight: 600; }
-  .card-head { display: flex; justify-content: space-between; gap: var(--s3); align-items: flex-start; }
+  /* title and state on the first row; the register, id and wallet below them, across the full card width */
+  .card-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s3); align-items: start; }
+  .card-head .sub { grid-column: 1 / -1; }
   .agent .wallet { margin: var(--s1) 0 0; }
   .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
   .card-head h2 .id { color: var(--muted); font-weight: 500; margin-right: 6px; }
@@ -137,8 +155,10 @@
   .bar .p { background: var(--ok); } .bar .r { background: var(--accent); opacity: 0.35; } .bar .x { background: var(--done); opacity: 0.4; }
 
   /* the next step: a line of text, not a box (the next milestone row carries the one tint) */
-  .card .next-step { margin: 0; padding: 0; background: none; font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; text-wrap: pretty; }
+  .card .next-step { margin: 0; padding: 0; background: none; color: var(--text); font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; text-wrap: pretty; }
   .next-step .i { margin-top: 0.15em; }
+  /* plain text in the text colour; the state colour only on the icon (link blue is for links) */
+  .next-step.ok .i { color: var(--ok); } .next-step.wait .i { color: var(--wait); } .next-step.info .i { color: var(--accent); }
 
   /* one status box per card: held or supplier-wide stop (red), no data (amber), closed (neutral) */
   .held-box { border-radius: var(--r-md); padding: var(--s3); background: var(--hold-bg); color: var(--hold); display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t-1); }
@@ -148,7 +168,7 @@
   .held-box p { margin: 0; color: var(--text); }
   .held-box .note { color: var(--text); }
   .held-box .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
-  .order-chip { font: 600 var(--t-1)/1.3 var(--sans); min-height: 0; padding: 2px 0; border: none; border-radius: var(--r-sm); background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; gap: 4px; align-items: center; }
+  .order-chip { font: 600 var(--t-1)/1.3 var(--sans); min-height: 24px; padding: 2px 0; border: none; border-radius: var(--r-sm); background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; gap: 4px; align-items: center; }
   .order-chip:hover { background: none; color: var(--text); text-decoration-thickness: 2px; }
   details.ways > summary { color: var(--text); }
   .ways-body { margin-top: var(--s1); color: var(--text); line-height: 1.6; }
@@ -177,7 +197,7 @@
   .ms .n { font-weight: 600; color: var(--muted); }
   .ms .amt { font-weight: 600; color: var(--text); }
   .ms .due { color: var(--muted); }
-  .ms .line2 { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 var(--s2); }
+  .ms .line2 { font-size: 12px; color: var(--muted); }
   .ms .line2 .ok, .ms .line2 .wait, .ms .line2 .hold, .ms .line2 .info, .ms .line2 .done { background: none; font-weight: 600; }
 
   dl.facts { margin: 0; display: grid; grid-template-columns: minmax(110px, 34%) minmax(0, 1fr); font-size: var(--t-1); }
@@ -230,7 +250,7 @@
   <header>
     <div>
       <h1>SupplierPulse<span class="plus">+</span></h1>
-      <p class="tagline">Every milestone pays only with a <button type="button" class="term" data-guide="g-permit">payment permit</button>: the contract's short-lived go-ahead after a fresh, signed register check.</p>
+      <p class="tagline">Every milestone pays only with a <button type="button" class="term" data-guide="g-permit">payment <span class="tl">permit</span></button>: the contract's short-lived go-ahead after a fresh, signed register check.</p>
     </div>
     <div class="head-links">
       <div class="view-switch" role="group" aria-label="View"><button type="button" data-view="simple" aria-pressed="false">Simple</button><button type="button" data-view="detailed" aria-pressed="false">Detailed</button></div>
@@ -375,16 +395,20 @@
 
   let explorer = null, agentAddr = "";
   const isAgent = (a) => !!agentAddr && !!a && a.toLowerCase() === agentAddr.toLowerCase();
+  // A link that leaves the page (explorer, register, repository) carries this mark.
+  const EXT = `<svg class="i ext" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/></svg>`;
+  // An address looks the same on every chain: mono, full value in the tooltip (dashed border); where an explorer
+  // exists it is also a link, with the external mark.
   function addr(a) {
     if (!a) return "";
     const inner = `<span class="mono">${short(a)}</span>`;
-    return explorer ? `<a href="${explorer}/address/${a}" target="_blank" rel="noopener" data-tip="${a}" aria-describedby="tip">${inner}</a>`
+    return explorer ? `<a class="tipped" href="${explorer}/address/${a}" target="_blank" rel="noopener" data-tip="${a}" aria-describedby="tip">${inner}${EXT}</a>`
       : `<span class="tipped" tabindex="0" data-tip="${a}" aria-describedby="tip">${inner}</span>`;
   }
   // A transaction hash: a link where the chain has an explorer, mono text otherwise (local chain).
   function txLink(h) {
     if (!h) return "";
-    return explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}</a>` : `<span class="mono">${short(h)}</span>`;
+    return explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}${EXT}</a>` : `<span class="mono">${short(h)}</span>`;
   }
   const cdText = (ts, done, pre = "") => { const l = ts - nowSec(); return l > 0 ? pre + span(l) : done; };
   const cd = (ts, done = "now", pre = "") => `<span class="cd" data-until="${ts}" data-done="${esc(done)}"${pre ? ` data-pre="${pre}"` : ""}>${cdText(ts, done, pre)}</span>`;
@@ -394,6 +418,9 @@
   const chip = (cls, text) => `<span class="chip ${cls}">${text}</span>`;
   const I = P.icon;
   const arrow = `<span class="flow">${I("arrow-right")}</span>`; // "leads to", in agent and history lines
+  // A term that opens its guide entry; the last word carries the help mark, so the mark never wraps alone.
+  const term = (label, id, cls = "", attrs = "") => { const k = label.lastIndexOf(" ") + 1;
+    return `<button type="button" class="term${cls ? " " + cls : ""}" data-guide="${id}"${attrs}>${label.slice(0, k)}<span class="tl">${label.slice(k)}</span></button>`; };
   const tierBadge = (t) => `<span class="tier t${t}">${P.TIERS[t] || "?"}</span>`;
 
   // UI state that must survive re-renders: disclosures the user opened or closed, and claim messages.
@@ -505,7 +532,7 @@
     }
     return `<li class="${cls}"><span class="st">${I(ic)}</span><div>
       <div class="line1"><span class="n">Milestone ${i + 1}</span><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
-      <div class="line2">${parts.map((x) => `<span>${x}</span>`).join("")}</div>${approve}</div></li>`;
+      <div class="line2">${parts.map((x) => `<span>${x}</span>`).join(`<span aria-hidden="true">&nbsp;· </span>`)}</div>${approve}</div></li>`;
   }
 
   function nextStep(o, ctx) {
@@ -743,14 +770,14 @@
         ${backTo && backTo.target === o.id && lastOrders && lastOrders.some((x) => x.id === backTo.from)
           ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}Back to ${orderName(lastOrders.find((x) => x.id === backTo.from))}</button>` : ""}
         <div class="card-head">
-          <div><h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
-            <div class="sub"><span class="reg">${esc(s.name)}</span>
-              <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono" data-tip="Opens the ${esc(s.name)} page of ${esc(o.info.supplierId)}" aria-describedby="tip">${esc(o.info.supplierId)}</a>
-              <span>supplier wallet ${addr(o.info.supplier)}</span></div></div>
+          <h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
           ${badge}
+          <div class="sub"><span class="reg">${esc(s.name)}</span>
+              <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono" data-tip="Opens the ${esc(s.name)} page of ${esc(o.info.supplierId)}" aria-describedby="tip">${esc(o.info.supplierId)}${EXT}</a>
+              <span>supplier wallet ${addr(o.info.supplier)}</span></div>
         </div>
         <div class="hero">
-          <div><div class="label">Protected remaining balance</div><div class="big">${tok(o.remaining)}<button type="button" class="term unit" data-guide="g-unit" data-tip="${tok(o.remaining)} tokens = ${ethers.formatEther(o.remaining)} test ETH" aria-describedby="tip">tokens</button></div></div>
+          <div><div class="label">Protected remaining balance</div><div class="big">${tok(o.remaining)}${term("tokens", "g-unit", "unit", ` data-tip="${tok(o.remaining)} tokens = ${ethers.formatEther(o.remaining)} test ETH" aria-describedby="tip"`)}</div></div>
           <div class="paid">Paid <b>${tok(o.paid)}</b> of ${tok(total)}</div>
         </div>
         ${bar}
@@ -761,10 +788,10 @@
           <summary>Details</summary>
           <dl class="facts">
             <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
-            <dt><button type="button" class="term" data-guide="g-permit">Payment permit</button></dt><dd>${permitRow}</dd>
+            <dt>${term("Payment permit", "g-permit")}</dt><dd>${permitRow}</dd>
             <dt>Last signed record</dt><dd>${lastCheck}</dd>
             ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o, ctx.cause, shownInBox)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
-            <dt><button type="button" class="term" data-guide="g-tiers">Verification history</button></dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} ${["(Trusted at 3)", "(Premium at 6)", "(Premium from 6)"][o.rec.tier] || ""}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed</span></dd>
+            <dt>${term("Verification history", "g-tiers")}</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} ${["(Trusted at 3)", "(Premium at 6)", "(Premium from 6)"][o.rec.tier] || ""}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed</span></dd>
           </dl>
           ${trail}
         </details>
@@ -1224,6 +1251,7 @@
     closed: "Nothing; the audit trail shows who triggered the refund.",
   };
   $("guide-states").innerHTML = STATE_KEYS.map((k, i) => `<tr><td><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span> <kbd>${i + 1}</kbd></td><td>${STATES[k].def}</td><td>${DO[k]}</td></tr>`).join("");
+  for (const a of document.querySelectorAll('.guide-body a[target="_blank"]')) a.insertAdjacentHTML("beforeend", EXT);
   $("g-unit-text").textContent = `Amounts are in tokens of test ETH: 1 token = ${UNIT.toLocaleString("en")} wei${UNIT === 10n ** 12n ? " (10¹²), so 1,000,000 tokens are 1 ETH" : `, set by the unit parameter (default 10¹²)`}.`;
   function openGuide(targetId) {
     const g = $("guide");
