@@ -74,6 +74,8 @@
   button.badge.done:hover, button.badge.muted:hover { background: var(--done-bg); }
   /* the guide entry a term or badge opened: a short tint, so a mouse user sees where it landed */
   .guide .landed { background: var(--accent-bg); }
+  .guide .guide-back { gap: 4px; margin-left: var(--s2); font-weight: 600; color: var(--text); }
+  .guide table + .guide-back { margin: 0; align-self: flex-start; }
   dl.facts dt .term { font-weight: 400; color: var(--muted); text-align: left; }
   .i.ext { width: 0.8em; height: 0.8em; margin-left: 2px; vertical-align: -0.05em; }
   /* hit areas: at least 24 px for standalone text controls (32 px on phones), without changing their look */
@@ -317,7 +319,7 @@
         <dt id="g-unit" tabindex="-1">Tokens</dt><dd id="g-unit-text"></dd>
         <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
       </dl>
-      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide, or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
+      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide (back to what opened it), or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
       <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · <a href="judge.html" id="judge-link3">Try to break it</a></p>
     </div>
   </details>
@@ -424,10 +426,14 @@
     for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
     setJudgeLinks();
   }
+  // Filter, search and sort live in Detailed: Simple parks them, and the way back to Detailed restores them.
+  let parked = null;
   function setView(v, remember = true) {
+    if (v === "simple" && view === "detailed") parked = { filter, query, sortMode };
+    if (v === "detailed" && view === "simple" && parked) { ({ filter, query, sortMode } = parked); parked = null; syncTools(); }
     view = v;
     if (remember) { stored = v; try { localStorage.setItem("pulse-view", view); } catch { /* storage blocked */ } }
-    if (view === "simple") { filter = null; query = ""; sortMode = "contract"; syncTools(); } // these live in Detailed
+    if (view === "simple") { filter = null; query = ""; sortMode = "contract"; syncTools(); }
     applyView();
     rerender(); // the agent panel shows a different number of rows per view
     writeFragment();
@@ -1384,18 +1390,53 @@
   $("guide-states").innerHTML = STATE_KEYS.map((k, i) => `<tr id="g-state-${k}" tabindex="-1"><td><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span> <kbd>${i + 1}</kbd></td><td>${STATES[k].def}</td><td>${DO[k]}</td></tr>`).join("");
   for (const a of document.querySelectorAll('.guide-body a[target="_blank"]')) a.insertAdjacentHTML("beforeend", EXT);
   $("g-unit-text").textContent = `Amounts are in tokens of test ETH: 1 token = ${UNIT.toLocaleString("en")} wei${UNIT === 10n ** 12n ? " (10¹²), so 1,000,000 tokens are 1 ETH" : `, set by the unit parameter (default 10¹²)`}.`;
-  function openGuide(targetId) {
+  // The guide remembers what opened it (a term, a badge, a button): closing it (Esc, ?, its summary, or the "Back to
+  // #n" button at the entry) scrolls back to that control and focuses it, so help never strands the reader at the top.
+  let guideFrom = null; // { el, sel }: the opener, and a selector that finds it again after a re-render
+  const backBtn = Object.assign(document.createElement("button"), { type: "button", className: "link-order back guide-back" });
+  const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function openerSel(el) {
+    const card = el.closest("article.card");
+    if (card && el.dataset.guide) return `#${card.id} [data-guide="${el.dataset.guide}"]`;
+    return el.id ? `#${el.id}` : null;
+  }
+  function openGuide(targetId, from = null) {
     const g = $("guide");
+    if (from && !g.contains(from)) guideFrom = { el: from, sel: openerSel(from) };
     g.open = true;
     const el = (targetId && $(targetId)) || g.querySelector("summary");
-    el.scrollIntoView({ block: targetId ? "center" : "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    // from a card: a way back to it at the entry it landed on
+    const card = guideFrom && guideFrom.el.closest("article.card"), o = card && lastOrders && lastOrders.find((x) => `order-${x.id}` === card.id);
+    backBtn.remove();
+    if (o && targetId) {
+      backBtn.innerHTML = `${I("arrow-left")}Back to ${orderName(o)}`;
+      const host = el.tagName === "DT" ? el.nextElementSibling : el.tagName === "TR" ? el.lastElementChild : el.tagName === "TABLE" ? null : el;
+      if (host) host.append(backBtn); else el.after(backBtn);
+    }
+    el.scrollIntoView({ block: targetId ? "center" : "nearest", behavior: still() ? "auto" : "smooth" });
     el.focus({ preventScroll: true });
     if (targetId) { el.classList.add("landed"); clearTimeout(el._landed); el._landed = setTimeout(() => el.classList.remove("landed"), 1600); }
   }
-  function closeGuide() { $("guide").open = false; $("guide").querySelector("summary").focus(); }
+  function returnFromGuide() {
+    const f = guideFrom;
+    guideFrom = null;
+    backBtn.remove();
+    const el = f && (f.el.isConnected ? f.el : f.sel && document.querySelector(f.sel));
+    if (!el || !el.offsetParent) return false;
+    el.scrollIntoView({ block: "center", behavior: still() ? "auto" : "smooth" });
+    el.focus({ preventScroll: true });
+    return true;
+  }
+  function closeGuide() {
+    $("guide").open = false;
+    if (!returnFromGuide()) $("guide").querySelector("summary").focus();
+  }
+  // closed by its summary: back to the opener too
+  $("guide").addEventListener("toggle", () => { if (!$("guide").open && guideFrom) returnFromGuide(); });
+  backBtn.addEventListener("click", closeGuide);
   document.addEventListener("click", (e) => {
     const t = e.target.closest && e.target.closest("[data-guide]");
-    if (t) openGuide(t.dataset.guide);
+    if (t) openGuide(t.dataset.guide, t);
   });
 
   // Expand all: every card's details and audit trail, or back to closed.
@@ -1424,9 +1465,9 @@
     else if (/^[1-6]$/.test(k)) {
       // the filters live in Detailed: from Simple, switch for this visit only (the remembered view stays)
       e.preventDefault();
-      const fromSimple = view === "simple";
+      const fromSimple = view === "simple", key = STATE_KEYS[Number(k) - 1];
       if (fromSimple) setView("detailed", false);
-      setFilter(STATE_KEYS[Number(k) - 1]);
+      if (!(fromSimple && filter === key)) setFilter(key); // from Simple a key shows its state, it never toggles it off
       say(`${fromSimple ? "Detailed view for this visit. " : ""}${filter ? `Showing only ${STATES[filter].label}` : "Showing all orders"}.${fromSimple ? " Press S for Simple." : ""}`);
     }
     else if (k === "/") { e.preventDefault(); if (view === "simple") setView("detailed", false); $("find").focus(); $("find").select(); }
@@ -1438,7 +1479,7 @@
       const d = document.activeElement.querySelector("details.more");
       if (d) { d.open = !d.open; userOpen.set(d.dataset.key, d.open); }
     }
-    else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(); }
+    else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(null, document.activeElement !== document.body ? document.activeElement : null); }
     else if (k === "Escape" && Object.values(claimState).includes("confirm")) {
       e.preventDefault(); // cancel the refund confirm; focus back on its refund button
       const inCard = document.activeElement && document.activeElement.closest && document.activeElement.closest("article.card");
