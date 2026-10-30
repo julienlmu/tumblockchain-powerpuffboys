@@ -48,6 +48,8 @@
   .grid.stale { opacity: 0.75; }
   .meta .warn, .meta .warn b { color: var(--wait); }
   .live-dot.warn { background: var(--wait); }
+  .banner-actions { display: inline-flex; flex-wrap: wrap; gap: var(--s2); margin-left: var(--s2); vertical-align: middle; }
+  .banner-actions button { min-height: 30px; padding: 4px 10px; }
 
   /* agent panel */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
@@ -305,6 +307,8 @@
   const claimMsg = {};
   const claimState = {}; // order id -> "confirm" | "busy"
   const myRefunds = {};  // order id -> { amount, hash }: refunds sent from this page, kept for the session
+  const claimPhase = {}; // order id -> the order's phase when its message was written; a message goes when it changes
+  const phaseOf = (o) => `${o.state}:${o.autoRefundAt > 0 && nowSec() >= o.autoRefundAt}`;
 
   // Writes markup only when it changed. Countdown, "ago" and next-read text move every second in place, and the open
   // state of a disclosure belongs to the user, so neither counts as a change. Live regions then speak only on real
@@ -520,6 +524,8 @@
 
     // The refund button. Its reason, when it is off, is the sentence above it (aria-describedby).
     const whoId = `who-${o.id}`;
+    // a refund message belongs to the moment it was written: it goes once the order's state or refund window changes
+    if (claimMsg[o.id] && claimState[o.id] !== "busy" && claimPhase[o.id] !== undefined && claimPhase[o.id] !== phaseOf(o)) delete claimMsg[o.id];
     const claimRow = (enabled) => {
       const msg = claimMsg[o.id] ? `<div class="msg" role="status">${claimMsg[o.id]}</div>` : "";
       if (claimState[o.id] === "confirm") return `<div class="confirm" role="group" aria-label="Confirm the refund">
@@ -770,6 +776,7 @@
   // ---------------------------------------------------------------- read status (the meta line)
 
   let nextReadAt = 0, busy = false;
+  let readCulprit = null; // the Settings field the last read error points at ("rpc" or "contract")
   // Where the data comes from, the protected total, when it was read, and when the next read happens.
   const status = { mode: cfg.sample ? "sample" : "start", network: "", protectedTotal: null, readAt: 0, note: "", failed: false };
   const MODE_WORDS = { sample: "sample", start: "reading the contract…", discover: "looking for SupplierPulse+ v2…", none: "not configured" };
@@ -781,7 +788,7 @@
   }
   function renderMeta() {
     const items = [];
-    if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${status.failed ? "Reconnecting to" : "Live on"} <b>${esc(status.network || rpcHost())}</b>`);
+    if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
     else items.push(`Mode <b>${MODE_WORDS[status.mode]}</b>`);
     if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b>`);
     if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${P.dayClockS(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
@@ -849,7 +856,7 @@
 
   let lastOrders = null, eventsNote = "";
   async function loadLive() {
-    if (!provider) {
+    if (!consts) { // until the first read fully succeeded
       provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
       contract = new ethers.Contract(cfg.contract, P.ABI, provider);
       iface = contract.interface;
@@ -908,8 +915,9 @@
   // ---------------------------------------------------------------- claim (MetaMask)
 
   const rerender = () => { if (lastOrders) renderAll(lastOrders, lastEnv); };
+  const notSent = (e) => { const f = P.friendlyError(e, { rpc: cfg.rpc }); return f.kind === "other" ? `The wallet or the RPC reported an error this page does not know (“${esc(f.text)}”).` : esc(f.text); };
   async function claim(id) {
-    const say = (html) => { claimMsg[id] = html; rerender(); };
+    const say = (html) => { claimMsg[id] = html; const o = lastOrders && lastOrders.find((x) => x.id === id); claimPhase[id] = o ? phaseOf(o) : ""; rerender(); };
     if (!window.ethereum) { delete claimState[id]; say("No browser wallet found. Install MetaMask, or use the script under “Other ways to refund”."); return; }
     claimState[id] = "busy";
     claimMsg[id] = "";
@@ -922,7 +930,11 @@
       const signer = await (new ethers.BrowserProvider(window.ethereum)).getSigner();
       const c = new ethers.Contract(cfg.contract, P.ABI, signer);
       try { await c.refundRemaining.staticCall(id); }
-      catch (e) { const r = P.decodeRevert(iface, e); say(r ? `Not sent: the contract would refuse it with <b>${esc(r.name)}</b>. ${esc(P.explain(r.name, r.args))}` : `Not sent. ${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)}`); return; }
+      catch (e) {
+        const r = P.decodeRevert(iface, e);
+        say(r ? `Not sent. ${esc(P.explain(r.name, r.args) || "The contract would refuse it.")} <span class="small-muted">(contract answer: ${esc(r.name)})</span>` : `Not sent. ${notSent(e)}`);
+        return;
+      }
       const before = lastOrders && lastOrders.find((x) => x.id === id);
       const tx = await c.refundRemaining(id);
       say(`Sent ${txLink(tx.hash)}, waiting for the block…`);
@@ -931,7 +943,7 @@
       say(`Refunded in ${txLink(tx.hash)}.`);
       tick();
     } catch (e) {
-      say(esc(P.friendlyError(e, { rpc: cfg.rpc }).text));
+      say(notSent(e));
     } finally {
       delete claimState[id];
       rerender();
@@ -1060,15 +1072,31 @@
     catch (e) {
       // --- H9: plain words, the culprit field marked in Settings, the user's values kept
       status.failed = true; // the dot turns amber; the meta says when the last good read was and when the next try is
-      const f = P.friendlyError(e, { rpc: cfg.rpc });
-      if (f.kind === "network" || f.kind === "address") { P.markField(form, f.kind === "network" ? "rpc" : "contract", f.text); if (!lastOrders) $("cfg-box").open = true; }
-      banner("error", `${I("alert")}<span>Could not read the contract. ${esc(f.text)}${f.kind === "other" ? " Check the address, the RPC URL and the network in Settings." : ""} The page retries every 12 s${lastOrders ? "; the cards show the last good read" : ""}.</span>`);
+      const f = P.friendlyError(e, { reading: true, contract: cfg.contract, rpc: cfg.rpc });
+      readCulprit = f.kind === "network" ? "rpc" : f.kind === "address" ? "contract" : null;
+      if (readCulprit) { P.markField(form, readCulprit, f.text); if (!lastOrders) $("cfg-box").open = true; }
+      let text = f.kind === "other" ? `The RPC answered with an error this page does not know (“${esc(f.text)}”). Check the address, the RPC URL and the network in Settings.` : esc(f.text);
+      if (f.notV2) { // the v1 contract (or another one): link its screen
+        const q = new URLSearchParams({ contract: cfg.contract });
+        if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
+        text = text.replace("open the v1 screen", `<a href="v1.html?${esc(q.toString())}">open the v1 screen</a>`);
+      }
+      banner("error", `${I("alert")}<span>Could not read the contract. ${text} The page retries every 12 s${lastOrders ? "; the cards show the last good read" : ""}.
+        <span class="banner-actions"><button type="button" data-retry>${I("refund")}Retry now</button><button type="button" data-fix>Open Settings</button></span></span>`);
       if (!lastOrders) renderGrid("");
       else $("orders").classList.add("stale");
     }
     finally { busy = false; renderMeta(); moveClocks(); }
   }
 
+  $("banner").addEventListener("click", (e) => {
+    if (e.target.closest("[data-retry]")) tick();
+    if (e.target.closest("[data-fix]")) {
+      $("cfg-box").open = true;
+      const el = form.elements[readCulprit || "contract"];
+      el.focus(); el.select();
+    }
+  });
   function startLive() {
     tick();
     setInterval(tick, REFRESH_MS);
@@ -1110,7 +1138,7 @@
   } else if (cfg.contract) {
     notConfigured("That contract address is not valid: it must be 0x followed by 40 hex characters. Fix it in Settings.");
   } else {
-    discover().catch((e) => notConfigured(`Could not search for the contract (${esc(e.shortMessage || e.message)}). Enter its address in Settings, or open the <a href="?sample=1">sample data</a>.`));
+    discover().catch((e) => notConfigured(`Could not search for the contract. ${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)} Enter its address in Settings, or open the <a href="?sample=1">sample data</a>.`));
   }
 })();
 </script>
