@@ -12,77 +12,120 @@
 <script src="common.js"></script>
 <script src="sample/responses.js"></script>
 <link rel="stylesheet" href="base.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232457d6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <style>
-  .wrap { max-width: 1180px; }
-  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-top: 20px; align-items: start; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .panel h2 { margin: 0; font-size: 16px; }
-  .panel h2 .step { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; margin-right: 6px; vertical-align: 1px; }
-  .hint { color: var(--muted); font-size: 13px; margin: 0; }
-  select, textarea { font: inherit; font-size: 13px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); min-width: 0; width: 100%; }
-  textarea { font-family: var(--mono); font-size: 12px; min-height: 150px; resize: vertical; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .wrap { max-width: 1240px; padding-top: var(--s4); }
+  .tagline { max-width: 84ch; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: var(--s4); margin-top: var(--s4); align-items: start; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+  .panel h2 { margin: 0; font-size: var(--t0); font-weight: 600; display: flex; align-items: center; gap: var(--s2); }
+  .panel h2 .step { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); font-size: var(--t-1); font-weight: 700; flex: none; }
+  .panel .group { display: flex; flex-direction: column; gap: var(--s2); }
+  .panel .group + .group { border-top: 1px solid var(--line); padding-top: var(--s3); }
+  .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
+  select, textarea { width: 100%; }
+  textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: 68px; min-height: 52px; resize: vertical; display: block; }
+  .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
   .row select { width: auto; flex: 1 1 200px; }
-  .attacks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .attacks button { padding: 10px 8px; font-weight: 600; }
-  .attacks button.valid { grid-column: 1 / -1; background: var(--ok); border-color: var(--ok); color: #fff; }
-  .attacks button.atk { background: var(--hold-bg); color: var(--hold); border-color: transparent; }
-  .attacks button.atk:hover { border-color: var(--hold); }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
-  .kv { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .kv th { text-align: left; color: var(--muted); font-weight: 500; padding: 5px 10px 5px 0; vertical-align: top; width: 32%; }
+  .order-sum { font-size: var(--t-1); color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
+  .order-sum b { color: var(--text); font-weight: 500; }
+  details.order-more > summary { width: auto; list-style: none; display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
+  details.order-more > summary::-webkit-details-marker { display: none; }
+  details.order-more .more { color: var(--accent); font-size: var(--t-1); }
+  details.order-more .more::after { content: " +"; }
+  details.order-more[open] .more::after { content: " −"; }
+  .kv { width: 100%; border-collapse: collapse; font-size: var(--t-1); margin-top: var(--s2); }
+  .kv th { text-align: left; color: var(--muted); font-weight: 400; padding: 5px var(--s3) 5px 0; vertical-align: top; width: 32%; }
   .kv td { padding: 5px 0; overflow-wrap: anywhere; vertical-align: top; }
   .kv tr + tr th, .kv tr + tr td { border-top: 1px solid var(--line); }
-  .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 6px; color: var(--accent); background: var(--accent-bg); }
+  .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 6px; border-radius: var(--r-sm); color: var(--accent); background: var(--accent-bg); }
 
-  .verdict { border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  /* attack controls */
+  button.suite { width: 100%; min-height: 42px; font-size: var(--t0); }
+  .attacks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); }
+  .attacks button { min-height: 40px; padding: 6px 8px; text-align: left; justify-content: flex-start; line-height: 1.25; }
+  .attacks button.valid { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: var(--ok-bg); }
+  .attacks button.valid:hover { border-color: var(--ok); }
+  .attacks button.atk { color: var(--hold); border-color: color-mix(in srgb, var(--hold) 30%, transparent); background: var(--hold-bg); }
+  .attacks button.atk:hover { border-color: var(--hold); }
+  .attacks button.real { border-style: dashed; }
+
+  /* verdict column: stays beside the buttons while the page scrolls */
+  #result { position: sticky; top: var(--s4); }
+  #result[aria-busy="true"] .verdict, #result[aria-busy="true"] .tiles { opacity: 0.6; }
+  .verdict { border-radius: var(--r-md); padding: var(--s3) var(--s4); display: flex; flex-direction: column; gap: var(--s1); transition: opacity 180ms var(--ease); }
   .verdict.ok { background: var(--ok-bg); color: var(--ok); }
   .verdict.bad { background: var(--hold-bg); color: var(--hold); }
   .verdict.warn { background: var(--wait-bg); color: var(--wait); }
-  .verdict .big { font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
-  .verdict .why { color: var(--text); font-size: 14px; }
-  .verdict .exp { font-size: 13px; font-weight: 600; }
-  .what { font-size: 14px; padding: 8px 12px; border-radius: 10px; background: var(--accent-bg); color: var(--accent); }
+  .verdict .big { font-size: var(--t1); font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; display: flex; gap: var(--s2); align-items: flex-start; }
+  .verdict .big .i { margin-top: 0.15em; }
+  .verdict .why { color: var(--text); font-size: var(--t-1); }
+  .verdict .exp { font-size: var(--t-1); font-weight: 600; }
+  .verdict.hero { padding: var(--s4); flex-direction: row; gap: var(--s4); align-items: center; }
+  .verdict.hero .mark { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--card); }
+  .verdict.hero .mark .i { width: 30px; height: 30px; stroke-width: 2.2; }
+  .verdict.hero .big { font-size: var(--t4); line-height: 1.1; letter-spacing: -0.015em; }
+  .verdict.hero .why { font-size: var(--t0); margin-top: 2px; }
+  .what { font-size: var(--t-1); padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--accent-bg); color: var(--accent); overflow-wrap: anywhere; }
+  .waiting { display: flex; gap: var(--s2); align-items: center; color: var(--muted); font-size: var(--t-1); }
 
-  ol.checks { list-style: none; margin: 0; padding: 0; font-size: 13px; }
-  ol.checks li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 6px; padding: 6px 0; border-top: 1px dashed var(--line); }
+  ol.checks { list-style: none; margin: 0; padding: 0; font-size: var(--t-1); }
+  ol.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--line); }
   ol.checks li:first-child { border-top: none; }
-  ol.checks .ic { font-size: 14px; line-height: 1.3; }
+  ol.checks .ic { line-height: 1.3; }
+  ol.checks .ic.y { color: var(--ok); } ol.checks .ic.n { color: var(--hold); } ol.checks .ic.l { color: var(--wait); } ol.checks .ic.q { color: var(--muted); }
+  ol.checks .t { font-weight: 500; }
   ol.checks .d { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-  ol.checks li.stop { background: var(--hold-bg); border-radius: 8px; padding: 6px 8px; margin: 2px -8px; }
-  ol.checks li.stop .t::after { content: "  ← the contract stops here"; color: var(--hold); font-weight: 600; }
-  pre.json { margin: 0; font-family: var(--mono); font-size: 11.5px; background: var(--bg); padding: 10px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
-  .diff { background: var(--wait-bg); color: var(--wait); border-radius: 3px; }
+  ol.checks li.stop { background: var(--hold-bg); border-radius: var(--r-sm); padding: 6px var(--s2); margin: 2px calc(-1 * var(--s2)); border-top-color: transparent; }
+  ol.checks li.stop + li { border-top-color: transparent; }
+  ol.checks .stop-tag { color: var(--hold); font-weight: 600; margin-left: var(--s2); white-space: nowrap; }
+  pre.json { margin: var(--s2) 0 0; font-family: var(--mono); font-size: 11.5px; background: var(--bg); padding: var(--s3); border-radius: var(--r-sm); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
 
-  table.score { width: 100%; border-collapse: collapse; font-size: 13px; }
-  table.score th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); }
-  table.score td { padding: 6px 8px 6px 0; border-bottom: 1px dashed var(--line); vertical-align: top; overflow-wrap: anywhere; }
-  table.score td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .pass { color: var(--ok); font-weight: 700; } .fail { color: var(--hold); font-weight: 700; } .na { color: var(--muted); }
+  table.score { width: 100%; border-collapse: collapse; font-size: var(--t-1); }
+  table.score th { text-align: left; color: var(--muted); font-weight: 400; padding: 6px var(--s2) 6px 0; border-bottom: 1px solid var(--line-strong); }
+  table.score td { padding: 7px var(--s2) 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+  table.score td:first-child { white-space: nowrap; }
+  table.score td.v { font-family: var(--mono); font-size: 12px; }
+  table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; }
+  .res { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; white-space: nowrap; }
+  .res.pass { color: var(--ok); } .res.fail { color: var(--hold); } .res.na { color: var(--muted); font-weight: 400; }
   .kit code { background: var(--bg); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
-  .kit ul { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+  .kit ul { margin: 0; padding-left: 18px; font-size: var(--t-1); display: flex; flex-direction: column; gap: var(--s2); max-width: 110ch; }
   .wide { grid-column: 1 / -1; }
-  .msg { font-size: 13px; }
+  .msg { font-size: var(--t-1); }
 
-  /* the full tamper test, one click */
-  button.suite { width: 100%; padding: 12px; font-size: 15px; font-weight: 700; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-  .tile { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; }
+  /* tamper test tiles: state by icon + words, not colour alone */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s2); }
+  .tile { font: inherit; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s2) var(--s3); min-height: 0; border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer; }
   .tile:hover { border-color: currentColor; }
-  .tile .n { font-weight: 700; font-size: 13px; }
+  .tile .n { font-weight: 600; font-size: var(--t-1); display: flex; gap: 6px; align-items: flex-start; }
+  .tile .n .i { margin-top: 0.1em; }
+  .tile .s { font-size: 11.5px; font-weight: 600; }
   .tile .v { font-family: var(--mono); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
-  .tile .x { font-size: 11px; }
+  .tile .x { font-size: 11.5px; color: var(--text); opacity: 0.8; }
   .tile.pass { background: var(--ok-bg); color: var(--ok); }
-  .tile.fail { background: var(--hold-bg); color: var(--hold); }
-  .tile.near { background: var(--wait-bg); color: var(--wait); }
+  .tile.fail { background: var(--hold-bg); color: var(--hold); border-color: var(--hold); }
+  .tile.near { background: var(--wait-bg); color: var(--wait); border-style: dashed; border-color: color-mix(in srgb, var(--wait) 55%, transparent); }
   .tile.na { background: var(--done-bg); color: var(--muted); }
-  button.link { background: none; border: none; padding: 0; color: var(--accent); font-size: 13px; align-self: flex-start; }
-  @media (max-width: 860px) {
+  .legend { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); font-size: var(--t-1); color: var(--muted); margin: 0; padding: 0; list-style: none; }
+  .legend li { display: inline-flex; gap: 6px; align-items: center; }
+  .legend .pass { color: var(--ok); } .legend .near { color: var(--wait); }
+  button.link { background: none; border: none; padding: 0; min-height: 0; color: var(--accent); font-size: var(--t-1); align-self: flex-start; }
+  button.link:hover { background: none; text-decoration: underline; }
+  @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
+    #result { position: static; }
   }
-  @media (max-width: 420px) {
+  @media (max-width: 520px) {
     .attacks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .panel { padding: 14px; }
+    .panel { padding: var(--s3); }
+    .verdict.hero { flex-direction: column; align-items: flex-start; gap: var(--s2); }
+    table.score th:nth-child(2), table.score td:nth-child(2) { display: none; }
   }
 </style>
 </head>
@@ -91,69 +134,72 @@
   <header>
     <div>
       <h1>Try to break it</h1>
-      <p class="tagline">Take a signed register record, tamper with it, and see whether the live SupplierPulse+ contract would act on it.
-        Every verdict is the contract's own: an <span class="mono">eth_call</span> of <span class="mono">submitEvidence</span> from
-        <span class="mono">0x…dEaD</span>. No wallet, no gas.</p>
+      <p class="tagline">Tamper with a signed register record and see whether the live SupplierPulse+ contract would act on it.
+        Every verdict is the contract's own: an <span class="mono">eth_call</span> of <span class="mono">submitEvidence</span>
+        from <span class="mono">0x…dEaD</span>. No wallet, no gas.</p>
     </div>
     <div class="head-links">
-      <a class="btn" id="dash-link" href="index.html">← Dashboard</a>
-      <button type="button" id="theme-btn" title="Switch light / dark">◐ Theme</button>
+      <a class="btn" id="dash-link" href="index.html" data-icon="arrow-left">Dashboard</a>
+      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
     </div>
   </header>
   <div class="meta" id="meta"></div>
-  <div id="banner"></div>
+  <div id="banner" role="status" aria-live="polite"></div>
   <details class="cfg-box" id="cfg-box">
     <summary>Settings: contract and network</summary>
     <form class="cfg" id="cfg">
-      <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false"></label>
-      <label>RPC URL<input name="rpc" spellcheck="false"></label>
-      <div class="btns"><button class="primary" type="submit">Load</button></div>
+      <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
+      <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
+      <div class="btns"><button class="primary" type="submit">Load contract</button></div>
     </form>
   </details>
 
   <div class="layout">
-    <section class="panel">
-      <h2><span class="step">1</span>Pick an order</h2>
-      <select id="order"><option>Connect a contract first</option></select>
-      <table class="kv" id="order-info"></table>
-
-      <h2><span class="step">2</span>Paste a signed response</h2>
-      <p class="hint">The §4.1 format from <span class="mono">fetch-evidence.sh</span>, AirnodeHub, or the samples. Samples are old on purpose.</p>
-      <div class="row">
-        <select id="sample"><option value="">Load sample…</option></select>
-        <label class="btn" for="file">Upload file</label><input type="file" id="file" accept=".json,application/json" hidden>
-        <button type="button" id="fresh" hidden title="Signs a fresh record in the browser with the public local test key (anvil). Local chain only.">Fresh local record</button>
+    <section class="panel" aria-label="Attack controls">
+      <div class="group">
+        <h2><span class="step" aria-hidden="true">1</span>Pick an order</h2>
+        <select id="order" aria-label="Order to attack"><option>Reading the orders…</option></select>
+        <details class="order-more"><summary><span class="order-sum" id="order-sum"></span> <span class="more">Details</span></summary><table class="kv" id="order-info"></table></details>
       </div>
-      <textarea id="resp" spellcheck="false" placeholder='{"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
-      <div class="msg" id="resp-msg"></div>
 
-      <h2><span class="step">3</span>Attack it</h2>
-      <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. Or press them one by one.</p>
-      <button type="button" class="primary suite" id="suite">▶ Run the full tamper test</button>
-      <div class="attacks">
-        <button type="button" class="valid" data-mode="asis">Submit as is</button>
-        <button type="button" class="atk" data-mode="value">(a) Edit value</button>
-        <button type="button" class="atk" data-mode="stale">(b) Too old</button>
-        <button type="button" class="atk" data-mode="request">(c) Different request</button>
-        <button type="button" class="atk" data-mode="key">(d) Wrong key</button>
-        <button type="button" class="atk" data-mode="replay">Replay</button>
+      <div class="group">
+        <h2><span class="step" aria-hidden="true">2</span>Load a signed record</h2>
+        <div class="row">
+          <select id="sample" aria-label="Load a sample record"><option value="">Load sample (old on purpose)…</option></select>
+          <button type="button" id="upload-btn" data-icon="upload">Upload file</button><input type="file" id="file" accept=".json,application/json" hidden>
+          <button type="button" id="fresh" hidden data-icon="key" title="Signs a fresh record in the browser with the public local test key (anvil). Local chain only.">Fresh local record</button>
+        </div>
+        <textarea id="resp" spellcheck="false" aria-label="Signed record (§4.1 JSON: from fetch-evidence.sh, AirnodeHub or the samples)" placeholder='Paste a §4.1 record: {"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
+        <div class="msg" id="resp-msg" role="status" aria-live="polite"></div>
       </div>
-      <p class="hint">Real inputs: untouched records genuinely signed by the Airnode, nothing edited (§4.7).</p>
-      <div class="attacks">
-        <button type="button" class="atk" data-mode="realOld" title="A genuine signed record of this order's supplier, fetched earlier">(b) Real old record</button>
-        <button type="button" class="atk" data-mode="realOther" title="A genuine signed record of another company">(c) Real, other company</button>
+
+      <div class="group">
+        <h2><span class="step" aria-hidden="true">3</span>Attack it</h2>
+        <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test</button>
+        <div class="attacks" role="group" aria-label="Single attempts">
+          <button type="button" class="valid" data-mode="asis" data-icon="check">Submit as is</button>
+          <button type="button" class="atk" data-mode="value">(a) Edit value</button>
+          <button type="button" class="atk" data-mode="stale">(b) Too old</button>
+          <button type="button" class="atk" data-mode="request">(c) Different request</button>
+          <button type="button" class="atk" data-mode="key">(d) Wrong key</button>
+          <button type="button" class="atk" data-mode="replay">Replay</button>
+          <button type="button" class="atk real" data-mode="realOld" data-icon="file" title="A genuine signed record of this order's supplier, fetched earlier">(b) Real old record</button>
+          <button type="button" class="atk real" data-mode="realOther" data-icon="file" title="A genuine signed record of another company">(c) Real, other company</button>
+        </div>
+        <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons send real inputs: untouched records genuinely signed by the Airnode, nothing edited (§4.7).</p>
       </div>
     </section>
 
-    <section class="panel" id="result">
+    <section class="panel" id="result" aria-live="polite" aria-label="The contract's verdict">
       <h2>The contract's verdict</h2>
-      <p class="hint">Pick an order, load a response and press a button.</p>
+      <p class="hint">Pick an order, load a signed record and press <b>Run the full tamper test</b>, or one attack.</p>
     </section>
 
     <section class="panel wide">
       <h2>Scoreboard</h2>
       <p class="hint">Every attempt in this browser tab. The tamper test passes when the valid record is accepted and every attack is rejected.</p>
-      <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th></th></tr></thead><tbody id="score"></tbody></table>
+      <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
+        <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
     </section>
 
     <section class="panel wide kit">
@@ -198,8 +244,10 @@
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
   function applyTheme() {
     if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-    $("theme-btn").textContent = `◐ ${theme[0].toUpperCase()}${theme.slice(1)}`;
+    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>`;
+    $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
   }
+  P.hydrateIcons();
   $("theme-btn").addEventListener("click", () => {
     theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
     try { localStorage.setItem("pulse-theme", theme); } catch { /* storage blocked */ }
@@ -278,6 +326,10 @@
     const airnode = await airnodeFor(source);
     order.id = id; order.info = info; order.airnode = airnode;
     const s = P.SOURCES[source];
+    const failedNow = info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : "";
+    $("order-sum").innerHTML = `<span><span class="reg">${s.badge}</span> <span class="mono">${esc(info.supplierId)}</span></span>
+      <span>State <b>${P.STATE[info.state]}${failedNow}</b></span>
+      <span>Last record <b>${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</b></span>`;
     $("order-info").innerHTML = `
       <tr><th>Supplier</th><td><span class="reg">${s.badge}</span> <a class="mono" href="${s.registerUrl(info.supplierId)}" target="_blank" rel="noopener">${esc(info.supplierId)}</a></td></tr>
       <tr><th>State</th><td>${P.STATE[info.state]}${info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : ""} · last check ${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</td></tr>
@@ -328,7 +380,8 @@
     }
     const r = t.record;
     lastCandidate = { record: r, mode, rejected: false };
-    $("result").innerHTML = `<h2>The contract's verdict</h2><p class="hint">Asking the contract…</p>`;
+    $("result").setAttribute("aria-busy", "true");
+    $("result").innerHTML = `<h2>The contract's verdict</h2><div class="what">${esc(t.what)}</div><p class="waiting">${P.icon("loader", "spin")}Asking the contract…</p>`;
 
     const id = order.id, source = order.info.source;
     const now = await chainNow();
@@ -370,18 +423,18 @@
     const st0 = st.nextMilestone + 1;
     let box;
     if (verdict.accepted && verdict.clean) {
-      box = `<div class="verdict ok"><div class="big">✅ ACCEPTED: would issue a payment permit</div>
+      box = `<div class="verdict ok"><div class="big">${P.icon("check")}<span>Accepted: would issue a payment permit</span></div>
         <div class="why">The record is genuine, fresh and meant for this order, and the supplier passes every rule. The contract would issue a permit for milestone ${st0}.</div>`;
     } else if (verdict.accepted) {
       const labels = P.failedLabels(source, failed || 0);
-      box = `<div class="verdict warn"><div class="big">✅ ACCEPTED: would hold the order (${esc(labels.join(", ") || "a rule failed")})</div>
+      box = `<div class="verdict warn"><div class="big">${P.icon("lock")}<span>Accepted: would hold the order (${esc(labels.join(", ") || "a rule failed")})</span></div>
         <div class="why">The record is genuine, but the supplier fails the buyer's rules, so the contract would protect the remaining balance for the buyer.</div>`;
     } else if (verdict.err) {
       const args = verdict.err.args.map((a) => (typeof a === "bigint" ? a.toString() : String(a)));
-      box = `<div class="verdict bad"><div class="big">❌ REJECTED: ${esc(verdict.err.name)}(${esc(args.map((a) => (a.length > 20 ? short(a) : a)).join(", "))})</div>
+      box = `<div class="verdict bad"><div class="big">${P.icon("x")}<span>Rejected: <span class="mono">${esc(verdict.err.name)}(${esc(args.map((a) => (a.length > 20 ? short(a) : a)).join(", "))})</span></span></div>
         <div class="why">${esc(P.explain(verdict.err.name, verdict.err.args, { expectedSigner: airnode }))}</div>`;
     } else {
-      box = `<div class="verdict bad"><div class="big">❌ The call failed</div><div class="why">${esc(verdict.raw)}</div>`;
+      box = `<div class="verdict bad"><div class="big">${P.icon("x")}<span>The call failed</span></div><div class="why">${esc(verdict.raw)}</div>`;
     }
     const gotName = verdict.accepted ? "accepted" : verdict.err ? verdict.err.name : "error";
     const expected = t.expect || "accepted";
@@ -394,28 +447,33 @@
     box += `<div class="exp">${esc(expNote)}</div></div>`;
 
     const rawShown = r.raw != null ? r.raw : (() => { try { return ethers.toUtf8String(r.data); } catch { return null; } })();
+    const ic = (ok) => `<span class="ic ${ok ? "y" : "n"}">${P.icon(ok ? "check" : "x")}<span class="sr-only">${ok ? "passes" : "fails"}</span></span>`;
+    $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
-      ${suite.length && !suiteRunning ? `<button type="button" class="link" data-summary>← Tamper test summary</button>` : ""}
+      ${suite.length && !suiteRunning ? `<button type="button" class="link" data-summary>${P.icon("arrow-left")} Tamper test summary</button>` : ""}
       <h2>The contract's verdict</h2>
       <div class="what">${esc(t.what)}</div>
       ${box}
       <h2>Checks, in the contract's order</h2>
-      <ol class="checks">${checks.map((c, i) => `<li class="${i === stop ? "stop" : ""}"><span class="ic">${c.ok ? "✅" : "❌"}</span>
-        <div><div class="t">${c.t}</div><div class="d">${c.d}</div></div></li>`).join("")}
-        <li><span class="ic">${failed === null ? "·" : failed === 0 ? "✅" : "🔒"}</span><div><div class="t">Rules on the signed fields</div>
+      <ol class="checks">${checks.map((c, i) => `<li class="${i === stop ? "stop" : ""}">${ic(c.ok)}
+        <div><div class="t">${c.t}${i === stop ? `<span class="stop-tag">${P.icon("stop")} The contract stops here</span>` : ""}</div><div class="d">${c.d}</div></div></li>`).join("")}
+        <li><span class="ic ${failed === null ? "q" : failed === 0 ? "y" : "l"}">${P.icon(failed === null ? "minus" : failed === 0 ? "check" : "lock")}</span><div><div class="t">Rules on the signed fields</div>
           <div class="d">${failed === null ? "the signed data is not JSON" : failed === 0 ? "every rule passes" : "fails: " + esc(P.failedLabels(source, failed).join(", "))} · signed data <span class="mono">${esc(rawShown || "")}</span></div></div></li>
       </ol>
       <details><summary>The submitted record</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>
-      <div class="row"><button type="button" id="send">${verdict.accepted ? "Send for real" : "Send anyway as a real transaction (it reverts on chain)"} ${chainId === 31337 ? "(local agent key)" : "(MetaMask)"}</button><span class="msg" id="send-msg"></span></div>
+      <div class="row"><button type="button" id="send">${P.icon("send")}${verdict.accepted ? "Send for real" : "Send anyway as a real transaction (it reverts on chain)"} ${chainId === 31337 ? "(local agent key)" : "(MetaMask)"}</button><span class="msg" id="send-msg" role="status"></span></div>
       ${verdict.accepted ? "" : `<p class="hint">For the video (§4.7): a rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
     $("send").addEventListener("click", sendForReal);
 
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
     const notApplicable = (mode === "asis" && !verdict.accepted) || (mode === "replay" && used === false);
     const row = document.createElement("tr");
+    const res = notApplicable ? ["na", "minus", "n/a"] : match ? ["pass", "check", "Pass"] : ["fail", "x", "Fail"];
     row.innerHTML = `<td>${new Date().toLocaleTimeString("en-GB")}</td><td>#${id}</td><td>${MODE_NAME[mode]}</td>
-      <td>${verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : esc(gotName)}</td><td>${esc(expected)}</td>
-      <td class="${notApplicable ? "na" : match ? "pass" : "fail"}">${notApplicable ? "–" : match ? "✓" : "✗"}</td>`;
+      <td class="v">${verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : esc(gotName)}</td><td class="v">${esc(expected)}</td>
+      <td><span class="res ${res[0]}">${P.icon(res[1])}${res[2]}</span></td>`;
+    const empty = $("score").querySelector(".empty");
+    if (empty) empty.remove();
     $("score").prepend(row);
     return { mode, accepted: verdict.accepted, got: row.children[3].textContent, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
   }
@@ -465,11 +523,14 @@
   function lockButtons(on) {
     suiteRunning = on;
     for (const b of document.querySelectorAll("[data-mode], #suite, #fresh, #result button")) b.disabled = on;
+    const sb = $("suite");
+    sb.setAttribute("aria-busy", String(on));
+    sb.innerHTML = on ? `${P.icon("loader", "spin")}Running the tamper test…` : `${P.icon("play")}Run the full tamper test`;
   }
 
   async function runSuite(force = false) {
     if (!contract || !order.info) {
-      $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${contract ? "This contract has no orders yet" : "No contract connected"}</div>
+      $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${P.icon("info")}<span>${contract ? "This contract has no orders yet" : "No contract connected"}</span></div>
         <div class="why">${contract ? "The tamper test checks a record against an order. Run it once the buyer has created an order, or pick another contract in Settings." : "Enter the contract address in Settings."}</div></div>`;
       return;
     }
@@ -482,7 +543,7 @@
     if (age > maxAge && !force) {
       const s = P.SOURCES[order.info.source], id = order.info.supplierId;
       $("result").innerHTML = `<h2>The contract's verdict</h2>
-        <div class="verdict warn"><div class="big">${rec ? `This record is ${P.span(age)} old` : "No record loaded"}</div>
+        <div class="verdict warn"><div class="big">${P.icon("clock")}<span>${rec ? `This record is ${P.span(age)} old` : "No record loaded"}</span></div>
           <div class="why">The contract accepts records at most ${maxAge} s old. With ${rec ? "this record" : "no record"}, every attempt stops at the freshness check,
             so the attacks would not show their own errors. Get a fresh signed record ($0.01 over x402), paste it, and press the button again:</div>
           <div class="why"><code>${version === 1 ? `api3/scripts/supplier-fetch.sh ${esc(id)}` : `api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json`}</code></div></div>
@@ -503,10 +564,13 @@
 
   function tileOf(s) {
     const cls = s.notApplicable ? "na" : s.mode === "asis" ? (s.accepted ? "pass" : "fail") : s.accepted ? "fail" : s.match ? "pass" : "near";
-    const icon = { pass: "✓", fail: "✗", near: "✓", na: "–" }[cls];
-    const note = cls === "near" ? `rejected earlier, at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
+    const icon = { pass: "check", fail: "x", near: "alert", na: "minus" }[cls];
+    const status = s.mode === "asis"
+      ? { pass: "Accepted", fail: "Not accepted", na: "Not tested" }[cls]
+      : { pass: "Rejected: own error", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
+    const note = cls === "near" ? `at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
     return `<button type="button" class="tile ${cls}" data-show="${s.mode}" title="Show this attempt's checks">
-      <span class="n">${icon} ${MODE_NAME[s.mode]}</span><span class="v">${esc(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
+      <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span><span class="v">${esc(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
   }
 
   function renderSuite() {
@@ -525,15 +589,18 @@
       ? `<h2>Last step: Replay</h2>
         <p class="hint">A replay is only a replay once the original is on chain. This sends the valid record as a real transaction
           (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then simulates it again.</p>
-        <div class="row"><button type="button" class="primary" id="suite-replay">Send the valid record, then replay it</button><span class="msg" id="send-msg"></span></div>`
+        <div class="row"><button type="button" class="primary" id="suite-replay" data-icon="send">Send the valid record, then replay it</button><span class="msg" id="send-msg" role="status"></span></div>`
       : "";
     const txNote = suiteTx ? `<p class="hint">Valid record on chain: ${explorer ? `<a class="mono" href="${explorer}/tx/${suiteTx.hash}" target="_blank" rel="noopener">${short(suiteTx.hash)}</a>` : `<span class="mono">${short(suiteTx.hash)}</span>`} (block ${suiteTx.block}).</p>` : "";
+    $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
-      <h2>Tamper test · order #${order.id}</h2>
-      <div class="verdict ${passed ? "ok" : "bad"}"><div class="big">${passed ? "✅ Passed" : "❌ Not passed"}</div><div class="why">${why}</div></div>
+      <h2>Tamper test, order #${order.id}</h2>
+      <div class="verdict hero ${passed ? "ok" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : "x")}</span>
+        <div><div class="big">${passed ? "Passed" : "Not passed"}</div><div class="why">${why}</div></div></div>
       <div class="tiles">${suite.map(tileOf).join("")}</div>
-      <p class="hint">Green: rejected with the attack's own error. Amber: rejected, but by an earlier check. Press a tile for its checklist.</p>
+      <ul class="legend"><li class="pass">${P.icon("check")}Rejected with the attack's own error</li><li class="near">${P.icon("alert")}Rejected, but by an earlier check</li><li>Press a tile for its checklist.</li></ul>
       ${txNote}${replayStep}`;
+    P.hydrateIcons($("result"));
   }
 
   async function sendThenReplay() {
@@ -607,6 +674,7 @@
     if (s) { setRecord(s.record); respMsg("Sample loaded. It is old on purpose, so the contract rejects it as stale."); }
     e.target.value = "";
   });
+  $("upload-btn").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", async (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -616,7 +684,7 @@
   });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
   $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => banner("error", esc(err.message))));
-  const runFailed = (e) => { lockButtons(false); $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">Could not run</div><div class="why">${esc(e.shortMessage || e.message)}</div></div>`; };
+  const runFailed = (e) => { lockButtons(false); $("result").removeAttribute("aria-busy"); $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(e.shortMessage || e.message)}. Check the RPC URL in Settings and press the button again.</div></div>`; };
   for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => run(b.dataset.mode).catch(runFailed));
   $("suite").addEventListener("click", () => runSuite().catch(runFailed));
   $("result").addEventListener("click", (e) => {

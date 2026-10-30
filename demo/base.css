@@ -1,59 +1,122 @@
-/* Shared by index.html and judge.html: colour tokens (light, dark, data-theme override), base elements, settings form. */
+/* Shared by index.html and judge.html: tokens (light, dark, data-theme override), type and spacing scales, icons,
+   browser surfaces (focus, selection, scrollbars), base elements, settings form. Design brief: IBM Plex Sans for
+   everything, Plex Mono only for hashes, addresses, commands and signed data; scale ratio 1.2 from 15 px. */
 :root {
-  --bg: #f6f7f9; --card: #ffffff; --text: #14171c; --muted: #5f6b7a; --line: #e3e7ec;
+  color-scheme: light;
+  --bg: #f5f6f8; --card: #ffffff; --raised: #f9fafb; --text: #131820; --muted: #59657a; --line: #e2e6eb; --line-strong: #c9d0d9;
   --ok: #137a3f; --ok-bg: #e5f5ec; --hold: #b4231b; --hold-bg: #fdecea;
   --wait: #8a5a00; --wait-bg: #fff4dc; --done: #3d4a5c; --done-bg: #eceff3;
   --accent: #2457d6; --accent-bg: #e8eefc; --sample: #6b3fc4; --sample-bg: #f1ebfd;
   --gold: #8a6100; --gold-bg: #fbf0d0;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --on-accent: #ffffff; --on-ok: #ffffff; --on-hold: #ffffff;
+  --focus: #2457d6;
+
+  --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* type scale, ratio 1.2 */
+  --t-1: 12.5px; --t0: 15px; --t1: 18px; --t2: 21.5px; --t3: 26px; --t4: 31px; --t5: 37px;
+  /* spacing, 4 px base */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1); --fast: 160ms;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1216; --card: #171b21; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b;
+    color-scheme: dark;
+    --bg: #0f1216; --card: #171b21; --raised: #1c2128; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b; --line-strong: #3d4653;
     --ok: #4cc983; --ok-bg: #12301f; --hold: #ff7a70; --hold-bg: #3a1714;
     --wait: #f2bd55; --wait-bg: #33270d; --done: #b5c0cd; --done-bg: #242a33;
     --accent: #7aa2ff; --accent-bg: #1b2541; --sample: #b99bff; --sample-bg: #261c3d;
     --gold: #f0c75e; --gold-bg: #3a2e10;
+    --on-accent: #0b1020; --on-ok: #07160d; --on-hold: #1d0503;
+    --focus: #7aa2ff;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0f1216; --card: #171b21; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b;
+  color-scheme: dark;
+  --bg: #0f1216; --card: #171b21; --raised: #1c2128; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b; --line-strong: #3d4653;
   --ok: #4cc983; --ok-bg: #12301f; --hold: #ff7a70; --hold-bg: #3a1714;
   --wait: #f2bd55; --wait-bg: #33270d; --done: #b5c0cd; --done-bg: #242a33;
   --accent: #7aa2ff; --accent-bg: #1b2541; --sample: #b99bff; --sample-bg: #261c3d;
   --gold: #f0c75e; --gold-bg: #3a2e10;
+  --on-accent: #0b1020; --on-ok: #07160d; --on-hold: #1d0503;
+  --focus: #7aa2ff;
 }
+
+/* ---------------------------------------------------------------- browser surfaces */
 * { box-sizing: border-box; }
+html { scrollbar-color: var(--line-strong) var(--bg); -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font: 400 var(--t0)/1.5 var(--sans);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
-a { color: var(--accent); text-decoration: none; }
+::selection { background: var(--accent-bg); color: var(--text); }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+a { color: var(--accent); text-decoration: none; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 a:hover { text-decoration: underline; }
-code, .mono { font-family: var(--mono); font-size: 0.9em; }
-.wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
-header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
-h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
-h1 small { font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 6px; }
-.tagline { margin: 4px 0 0; color: var(--muted); max-width: 640px; }
-.head-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; margin-top: 14px; }
-.meta b { color: var(--text); font-weight: 600; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; font-weight: 400; }
+h1, h2, h3 { text-wrap: balance; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* icons: one authored set (common.js PULSE.icon), 24 grid, stroke 2, sized to the text */
+.i { width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.2em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.i.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------------- page frame */
+.wrap { max-width: 1280px; margin: 0 auto; padding: var(--s5) var(--s4) var(--s7); }
+header { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); align-items: flex-start; justify-content: space-between; }
+h1 { margin: 0; font-size: var(--t3); font-weight: 700; line-height: 1.15; letter-spacing: -0.015em; }
+h1 .plus { color: var(--accent); }
+.tagline { margin: var(--s1) 0 0; color: var(--muted); max-width: 68ch; text-wrap: pretty; }
+.head-links { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); color: var(--muted); font-size: var(--t-1); margin-top: var(--s3); }
+.meta b { color: var(--text); font-weight: 500; }
 .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
-.banner { margin: 16px 0 0; padding: 10px 14px; border-radius: 10px; font-size: 14px; }
+.banner { margin: var(--s4) 0 0; padding: var(--s3) var(--s4); border-radius: var(--r-md); font-size: var(--t0); display: flex; gap: var(--s2); align-items: flex-start; }
+.banner > .i { margin-top: 0.15em; }
 .banner.sample { background: var(--sample-bg); color: var(--sample); }
 .banner.error { background: var(--hold-bg); color: var(--hold); }
-button, .btn { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; display: inline-block; }
-button.primary, .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.danger { background: var(--hold); border-color: var(--hold); color: #fff; }
-button:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn:hover { text-decoration: none; }
+.banner.info { background: var(--accent-bg); color: var(--accent); }
+.banner a { color: inherit; text-decoration: underline; }
+
+/* ---------------------------------------------------------------- controls */
+button, .btn {
+  font: 500 var(--t-1)/1.2 var(--sans); padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--line-strong);
+  background: var(--card); color: var(--text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; text-decoration: none; touch-action: manipulation;
+  transition: background-color var(--fast) var(--ease), border-color var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+button:hover, .btn:hover { border-color: var(--muted); background: var(--raised); text-decoration: none; }
+button:active, .btn:active { transform: translateY(1px); }
+button.primary, .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+button.primary:hover, .btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text)); border-color: transparent; }
+button.danger { background: var(--hold); border-color: var(--hold); color: var(--on-hold); font-weight: 600; }
+button.danger:hover { background: color-mix(in srgb, var(--hold) 88%, var(--text)); }
+button:disabled, button:disabled:hover { opacity: 0.5; cursor: not-allowed; transform: none; background: var(--card); border-color: var(--line); color: var(--muted); }
+button.primary:disabled, button.danger:disabled { background: var(--done-bg); border-color: transparent; color: var(--muted); }
+button[aria-busy="true"] { cursor: progress; }
 
 /* settings */
-details.cfg-box { margin-top: 14px; }
-form.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
-form.cfg label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-form.cfg input { font: inherit; font-size: 13px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); min-width: 0; }
-form.cfg .btns { display: flex; gap: 8px; align-items: flex-end; }
-summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+details.cfg-box { margin-top: var(--s3); }
+form.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s3); margin-top: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); }
+form.cfg label { display: flex; flex-direction: column; gap: var(--s1); font-size: var(--t-1); color: var(--muted); }
+form.cfg input, select, textarea {
+  font: 400 var(--t-1)/1.4 var(--sans); padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-strong);
+  background: var(--card); color: var(--text); min-width: 0;
+  transition: border-color var(--fast) var(--ease);
+}
+form.cfg input:hover, select:hover, textarea:hover { border-color: var(--muted); }
+form.cfg input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.85; }
+form.cfg .btns { display: flex; gap: var(--s2); align-items: flex-end; }
+summary { cursor: pointer; color: var(--muted); font-size: var(--t-1); width: fit-content; border-radius: var(--r-sm); }
+summary:hover { color: var(--text); }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
