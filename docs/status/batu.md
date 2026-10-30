@@ -3,6 +3,12 @@
 Newest on top.
 
 ### 2026-10-30 ~12:45 · branch `batu/api3-setup`
+- Done: Batu created an encrypted Foundry keystore `batu-test` (`~/.foundry/keystores/batu-test`, password known only to Batu).
+- Address (public): `0xA54506DcE89ff9561534c76C043505a1a484FB4c` (Base Sepolia). https://sepolia.basescan.org/address/0xA54506DcE89ff9561534c76C043505a1a484FB4c
+- Checked: balance 0 ETH, 0 aUSD.
+- Next: Batu gets Base Sepolia ETH from a faucet, then mints 10 aUSD.
+
+### 2026-10-30 ~12:45 · branch `batu/api3-setup`
 - Context: Ulaş is working on an idea that uses Cardano and API3 together, on his own branch. Until then Batu prepares what every option needs: an EVM test wallet with Base Sepolia ETH and aUSD.
 - Checked (read-only `cast call` on `https://sepolia.base.org`, chain id 84532):
   - aUSD token: `0xbeA34973e5f67F18F656A2C6070C64326C791808`, symbol `aUSD`, 6 decimals. Source: the faucet page bundle (https://api3dao.github.io/airnodehub-hackathon/faucet/) and the chain.
