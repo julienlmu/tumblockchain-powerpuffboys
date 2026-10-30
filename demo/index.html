@@ -672,7 +672,10 @@
     closed: { cls: "done", icon: "refund", label: "Refunded", def: "Closed: the rest went back to the buyer." },
   };
   const totalOf = (o) => o.amounts.reduce((x, y) => x + y, 0n);
-  const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2;
+  // A failed base status stays on record (lastBaseFailureAt), but it only blocks a payment whose evidence is not newer
+  // (release: evidenceAt <= lastBaseFailureAt). Newer clean evidence lets the order pay again.
+  const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2 && o.lastCheck <= o.rec.lastBaseFailureAt;
+  const pastFailure = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2 && !supplierStopped(o);
   function stateOf(o) {
     if (o.state === 2) return o.paid >= totalOf(o) ? "paid" : "closed";
     if (o.state === 1 || supplierStopped(o) || o.lastFailedRules) return "rule";
@@ -833,6 +836,7 @@
         ${bar}
         ${step ? `<p class="next-step ${step[0]}">${I(stepIcon[step[0]] || "arrow-right")}<span>${step[1]}</span></p>` : ""}
         ${box}
+        ${pastFailure(o) ? `<p class="small-muted">Earlier failure on record: the register status failed on ${when}. This order's evidence is newer, so the failure no longer blocks its payments.</p>` : ""}
         <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i, !box, env)).join("")}</ol>
         <details class="more" data-key="${moreKey}"${isOpen(moreKey, wide.matches) ? " open" : ""}>
           <summary>Details</summary>
