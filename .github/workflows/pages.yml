@@ -1,0 +1,80 @@
+name: Deploy SupplierPulse+ demo
+
+on:
+  push:
+    branches: [ulas/plus-story]
+    paths:
+      - .github/workflows/pages.yml
+      - demo/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Assemble static demo
+        run: |
+          mkdir -p site/demo
+          cp -R demo/. site/demo/
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="description" content="SupplierPulse+ sample dashboard and judge console">
+            <title>SupplierPulse+ demo</title>
+            <style>
+              :root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; }
+              body { box-sizing: border-box; margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #101827; color: #eef2ff; }
+              main { width: min(100%, 680px); padding: 36px; border: 1px solid #34425a; border-radius: 20px; background: #172235; }
+              h1 { margin-top: 0; font-size: clamp(2rem, 7vw, 3.5rem); line-height: 1.1; }
+              p { color: #c3cee0; }
+              nav { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+              a { display: inline-block; padding: 10px 16px; border-radius: 10px; background: #9c8cff; color: #111827; font-weight: 700; text-decoration: none; }
+              a.secondary { border: 1px solid #66748e; background: transparent; color: #eef2ff; }
+              .notice { margin-top: 24px; padding: 12px 14px; border-left: 4px solid #f3bd55; background: #28283a; }
+              small { color: #aab6cb; }
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>SupplierPulse<small>+</small></h1>
+              <p>Your supplier was approved last month. That should not approve today's payment.</p>
+              <nav>
+                <a href="demo/?sample=1">Open sample dashboard</a>
+                <a class="secondary" href="demo/judge.html">Open judge console</a>
+              </nav>
+              <p class="notice"><strong>Prototype notice:</strong> sample orders are illustrative. SupplierPulse+ v2 is not deployed to Sepolia; this site does not show live v2 contract evidence.</p>
+              <small><a class="secondary" href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/tree/ulas/plus-story">View source and evidence</a></small>
+            </main>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
