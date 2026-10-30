@@ -165,9 +165,11 @@ class Chain:
             if envelope is not None and envelope.get("success"):
                 self._preferred = index
                 return envelope.get("data")
-            if res.returncode == 0 and not json_out:
+            if res.returncode == 0 and envelope is None:
+                # success without JSON: plain output (block, gas-price), or a call to a function without
+                # return values, which cast prints as a bare "0x" even with --json
                 self._preferred = index
-                return out
+                return out if not json_out else ([out] if out else [])
             text = " ".join(e.get("message", "") for e in (envelope or {}).get("errors") or [])
             text = text or (out + " " + (res.stderr or "")).strip()
             reverted = revert_from_text(text)

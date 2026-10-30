@@ -73,6 +73,30 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (agent) · C2 check passes against Orhun's v1.1 contract; v1.1 checklist for Batu
+- Changed:
+  - `api3/agent/c2_check.py` runs the C2 integration (§7.1) as one command. It runs `plus-local.sh`, then the agent at 10 s ticks with the local fetch, and checks the 8 expected outcomes on chain and in the agent log. `--fake` runs the same checks in memory.
+  - **First real integration passed (~17:22):** the agent with Orhun's v1.1 contract on anvil, all 8 checks in 180 s. Payments, holds with labels, the supplier-wide stop without a fetch, the no-data exit, and the tier rising. Emre's `fetch-local.sh` was still v1.0 then, so a scratchpad v1.1 signer stood in.
+  - **The check found a real agent bug:** functions without return values (`release`, `applySupplierFailure`, `refundRemaining`) print a bare `0x`, which the agent read as an error. Fixed, with a test (55 tests).
+  - Spec §2.5/§7.2 now has Emre's demo suppliers: A `03778796`, B `07418033`, C `09729896`, D `391200JI69LS8L648F30`, E `52990092KBQJF8QBGJ50`.
+- **Batu (UI, built on v1.0): v1.1 checklist**
+  1. `common.js` ABI = §4.6 v1.1:
+     - `supplierRecord` has 7 fields (`lastBaseFailureAt` before `tier`);
+     - add `applySupplierFailure` and `OrderRefunded(…, bool noDataExit)`;
+     - errors `NotRefundable`, `SupplierFailed` and `NoNewerFailure` instead of `NotHeld`;
+     - no `effectivePermitTtl`.
+  2. The Companies House template in the browser = §4.2 v1.1 (vector `0x6e84…7f0f`). Labels: no insolvency (`0x01` is reserved), and `0x08` = "LEI renewal overdue".
+  3. Dashboard (§6.4 v1.1):
+     - drop `effectivePermitTtl`;
+     - the tier becomes "verification history";
+     - a supplier-wide stop banner from `lastBaseFailureAt`;
+     - a no-data exit line when `autoRefundAt` is set on an active order;
+     - refunds show `noDataExit`.
+  4. Judge page: (b) and (c) with real inputs from `api3/fixtures/` (§4.7). The tamper logic itself is correct (reviewed, C2.5).
+  5. Sample data with the v1.1 fields.
+- **Orhun:** please start anvil with `--block-time 1` in `plus-local.sh` (Batu's finding: an idle anvil lags, and fresh records then simulate as `FutureResponse`). The C2 check mines a block before every tick as a safety net.
+- Next: C2 again with Emre's v1.1 `fetch-local.sh` instead of the stand-in, then Batu's pages against the same chain once they are on v1.1.
+
 ### 2026-10-30 · Julien · v1.0 → v1.1 checklists for Orhun and Emre
 - Changed: nothing in code. `orhun/plus-contract` and `emre/plus-data` were built on spec v1.0 (`864fe18`), before v1.1 (`3181439`, ~17:00). Great speed. These are the exact deltas so both fit the agent and each other at C2.
 - **Orhun (contract):**

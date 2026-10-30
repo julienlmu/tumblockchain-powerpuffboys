@@ -267,12 +267,14 @@ Rule-specific failures (accounts or confirmation statement overdue, LEI renewal)
 
 | Order | Supplier | Registry | Rules | Milestones (tokens), due | Expected |
 |---|---|---|---|---|---|
-| **A** "PO-1001 Motor supply" | `09729896` (active, flags to verify) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
+| **A** "PO-1001 Motor supply" | `03778796` Electric Motors International Ltd (clean on every field) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
 | **B** "PO-1002 Gearbox" | `07418033` (liquidation) | Companies House | `0x06` | 1,000 (C3 + 20 min), 2,000 | Held at the first check. The agent triggers the refund after the grace period |
-| **C** "PO-1003 Sensors" | active company with **accounts overdue** (Emre finds it) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
-| **D** "PO-1004 Cable harness (DE)" | German company with an LEI, `ACTIVE`/`ISSUED` (Emre finds it) | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
-| **E** "PO-1005 Castings" | LEI with registration **LAPSED** (Emre finds it) | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
+| **C** "PO-1003 Sensors" | `09729896` (active, **accounts and confirmation statement overdue**) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
+| **D** "PO-1004 Cable harness (DE)" | `391200JI69LS8L648F30` ASR Component GmbH, `ACTIVE`/`ISSUED` | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
+| **E** "PO-1005 Castings" | `52990092KBQJF8QBGJ50` MoKa Projekt GmbH, registration **LAPSED** | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
 | **B2** (created live in the video) | `07418033` | Companies House | `0x06` | 1,000, 2,000 (due in 2 minutes) | Held at once by the **supplier-wide stop** (order B already showed `liquidation`), without a new fetch. The refund countdown and the "Claim now" option appear on screen |
+
+Demo suppliers found and verified live by Emre at C1a, with the v1.0 fields. Before C3 they need one check each with the v1.1 fields (`/accounts/next_accounts/overdue`), about $0.05.
 
 **Approvals at creation:** A: M1 and M2. B: M1. C: M1. D: M1 and M2. E: M1. The buyer approves A's M3 live, as the "dual lock" moment.
 
@@ -1413,7 +1415,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 ### 7.2 C3: Sepolia launch (00:00)
 
 1. **Orhun** deploys v2 with the demo constants and records the address in §3.2, `docs/evidence.md` and `api3/.env.example`.
-2. **Emre** confirms the demo supplier ids and exports `DEMO_CH_A=09729896`, `DEMO_CH_B=07418033`, `DEMO_CH_C=…`, `DEMO_LEI_D=…`, `DEMO_LEI_E=…`.
+2. **Emre** confirms the demo supplier ids, re-verified with the v1.1 fields, and exports `DEMO_CH_A=03778796`, `DEMO_CH_B=07418033`, `DEMO_CH_C=09729896`, `DEMO_LEI_D=391200JI69LS8L648F30`, `DEMO_LEI_E=52990092KBQJF8QBGJ50`.
 3. **Orhun** runs `plus-demo-orders.sh` (orders A to E plus the approvals in §2.5). The supplier wallets are fresh team addresses.
 4. **Batu** sends at least 2 aUSD on Base Sepolia to the agent wallet, and **Julien** checks the balances.
 5. **Julien** starts the agent in the supervised loop with `AGENT_PROFILE=demo` and watches the first cycles: A M1 and D M1 paid; B, C and E held.
