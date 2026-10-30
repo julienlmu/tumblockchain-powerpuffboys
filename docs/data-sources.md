@@ -29,6 +29,7 @@ the agent retries and the order can never be paid without evidence. Demo compani
 
 ## Cost
 
+- Spent so far: $0.05 (5 successful calls).
 - $0.01 per call, paid in aUSD on Base Sepolia over x402. The payer needs no ETH.
 - **A 4xx answer is not charged.** 4 successful calls + 1 HTTP 400 cost 0.04 aUSD in total.
 - Payment txs: `0x08cb49ad…6925`, `0xf5ca330d…a24f`, `0xa4f2ce0b…4a5c`, `0x4bed5393…a7c1` (full hashes in the fixtures, field `paymentTx`).
@@ -37,7 +38,7 @@ the agent retries and the order can never be paid without evidence. Demo compani
 
 | Order | Supplier | Register | Signed flags (30 Oct 17:07) | Fits |
 |---|---|---|---|---|
-| A (clean, CH, rules `0x07`) | **open**: `09729896` is **not** clean, see below | | | |
+| A (clean, CH, rules `0x07`) | `03778796` ELECTRIC MOTORS INTERNATIONAL LIMITED | [Companies House](https://find-and-update.company-information.service.gov.uk/company/03778796) | `active`, no insolvency, nothing overdue (17:35) | ✅ clean |
 | B (liquidation) | `07418033` | [Companies House](https://find-and-update.company-information.service.gov.uk/company/07418033) | `liquidation`, insolvency, accounts and confirmation overdue | ✅ held with all four labels |
 | C (accounts overdue, rules `0x02`) | `09729896` | [Companies House](https://find-and-update.company-information.service.gov.uk/company/09729896) | `active`, no insolvency, **accounts overdue**, confirmation overdue | ✅ held with "accounts overdue" although the status alone would pay |
 | D (German LEI, active) | `391200JI69LS8L648F30` ASR Component GmbH (HRB 18162) | [GLEIF](https://search.gleif.org/#/record/391200JI69LS8L648F30) | `ACTIVE` / `ISSUED` | ✅ clean |
@@ -45,7 +46,7 @@ the agent retries and the order can never be paid without evidence. Demo compani
 
 **`09729896` was planned as the clean supplier for order A, but its signed record has accounts and confirmation
 statement overdue.** With rules `0x07` order A would be held at the first check. It fits order C instead.
-Order A still needs an active UK company with all four fields present and nothing overdue.
+Order A uses `03778796` instead. It was pre-screened for free on the Companies House website (status, "overdue" labels, insolvency tab), then confirmed with one paid call.
 
 Other German LEIs found with the free GLEIF search (`api.gleif.org`, `filter[entity.legalAddress.country]=DE`), not fetched paid:
 - `ACTIVE`/`ISSUED`: `3912002Y0JWR1UBSYC82`, `391200EKSML2GJG11T92`, `98450063CFH811SD4084`
