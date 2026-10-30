@@ -72,6 +72,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: confirm the seller payout of `c00c4fcf…` (receipt), then a paid job with the real `eth-vault` app (needs the Sepolia `EVM_*` vars in `cardano-agent/.env`).
 - Notes: our agent is not on Sokosumi's agent list (`sokosumi --preprod agents list` shows 20 curated agents). Registering on Masumi does not list it there, so ask the Masumi team on site how to get listed. Qualification does not depend on it: the paid job runs through Masumi escrow on preprod.
 
+### 2026-10-30 · Batu (14:00)
+- Changed: added `docs/samples/companies-house/` with three real signed Companies House responses (active `09729896`, liquidation `07418033`, dissolved `12493325`), plus their request hashes and payment txs in `docs/decision-sheet.md`.
+- Next: Orhun can use these as fixtures, e.g. a `test_realCompaniesHouse*` test like `test_realNodaryResponse`.
+- Notes: a scratch Forge test (not committed) ran `SupplierPulse.sol` against the real responses, 6/6 pass. Cost 0.03 aUSD.
+
 ### 2026-10-30 · Batu (13:55)
 - Changed: `docs/decision-sheet.md` has a new section "SupplierPulse (#3 extended): API3 review". Docs only.
 - Next: Orhun looks at the issues list. Batu can fetch real `getCompanyProfile` responses for the test companies ($0.01 each).

@@ -1,0 +1,21 @@
+{
+  "fetched": "2026-10-30 ~13:48 CET",
+  "airnodeUrl": "https://airnode-companies-house.fly.dev/",
+  "request": {
+    "operation": "getCompanyProfile",
+    "parameters": {
+      "company_number": "09729896"
+    },
+    "responseProjection": {
+      "status": "/company_status"
+    }
+  },
+  "paymentTx": "0xc3947d9606778d29a7ab9089148e33af1c5dfa45670ad587fc988839b66e6bfc",
+  "response": {
+    "airnode": "0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF",
+    "requestHash": "0xcae416f2dce5fb6bb595eafe8c5f11ce9df4b33f8664042e10f8f776739fab48",
+    "timestamp": "1793364518",
+    "data": "{\"status\":\"active\"}",
+    "signature": "0x588d0127410b329952922cf003e1ea8508b51a2d617422ffbe9450f00ef90e9b5a254f3b673928b9b4cf4b03fa717424f48688b24a146a6ff9255e9718d177371b"
+  }
+}

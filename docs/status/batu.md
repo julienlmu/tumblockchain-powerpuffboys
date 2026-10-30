@@ -2,6 +2,11 @@
 
 Newest on top.
 
+### 2026-10-30 ~13:50 · branch `batu/api3-setup`
+- Done: three paid `getCompanyProfile` calls (0.03 aUSD; balance 9.96 aUSD, checked on chain). `09729896` active, `07418033` liquidation, `12493325` dissolved. Signer and request hashes verified.
+- Verified: a scratch Forge test runs `SupplierPulse.sol` against the real responses, 6/6 pass (paid, held + refund, held, edited, other company, stale). The test file is not committed.
+- Added: `docs/samples/companies-house/*.json`, the three signed responses with request and payment tx, for Orhun's tests and the demo.
+
 ### 2026-10-30 ~13:55 · branch `batu/api3-setup`
 - Done: API3 review of SupplierPulse (branch `supplier-pulse`, Orhun) in `docs/decision-sheet.md`.
 - Verified: `forge test` on a scratch copy passes 31/31 (SupplierPulse 14, vault 17). Companies House listing: signer `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, `getCompanyProfile` with `company_number`, $0.01.

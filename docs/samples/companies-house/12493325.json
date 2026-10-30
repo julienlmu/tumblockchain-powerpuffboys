@@ -1,0 +1,21 @@
+{
+  "fetched": "2026-10-30 ~13:48 CET",
+  "airnodeUrl": "https://airnode-companies-house.fly.dev/",
+  "request": {
+    "operation": "getCompanyProfile",
+    "parameters": {
+      "company_number": "12493325"
+    },
+    "responseProjection": {
+      "status": "/company_status"
+    }
+  },
+  "paymentTx": "0x7718519b38f49b4c2e810012551af07da910f62605aa6b74ff1d029d33fd2c7b",
+  "response": {
+    "airnode": "0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF",
+    "requestHash": "0xd9c5302e16e8f4ecaf356e4de82be433306884d416c9b03af5a5927b469437a7",
+    "timestamp": "1793364520",
+    "data": "{\"status\":\"dissolved\"}",
+    "signature": "0xcff4c0f0e1ace517f4b977398305a4907db0b1ba300444a367389fa11fb6f58e689943f35ee05f524387060dc3d50ff6b6ddd321f27465cfcb6293cc2cb9bf081b"
+  }
+}

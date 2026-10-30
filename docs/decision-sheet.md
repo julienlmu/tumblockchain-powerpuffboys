@@ -208,6 +208,29 @@ Reviewed:
    - Possible later rule, not v1: also hold when the profile shows overdue accounts.
 7. **[F] One response serves one order.** `usedDigests` is global, so two orders for the same company need two checks ($0.01 each). That is fine.
 
+### Real signed responses (30 Oct, ~13:48)
+
+Three paid `getCompanyProfile` calls from Batu's wallet, through the `POST /` route with projection `status` → `/company_status`. Cost 0.03 aUSD; balance after 9.96 aUSD, checked on chain.
+- Signer recovered locally: `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF` for all three.
+- Each request hash matches `keccak256('["getCompanyProfile",[["company_number","<n>"]],[["status","/company_status"]]]')`.
+- The full signed responses are in `docs/samples/companies-house/`.
+
+| Company | Signed `data` | Request hash | Payment tx (Base Sepolia) |
+|---|---|---|---|
+| `09729896` | `{"status":"active"}` | `0xcae416f2dce5fb6bb595eafe8c5f11ce9df4b33f8664042e10f8f776739fab48` | `0xc3947d9606778d29a7ab9089148e33af1c5dfa45670ad587fc988839b66e6bfc` |
+| `07418033` | `{"status":"liquidation"}` | `0x31975e4f7156ae305cc9e62a96e86e78272cf4f44ab7743deb7ec018a0f32456` | `0x36ef68df3d4fed188fc3908f2e3f531b22304a0c52f7919f4215bc92c1241845` |
+| `12493325` | `{"status":"dissolved"}` | `0xd9c5302e16e8f4ecaf356e4de82be433306884d416c9b03af5a5927b469437a7` | `0x7718519b38f49b4c2e810012551af07da910f62605aa6b74ff1d029d33fd2c7b` |
+
+**[F] `SupplierPulse.sol` works with the real responses.** Batu ran a scratch Forge test on a copy of `supplier-pulse` (not committed), with signer = the Companies House Airnode, `maxAge` 300 s and `statusKey` `"status":`. Result: 6/6 pass.
+- active → milestone paid
+- liquidation → held, buyer refunded in full
+- dissolved → held
+- `liquidation` edited to `active` → `WrongSigner`
+- the liquidation response sent to the active company's order → `WrongRequest`
+- 301 s later → `StaleResponse`
+
+This confirms issue 1 above: the real parameter is `company_number`.
+
 ### Verdict (Batu's view, for the team to challenge)
 
 **SupplierPulse is the strongest API3 candidate so far** [I]:

@@ -1,0 +1,21 @@
+{
+  "fetched": "2026-10-30 ~13:48 CET",
+  "airnodeUrl": "https://airnode-companies-house.fly.dev/",
+  "request": {
+    "operation": "getCompanyProfile",
+    "parameters": {
+      "company_number": "07418033"
+    },
+    "responseProjection": {
+      "status": "/company_status"
+    }
+  },
+  "paymentTx": "0x36ef68df3d4fed188fc3908f2e3f531b22304a0c52f7919f4215bc92c1241845",
+  "response": {
+    "airnode": "0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF",
+    "requestHash": "0x31975e4f7156ae305cc9e62a96e86e78272cf4f44ab7743deb7ec018a0f32456",
+    "timestamp": "1793364519",
+    "data": "{\"status\":\"liquidation\"}",
+    "signature": "0xcc64b26d5ad371d15f42bd7af33315504d05ee40e25670764fb360fdc44be07000f0908c4bee9d503c6bca1579b54e136295c0bdff1ac2278598c8d540a23ab41b"
+  }
+}
