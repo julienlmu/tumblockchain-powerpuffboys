@@ -1133,7 +1133,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
 
-**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass.
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass. **C2 passed (~17:20)** against Orhun's v1.1 contract on a local chain (`api3/agent/c2_check.py`, 8/8). **C2.5 review fixes (~17:45):** the check window respects `permitTtl`, no monitoring while a due milestone waits for the buyer, quarantine blocks every action, and one last try before the no-data refund. 61 tests pass.
 
 **Modules (`api3/agent/`):**
 
@@ -1169,16 +1169,18 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 **Plan, once per tick.** `now` is the chain time. Actions are listed by priority:
 
 ```text
+            a quarantined order gets no action at all (no fetch, release, refund or stop)
 P0 stop     state=Active and supplier.lastBaseFailureAt > order.lastCheck   → applySupplierFailure(order)   (no fetch)
-P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0     → refundRemaining(order)        (no fetch)
-            (a hold after its grace period, or the no-data exit of an approved milestone without a permit)
+P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0, and either state=Held (a hold after
+            its grace period) or the agent's own try at or after nextDueDate failed (the no-data exit;
+            until then P3 tries once more, ignoring the backoff)  → refundRemaining(order)  (no fetch)
 P2 release  state=Active and permitValid and nextApproved and now ≥ nextDueDate → release(order)          (no fetch)
-P3 due      state=Active and now ≥ nextDueDate − DUE_LEAD
+P3 due      state=Active and now ≥ nextDueDate − min(DUE_LEAD, permitTtl − 60 s)  # its permit covers the due date
             and not (permitValid and permitValidUntil ≥ max(now, nextDueDate))
             and (nextApproved or now < nextDueDate)        # don't pay for checks while waiting for the buyer
-            and not quarantined and backoff elapsed      → fetch(source, id) →
+            and backoff elapsed (or P1's last try)       → fetch(source, id) →
                                                           now ≥ nextDueDate ? checkAndRelease : submitEvidence
-P4 monitor  per supplierKey with ≥ 1 Active order and no P3 fetch this tick:
+P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer, and no P3 fetch this tick:
             now − lastCheckAt ≥ interval(tier)            → fetch once → submitEvidence to that supplier's
                                                           Active order with the nearest nextDueDate
 Budget      P3 only if spentToday + cost ≤ DAILY_BUDGET_USD
@@ -1394,7 +1396,7 @@ Required policy tests:
    - order 2 paid;
    - order 3 held (LEI renewal overdue);
    - order 4 (same supplier as order 1) held by `applySupplierFailure`, **without a fetch**;
-   - order 5 (no data) refunded through the no-data exit 120 s after its due date;
+   - order 5 (no data) refunded through the no-data exit 120 s after its due date, once the agent's last try failed;
    - order 0's supplier climbs tiers as monitoring checks pass the 60 s gap.
 4. **Batu:** the dashboard on `rpc=http://127.0.0.1:8545` shows all of this live, and the judge page verdicts equal step 2.
 5. **Ulaş:** follows the README draft against what actually happens, and notes demo moments.

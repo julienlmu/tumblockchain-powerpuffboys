@@ -60,11 +60,16 @@ class Ledger:
         entry = self.data["failures"].get(str(order_id), {"count": 0, "next_at": 0})
         count = entry["count"] + 1
         if count >= max_attempts:
-            self.data["failures"][str(order_id)] = {"count": 0, "next_at": now + exhausted_wait}
+            self.data["failures"][str(order_id)] = {"count": 0, "next_at": now + exhausted_wait, "at": now}
             return count, True
         delay = BACKOFF_SECONDS[min(count - 1, len(BACKOFF_SECONDS) - 1)]
-        self.data["failures"][str(order_id)] = {"count": count, "next_at": now + delay}
+        self.data["failures"][str(order_id)] = {"count": count, "next_at": now + delay, "at": now}
         return count, False
+
+    def failed_since(self, order_id: int, ts: int) -> bool:
+        """The agent's last attempt for this order was at or after ts and failed (nothing succeeded since)."""
+        entry = self.data["failures"].get(str(order_id))
+        return entry is not None and entry.get("at", 0) >= ts
 
     def clear_failures(self, order_id: int) -> None:
         self.data["failures"].pop(str(order_id), None)

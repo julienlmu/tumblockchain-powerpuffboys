@@ -217,7 +217,7 @@ class Chain:
         with ThreadPoolExecutor(self.workers) as pool:
             new_ids = [i for i in range(count) if i not in self._static]
             for i, info in zip(new_ids, pool.map(lambda i: self.call("orderInfo", i), new_ids)):
-                self._static[i] = [_int(info[2]), str(info[3]), _int(info[7]), None]
+                self._static[i] = [_int(info[2]), str(info[3]), _int(info[7]), None, _int(info[6])]
             missing = sorted({(s[0], s[1]) for s in self._static.values() if s[3] is None})
             keys = dict(zip(missing, pool.map(lambda k: self.call("supplierKeyOf", k[0], k[1])[0], missing)))
             for s in self._static.values():
@@ -229,7 +229,7 @@ class Chain:
             schedules = list(pool.map(lambda i: self.call("orderSchedule", i), open_ids))
             orders = []
             for i, st, sc in zip(open_ids, statuses, schedules):
-                source, supplier_id, rules, key = self._static[i]
+                source, supplier_id, rules, key, permit_ttl = self._static[i]
                 if _int(st[0]) == CLOSED:
                     self._closed.add(i)
                     continue
@@ -238,7 +238,7 @@ class Chain:
                     state=_int(st[0]), remaining=_int(st[2]), permit_valid=_bool(st[6]),
                     permit_valid_until=_int(st[5]), last_check=_int(st[7]),
                     next_due_date=_int(sc[0]), next_approved=_bool(sc[1]), last_failed_rules=_int(sc[2]),
-                    auto_refund_at=_int(sc[4]), tier=_int(sc[5]),
+                    auto_refund_at=_int(sc[4]), tier=_int(sc[5]), permit_ttl=permit_ttl,
                 ))
             supplier_keys = sorted({o.supplier_key for o in orders})
             records = dict(zip(supplier_keys, pool.map(lambda k: self.call("supplierRecord", k), supplier_keys)))

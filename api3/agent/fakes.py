@@ -103,7 +103,7 @@ class FakeChain:
                 state=o["state"], remaining=self._remaining(o), permit_valid=self._permit_valid(o),
                 permit_valid_until=o["permit_until"], next_due_date=o["due"][m], next_approved=o["approved"][m],
                 auto_refund_at=self._auto_refund_at(o), tier=self.suppliers[o["key"]]["tier"],
-                last_check=o["last_check"], last_failed_rules=o["last_failed"]))
+                last_check=o["last_check"], last_failed_rules=o["last_failed"], permit_ttl=o["ttl"]))
         suppliers = {k: Supplier(key=k, tier=s["tier"], last_check_at=s["last_check_at"], clean_streak=s["streak"],
                                  last_base_failure_at=s["last_base_failure"])
                      for k, s in self.suppliers.items()}
