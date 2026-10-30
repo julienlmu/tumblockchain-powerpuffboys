@@ -2,6 +2,9 @@
 
 Newest on top.
 
+### 2026-10-30 ~11:50
+- Team split (tentative): Batu + Orhun on API3, Ulaş + Julien on Cardano.
+
 ### 2026-10-30 ~11:40 · branch `batu/decision-sheet`
 - Done: added API3 judging weights (real use case 40%, novelty 10% "beyond the unchanged starter") and the projections answer to `docs/decision-sheet.md`.
 - Finding: the official starter is already a Nodary ETH/USD consumer, so the price vault (#0) sits close to the starter. Company-registry escrow (#3) is on API3's own idea list.
