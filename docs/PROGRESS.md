@@ -93,6 +93,13 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - **For the video:** record the judge page at 1280×720 or larger; press Run, keep the Passed card and the tiles in frame. On the dashboard, click "Stopped by #1" on the B2 card to show the jump. Theme button = "Theme: auto/light/dark".
 - Not checked: a real screen reader, a real MetaMask extension (code paths unchanged).
 
+### 2026-10-30 · Julien (agent) · demo orders: B, C, E held; clean records needed more gas (fixed)
+- **The agent picked up Orhun's demo orders within a minute.** It held B (`0x86`), C (`0x02`) and E (`0x08`) at their first checks.
+- **Bug, fixed:** the clean records of **A and D ran out of gas** (5 reverted sends, 18:44–18:48 UTC, ~$0.05 of paid records lost). On v2 a clean `submitEvidence` needs **682,737** gas (A) and **645,837** (D), measured by re-estimating the failed transactions at the block before. A held one used 595,724, so the 600k limit from Batu's local test was too low for real records. The limit is now **2,000,000** (`9a0d4d7`). Unused gas is refunded, so it costs nothing.
+- The review fixes did their job meanwhile: the agent backed off instead of buying records every tick, and it never treated the failures as "no data", so A was not refunded.
+- The agent was restarted at 18:51 UTC, and the backoff these bug failures caused was cleared. **A and D are verified now** (clean, 18:52 UTC). A's permit covers its due date, so **A M1 is released at 19:03 UTC**, and D's at its due date.
+- **Batu:** your fix was right, only the number was local. The 234k you measured on anvil is about a third of what real records need on Sepolia.
+
 ### 2026-10-30 · Julien (agent) · Sepolia acceptance check; heads-up on C and E for the video
 - Changed: `python3 api3/agent/c3_check.py` checks the Sepolia acceptance of §6.3 against the live v2 contract and the agent's log. It is read-only and costs nothing. It finds the demo orders by supplier id, so B2 and dry-run orders don't confuse it. It prints PASS or WAIT for each point: A and D milestone 1 paid by the agent, B held then refunded, C and E held, A's tier risen, ≥ 10 cycles, no failed actions. Live now: 20 cycles, clean, the order lines wait for orders A–E.
 - **Heads-up for the video (Ulaş, Orhun, Batu):** the agent refunds *every* held order once its grace period is over (P1, §6.3), not only B. Overnight, **C and E will also be refunded** 10 minutes after they are held. On Saturday the dashboard shows them as refunded, with their failed rules.
