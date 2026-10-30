@@ -199,7 +199,7 @@
           <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono">WrongSigner</td></tr>
           <tr><td>Replay</td><td>the same record a second time</td><td class="mono">Replayed</td></tr></tbody></table>
         <p>Amber tile: rejected, but by an earlier check than the one the attack targets. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
-        <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> <kbd>1</kbd>–<kbd>8</kbd> <kbd>Esc</kbd> <kbd>?</kbd></p>
+        <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> run all, <kbd>1</kbd>–<kbd>8</kbd> one attempt, <kbd>S</kbd> replay step, <kbd>B</kbd> back to the summary, <kbd>Esc</kbd> stop or close this guide, <kbd>?</kbd> this guide, <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs all.</p>
       </div>
     </details>
     <details class="cfg-box" id="cfg-box">
@@ -229,7 +229,7 @@
           <button type="button" id="clear-rec" data-icon="x">Clear</button><input type="file" id="file" accept=".json,application/json" hidden>
           <button type="button" id="fresh" hidden data-icon="key" title="Signs a fresh record in the browser with the public local test key (anvil). Local chain only.">Fresh local record</button>
         </div>
-        <textarea id="resp" spellcheck="false" aria-label="Signed record (the JSON from fetch-evidence.sh, AirnodeHub or the samples)" placeholder='Paste a signed record (the JSON from fetch-evidence.sh): {"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
+        <textarea id="resp" spellcheck="false" aria-label="Signed record (the JSON from fetch-evidence.sh, AirnodeHub or the samples)" placeholder='Paste a signed record (the JSON from fetch-evidence.sh), then ⌘/Ctrl+Enter runs the full test: {"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
         <div class="msg" id="resp-msg" role="status" aria-live="polite"></div>
       </div>
 
@@ -237,7 +237,7 @@
         <h2><span class="step" aria-hidden="true">3</span>Attack it</h2>
         <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test</button>
         <p class="progress" id="suite-progress" role="status" aria-live="polite" hidden></p>
-        <p class="hint">Every attempt is a simulation (eth_call): nothing changes on chain. <span class="keys" id="keys">Keys: <kbd>R</kbd> run all · <kbd>1</kbd>–<kbd>8</kbd> one attempt · <kbd>Esc</kbd> stop · <kbd>?</kbd> help</span></p>
+        <p class="hint">Every attempt is a simulation (eth_call): nothing changes on chain. <span class="keys" id="keys">Keys: <kbd>R</kbd> all · <kbd>1</kbd>–<kbd>8</kbd> one · <kbd>S</kbd> replay · <kbd>B</kbd> summary · <kbd>Esc</kbd> stop · <kbd>?</kbd> help</span></p>
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
@@ -1005,7 +1005,12 @@
   let typing = null;
   $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
-  $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => banner("error", esc(err.message))));
+  $("order").addEventListener("change", (e) => {
+    const q = new URLSearchParams(location.search);
+    q.set("order", e.target.value);
+    history.replaceState(null, "", "?" + q);
+    selectOrder(Number(e.target.value)).catch((err) => banner("error", esc(err.message)));
+  });
   const runFailed = (e) => {
     lockButtons(false);
     $("result").removeAttribute("aria-busy");
@@ -1033,6 +1038,11 @@
   // Keyboard accelerators; never while typing in a field.
   document.querySelectorAll(".attacks [data-mode]").forEach((b, i) => { b.setAttribute("aria-keyshortcuts", String(i + 1)); b.title = `${b.title}. Key ${i + 1}`; });
   $("suite").setAttribute("aria-keyshortcuts", "R");
+  $("resp").setAttribute("aria-keyshortcuts", "Meta+Enter Control+Enter");
+  // in the record box: Cmd/Ctrl+Enter runs the full test (the global keys stay off while typing)
+  $("resp").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !suiteRunning) { e.preventDefault(); $("suite").click(); }
+  });
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]")) return;
     const k = e.key;
@@ -1043,6 +1053,13 @@
       const b = document.querySelectorAll(".attacks [data-mode]")[Number(k) - 1];
       if (b && !b.disabled) { e.preventDefault(); b.click(); }
     } else if (k === "?") { e.preventDefault(); const g = $("guide"); g.open = !g.open; if (g.open) g.querySelector("summary").focus(); }
+    else if ((k === "s" || k === "S") && !suiteRunning) {
+      const b = $("suite-replay") || $("suite-replay-only");
+      if (b && !b.disabled) { e.preventDefault(); b.click(); }
+    } else if ((k === "b" || k === "B") && !suiteRunning) {
+      const b = document.querySelector("#result [data-summary]");
+      if (b) { e.preventDefault(); b.click(); }
+    }
   });
 
   async function init() {
