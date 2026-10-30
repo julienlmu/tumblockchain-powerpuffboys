@@ -131,6 +131,10 @@
   body.view-simple .held-box > p[id^="who-"] { display: block; }
   /* a refund message that points to the script: the script shows in Simple too */
   body.view-simple .card details.ways.keep { display: block; }
+  /* Settings shows in Simple too while it is open, or while an error or a missing setting points to it ("Open Settings") */
+  body.view-simple #cfg-box:is([open], .keep) { display: block; }
+  .err-raw { display: block; margin-top: var(--s1); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
+  .err-raw code { font-size: 1em; }
   .agent:empty { display: none; } /* nothing read yet: no empty frame above the loading cards */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
   .agent-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; justify-content: space-between; }
@@ -813,7 +817,7 @@
           return `<li><div class="t">${e.time ? clock(e.time) : "#" + e.block}${txLink(e.tx) ? ` · ${txLink(e.tx)}` : ""}${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", I("agent") + "agent") : ""}</div>
             <div><span class="${l.cls || ""}">${l.text}</span>${l.detail || ""}</div></li>`;
         }).join("")}</ol></details>`
-      : `<p class="small-muted">No events found${env.sample ? "" : " in the searched block range. Set the deploy block in Settings to load older events"}.</p>`;
+      : `<p class="small-muted">No events found${env.sample ? "." : ` in the searched block range. To load older events, <button type="button" class="link-order" data-fix="from">Open Settings</button> and set the deploy block.`}</p>`;
 
     return `
       <article class="card" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
@@ -892,7 +896,7 @@
     agentPrimed = true;
     const isNew = (g) => nowMs - (agentNewAt.get(rowKey(g)) || 0) < 30000;
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
-      <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : "set an agent address in Settings to highlight its transactions"}</span></div>`;
+      <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : `to highlight its transactions, <button type="button" class="link-order" data-fix="agent">Open Settings</button> and set its address`}</span></div>`;
     const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders)) : ""; };
     // run: the newest transaction of a run of identical ones (same order, same sentence), with how many and since when
     const li = (g, run = [g]) => {
@@ -1061,7 +1065,7 @@
   // Where the data comes from, the protected total, when it was read, and when the next read happens.
   const status = { mode: cfg.sample ? "sample" : "start", network: "", protectedTotal: null, readAt: 0, note: "", failed: false };
   // the meta line speaks in short sentences, not "Mode x"
-  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract in Settings" };
+  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract address in Settings" };
   const rpcHost = () => { try { return new URL(cfg.rpc).host; } catch { return "the RPC"; } };
   const netGuess = () => (cfg.rpc === P.DEFAULT_RPC ? "Ethereum Sepolia" : rpcHost());
   $("loading-label").innerHTML = `${I("loader", "spin")}<span>${cfg.contract ? `Reading orders from ${esc(netGuess())}…` : cfg.sample ? "Loading the sample data…" : `Looking for SupplierPulse+ v2 on ${esc(netGuess())}…`}</span>`;
@@ -1182,7 +1186,8 @@
     });
     $("orders").classList.remove("stale");
     renderDetails({ contract: cfg.contract, airnodes: consts.airnodes, maxAge: consts.maxAge, tierCountGap: consts.tierCountGap, refundGrace: consts.refundGrace });
-    banner(missing.length ? "info" : "", missing.length ? `${I("info")}<span>${missing.length === 1 ? `Order ${missing[0]} is` : `Orders ${missing.join(", ")} are`} not on this contract: it has ${count} ${count === 1 ? "order" : "orders"}${count ? ` (#0 to #${count - 1})` : ""}. Change the order IDs in Settings, or leave them empty for all.</span>` : ""); // no orders: the empty state in the grid says it
+    $("cfg-box").classList.remove("keep"); // a good read: Settings goes back to Detailed (it stays while open)
+    banner(missing.length ? "info" : "", missing.length ? `${I("info")}<span>${missing.length === 1 ? `Order ${missing[0]} is` : `Orders ${missing.join(", ")} are`} not on this contract: it has ${count} ${count === 1 ? "order" : "orders"}${count ? ` (#0 to #${count - 1})` : ""}. Change the order IDs, or leave them empty for all. <span class="banner-actions"><button type="button" data-fix="orders">Open Settings</button></span></span>` : ""); // no orders: the empty state in the grid says it
     lastOrders = orders;
     renderAll(orders, { sample: false });
   }
@@ -1210,10 +1215,14 @@
   const unknownChain = (e) => [e && e.code, e && e.error && e.error.code, e && e.info && e.info.error && e.info.error.code, e && e.data && e.data.originalError && e.data.originalError.code].includes(4902)
     || /unrecognized chain|wallet_addEthereumChain/i.test((e && (e.shortMessage || e.message)) || String(e));
   const retry = (id) => ` <button type="button" class="retry" data-claim="${id}">${I("refund")}Try again</button>`;
+  // An answer this page does not recognise: one plain sentence first, the raw message once, below it, with Copy
+  const errMsg = (e) => (e && (e.shortMessage || e.message)) || String(e);
+  const rawDetails = (e) => `<span class="err-raw">Details: <code>${esc(errMsg(e))}</code>${P.copyBtn(errMsg(e))}</span>`;
   const notSent = (e, id) => {
     if (unknownChain(e)) return `Not sent. MetaMask does not know ${esc(P.NETWORKS[chainId] || "chain " + chainId)} (chain id ${chainId}). Add it in MetaMask (Networks, Add a network manually) with RPC URL <code>${esc(cfg.rpc)}</code>${P.copyBtn(cfg.rpc)} and chain id <code>${chainId}</code>${P.copyBtn(String(chainId))}, then try again.${retry(id)}`;
     const f = P.friendlyError(e, { rpc: cfg.rpc });
-    return (f.kind === "other" ? `The wallet or the RPC reported an error this page does not know (“${esc(f.text)}”). Nothing was sent; try again, or use the script under “Other ways to refund”.` : esc(f.text)) + retry(id);
+    if (f.kind === "other") return `The wallet or the RPC answered with an error this page does not recognise. Nothing was sent: try again, or use the script under “Other ways to refund”.${retry(id)}${rawDetails(e)}`;
+    return esc(f.text) + retry(id) + (f.kind === "network" ? ` <button type="button" class="retry" data-fix="rpc">Open Settings</button>` : "");
   };
   async function claim(id) {
     const say = (html) => { claimMsg[id] = html; const o = lastOrders && lastOrders.find((x) => x.id === id); claimPhase[id] = o ? phaseOf(o) : ""; rerender(); };
@@ -1525,15 +1534,16 @@
       status.failed = true; // the dot turns amber; the meta says when the last good read was and when the next try is
       const f = P.friendlyError(e, { reading: true, contract: cfg.contract, rpc: cfg.rpc });
       readCulprit = f.kind === "network" ? "rpc" : f.kind === "address" ? "contract" : null;
+      $("cfg-box").classList.add("keep"); // the message points to Settings: it shows in Simple too
       if (readCulprit) { P.markField(form, readCulprit, f.text); if (!lastOrders) $("cfg-box").open = true; }
-      let text = f.kind === "other" ? `The RPC answered with an error this page does not know (“${esc(f.text)}”). Check the address, the RPC URL and the network in Settings.` : esc(f.text);
+      let text = f.kind === "other" ? "The RPC answered with an error this page does not recognise. Check the contract address, the RPC URL and the network." : esc(f.text);
       if (f.notV2) { // the v1 contract (or another one): link its screen
         const q = new URLSearchParams({ contract: cfg.contract });
         if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
         text = text.replace("open the v1 screen", `<a href="v1.html?${esc(q.toString())}">open the v1 screen</a>`);
       }
       banner("error", `${I("alert")}<span>Could not read the contract. ${text} The page retries every 12 s${lastOrders ? "; the cards show the last good read" : ""}.
-        <span class="banner-actions"><button type="button" data-retry>${I("refund")}Retry now</button><button type="button" data-fix>Open Settings</button></span></span>`);
+        <span class="banner-actions"><button type="button" data-retry>${I("refund")}Retry now</button><button type="button" data-fix>Open Settings</button></span>${f.kind === "other" ? rawDetails(e) : ""}</span>`);
       if (!lastOrders) renderGrid("");
       else $("orders").classList.add("stale");
     }
@@ -1546,21 +1556,27 @@
       location.search = q.toString();
     }
     if (e.target.closest("[data-retry]")) tick();
-    if (e.target.closest("[data-fix]")) {
-      $("cfg-box").open = true;
-      const el = form.elements[readCulprit || "contract"];
-      el.focus(); el.select();
-    }
   });
+  // "Open Settings" (banner, refund message, agent panel, audit trail): Settings opens in either view, on the field
+  // the message is about; in Simple it shows for as long as it is open or the error lasts.
+  function openSettings(field) {
+    const box = $("cfg-box"), el = form.elements[field || readCulprit || "contract"];
+    box.classList.add("keep");
+    box.open = true;
+    el.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    el.focus({ preventScroll: true }); el.select();
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-fix]"); if (b) openSettings(b.dataset.fix); });
   $("stale").addEventListener("click", (e) => { if (e.target.closest("[data-retry]")) tick(); });
   function startLive() {
     tick();
     setInterval(tick, REFRESH_MS);
   }
-  function notConfigured(html) {
+  function notConfigured(html, field = "contract", details = "") {
+    $("cfg-box").classList.add("keep");
     $("cfg-box").open = true;
     renderGrid("");
-    html = `${I("info")}<span>${html}</span>`;
+    html = `${I("info")}<span>${html} <span class="banner-actions"><button type="button" data-fix="${field}">Open Settings</button></span>${details}</span>`;
     status.mode = "none";
     renderMeta();
     $("agent").hidden = true;
@@ -1585,7 +1601,7 @@
     } else if (Number(net.chainId) === 11155111) {
       notConfigured(`SupplierPulse+ v2 is not deployed on Sepolia yet. The live v1 contract: <a href="v1.html?contract=${P.V1_SEPOLIA}&orders=0,1">v1 screen</a> · <a href="judge.html">try to break v1</a> · or the <a href="?sample=1">sample data</a>.`);
     } else {
-      notConfigured("No SupplierPulse+ contract found on this network. Enter its address in Settings, or open the <a href=\"?sample=1\">sample data</a>.");
+      notConfigured("No SupplierPulse+ contract found on this network. Enter its address, or open the <a href=\"?sample=1\">sample data</a>.");
     }
   }
 
@@ -1595,9 +1611,9 @@
     loadSample();
     setInterval(loadSample, REFRESH_MS); // states change as sample times pass (permits expire, refunds open)
   } else if (cfg.contract) {
-    notConfigured("That contract address is not valid: it must be 0x followed by 40 hex characters. Fix it in Settings.");
+    notConfigured("That contract address is not valid: it must be 0x followed by 40 hex characters.");
   } else {
-    discover().catch((e) => notConfigured(`Could not search for the contract. ${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)} Enter its address in Settings, or open the <a href="?sample=1">sample data</a>.`));
+    discover().catch((e) => { const f = P.friendlyError(e, { rpc: cfg.rpc }); notConfigured(`Could not search for the contract. ${f.kind === "other" ? "The RPC answered with an error this page does not recognise." : esc(f.text)} Enter the contract address, or open the <a href="?sample=1">sample data</a>.`, f.kind === "network" ? "rpc" : "contract", f.kind === "other" ? rawDetails(e) : ""); });
   }
 })();
 </script>
