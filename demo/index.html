@@ -88,6 +88,7 @@
   #bubble .bubble-b { display: flex; flex-direction: column; gap: var(--s1); }
   #bubble .bubble-b p { margin: 0; }
   #bubble .bubble-more { margin-top: var(--s2); font-weight: 500; }
+  #guide > summary { scroll-margin-top: var(--s4); } /* opened with ?: its focus ring clear of the screen edge */
   .guide .guide-back { gap: 4px; margin-left: var(--s2); font-weight: 600; color: var(--text); }
   .guide table + .guide-back { margin: 0; align-self: flex-start; }
   dl.facts dt .term { font-weight: 400; color: var(--muted); text-align: left; }
@@ -1496,7 +1497,8 @@
       const host = el.tagName === "DT" ? el.nextElementSibling : el.tagName === "TR" ? el.lastElementChild : el.tagName === "TABLE" ? null : el;
       if (host) host.append(backBtn); else el.after(backBtn);
     }
-    el.scrollIntoView({ block: targetId ? "center" : "nearest", behavior: still() ? "auto" : "smooth" });
+    // after the opened guide's layout (and the browser's scroll anchoring), or the scroll is lost
+    requestAnimationFrame(() => el.scrollIntoView({ block: targetId ? "center" : "nearest", behavior: still() ? "auto" : "smooth" }));
     el.focus({ preventScroll: true });
     if (targetId) { el.classList.add("landed"); clearTimeout(el._landed); el._landed = setTimeout(() => el.classList.remove("landed"), 1600); }
   }
