@@ -73,6 +73,19 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · real Companies House tests (C1a done)
+- Changed: 7 new tests run Emre's v1.1 Companies House records (`4267d11`, pointers verified live) against the contract:
+  - the three request hashes match;
+  - A `03778796` is paid;
+  - B `07418033` is held with `0x86` (status, accounts, confirmation);
+  - C `09729896` with rules `0x02` is held with `0x02` only;
+  - B2: `applySupplierFailure` holds a second order of B without a new fetch;
+  - A's record on order C gives `WrongRequest`;
+  - B's signature with the status edited to `active` gives `WrongSigner`.
+
+  `forge test`: 111 passed. **This resolves the open question in my previous entry: v1.1 stays, no interface change.**
+- Next: C2 integration at 22:00 (`plus-local.sh`), then the C2.5 review of `tamper.mjs`, `verify.mjs` and `plus-submit.sh`.
+
 ### 2026-10-30 · Orhun · demo suppliers and real GLEIF tests (C1a, part 1)
 - Changed:
   - `plus-demo-orders.sh` and `api3/.env.example` now use Emre's verified demo suppliers: A `03778796`, B `07418033`, C `09729896`, D `391200JI69LS8L648F30`, E `52990092KBQJF8QBGJ50`.
