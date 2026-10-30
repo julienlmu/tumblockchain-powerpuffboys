@@ -20,7 +20,7 @@ SupplierPulse+ is a testnet prototype that gates supplier milestone payments on 
 
 The contract verifies the expected Airnode, supplier-specific request hash, response freshness, timestamp ordering, and replay protection. It evaluates buyer-selected rules and either issues an expiring permit for exactly the next milestone or holds the unpaid balance for the buyer. Buyer approval remains required to release a milestone because a registry cannot verify delivery.
 
-Clean signed history can raise a shared supplier trust tier. Higher tiers extend permit lifetimes, allowing fewer paid checks between due dates; a failure resets the streak. The freshness window is never relaxed.
+Newer signed base-status records update a shared supplier verification history. Higher tiers reduce monitoring frequency, allowing fewer paid checks between due dates; tiers never extend permits or relax the freshness window. A failed base status resets the streak and blocks payments backed by older permits across that supplier's orders.
 
 ## How it works
 
@@ -28,7 +28,7 @@ Clean signed history can raise a shared supplier trust tier. Higher tiers extend
 2. The agent fetches a current signed record from API3 AirnodeHub, paying $0.01 per check over x402 in aUSD on Base Sepolia.
 3. The Ethereum Sepolia contract validates the response and buyer's policy.
 4. A clean record issues a permit for the next milestone. The buyer separately approves it, and the milestone can then be released.
-5. A failed rule holds the remaining funds for the buyer. The agent monitors orders, enforces a daily budget, simulates writes before sending, and handles retries or quarantine according to its policy.
+5. A failed record holds the order. A base-status failure also stops older permits across the supplier's other orders. If an approved milestone remains without a valid permit beyond its due date and the refund grace period, anyone can return the remaining balance to the buyer. The agent monitors orders, enforces a daily budget, simulates writes before sending, and handles retries or quarantine according to its policy.
 
 ## Who relies on the data?
 
@@ -60,7 +60,7 @@ The demonstration must first show an accepted fresh response that causes the int
 
 ## Autonomous agent bonus
 
-The agent is scheduled to check before due dates and monitor between due dates according to trust tier. Demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call. The agent simulates each write before submission; no-data responses back off, payment failures pause paid checks, and signer/request mismatches trigger an alert and quarantine.
+The agent checks before due dates and monitors between due dates according to the supplier's verification-history tier. Demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call. The agent simulates each write before submission; no-data responses back off, payment failures pause paid checks, and signer/request mismatches trigger an alert and quarantine.
 
 **Evidence to insert before submission:** `[cycles completed]`, `[verified daily spend]`, `[overnight log excerpt]`, and links to the logged Base Sepolia payment transactions and Ethereum Sepolia agent actions. Do not leave this section as an unverified claim.
 

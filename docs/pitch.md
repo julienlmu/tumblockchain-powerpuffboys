@@ -8,7 +8,7 @@ Supplier payments are often split into advances and milestones. A buyer can appr
 
 SupplierPulse+ makes each milestone carry its own proof. Before a payment, an agent requests a fresh, signed Companies House or GLEIF record from API3 AirnodeHub. The buyer's Ethereum contract checks the Airnode signature, the exact supplier/request, the timestamp, and replay protection, then applies the buyer's rules. A clean record grants a permit for only the next milestone. The buyer still approves delivery. A failed registry rule holds the remaining balance for the buyer.
 
-The agent also monitors between due dates. Verified clean history earns shared supplier trust tiers, which extend permit lifetimes and reduce how often we need to pay for checks. A failure resets the streak. Each data check costs one cent over x402 in aUSD on Base Sepolia; supplier orders and contract decisions are on Ethereum Sepolia.
+The agent also monitors between due dates. A supplier's shared verification history sets how often it is re-checked: trusted suppliers cost fewer paid monitoring checks, but tiers never extend permits or relax the evidence freshness limit. A failed base status resets the streak and stops older permits across that supplier's orders. Each data check costs one cent over x402 in aUSD on Base Sepolia; supplier orders and contract decisions are on Ethereum Sepolia.
 
 This is not a credit score or a delivery oracle. A signed response proves what the registry returned, not that the supplier will deliver or remain healthy. We could not find German Handelsregister and insolvency-notice data in the AirnodeHub sources we checked. SupplierPulse+ demonstrates a narrower idea: make fresh public evidence part of the payment rule, not just a one-time onboarding document.
 
@@ -32,11 +32,11 @@ No. The contract checks a maximum response age, rejects future timestamps outsid
 
 ### Can a supplier farm a better trust tier with rapid checks?
 
-Only verified clean records count, at most once per configured tier gap. A failing record resets the clean streak. Tiers extend permit lifetimes but do not change the freshness limit.
+Only newer verified base-status records count, at most once per configured tier gap. Buyer-specific filing rules do not affect the shared history. A failing base status resets the clean streak and blocks older permits across that supplier's orders. Tiers change only the agent's re-check interval; permits are never extended, and the freshness limit does not change.
 
 ### What happens if a field is missing or the API is unavailable?
 
-The Airnode projection returns no signed answer when a requested field is missing. Without evidence, the contract cannot issue a permit. The agent reports the failure and retries according to its backoff policy; a payment is not treated as approved merely because the data source failed.
+The Airnode projection may return no signed answer when a requested field is missing. Without evidence, the contract cannot issue a permit. The agent reports the failure and retries according to its backoff policy. If the buyer approved the next milestone but there is still no valid permit after the due date plus the refund grace period, anyone can return the remaining balance to the buyer. A failed record can also be claimed by the buyer, with the agent able to trigger the refund after the grace period.
 
 ### What does the agent spend and how does it handle failures?
 

@@ -44,8 +44,8 @@ The local signer and registry fixtures are explicitly test-only. Never use Anvil
 2. Before a payment, the agent pays $0.01 over x402 on Base Sepolia for a signed projected registry response from API3 AirnodeHub.
 3. The Ethereum Sepolia contract verifies the expected Airnode, request hash, freshness, timestamp order, and that the signed digest has not been used.
 4. A clean record grants a permit for exactly the next milestone. The buyer must also approve that milestone before anyone can release it.
-5. A failed rule holds the remaining balance for the buyer. Missing data does not grant a permit.
-6. Accepted records contribute to a supplier's shared trust tier. Higher tiers increase permit lifetime; they never relax the evidence freshness limit.
+5. A failed record holds the order. A verified base-status failure also blocks older permits across that supplier's other orders. If data stays unavailable after an approved milestone is overdue beyond the grace period, anyone can return the remaining balance to the buyer.
+6. Accepted base-status records update the supplier's shared verification history. Higher tiers reduce monitoring frequency; they never extend permits or relax the evidence freshness limit.
 
 ```text
 Companies House / GLEIF
@@ -60,7 +60,7 @@ Companies House / GLEIF
 
 ## Registries and rules
 
-- **Companies House:** company status must be `active`. Optional buyer rules require no insolvency history, current accounts, and a current confirmation statement.
+- **Companies House:** company status must be `active`. Optional buyer rules require accounts and the confirmation statement not to be overdue. Current insolvency is reflected by company status; the deprecated insolvency-history field is not used.
 - **GLEIF:** entity status must be `ACTIVE`. The optional rule requires LEI registration status `ISSUED`.
 - The request hash binds the signed response to the requested supplier and projected fields. The contract submits the exact signed bytes, not a reconstructed JSON object.
 
@@ -68,19 +68,19 @@ The selected registries do not cover every business or risk. For example, the pr
 
 ## Trust tiers and demo parameters
 
-| Tier | Clean-check streak | Permit lifetime | Demo monitoring interval |
+| Tier | Clean base-check streak | Production re-check interval | Demo monitoring interval |
 |---|---:|---:|---:|
-| Standard | 0–2 | ×1 | 10 minutes |
-| Trusted | 3–5 | ×2 | 30 minutes |
-| Premium | 6+ | ×4 | 60 minutes |
+| Standard | 0–2 | 1 day | 10 minutes |
+| Trusted | 3–5 | 3 days | 30 minutes |
+| Premium | 6+ | 7 days | 60 minutes |
 
-Only verified records can count toward a tier, and only one clean record counts per tier gap. Any failing record resets the streak. The demo uses a **5-minute tier-count gap** and **10-minute refund grace period**; these are demo settings, not recommended production settings. Evidence remains subject to the 300-second freshness limit.
+Only newer verified base-status records update a supplier's history, and a clean record counts at most once per tier gap. Buyer-specific filing rules do not affect the shared tier; a failed base status resets the streak and stops older permits across the supplier's orders. Tiers change only the agent's monitoring interval, not permit lifetime. The demo uses a **5-minute tier-count gap** and **10-minute refund grace period**; these are demo settings, not recommended production settings. Evidence remains subject to the 300-second freshness limit.
 
 The demo denomination is `1 token = 10^12 wei = 0.000001 ETH`. These amounts are deliberately tiny testnet values.
 
 ## Agent and data costs
 
-The autonomous agent is intended to schedule checks before due dates and less often between due dates based on the supplier's tier. It has a daily x402 spend budget, fetch and gas-price caps, retries/backoff for transient failures, and quarantines an order on request/signer mismatches. Every transaction is simulated before it is sent. See [`docs/agent.md`](docs/agent.md) when available; the agent and its overnight run must be verified before claiming those behaviors as demonstrated.
+The agent implementation is in [`api3/agent/`](api3/agent/) and its schedule, budgets, and failure handling are documented in [`docs/agent.md`](docs/agent.md). It checks before due dates and less often between them based on the supplier's tier, enforces spend and gas limits, retries transient failures, quarantines request/signer mismatches, and simulates writes before sending. The overnight Sepolia run still needs verified evidence before being claimed as demonstrated.
 
 Each registry check is specified at $0.01 in aUSD on **Base Sepolia**. The supplier-payment contract runs on **Ethereum Sepolia**, so data payment and supplier settlement are separate testnet flows.
 
@@ -100,7 +100,7 @@ For the API3/Foundry v1 flow:
 - [Foundry](https://getfoundry.sh/)
 - `jq` and `curl`
 
-The full SupplierPulse+ workflow also uses Python 3.11+ for the agent, Node.js 22.18+ for the x402 data tools, and environment values copied from the committed `*.env.example` files. Never commit `.env` files, API keys, mnemonics, or private keys. Do not make paid calls outside the approved hackathon budgets.
+The full SupplierPulse+ workflow also uses Python 3.8+ for the agent, Node.js 22.18+ for the x402 data tools, and environment values copied from the committed `*.env.example` files. Never commit `.env` files, API keys, mnemonics, or private keys. Do not make paid calls outside the approved hackathon budgets.
 
 ```sh
 git clone --branch supplierpulse-plus https://github.com/julienlmu/tumblockchain-powerpuffgirls.git
@@ -119,7 +119,7 @@ For environment variables and deploy/test instructions, see [`api3/README.md`](a
 | `api3/src/` | Solidity contracts and signature/data verification |
 | `api3/test/` | Foundry tests |
 | `api3/scripts/` | Contract, fetch, judge, and local-demo scripts |
-| `api3/agent/` | Planned autonomous SupplierPulse+ agent |
+| `api3/agent/` | Autonomous agent implementation |
 | `demo/` | Planned dashboard and judge tamper page |
 | `docs/SUPPLIERPULSE_PLUS.md` | Frozen build specification and integration runbook |
 | `docs/evidence.md` | Testnet transaction evidence |
