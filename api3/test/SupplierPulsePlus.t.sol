@@ -854,6 +854,175 @@ contract SupplierPulsePlusTest is TestBase {
         pulse.submitEvidence(id, CH_REQ, NOW, data, _sign(CH_KEY, CH_REQ, NOW, data));
     }
 
+    // ----------------------------------- real AirnodeHub responses (Companies House)
+
+    address constant CH_AIRNODE = 0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF;
+
+    // real signed getCompanyProfile records with the v1.1 projection (30 Oct 17:14 CET, paid via x402;
+    // api3/fixtures/ on emre/plus-data)
+    uint256 constant CH_A_TS = 1793376875; // 03778796: active, nothing overdue
+    bytes constant CH_A_SIG =
+        hex"7b0521dc986c08bf7e9faa400c90074f8f8dc5465b1474e6580d16aa577b85f556f2fd360466cdea2c91d8da421b560393905a718b4f4271536a174f55d001721c";
+    uint256 constant CH_B_TS = 1793376878; // 07418033: liquidation, accounts and confirmation overdue
+    bytes constant CH_B_SIG =
+        hex"e57b047c3baaeeb4e0d8af6f533cf4d5349de20bc2495b7fba221b515cab8a193bb343065f185ee0a5484dc3f25294ced3e6160e6bd3cbb6584e610239cd23e51b";
+    uint256 constant CH_C_TS = 1793376879; // 09729896: active, accounts and confirmation overdue
+    bytes constant CH_C_SIG =
+        hex"6267dce79feaf28e4ec3b9e686101e05cda4f7bd338148d9c465ae644c165c147966ac05cdf7070c5d04bb02292ad829073f5d4cd0d49704ccf912a7c7b6d9941b";
+
+    function _chA() internal pure returns (bytes memory) {
+        return bytes('{"accounts_overdue":false,"confirmation_overdue":false,"status":"active"}');
+    }
+
+    function _chB() internal pure returns (bytes memory) {
+        return bytes('{"accounts_overdue":true,"confirmation_overdue":true,"status":"liquidation"}');
+    }
+
+    function _chC() internal pure returns (bytes memory) {
+        return bytes('{"accounts_overdue":true,"confirmation_overdue":true,"status":"active"}');
+    }
+
+    /// A contract that trusts the real Companies House Airnode, at `ts + 10`.
+    function _chLive(uint256 ts) internal returns (SupplierPulsePlus live) {
+        vm.warp(ts + 10);
+        live = new SupplierPulsePlus(CH_AIRNODE, vm.addr(GLEIF_KEY), MAX_AGE, GAP, GRACE);
+    }
+
+    function _chOrder(SupplierPulsePlus live, string memory id, uint8 rules) internal returns (uint256 orderId) {
+        orderId = live.createOrder{value: 1 ether}(0, id, supplier, 0, _amounts(1), _dues(1, block.timestamp - 10, 0), TTL, rules);
+        live.approveMilestone(orderId, 0);
+    }
+
+    function test_realChRequestHashes() public {
+        SupplierPulsePlus live = _chLive(CH_A_TS);
+        assertTrue(live.requestHashFor(0, "03778796") == 0xa6d1feccef225c1377ec0a5ec66988df0d5bfc02741d13a1b394d66c7897f452, "A");
+        assertTrue(live.requestHashFor(0, "07418033") == 0xb3d470a001a5692f90b229b49c61359e74e5578776caf091600340de893667d6, "B");
+        assertTrue(live.requestHashFor(0, "09729896") == 0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f, "C");
+    }
+
+    function test_realChCleanSupplierIsPaid() public {
+        SupplierPulsePlus live = _chLive(CH_A_TS);
+        uint256 id = _chOrder(live, "03778796", 0x06);
+        assertEq(live.checkAndRelease(id, live.requestHashFor(0, "03778796"), CH_A_TS, _chA(), CH_A_SIG), 0, "A paid");
+        assertEq(supplier.balance, 1 ether, "supplier paid");
+    }
+
+    function test_realChLiquidationIsHeld() public {
+        SupplierPulsePlus live = _chLive(CH_B_TS);
+        uint256 id = _chOrder(live, "07418033", 0x06);
+        assertEq(live.checkAndRelease(id, live.requestHashFor(0, "07418033"), CH_B_TS, _chB(), CH_B_SIG), 3, "B held");
+        (,, uint8 f,,,) = live.orderSchedule(id);
+        assertEq(f, 0x80 | 0x02 | 0x04, "status, accounts and confirmation labels");
+        assertEq(supplier.balance, 0, "not paid");
+    }
+
+    function test_realChAccountsOverdueIsHeld() public {
+        // order C: the status alone would pay, the buyer's accounts rule holds it
+        SupplierPulsePlus live = _chLive(CH_C_TS);
+        uint256 id = _chOrder(live, "09729896", 0x02);
+        assertEq(live.checkAndRelease(id, live.requestHashFor(0, "09729896"), CH_C_TS, _chC(), CH_C_SIG), 3, "C held");
+        (,, uint8 f,,,) = live.orderSchedule(id);
+        assertEq(f, 0x02, "accounts overdue only");
+        // the same record pays an order without that rule
+        uint256 plain = _chOrder(live, "09729896", 0);
+        bytes32 req = live.requestHashFor(0, "09729896");
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.Replayed.selector, AirnodeVerifier.digest(req, CH_C_TS, _chC())));
+        live.checkAndRelease(plain, req, CH_C_TS, _chC(), CH_C_SIG); // but a record is settled once
+    }
+
+    function test_realChSupplierWideStop() public {
+        // B2 in the demo: a second order of the liquidated supplier is held without a new fetch
+        SupplierPulsePlus live = _chLive(CH_B_TS);
+        uint256 b = _chOrder(live, "07418033", 0x06);
+        uint256 b2 = _chOrder(live, "07418033", 0x06);
+        live.checkAndRelease(b, live.requestHashFor(0, "07418033"), CH_B_TS, _chB(), CH_B_SIG);
+        live.applySupplierFailure(b2);
+        (uint8 st,,,,,,,) = live.orderStatus(b2);
+        assertEq(st, 1, "B2 held");
+    }
+
+    function test_realChResponseForAnotherCompany() public {
+        // the genuine clean record of A, submitted unchanged to order C (tamper case c)
+        SupplierPulsePlus live = _chLive(CH_A_TS);
+        uint256 id = _chOrder(live, "09729896", 0x02);
+        bytes32 req = live.requestHashFor(0, "03778796");
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.WrongRequest.selector, req, live.requestHashFor(0, "09729896")));
+        live.submitEvidence(id, req, CH_A_TS, _chA(), CH_A_SIG);
+    }
+
+    function test_realChEditedValue() public {
+        // B's real signature with "liquidation" edited to "active" (tamper case a)
+        SupplierPulsePlus live = _chLive(CH_B_TS);
+        uint256 id = _chOrder(live, "07418033", 0x06);
+        bytes memory edited = bytes('{"accounts_overdue":true,"confirmation_overdue":true,"status":"active"}');
+        try live.submitEvidence(id, live.requestHashFor(0, "07418033"), CH_B_TS, edited, CH_B_SIG) {
+            revert("accepted");
+        } catch (bytes memory err) {
+            assertTrue(bytes4(err) == ISupplierPulsePlus.WrongSigner.selector, "WrongSigner");
+        }
+    }
+
+    // ------------------------------------------- real AirnodeHub responses (GLEIF)
+
+    address constant GLEIF_AIRNODE = 0x26d83124541e89ef28B9A5FB012B4B5f4097C20c;
+
+    bytes constant LEI_D_DATA = bytes('{"entity_status":"ACTIVE","registration_status":"ISSUED"}');
+    bytes constant LEI_D_SIG =
+        hex"89fe847673d03cbb3a3494be47bd0f6abab30fd5987ee967b955d11257ea79d55268dbb30fd9a3b60edb127a1f6121922516acae81f064d595920c731e65e41c1c";
+    uint256 constant LEI_D_TS = 1793376460;
+
+    /// One-milestone GLEIF order (approved) on a contract that trusts the real GLEIF Airnode. The responses below
+    /// are real signed getLegalEntity records (30 Oct 17:07 CET, paid via x402; api3/fixtures/ on emre/plus-data).
+    function _gleifOrder(string memory lei, uint256 ts) internal returns (SupplierPulsePlus live, uint256 id) {
+        vm.warp(ts + 10);
+        live = new SupplierPulsePlus(vm.addr(CH_KEY), GLEIF_AIRNODE, MAX_AGE, GAP, GRACE);
+        id = live.createOrder{value: 1 ether}(1, lei, supplier, 0, _amounts(1), _dues(1, ts, 0), TTL, 0x08);
+        live.approveMilestone(id, 0);
+    }
+
+    function test_realGleifActiveIssuedIsPaid() public {
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("391200JI69LS8L648F30", LEI_D_TS);
+        bytes32 req = live.requestHashFor(1, "391200JI69LS8L648F30");
+        assertTrue(req == 0x428725c3fad90b9f3709a91b72530344bad9ceb87e33304d9eeb0d7290585e79, "signed request hash");
+        assertEq(live.checkAndRelease(id, req, LEI_D_TS, LEI_D_DATA, LEI_D_SIG), 0, "paid");
+        assertEq(supplier.balance, 1 ether, "supplier paid");
+    }
+
+    function test_realGleifLapsedIsHeld() public {
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("52990092KBQJF8QBGJ50", 1793376461);
+        uint8 o = live.checkAndRelease(
+            id,
+            live.requestHashFor(1, "52990092KBQJF8QBGJ50"),
+            1793376461,
+            bytes('{"entity_status":"ACTIVE","registration_status":"LAPSED"}'),
+            hex"d2ad3f67f559968249345a9b3827ecf230c5f40525156e3c0b86d91b5f6c7d73212daa971c11d55c2319ce121bc4458bb5af9c77ac09bd09b36092a0c3d8ea8d1c"
+        );
+        assertEq(o, 3, "held");
+        (,, uint8 f,,,) = live.orderSchedule(id);
+        assertEq(f, 0x08, "LEI renewal overdue");
+        assertEq(supplier.balance, 0, "not paid");
+    }
+
+    function test_realGleifResponseTooOld() public {
+        // the genuine record, untouched, submitted after maxAge (tamper case b with a real input)
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("391200JI69LS8L648F30", LEI_D_TS);
+        bytes32 req = live.requestHashFor(1, "391200JI69LS8L648F30");
+        vm.warp(LEI_D_TS + MAX_AGE + 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(ISupplierPulsePlus.StaleResponse.selector, LEI_D_TS, LEI_D_TS + MAX_AGE + 1)
+        );
+        live.submitEvidence(id, req, LEI_D_TS, LEI_D_DATA, LEI_D_SIG);
+    }
+
+    function test_realGleifResponseForAnotherLei() public {
+        // the genuine ISSUED record for one LEI, submitted to an order on another LEI (tamper case c)
+        (SupplierPulsePlus live, uint256 id) = _gleifOrder("52990092KBQJF8QBGJ50", LEI_D_TS);
+        bytes32 req = live.requestHashFor(1, "391200JI69LS8L648F30");
+        bytes32 expected = live.requestHashFor(1, "52990092KBQJF8QBGJ50");
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.WrongRequest.selector, req, expected));
+        live.submitEvidence(id, req, LEI_D_TS, LEI_D_DATA, LEI_D_SIG);
+    }
+
     // ------------------------------------------------------------------ admin
 
     function test_adminOnly() public {

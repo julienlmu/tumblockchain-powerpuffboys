@@ -126,6 +126,72 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - Local signer for everyone, free: `api3/scripts/fetch-local.sh <ch|gleif> <id> [out.json]` (from `api3/x402/local-registry.json`, §4.8) and `node api3/x402/sign-local.mjs <ch|gleif> <id> '<data json>' [timestamp]`. Output is the §4.1 format, signed by anvil #1 (CH) / #2 (GLEIF). Unknown id exits 3.
 - Next: live calls to verify the §4.2 pointers (C1a, ~$0.04, needs team OK and aUSD), fixtures, then `airnode-fetch.mjs`/`fetch-evidence.sh`, `verify.mjs`, `tamper.mjs`, `plus-submit.sh`.
 - Notes: the §4.2 pointers are still unverified live. Until then everything matches the spec as written.
+### 2026-10-30 · Julien (agent) · C2 check passes against Orhun's v1.1 contract; C2.5 review fixed
+- Changed:
+  - `api3/agent/c2_check.py` runs the C2 integration (§7.1) as one command. It runs `plus-local.sh`, then the agent at 10 s ticks with the local fetch, and checks the 8 expected outcomes on chain and in the agent log. `--fake` runs the same checks in memory.
+  - **First real integration passed (~17:22):** the agent with Orhun's v1.1 contract on anvil, all 8 checks in 180 s. Payments, holds with labels, the supplier-wide stop without a fetch, the no-data exit, and the tier rising. Emre's v1.1 `fetch-local.sh` is not in `supplierpulse-plus` yet, so a scratchpad v1.1 signer stood in.
+  - **The check found a real agent bug:** functions without return values (`release`, `applySupplierFailure`, `refundRemaining`) print a bare `0x`, which the agent read as an error. Fixed, with a test.
+  - **Batu's C2.5 review: all three points fixed** (§6.3 and `docs/agent.md` updated):
+    1. no monitoring while a due milestone waits for the buyer;
+    2. a quarantined order gets no action at all, including release and refund;
+    3. the no-data refund comes only after the agent's own try at or after the due date failed. That last try ignores the retry backoff. A failed x402 payment does not count as missing data.
+  - **One more fix of my own:** the check before a due date now waits until its permit still covers the due date (`permitTtl − 60 s` if that is shorter than the lead time). Before, a buyer's short `permitTtl` meant a paid fetch every tick.
+  - 61 tests pass (Python 3.8 and 3.13); `c2_check.py --fake` passes 8/8.
+  - Spec §2.5/§7.2 now has Emre's demo suppliers: A `03778796`, B `07418033`, C `09729896`, D `391200JI69LS8L648F30`, E `52990092KBQJF8QBGJ50`.
+- Batu's pages are already on v1.1 (`2c09a7c`), so no checklist for him.
+- **Orhun:** please start anvil with `--block-time 1` in `plus-local.sh` (Batu's finding: an idle anvil lags, and fresh records then simulate as `FutureResponse`). The C2 check mines a block before every tick as a safety net.
+- Next: C2 again with Emre's real v1.1 `fetch-local.sh` (in a test worktree until `emre/plus-data` is merged).
+
+### 2026-10-30 · Orhun · real Companies House tests (C1a done)
+- Changed: 7 new tests run Emre's v1.1 Companies House records (`4267d11`, pointers verified live) against the contract:
+  - the three request hashes match;
+  - A `03778796` is paid;
+  - B `07418033` is held with `0x86` (status, accounts, confirmation);
+  - C `09729896` with rules `0x02` is held with `0x02` only;
+  - B2: `applySupplierFailure` holds a second order of B without a new fetch;
+  - A's record on order C gives `WrongRequest`;
+  - B's signature with the status edited to `active` gives `WrongSigner`.
+
+  `forge test`: 111 passed. **This resolves the open question in my previous entry: v1.1 stays, no interface change.**
+- Next: C2 integration at 22:00 (`plus-local.sh`), then the C2.5 review of `tamper.mjs`, `verify.mjs` and `plus-submit.sh`.
+
+### 2026-10-30 · Orhun · demo suppliers and real GLEIF tests (C1a, part 1)
+- Changed:
+  - `plus-demo-orders.sh` and `api3/.env.example` now use Emre's verified demo suppliers: A `03778796`, B `07418033`, C `09729896`, D `391200JI69LS8L648F30`, E `52990092KBQJF8QBGJ50`.
+  - 4 new tests run Emre's real signed GLEIF records against the contract. D is paid and E is held with `0x08`. The untouched D record is rejected when too old (`StaleResponse`) and on another LEI's order (`WrongRequest`). `forge test`: 104 passed.
+- Next: the real Companies House tests are blocked. See the notes.
+- Notes: **open interface question for Emre and Orhun (§4.2 fallback).** Emre's live Companies House records use the v1.0 projection: 4 fields, `/accounts/overdue`, including `insolvency`. Spec v1.1 changed it to 3 fields and `/accounts/next_accounts/overdue`. That pointer has not been called live yet. So no real Companies House record matches the v1.1 request hash, and the contract rejects them with `WrongRequest`.
+  - Proposal: one paid call ($0.01) for `03778796` with the v1.1 projection.
+  - If it signs, v1.1 stays, and I add the Companies House tests with that record.
+  - If not, we keep 3 fields but go back to the verified `/accounts/overdue` pointer. That changes two constants on the contract side.
+
+### 2026-10-30 · Batu · screens on spec v1.1 (C1), policy review (C2.5)
+- **Orhun, re your open question above:** Emre's `4267d11` (on `emre/plus-data`) already replaced the Companies House fixtures with v1.1 records (3 fields, `/accounts/next_accounts/overdue`) and verified them live. I checked in the browser that the request hash of `api3/fixtures/ch-03778796-202610301614.json` equals the v1.1 template (`0xa6d1…f452`), signer `0x3922…4bFF`. So v1.1 stays, no extra paid call needed; the CH tests can use those fixtures.
+- Changed: `demo/` moved to spec v1.1 and merged into `supplierpulse-plus`.
+  - ABI, Companies House template (3 fields, `/accounts/next_accounts/overdue`) and labels from v1.1; no permit multiplier, no `effectivePermitTtl`, rule `0x01` gone, `0x08` reads "LEI renewal overdue".
+  - Dashboard: "verification history" instead of trust, the supplier-wide stop banner (`lastBaseFailureAt`), the no-data exit box with countdown and "Return to buyer", `noDataExit` in the audit trail. Sample mode uses Emre's five demo suppliers and shows both new states.
+  - Judge page: buttons for the real inputs (b) and (c), untouched records from `api3/fixtures/` (bundled in `demo/sample/responses.js`); the checklist includes the `SupplierFailed` check.
+  - Tested on a local chain with the v1.1 contract (`plus-local.sh`, 6 orders): valid → accepted; (a) `WrongSigner`, (b) `StaleResponse`, (c) `WrongRequest`, (d) `WrongSigner`; real (b) `StaleResponse`, real (c) `WrongRequest`. A clean record older than the supplier's failure → `SupplierFailed`. Dashboard rendered held + supplier-wide stop (order 1), the stop on the supplier's other order (4), and the no-data exit countdown (5).
+- Next: C2 with the agent and `plus-submit.sh`. C3: Sepolia v2 address in the pages.
+- aUSD for C3 (§7.2 step 4): the agent wallet `0xED34…253a` already holds **9.96 aUSD** and 0.003 ETH on Base Sepolia (read 30 Oct ~17:30), so no transfer is needed. Batu's wallet keeps 9.91 aUSD as a reserve.
+- Notes, **C2.5 review of `api3/agent/policy.py` for Julien** (54/54 tests pass; the P0 to P4 order matches §6.3). Nothing blocking, three points:
+  1. **P4 pays while waiting for the buyer.** A supplier whose only active order is past due and unapproved is still monitored: `plan()` returns `monitor` at $0.01 per tier interval. P3 skips exactly this case on purpose. Suggest: leave such orders out of `open_orders` in P4.
+  2. **Quarantine does not stop releases and refunds.** A quarantined order that is due with a valid permit gets `release`, and a quarantined held order gets `refund` (only P0 and the fetches check quarantine). Both are safe on chain, but §6.3 says "stop acting on it" and the test is called `test_quarantined_orders_are_left_alone`. Either gate them or document it in `docs/agent.md`.
+  3. **Refund before a last try.** If the agent was down past `autoRefundAt`, P1 returns the money to the buyer before P3 tries one more fetch. It matches the spec's priority order; worth one sentence in the pitch Q&A.
+  - Both checked with a scratch script against `plan()`, no change to Julien's files. The anvil clock note from my entry below also applies to the agent's `now` on the local chain.
+
+### 2026-10-30 · Batu · dashboard v2 and "Try to break it" (§6.4, Phase A)
+- Changed: branch `batu/plus-ui` (from `supplierpulse-plus`, with `batu/demo-screen` merged; v1 is now `demo/v1.html`).
+  - `demo/index.html`, dashboard v2: one card per order with the protected balance, milestone timeline (paid, permit valid until, awaiting approval, not due, held, refunded), permit countdown and `effectivePermitTtl`, trust tier and streak, last check with failed rules in words, held banner with refund countdown, "Claim now" (MetaMask) and the `plus-refund.sh` command, audit trail with the decoded signed data. Agent activity panel above the cards. Auto-refresh 12 s, light/dark, phone width.
+  - `demo/judge.html`: the five attacks plus "Submit as is", built in the browser with the §4.7 semantics; verdict from an `eth_call` of `submitEvidence` from `0x…dEaD`; checklist in the contract's order of checks; scoreboard; judge kit; "Send for real" (MetaMask, or the anvil agent key locally).
+  - Sample mode (`?sample=1`, `demo/sample/sample.js`) shows every state and all three tiers; ethers is bundled in `demo/vendor/` so it also works offline. Usage in `demo/README.md`.
+  - Tested on a local chain with Orhun's `plus-local.sh` and Emre's `sign-local.mjs`: judge page valid → accepted, (a) `WrongSigner`, (b) `StaleResponse`, (c) `WrongRequest`, (d) `WrongSigner`, Replay after a real send → `Replayed`. The four §4.2 test vectors match in the browser. Dashboard showed paid, held, refunded and the agent's transactions.
+- Next: C2, both pages against `plus-local.sh` and the agent; compare judge verdicts with Emre's `plus-submit.sh`. Load Emre's real fixtures. C3: point both pages at Sepolia v2; send ≥ 2 aUSD to the agent wallet. C2.5: review the agent's `policy.py`.
+- Notes:
+  - **Orhun:** `plus-create-order.sh` stores `orderRef = keccak256(name)`, which cannot be decoded. The dashboard matches the demo names by hash (and `LOCAL-<id>`), so A to E show their names. If you create other orders, either tell me the names (URL `names=`) or use `cast format-bytes32-string`, which the page decodes directly.
+  - **Orhun, Julien (C2):** on anvil, `eth_call` uses the latest block's timestamp, and anvil only mines on transactions. After a minute idle, a fresh record simulates as `FutureResponse` (seen here: block time 513 s behind the clock). The agent simulates every write, so it would hit this locally. Fix: start anvil with `--block-time 1` in `plus-local.sh`, or `cast rpc evm_mine` before simulating. Sepolia is not affected. The judge page mines one block before each local simulation.
+  - After a record was sent for real, (a) and (d) on the same record stop earlier (`NotNewer`, `Replayed`). For the video: run all simulations first, then send, then Replay.
+
 ### 2026-10-30 · Orhun · SupplierPulse+ contract (§6.1, Phase A, spec v1.1)
 - Changed: the contract part (§6.1) is built against spec v1.1. It is on `orhun/plus-contract` and merged into `supplierpulse-plus`.
   - `api3/src/ISupplierPulsePlus.sol` (§4.4 v1.1 verbatim), `SupplierPulsePlus.sol`, `JsonFields.sol` (`parseBool`).

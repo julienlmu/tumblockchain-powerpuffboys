@@ -160,11 +160,49 @@ class PolicyTest(unittest.TestCase):
         snap = Snapshot(NOW, [o], {"k0": Supplier("k0", 0, NOW - 5, last_base_failure_at=NOW - 60)})
         self.assertEqual(plan(snap, self.ledger, cfg()).actions, [])
 
-    def test_no_data_exit_refunds_an_active_order(self):
+    def test_no_data_exit_refunds_after_a_failed_last_try(self):
         o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        p = plan(snapshot(o), self.ledger, cfg())
+        self.assertEqual(self.kinds(p), [("due_check", 0)])  # the data may be back: try once more first
+        self.assertEqual(p.actions[0].reason, "last try before the no-data refund")
+        self.ledger.record_failure(0, NOW, max_attempts=3, exhausted_wait=1800)
         p = plan(snapshot(o), self.ledger, cfg())
         self.assertEqual(self.kinds(p), [("refund", 0)])
         self.assertEqual(p.actions[0].reason, "no verified data since the due date")
+
+    def test_the_last_try_ignores_a_backoff_from_before_the_due_date(self):
+        self.ledger.record_failure(0, NOW - 300, max_attempts=1, exhausted_wait=1800)  # exhausted until NOW + 1500
+        o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        self.assertEqual(self.kinds(plan(snapshot(o), self.ledger, cfg())), [("due_check", 0)])
+
+    def test_a_failed_payment_is_no_reason_for_the_no_data_refund(self):
+        self.ledger.pause_paid(NOW, 900)  # the agent could not pay: the data may well exist
+        o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        p = plan(snapshot(o), self.ledger, cfg())
+        self.assertEqual(p.actions, [])
+        self.assertEqual(p.skipped[0][1], "paid fetches paused")
+
+    def test_a_short_permit_ttl_moves_the_check_closer_to_the_due_date(self):
+        # lead time 300 s, but a permit lives only 120 s: a check 200 s early would expire before the due date
+        early = order(next_due_date=NOW + 200, permit_ttl=120)
+        self.assertEqual(plan(snapshot(early), self.ledger, cfg()).actions, [])
+        close = order(next_due_date=NOW + 60, permit_ttl=120)
+        self.assertEqual(self.kinds(plan(snapshot(close), self.ledger, cfg())), [("due_check", 0)])
+
+    def test_a_long_permit_ttl_keeps_the_lead_time(self):
+        o = order(next_due_date=NOW + 290, permit_ttl=3600)
+        self.assertEqual(self.kinds(plan(snapshot(o), self.ledger, cfg())), [("due_check", 0)])
+
+    def test_no_monitoring_while_a_due_milestone_waits_for_the_buyer(self):
+        waiting = order(next_due_date=NOW - 10, next_approved=False)
+        self.assertEqual(plan(snapshot(waiting, last_check_at=0), self.ledger, cfg()).actions, [])
+
+    def test_quarantine_blocks_release_and_refund(self):
+        pay = order(0, next_due_date=NOW - 1, permit_valid=True, permit_valid_until=NOW + 100)
+        held = order(1, state=HELD, auto_refund_at=NOW)
+        self.ledger.quarantine(0, "WrongSigner")
+        self.ledger.quarantine(1, "WrongRequest")
+        self.assertEqual(plan(snapshot(pay, held), self.ledger, cfg()).actions, [])
 
     def test_refunds_and_releases_come_before_fetches(self):
         held = order(0, state=HELD, auto_refund_at=NOW)

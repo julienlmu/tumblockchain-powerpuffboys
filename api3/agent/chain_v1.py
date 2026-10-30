@@ -39,7 +39,7 @@ class ChainV1(Chain):
             new_ids = [i for i in range(count) if i not in self._static]
             numbers = list(pool.map(lambda i: self.call("companyNumberOf", i)[0], new_ids))
             for i, number in zip(new_ids, numbers):
-                self._static[i] = [0, str(number), 0, None]
+                self._static[i] = [0, str(number), 0, None, 0]
             open_ids = [i for i in range(count) if i not in self._closed]
             statuses = list(pool.map(lambda i: self.call("orderStatus", i), open_ids))
             infos = list(pool.map(lambda i: self.call("orderInfo", i), open_ids))
@@ -58,6 +58,7 @@ class ChainV1(Chain):
                 remaining=_int(st[2]), permit_valid=_bool(st[6]), permit_valid_until=_int(st[5]), last_check=_int(st[8]),
                 next_due_date=1 if next_approved else 0, next_approved=next_approved,
                 last_failed_rules=FAIL_BASE if state == HELD else 0, auto_refund_at=0, tier=0,
+                permit_ttl=_int(info[4]),
             ))
         suppliers = {}
         for o in orders:

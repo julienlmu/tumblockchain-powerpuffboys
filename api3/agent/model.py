@@ -67,6 +67,7 @@ class Order:
     tier: int
     last_check: int = 0
     last_failed_rules: int = 0
+    permit_ttl: int = 0  # seconds a permit lives (orderInfo); 0 = unknown
 
     @property
     def supplier(self) -> str:

@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SupplierPulse+ Orders</title>
+<!-- Dashboard v2 for api3/src/SupplierPulsePlus.sol (docs/SUPPLIERPULSE_PLUS.md §6.4). Read-only by default:
+     view functions and eth_getLogs. The only write is the optional "Claim now" through the buyer's MetaMask.
+     Usage: demo/README.md. v1 (SupplierPulse.sol) is demo/v1.html. -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
+<script src="common.js"></script>
+<script src="sample/sample.js"></script>
+<link rel="stylesheet" href="base.css">
+<style>
+  /* agent panel */
+  .agent { margin-top: 18px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; }
+  .agent-head { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; justify-content: space-between; }
+  .agent-head h2 { margin: 0; font-size: 16px; }
+  .agent-head .sub { color: var(--muted); font-size: 13px; }
+  .agent ol { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+  .agent li { display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); align-items: baseline; }
+  .agent li:first-child { border-top: none; }
+  .agent .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* order cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; margin-top: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card.is-held { border-color: var(--hold); box-shadow: 0 0 0 1px var(--hold); }
+  .card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .card-head h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+  .card-head .sub { color: var(--muted); font-size: 13px; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .badge { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .ok { color: var(--ok); background: var(--ok-bg); }
+  .hold { color: var(--hold); background: var(--hold-bg); }
+  .wait { color: var(--wait); background: var(--wait-bg); }
+  .done { color: var(--done); background: var(--done-bg); }
+  .muted { color: var(--muted); background: var(--done-bg); }
+  .info { color: var(--accent); background: var(--accent-bg); }
+  .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 6px; color: var(--accent); background: var(--accent-bg); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .chip.rule { color: var(--text); background: transparent; border: 1px solid var(--line); }
+  .chip.agent { color: var(--sample); background: var(--sample-bg); font-weight: 600; }
+  .hero { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; }
+  .hero .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .hero .big { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .hero .small { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .hero .unit { font-size: 0.5em; color: var(--muted); font-weight: 600; margin-left: 5px; }
+  .bar { height: 8px; border-radius: 999px; background: var(--done-bg); overflow: hidden; display: flex; }
+  .bar span { display: block; height: 100%; }
+  .bar .p { background: var(--ok); } .bar .r { background: var(--accent); opacity: 0.35; } .bar .h { background: var(--hold); opacity: 0.55; } .bar .x { background: var(--done); opacity: 0.4; }
+
+  .held-box { border-radius: 12px; padding: 12px 14px; background: var(--hold-bg); color: var(--hold); display: flex; flex-direction: column; gap: 8px; }
+  .held-box b { font-size: 15px; }
+  .held-box .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .held-box .cmd { font-family: var(--mono); font-size: 12px; background: var(--card); color: var(--text); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
+  .msg { font-size: 12px; }
+  .closed-box { border-radius: 12px; padding: 10px 14px; background: var(--done-bg); color: var(--done); font-weight: 600; }
+
+  ol.ms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  ol.ms li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); }
+  ol.ms li.next { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  ol.ms li.paid { background: var(--ok-bg); border-color: transparent; }
+  ol.ms li.held { background: var(--hold-bg); border-color: transparent; }
+  ol.ms li.refunded { background: var(--done-bg); border-color: transparent; }
+  .ms .n { font-weight: 700; color: var(--muted); font-size: 13px; padding-top: 1px; }
+  .ms .line1 { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
+  .ms .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ms .due { color: var(--muted); font-size: 12px; }
+  .ms .chips { margin-top: 5px; }
+
+  table.rows { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.rows th { text-align: left; font-weight: 500; color: var(--muted); padding: 7px 12px 7px 0; vertical-align: top; width: 34%; }
+  table.rows td { padding: 7px 0; vertical-align: top; overflow-wrap: anywhere; }
+  table.rows tr + tr th, table.rows tr + tr td { border-top: 1px solid var(--line); }
+  .tier { font-weight: 700; padding: 2px 9px; border-radius: 999px; font-size: 13px; }
+  .tier.t0 { color: var(--done); background: var(--done-bg); }
+  .tier.t1 { color: var(--accent); background: var(--accent-bg); }
+  .tier.t2 { color: var(--gold); background: var(--gold-bg); }
+  .small-muted { color: var(--muted); font-size: 12px; }
+  .next-step { padding: 10px 12px; border-radius: 10px; font-weight: 600; font-size: 14px; }
+
+  details.trail { border-top: 1px solid var(--line); padding-top: 10px; }
+  ol.trail { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+  ol.trail li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line); }
+  ol.trail li:first-child { border-top: none; }
+  ol.trail .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+  ol.trail .ev-ok { color: var(--ok); font-weight: 600; }
+  ol.trail .ev-hold { color: var(--hold); font-weight: 600; }
+  .evd { margin-top: 4px; padding: 6px 8px; border-radius: 8px; background: var(--bg); font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
+  .evd code { overflow-wrap: anywhere; }
+  .evd.by-agent { box-shadow: inset 3px 0 0 var(--sample); }
+
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; max-width: 780px; }
+  @media (max-width: 460px) {
+    .grid { grid-template-columns: 1fr; }
+    .hero .big { font-size: 30px; }
+    .card { padding: 16px; }
+    table.rows th { width: 38%; }
+    .agent li { grid-template-columns: 60px 1fr; }
+    .agent li .lnk { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SupplierPulse<small>+</small></h1>
+      <p class="tagline">Your supplier was approved last month. That should not approve today's payment. Every milestone below pays only with a fresh, signed register record the contract checked first.</p>
+    </div>
+    <div class="head-links">
+      <a class="btn" id="judge-link" href="judge.html">Try to break it →</a>
+      <button type="button" id="theme-btn" title="Switch light / dark">◐ Theme</button>
+    </div>
+  </header>
+  <div class="meta" id="meta"></div>
+  <div id="banner"></div>
+  <details class="cfg-box" id="cfg-box">
+    <summary>Settings: contract, network, orders, agent</summary>
+    <form class="cfg" id="cfg">
+      <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false"></label>
+      <label>RPC URL<input name="rpc" spellcheck="false"></label>
+      <label>Order IDs (empty = all)<input name="orders" placeholder="0,1,2"></label>
+      <label>Agent address to highlight<input name="agent" placeholder="default: the team's agent wallet" spellcheck="false"></label>
+      <label>Events from block (deploy block)<input name="from" placeholder="default: last 9000 blocks"></label>
+      <label>Wei per token<input name="unit" placeholder="1000000000000"></label>
+      <label>Order names (comma-separated, matched to orderRef)<input name="names" placeholder="PO-2001 Bearings"></label>
+      <div class="btns"><button class="primary" type="submit">Load</button><button type="button" id="sample-btn">Sample data</button></div>
+    </form>
+  </details>
+  <section class="agent" id="agent"></section>
+  <div class="grid" id="orders"></div>
+  <footer>
+    A signature proves the register said it, not that the supplier will deliver. Delivery stays the buyer's approval:
+    each milestone needs both a valid permit from a fresh signed record and the buyer's approval.
+    Signed records come from API3 AirnodeHub (Companies House, GLEIF); the contract checks signer, request, freshness and replay before acting.
+    <br>v1 screen: <a href="v1.html">v1.html</a> · Judges: <a href="judge.html" id="judge-link2">try to break it</a>.
+  </footer>
+</div>
+
+<script>
+(() => {
+  const P = window.PULSE;
+  const { esc, short, nowSec, clock, dayClock, ago, span, duration } = P;
+  const REFRESH_MS = 12000;
+  const LOG_CHUNK = 9000;   // publicnode refuses eth_getLogs ranges of 20000 blocks
+  const MAX_CHUNKS = 30;    // first load: at most ~270k blocks of history
+  const DEMO_NAMES = ["PO-1001 Motor supply", "PO-1002 Gearbox", "PO-1003 Sensors", "PO-1004 Cable harness (DE)", "PO-1005 Castings", "PO-1"];
+  const KEYS = ["contract", "rpc", "orders", "agent", "from", "unit", "names"];
+
+  const params = new URLSearchParams(location.search);
+  const cfg = {
+    contract: params.get("contract") || "",
+    rpc: params.get("rpc") || P.DEFAULT_RPC,
+    orders: params.get("orders") || "",
+    agent: params.get("agent") || "",
+    from: params.get("from") || "",
+    unit: params.get("unit") || "",
+    names: params.get("names") || "",
+    sample: params.get("sample") === "1",
+  };
+  let UNIT = 10n ** 12n;
+  try { if (cfg.unit && BigInt(cfg.unit) > 0n) UNIT = BigInt(cfg.unit); } catch { /* keep default */ }
+  const tok = (w) => P.tokens(w, UNIT);
+  const $ = (id) => document.getElementById(id);
+
+  // ---------------------------------------------------------------- theme
+
+  const THEMES = ["auto", "light", "dark"];
+  let theme = "auto";
+  try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
+  function applyTheme() {
+    if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
+    $("theme-btn").textContent = `◐ ${theme[0].toUpperCase()}${theme.slice(1)}`;
+  }
+  $("theme-btn").addEventListener("click", () => {
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    try { localStorage.setItem("pulse-theme", theme); } catch { /* storage blocked */ }
+    applyTheme();
+  });
+  applyTheme();
+
+  // ---------------------------------------------------------------- names for orderRef
+
+  // Orders store orderRef as bytes32. The team scripts use keccak256(name), which cannot be decoded,
+  // so known names are matched by hash. encodeBytes32String names decode directly.
+  const refNames = {};
+  for (const n of [...DEMO_NAMES, ...cfg.names.split(",").map((x) => x.trim()).filter(Boolean)]) refNames[ethers.id(n).toLowerCase()] = n;
+  function orderTitle(o) {
+    const ref = o.info.orderRef;
+    if (!ref.startsWith("0x")) return ref; // sample data holds the plain name
+    const k = ref.toLowerCase();
+    if (refNames[k]) return refNames[k];
+    const local = `LOCAL-${o.info.supplierId}`; // api3/scripts/plus-local.sh
+    if (ethers.id(local).toLowerCase() === k) return local;
+    try { const s = ethers.decodeBytes32String(ref); if (s && /^[\x20-\x7e]+$/.test(s)) return s; } catch { /* not a bytes32 string */ }
+    return null;
+  }
+
+  // ---------------------------------------------------------------- small render helpers
+
+  let explorer = null, agentAddr = "";
+  const isAgent = (a) => !!agentAddr && !!a && a.toLowerCase() === agentAddr.toLowerCase();
+  function addr(a) {
+    if (!a) return "";
+    const inner = `<span class="mono">${short(a)}</span>`;
+    return explorer ? `<a href="${explorer}/address/${a}" target="_blank" rel="noopener" title="${a}">${inner}</a>` : `<span title="${a}">${inner}</span>`;
+  }
+  function txLink(h) {
+    return h && explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}</a>` : "";
+  }
+  const cdText = (ts, done) => { const l = ts - nowSec(); return l > 0 ? span(l) : done; };
+  const cd = (ts, done = "now") => `<span class="cd" data-until="${ts}" data-done="${esc(done)}">${cdText(ts, done)}</span>`;
+  const since = (ts) => `<span class="since" data-since="${ts}">${ago(nowSec() - ts)}</span>`;
+  const chip = (cls, text) => `<span class="chip ${cls}">${text}</span>`;
+  const tierBadge = (t) => `<span class="tier t${t}">${P.TIERS[t] || "?"}</span>`;
+
+  // UI state that must survive re-renders: open audit trails and claim messages.
+  const openTrails = new Set();
+  const claimMsg = {};
+
+  // ---------------------------------------------------------------- view model
+
+  // Live and sample data share one shape: the view functions of §4.4 plus the order's events.
+  function norm(o) {
+    const i = o.info, m = o.milestones, s = o.status, h = o.schedule, r = o.supplier;
+    const source = Number(i.source);
+    return {
+      id: Number(o.id),
+      info: {
+        buyer: i.buyer, supplier: i.supplier, source, supplierId: i.supplierId,
+        requestHash: i.requestHash || P.requestHashFor(source, i.supplierId),
+        orderRef: i.orderRef, permitTtl: Number(i.permitTtl), rules: Number(i.rules),
+      },
+      amounts: [...m.amounts].map((x) => BigInt(x)),
+      dueDates: [...m.dueDates].map(Number),
+      approved: [...m.approved].map(Boolean),
+      state: Number(s.state), paid: BigInt(s.paid), remaining: BigInt(s.remaining), next: Number(s.nextMilestone),
+      permitValidUntil: Number(s.permitValidUntil), permitValidRead: Boolean(s.permitValid), lastCheck: Number(s.lastCheck),
+      lastFailedRules: Number(h.lastFailedRules), heldAt: Number(h.heldAt), autoRefundAt: Number(h.autoRefundAt), tier: Number(h.tier),
+      rec: { cleanStreak: Number(r.cleanStreak), checks: Number(r.checks), failures: Number(r.failures), lastCheckAt: Number(r.lastCheckAt), lastBaseFailureAt: Number(r.lastBaseFailureAt), tier: Number(r.tier) },
+      events: o.events || [],
+    };
+  }
+  // The read value goes stale between refreshes; expire it locally so the countdown and the state agree.
+  const permitValid = (o) => o.permitValidRead && nowSec() <= o.permitValidUntil;
+
+  function milestoneView(o, i) {
+    const now = nowSec(), due = o.dueDates[i];
+    let cls = "", chips = [];
+    if (i < o.next) { cls = "paid"; chips.push(chip("ok", "paid ✓")); }
+    else if (o.state === 1) { cls = "held"; chips.push(chip("hold", "held 🔒")); }
+    else if (o.state === 2) { cls = "refunded"; chips.push(chip("done", "refunded to the buyer")); }
+    else {
+      if (i === o.next) {
+        cls = "next";
+        if (permitValid(o)) chips.push(chip("ok", `permit valid until ${clock(o.permitValidUntil)} · ${cd(o.permitValidUntil, "expired")} left`));
+        else if (o.permitValidUntil > 0) chips.push(chip("wait", "permit expired: needs a fresh record"));
+        else chips.push(chip("muted", "no permit yet"));
+      }
+      chips.push(o.approved[i] ? chip("info", "approved by buyer") : chip("wait", "awaiting approval"));
+      chips.push(due > now ? chip("muted", `not due yet · in ${cd(due)}`) : chip("muted", "due"));
+    }
+    return `<li class="${cls}"><span class="n">M${i + 1}</span><div>
+      <div class="line1"><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
+      <div class="chips">${chips.join("")}</div></div></li>`;
+  }
+
+  function nextStep(o, total) {
+    const n = o.next + 1, due = o.dueDates[o.next];
+    if (o.state === 1) return null; // the held box says it
+    if (o.state === 2) return null; // the closed box says it
+    if (permitValid(o) && o.approved[o.next] && nowSec() >= due) return ["ok", `Ready: release() pays milestone ${n} now (valid permit, buyer approval, due).`];
+    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Permit for milestone ${n} is valid. Waiting for the buyer's approval.`];
+    if (permitValid(o)) {
+      const late = o.permitValidUntil < due;
+      return ["info", `Permit valid. Milestone ${n} pays at its due date${late ? "; the permit ends earlier, so the agent re-checks before then" : ""}.`];
+    }
+    return ["wait", `Milestone ${n} needs a fresh signed register record before it can pay.`];
+  }
+
+  // ---------------------------------------------------------------- events → words
+
+  function eventLine(e, o) {
+    const a = e.args, src = o.info.source;
+    switch (e.name) {
+      case "OrderCreated": return { text: `Order created: ${tok(a.total)} tokens locked in ${o.amounts.length} milestones` };
+      case "MilestoneApproved": return { text: `Buyer approved milestone ${Number(a.milestone) + 1}` };
+      case "EvidenceAccepted": {
+        const labels = P.failedLabels(src, a.failedRules);
+        const raw = a.raw != null ? a.raw : (() => { try { return ethers.toUtf8String(a.data); } catch { return a.data; } })();
+        return {
+          cls: a.clean ? "ev-ok" : "ev-hold",
+          text: a.clean ? "Signed register record accepted: clean ✓" : `Signed register record accepted: failed (${labels.join(", ")})`,
+          detail: `<div class="evd${isAgent(a.submitter) ? " by-agent" : ""}">
+            <div>signed data <code>${esc(raw)}</code></div>
+            <div>signed at ${dayClock(a.timestamp)} · digest <span class="mono" title="${esc(a.digest)}">${short(a.digest)}</span></div>
+            <div>submitted by ${addr(a.submitter)} ${isAgent(a.submitter) ? chip("agent", "agent") : ""}</div></div>`,
+        };
+      }
+      case "PermitIssued": return { text: `Payment permit for milestone ${Number(a.milestone) + 1} (${tok(a.amount)} tokens), valid until ${dayClock(a.validUntil)}` };
+      case "MilestonePaid": return { cls: "ev-ok", text: `Milestone ${Number(a.milestone) + 1} paid: ${tok(a.amount)} tokens to the supplier` };
+      case "OrderHeld": return { cls: "ev-hold", text: `Order held: ${P.failedLabels(src, a.failedRules).join(", ")}. ${tok(a.remaining)} tokens protected; anyone can trigger the refund from ${dayClock(a.autoRefundAt)}` };
+      case "OrderRefunded": return { text: `${tok(a.amount)} tokens refunded to the buyer${a.noDataExit ? " (no-data exit)" : ""}, triggered by ${isAgent(a.triggeredBy) ? "the agent" : a.triggeredBy && o.info.buyer && a.triggeredBy.toLowerCase() === o.info.buyer.toLowerCase() ? "the buyer" : addr(a.triggeredBy)}` };
+      case "TierChanged": return { text: `Verification history ${P.TIERS[Number(a.oldTier)]} → ${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
+      default: return { text: e.name };
+    }
+  }
+
+  // ---------------------------------------------------------------- order card
+
+  function renderOrder(o, env) {
+    const s = P.SOURCES[o.info.source] || { badge: "?", name: "unknown", registerUrl: () => "#" };
+    const total = o.amounts.reduce((x, y) => x + y, 0n);
+    const title = orderTitle(o);
+    const held = o.state === 1, closed = o.state === 2, refunded = closed && o.paid < total;
+
+    const badge = held ? ["hold", "Held 🔒"] : refunded ? ["done", "Refunded"] : closed ? ["ok", "Fully paid"] : ["info", "Active"];
+    const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
+    const bar = `<div class="bar" title="paid / ${held ? "held" : refunded ? "refunded" : "remaining"}">
+      <span class="p" style="width:${pct(o.paid)}%"></span><span class="${held ? "h" : refunded ? "x" : "r"}" style="width:${pct(total - o.paid)}%"></span></div>`;
+
+    // §2.4a: a failed base check on any order stops payments on every order of the supplier
+    const supplierStop = o.rec.lastBaseFailureAt > 0 && !closed
+      ? `Register status failed on ${dayClock(o.rec.lastBaseFailureAt)}: payments to this supplier are stopped on every order.` : "";
+    const claimRow = (label, enabled) => `<div class="row"><button type="button" class="danger" data-claim="${o.id}"${env.sample || !enabled ? ` disabled title="${env.sample ? "sample data" : "not yet"}"` : ""}>${label}</button>
+          <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span></div>${claimMsg[o.id] ? `<div class="msg">${claimMsg[o.id]}</div>` : ""}`;
+    let statusBox = "";
+    if (held) {
+      const labels = P.failedLabels(o.info.source, o.lastFailedRules);
+      const open = nowSec() >= o.autoRefundAt;
+      statusBox = `<div class="held-box">
+        <b>🔒 Payment held: ${esc(labels.join(", ") || "failed register check")}</b>
+        ${supplierStop ? `<div>${supplierStop}</div>` : ""}
+        <div>${tok(o.remaining)} tokens are protected and can only go back to the buyer. The buyer can claim them now;
+          ${open ? "<b>anyone (the agent) can trigger the refund now.</b>" : `anyone (the agent) can trigger the refund in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</div>
+        ${claimRow("Claim now (MetaMask)", true)}
+      </div>`;
+    } else if (!closed && o.autoRefundAt > 0) {
+      // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
+      const open = nowSec() >= o.autoRefundAt;
+      statusBox = `<div class="held-box" style="background:var(--wait-bg);color:var(--wait)">
+        <b>No verified data since the due date of M${o.next + 1}</b>
+        ${supplierStop ? `<div style="color:var(--hold)">${supplierStop}</div>` : ""}
+        <div>No signed register record has allowed this payment. That says nothing bad about the supplier, only that there is no proof.
+          The remaining ${tok(o.remaining)} tokens can go back to the buyer ${open ? "<b>now</b>; anyone can trigger it." : `from ${dayClock(o.autoRefundAt)} (<b>${cd(o.autoRefundAt, "now")}</b>); anyone can trigger it then.`}</div>
+        ${claimRow("Return to buyer (MetaMask)", open)}
+      </div>`;
+    } else if (supplierStop) {
+      statusBox = `<div class="held-box"><b>⛔ ${supplierStop}</b>
+        <div>This order is not held yet. The agent can hold it without a new paid check (<span class="mono">applySupplierFailure</span>), and no permit from before the failure can pay.</div></div>`;
+    } else if (refunded) {
+      const ev = o.events.find((e) => e.name === "OrderRefunded");
+      const how = ev && ev.args.noDataExit ? "Closed by the no-data exit" : "Closed after a hold";
+      statusBox = `<div class="closed-box">${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</div>`;
+    }
+    if (closed && !refunded) {
+      statusBox = `<div class="closed-box">Fully paid: every milestone was paid against its own fresh signed record.</div>`;
+    }
+
+    const step = nextStep(o, total);
+    const lastCheck = o.lastCheck
+      ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span><div class="chips" style="margin-top:4px">${
+          o.lastFailedRules === 0 ? chip("ok", "clean ✓") : P.failedLabels(o.info.source, o.lastFailedRules).map((l) => chip("hold", esc(l))).join("")}</div>`
+      : "no signed record yet";
+    let permitRow;
+    if (held) permitRow = `<span class="small-muted">cleared by the hold</span>`;
+    else if (closed) permitRow = `<span class="small-muted">none (order closed)</span>`;
+    else if (permitValid(o)) permitRow = `<b style="color:var(--ok)">valid</b> for M${o.next + 1} until ${clock(o.permitValidUntil)} · ${cd(o.permitValidUntil, "expired")} left`;
+    else if (o.permitValidUntil > 0) permitRow = `<span style="color:var(--wait)">expired at ${clock(o.permitValidUntil)}</span>`;
+    else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid M${o.next}` : "none yet"}</span>`;
+    permitRow += `<div class="small-muted">each permit lasts ${duration(o.info.permitTtl)} from the signed time</div>`;
+
+    const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
+    const trailKey = `trail-${o.id}`;
+    const trail = evs.length ? `<details class="trail" data-key="${trailKey}"${openTrails.has(trailKey) ? " open" : ""}>
+        <summary>Audit trail (${evs.length} on-chain events, newest first)</summary>
+        <ol class="trail">${evs.map((e) => {
+          const l = eventLine(e, o);
+          return `<li><span class="t">${e.time ? clock(e.time) : "#" + e.block}</span><div>
+            <span class="${l.cls || ""}">${l.text}</span>${txLink(e.tx) ? " · " + txLink(e.tx) : ""}
+            ${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", "agent") : ""}${l.detail || ""}</div></li>`;
+        }).join("")}</ol></details>`
+      : `<div class="small-muted">No events found${env.sample ? "" : " in the searched block range (set the deploy block in Settings)"}.</div>`;
+
+    return `
+      <article class="card${held ? " is-held" : ""}">
+        <div class="card-head">
+          <div><h2>#${o.id} · ${esc(title || "Order " + short(o.info.orderRef))}</h2>
+            <div class="sub"><span class="reg">${s.badge}</span>
+              <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono">${esc(o.info.supplierId)}</a>
+              <span>· supplier wallet ${addr(o.info.supplier)}</span></div></div>
+          <span class="badge ${badge[0]}">${badge[1]}</span>
+        </div>
+        <div class="chips">${P.ruleNames(o.info.source, o.info.rules).map((r) => chip("rule", esc(r))).join("")}</div>
+        <div class="hero">
+          <div><div class="label">Protected remaining balance</div><div class="big">${tok(o.remaining)}<span class="unit">tokens</span></div></div>
+          <div><div class="label">Paid</div><div class="small">${tok(o.paid)}<span class="unit">of ${tok(total)}</span></div></div>
+        </div>
+        ${bar}
+        ${statusBox}
+        <ol class="ms">${o.amounts.map((_, i) => milestoneView(o, i)).join("")}</ol>
+        <table class="rows">
+          <tr><th>Payment permit</th><td>${permitRow}</td></tr>
+          <tr><th>Verification history</th><td>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak} · ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"} · ${o.rec.failures} failed</span>
+            <div class="small-muted">register checks of this supplier across all orders, not a credit score. A longer clean history only means fewer paid re-checks.</div></td></tr>
+          <tr><th>Last check</th><td>${lastCheck}</td></tr>
+        </table>
+        ${step ? `<div class="next-step ${step[0]}">Next: ${step[1]}</div>` : ""}
+        ${trail}
+      </article>`;
+  }
+
+  // ---------------------------------------------------------------- agent panel
+
+  function renderAgent(orders, env) {
+    const byId = Object.fromEntries(orders.map((o) => [o.id, o]));
+    const groups = new Map();
+    for (const o of orders) for (const e of o.events) {
+      if (!isAgent(e.from)) continue;
+      const k = e.tx || `${e.time}-${o.id}`;
+      if (!groups.has(k)) groups.set(k, { time: e.time, block: e.block, tx: e.tx, order: o.id, evs: [] });
+      groups.get(k).evs.push(e);
+    }
+    const rows = [...groups.values()].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0));
+    const word = (e, o) => {
+      const a = e.args;
+      switch (e.name) {
+        case "EvidenceAccepted": return a.clean ? "check clean ✓" : `check failed: ${P.failedLabels(o.info.source, a.failedRules).join(", ")}`;
+        case "PermitIssued": return `permit M${Number(a.milestone) + 1}`;
+        case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b> (${tok(a.amount)})`;
+        case "OrderHeld": return "<b>held 🔒</b>";
+        case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
+        case "TierChanged": return `history → ${P.TIERS[Number(a.newTier)]}`;
+        default: return e.name;
+      }
+    };
+    const head = `<div class="agent-head"><h2>Agent activity</h2>
+      <span class="sub">${agentAddr ? `agent ${addr(agentAddr)} · ${rows.length} autonomous transactions${rows[0] && rows[0].time ? ` · last ${since(rows[0].time)}` : ""}` : "set an agent address in Settings to highlight its transactions"}</span></div>`;
+    const li = (g) => {
+      const o = byId[g.order];
+      const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
+      return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
+        <span>#${g.order} ${name}: ${g.evs.map((e) => word(e, o)).join(" → ")}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+    };
+    const more = rows.length > 5
+      ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - 5} earlier</summary><ol>${rows.slice(5, 60).map(li).join("")}</ol></details>`
+      : "";
+    $("agent").innerHTML = head + (rows.length ? `<ol>${rows.slice(0, 5).map(li).join("")}</ol>${more}` : `<div class="small-muted" style="margin-top:8px">No agent transactions in the loaded history yet.</div>`);
+  }
+
+  function renderAll(orders, env) {
+    renderAgent(orders, env);
+    $("orders").innerHTML = orders.length ? orders.map((o) => renderOrder(o, env)).join("") : "";
+  }
+
+  function renderMeta(m) { $("meta").innerHTML = m.map(([k, val]) => `<span>${k} <b>${val}</b></span>`).join(""); }
+  function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
+
+  // ---------------------------------------------------------------- live data
+
+  let provider, contract, iface, chainId, consts;
+  const evState = { next: null, list: [], blockTime: {}, txFrom: {} };
+
+  async function loadEvents(latest) {
+    let from = evState.next;
+    let note = "";
+    if (from === null) {
+      from = cfg.from ? Number(cfg.from) : Math.max(0, latest - LOG_CHUNK);
+      if (latest - from > LOG_CHUNK * MAX_CHUNKS) { from = latest - LOG_CHUNK * MAX_CHUNKS; note = ` · history limited to the last ${LOG_CHUNK * MAX_CHUNKS} blocks`; }
+    }
+    const fresh = [];
+    while (from <= latest) {
+      const to = Math.min(latest, from + LOG_CHUNK - 1);
+      const logs = await provider.getLogs({ address: cfg.contract, fromBlock: from, toBlock: to });
+      for (const log of logs) {
+        let ev;
+        try { ev = iface.parseLog(log); } catch { continue; }
+        if (!ev) continue;
+        const args = {};
+        ev.fragment.inputs.forEach((inp, i) => { args[inp.name] = ev.args[i]; });
+        fresh.push({ name: ev.name, args, block: log.blockNumber, tx: log.transactionHash, logIndex: log.index });
+      }
+      from = to + 1;
+    }
+    evState.next = latest + 1;
+    evState.list.push(...fresh);
+
+    // who sent each transaction: the event says it where it can, the rest (release by the agent) is looked up once
+    const txs = {};
+    for (const e of evState.list) (txs[e.tx] ||= []).push(e);
+    const lookups = [];
+    for (const [tx, evs] of Object.entries(txs)) {
+      if (evState.txFrom[tx]) continue;
+      const ea = evs.find((e) => e.name === "EvidenceAccepted"), rf = evs.find((e) => e.name === "OrderRefunded"), oc = evs.find((e) => e.name === "OrderCreated");
+      if (ea) evState.txFrom[tx] = ea.args.submitter;
+      else if (rf) evState.txFrom[tx] = rf.args.triggeredBy;
+      else if (oc) evState.txFrom[tx] = oc.args.buyer;
+      else if (evs.some((e) => e.name === "MilestonePaid")) lookups.push(tx);
+    }
+    await Promise.all(lookups.slice(0, 40).map(async (tx) => { try { const t = await provider.getTransaction(tx); if (t) evState.txFrom[tx] = t.from; } catch { /* leave unknown */ } }));
+    const blocks = [...new Set(evState.list.map((e) => e.block))].filter((b) => !(b in evState.blockTime)).slice(-80);
+    await Promise.all(blocks.map(async (b) => { try { const blk = await provider.getBlock(b); if (blk) evState.blockTime[b] = blk.timestamp; } catch { /* leave unknown */ } }));
+    for (const e of evState.list) { e.time = evState.blockTime[e.block]; e.from = evState.txFrom[e.tx]; }
+    return note;
+  }
+
+  function eventsByOrder() {
+    const by = {}, orderOfTx = {};
+    for (const e of evState.list) if (e.args.orderId !== undefined) { const id = Number(e.args.orderId); (by[id] ||= []).push(e); orderOfTx[e.tx] = id; }
+    // TierChanged carries the supplier key, not the order: attach it to the order whose evidence caused it
+    for (const e of evState.list) if (e.name === "TierChanged" && orderOfTx[e.tx] !== undefined) by[orderOfTx[e.tx]].push(e);
+    return by;
+  }
+
+  let lastOrders = null, eventsNote = "";
+  async function loadLive() {
+    if (!provider) {
+      provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
+      contract = new ethers.Contract(cfg.contract, P.ABI, provider);
+      iface = contract.interface;
+      chainId = Number((await provider.getNetwork()).chainId);
+      if ((await provider.getCode(cfg.contract)) === "0x") throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
+      explorer = P.EXPLORERS[chainId] || null;
+      agentAddr = cfg.agent || P.DEFAULT_AGENT[chainId] || "";
+      const [ch, gl, maxAge, gap, grace] = await Promise.all([contract.airnodeOf(0), contract.airnodeOf(1), contract.maxAge(), contract.tierCountGap(), contract.refundGrace()]);
+      consts = { airnodes: [ch, gl], maxAge: Number(maxAge), tierCountGap: Number(gap), refundGrace: Number(grace) };
+    }
+    const latest = await provider.getBlockNumber();
+    const count = Number(await contract.ordersLength());
+    const ids = cfg.orders
+      ? cfg.orders.split(",").map((x) => x.trim()).filter((x) => /^\d+$/.test(x)).map(Number).filter((n) => n < count)
+      : [...Array(count).keys()];
+
+    try { eventsNote = await loadEvents(latest); }
+    catch (e) { eventsNote = " · event history unavailable from this RPC"; }
+    const evBy = eventsByOrder();
+
+    const orders = await Promise.all(ids.map(async (id) => {
+      const [info, milestones, status, schedule] = await Promise.all([
+        contract.orderInfo(id), contract.orderMilestones(id), contract.orderStatus(id), contract.orderSchedule(id)]);
+      const supplier = await contract.supplierRecord(P.supplierKeyOf(Number(info.source), info.supplierId));
+      return norm({ id, info, milestones, status, schedule, supplier, events: evBy[id] || [] });
+    }));
+
+    const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
+    renderMeta([
+      [`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`],
+      ["Contract", addr(cfg.contract)],
+      ["Airnodes", `CH ${addr(consts.airnodes[0])} · GLEIF ${addr(consts.airnodes[1])}`],
+      ["Max age", `${consts.maxAge} s`],
+      ["Tier gap", duration(consts.tierCountGap)],
+      ["Refund grace", duration(consts.refundGrace)],
+      ["Protected now", `${tok(protectedTotal)} tokens`],
+      ["Updated", clock(nowSec()) + eventsNote],
+    ]);
+    banner("", count ? "" : "This contract has no orders yet.");
+    lastOrders = orders;
+    renderAll(orders, { sample: false });
+  }
+
+  // ---------------------------------------------------------------- sample data
+
+  function loadSample() {
+    const data = window.PULSE_SAMPLE(SAMPLE_T0);
+    agentAddr = cfg.agent || data.agent;
+    const orders = data.orders.map(norm);
+    const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
+    renderMeta([["Mode", "sample"], ["Max age", `${data.maxAge} s`], ["Tier gap", duration(data.tierCountGap)], ["Refund grace", duration(data.refundGrace)],
+      ["Protected now", `${tok(protectedTotal)} tokens`], ["Updated", clock(nowSec())]]);
+    banner("sample", "<b>Sample data, not read from a chain.</b> Orders follow the demo scenario (§2.5) with illustrative amounts, wallets, ids and times. Add <span class=\"mono\">?contract=0x…</span> for live data.");
+    lastOrders = orders;
+    renderAll(orders, { sample: true });
+  }
+  const SAMPLE_T0 = nowSec();
+
+  // ---------------------------------------------------------------- claim (MetaMask)
+
+  async function claim(id) {
+    const say = (html) => { claimMsg[id] = html; if (lastOrders) renderAll(lastOrders, { sample: cfg.sample && !cfg.contract }); };
+    if (!window.ethereum) { say("No browser wallet found. Run the command instead (it uses the buyer key from api3/.env)."); return; }
+    try {
+      const bp = new ethers.BrowserProvider(window.ethereum);
+      await bp.send("eth_requestAccounts", []);
+      const net = await bp.getNetwork();
+      if (Number(net.chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
+      const signer = await (new ethers.BrowserProvider(window.ethereum)).getSigner();
+      const c = new ethers.Contract(cfg.contract, P.ABI, signer);
+      try { await c.refundRemaining.staticCall(id); }
+      catch (e) { const r = P.decodeRevert(iface, e); say(`Would fail: <b>${esc(r ? r.name : e.shortMessage || e.message)}</b>. ${esc(r ? P.explain(r.name, r.args) : "")}`); return; }
+      const tx = await c.refundRemaining(id);
+      say(`Sent ${txLink(tx.hash) || esc(tx.hash)}, waiting for the block…`);
+      await tx.wait();
+      say(`Refunded in ${txLink(tx.hash) || esc(tx.hash)}.`);
+      tick();
+    } catch (e) {
+      say(`Not sent: ${esc(e.shortMessage || e.message)}`);
+    }
+  }
+  $("orders").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-claim]");
+    if (b) claim(Number(b.dataset.claim));
+  });
+  const rememberToggle = (e) => {
+    const k = e.target.dataset && e.target.dataset.key;
+    if (k) e.target.open ? openTrails.add(k) : openTrails.delete(k);
+  };
+  $("orders").addEventListener("toggle", rememberToggle, true);
+  $("agent").addEventListener("toggle", rememberToggle, true);
+
+  // ---------------------------------------------------------------- wiring
+
+  const form = $("cfg");
+  for (const k of KEYS) form.elements[k].value = k === "rpc" ? cfg.rpc : cfg[k];
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const p = new URLSearchParams();
+    for (const k of KEYS) {
+      const val = form.elements[k].value.trim();
+      if (val && !(k === "rpc" && val === P.DEFAULT_RPC)) p.set(k, val);
+    }
+    location.search = p.toString();
+  });
+  $("sample-btn").addEventListener("click", () => { location.search = "sample=1"; });
+  const judgeQs = new URLSearchParams();
+  if (cfg.contract) judgeQs.set("contract", cfg.contract);
+  if (cfg.rpc !== P.DEFAULT_RPC) judgeQs.set("rpc", cfg.rpc);
+  for (const id of ["judge-link", "judge-link2"]) $(id).href = "judge.html" + (judgeQs.toString() ? "?" + judgeQs : "");
+
+  // Countdowns and "ago" values move every second without a re-render.
+  setInterval(() => {
+    for (const el of document.querySelectorAll(".cd")) el.textContent = cdText(Number(el.dataset.until), el.dataset.done);
+    for (const el of document.querySelectorAll(".since")) el.textContent = ago(nowSec() - Number(el.dataset.since));
+  }, 1000);
+
+  let busy = false;
+  async function tick() {
+    if (busy) return;
+    busy = true;
+    try { await loadLive(); }
+    catch (e) { banner("error", `Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network.`); }
+    finally { busy = false; }
+  }
+
+  if (cfg.contract && ethers.isAddress(cfg.contract)) {
+    tick();
+    setInterval(tick, REFRESH_MS);
+  } else if (cfg.sample) {
+    loadSample();
+    setInterval(loadSample, REFRESH_MS); // states change as sample times pass (permits expire, refunds open)
+  } else {
+    $("cfg-box").open = true;
+    renderMeta([["Mode", "not configured"]]);
+    $("agent").hidden = true;
+    banner("sample", cfg.contract ? "That contract address is not valid." : "Enter the deployed SupplierPulsePlus address in Settings, or open the <a href=\"?sample=1\">sample data</a>.");
+  }
+})();
+</script>
+</body>
+</html>
