@@ -78,6 +78,7 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes:
   - Masumi escrow releases after `unlockTime` unless a refund is requested, so "payment tied to result" needs our code to trigger the refund. `agent.py` currently returns a result even when `executed=false`.
   - AirnodeHub: Nodary ETH/USD is free and first-party. The CoinGecko `simplePrice` used in `fetch-eth-usd.sh` costs $0.02 aUSD (x402).
+  - API3 judging: real use case 40%, signed data matters 30%, execution 20%, novelty 10% ("beyond the unchanged starter"; the starter is already a Nodary ETH/USD consumer), +10 agent bonus. Projections let a contract read string fields such as Companies House `company_status`. Details in `docs/decision-sheet.md`.
 
 ### 2026-10-30 · Orhun
 - Changed: API3: added `api3/`, a Foundry vault that verifies AirnodeHub signed ETH/USD (signer, request hash, freshness, no replay) and pays out when the price crosses the threshold. 15 tests incl. all tamper cases; `scripts/local-demo.sh` runs the full flow on anvil. `scripts/submit.sh` for judges (tamper modes: value, stale, request, key), `scripts/agent-run.sh` for the Cardano agent.
