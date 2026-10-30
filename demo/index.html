@@ -34,6 +34,7 @@
   .states .rest { color: var(--muted); font-size: var(--t-1); display: flex; flex-wrap: wrap; gap: 2px var(--s3); margin-left: var(--s2); }
   .link-order { font: inherit; background: none; border: none; padding: 0; min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline; }
   .link-order:hover { background: none; color: var(--text); }
+  .card .back { align-self: flex-start; display: inline-flex; gap: 4px; align-items: center; font-size: var(--t-1); color: var(--muted); margin-bottom: calc(-1 * var(--s1)); }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; margin-top: var(--s3); font-size: var(--t-1); color: var(--muted); }
   .toolbar b { color: var(--text); font-weight: 600; }
@@ -58,6 +59,8 @@
   .live-dot.warn { background: var(--wait); }
   .banner-actions { display: inline-flex; flex-wrap: wrap; gap: var(--s2); margin-left: var(--s2); vertical-align: middle; }
   .banner-actions button { min-height: 30px; padding: 4px 10px; }
+  .banner .banner-btn { margin-left: auto; flex: none; min-height: 30px; padding: 4px 12px; color: var(--text); }
+  .banner:has(.banner-btn) { align-items: center; }
 
   /* agent panel */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
@@ -219,7 +222,7 @@
         <dt>Tokens</dt><dd id="g-unit"></dd>
         <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
       </dl>
-      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order · <kbd>0</kbd> or <kbd>Esc</kbd> all orders · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>T</kbd> theme · <kbd>?</kbd> this guide, <kbd>Esc</kbd> closes it.</p>
+      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order · <kbd>0</kbd> all orders · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide, or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back.</p>
       <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · <a href="judge.html" id="judge-link3">Try to break it</a></p>
     </div>
   </details>
@@ -650,6 +653,8 @@
 
     return `
       <article class="card" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
+        ${backTo && backTo.target === o.id && lastOrders && lastOrders.some((x) => x.id === backTo.from)
+          ? `<button type="button" class="link-order back" data-back>${I("arrow-left")}Back to ${orderName(lastOrders.find((x) => x.id === backTo.from))}</button>` : ""}
         <div class="card-head">
           <div><h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
             <div class="sub"><span class="reg">${esc(s.name)}</span>
@@ -936,7 +941,7 @@
     Object.assign(status, { mode: "sample", readAt: nowSec(), protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n) });
     renderMeta();
     renderDetails({ maxAge: data.maxAge, tierCountGap: data.tierCountGap, refundGrace: data.refundGrace });
-    banner("sample", I("info") + "<span><b>Sample data, not read from a chain:</b> the demo scenario with illustrative amounts, wallets, ids and times; <span id=\"sample-note\">nothing can be sent from it</span>. Add <span class=\"mono\">?contract=0x…</span> for live data.</span>");
+    banner("sample", `${I("info")}<span><b>Sample data</b>, not read from a chain: illustrative amounts, wallets, ids and times; <span id="sample-note">nothing can be sent</span>.</span><button type="button" class="banner-btn" data-live>Use live data</button>`);
     lastOrders = orders;
     renderAll(orders, { sample: true });
   }
@@ -988,7 +993,8 @@
     if (no) { delete claimState[no.dataset.claimCancel]; rerender(); const c = document.querySelector(`[data-claim="${no.dataset.claimCancel}"]`); if (c) c.focus(); }
   });
   // Scrolls to an order card and focuses it (keyboard users land on it); the order goes into the fragment.
-  function goTo(id, { flash = true } = {}) {
+  let backTo = null; // { target, from }: after a jump, the target card offers the way back
+  function goTo(id, { flash = true, from = null } = {}) {
     // the order may be filtered out: show all, then go to it
     if (filter && lastOrders && !$(`order-${id}`)) { filter = null; renderAll(lastOrders, lastEnv); }
     const card = $(`order-${id}`);
@@ -1000,6 +1006,23 @@
     focusOrder = id; writeFragment();
     return card;
   }
+  // A jump chip: the card it came from gets a history entry, and the target card a "Back to …" button.
+  function jump(id, from) {
+    if (from !== null && from !== id) {
+      focusOrder = from; writeFragment();
+      backTo = { target: id, from };
+      history.pushState({ jumpFrom: from }, "", location.pathname + location.search + location.hash);
+      rerender();
+    }
+    goTo(id);
+  }
+  function jumpBack() {
+    if (!backTo) return;
+    const { from } = backTo;
+    backTo = null;
+    if (history.state && history.state.jumpFrom === from) history.back(); // hashchange takes it from there
+    else { rerender(); goTo(from); }
+  }
   function setFilter(k) {
     if (!lastOrders) return;
     filter = k && filter !== k ? k : null;
@@ -1010,7 +1033,8 @@
     const f = e.target.closest && e.target.closest("[data-filter]");
     if (f) { setFilter(f.dataset.filter); if (!f.isConnected) { const t = document.querySelector(`#states [data-filter="${filter || f.dataset.filter}"]`) || $("states").querySelector("button"); if (t) t.focus(); } }
     const g = e.target.closest && e.target.closest("[data-goto]");
-    if (g) goTo(Number(g.dataset.goto));
+    if (g) { const c = g.closest("article.card"); jump(Number(g.dataset.goto), c ? Number(c.id.slice(6)) : null); }
+    if (e.target.closest && e.target.closest("[data-back]")) jumpBack();
   });
   // the focused order goes into the fragment, so a reload or a shared link comes back to it
   $("orders").addEventListener("focusin", (e) => {
@@ -1020,8 +1044,10 @@
   window.addEventListener("hashchange", () => {
     const f = new URLSearchParams(location.hash.slice(1));
     filter = STATES[f.get("filter")] ? f.get("filter") : null;
+    const order = /^\d+$/.test(f.get("order") || "") ? Number(f.get("order")) : null;
+    if (backTo && order === backTo.from) backTo = null; // came back
     rerender();
-    if (/^\d+$/.test(f.get("order") || "")) goTo(Number(f.get("order")), { flash: false });
+    if (order !== null) goTo(order, { flash: false });
   });
 
   // ---------------------------------------------------------------- the guide ("How this page works")
@@ -1071,6 +1097,13 @@
     const k = e.key;
     if (/^[1-6]$/.test(k)) { e.preventDefault(); setFilter(STATE_KEYS[Number(k) - 1]); }
     else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(); }
+    else if (k === "Escape" && Object.values(claimState).includes("confirm")) {
+      e.preventDefault(); // cancel the refund confirm; focus back on its refund button
+      const inCard = document.activeElement && document.activeElement.closest && document.activeElement.closest("article.card");
+      const id = Object.keys(claimState).find((i) => claimState[i] === "confirm" && (!inCard || inCard.id === `order-${i}`)) || Object.keys(claimState).find((i) => claimState[i] === "confirm");
+      delete claimState[id]; rerender();
+      const b = document.querySelector(`[data-claim="${id}"]`); if (b) b.focus();
+    }
     else if (k === "Escape" && $("guide").open) { e.preventDefault(); closeGuide(); }
     else if (k === "0" || (k === "Escape" && filter)) { e.preventDefault(); setFilter(null); }
     else if (k === "j" || k === "J" || k === "k" || k === "K") {
@@ -1147,6 +1180,10 @@
   }
 
   $("banner").addEventListener("click", (e) => {
+    if (e.target.closest("[data-live]")) { // the same page without sample=1: it finds the live contract by itself
+      const q = new URLSearchParams(location.search); q.delete("sample");
+      location.search = q.toString();
+    }
     if (e.target.closest("[data-retry]")) tick();
     if (e.target.closest("[data-fix]")) {
       $("cfg-box").open = true;
