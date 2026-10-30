@@ -294,7 +294,7 @@ The freshness window `maxAge` is never relaxed by the tier.
 
 | Item | Value |
 |---|---|
-| Contract chain | Ethereum Sepolia, chain id `11155111`. Scripts use the RPC `https://sepolia.gateway.tenderly.co`; browsers use `https://ethereum-sepolia-rpc.publicnode.com` (allows browser requests) |
+| Contract chain | Ethereum Sepolia, chain id `11155111`. RPCs: `https://ethereum-sepolia-rpc.publicnode.com` (also works from browsers) and `https://sepolia.gateway.tenderly.co`. **Tenderly refused bursts on 30 Oct ~16:20** (`-32603 Internal server error`), so use publicnode when that happens |
 | Payment chain | Base Sepolia `eip155:84532`. aUSD is `0xbeA34973e5f67F18F656A2C6070C64326C791808` (6 decimals). The payer needs no ETH |
 | Companies House Airnode | `https://airnode-companies-house.fly.dev/`, signer `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF` |
 | GLEIF Airnode | `https://airnode-gleif.fly.dev/`, signer `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c` |
@@ -1049,7 +1049,9 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 - §4.6 (cast signatures) and §4.7 (the output of `FETCH_CMD`) only.
 - Until C1/C2, use `FakeChain` and `FakeFetcher` in-memory implementations behind the same adapter interfaces.
 
-**Stack:** Python 3.11+, standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
+**Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
+
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`.
 
 **Modules (`api3/agent/`):**
 
@@ -1060,14 +1062,18 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 | `evidence.py` | `Fetcher` adapter: runs `FETCH_CMD <ch\|gleif> <id>`, parses the §4.1 JSON, and maps exit codes to `NoData`, `PaymentFailed` and `VerificationFailed` |
 | `policy.py` | **A pure function** `plan(snapshot, now, ledger, config) -> list[Action]`. All decisions live here and are unit-tested |
 | `ledger.py` | Persistent state in `api3/agent/state/state.json`: spend per UTC day, attempts and backoff per order, quarantined orders |
-| `pulse_agent.py` | CLI: `run` (loop), `once` (one tick), `plan` (prints the planned actions without acting), `report` (summary of the log) |
-| `tests/` | `unittest` tests for policy, ledger, output parsing and the executor with fakes |
+| `executor.py` | One tick: snapshot, plan, simulate then send, and the failure handling |
+| `journal.py` | The JSONL cycle log and `report` |
+| `model.py` | Shared data types, the §4.3 rule evaluation and labels |
+| `fakes.py` | An in-memory contract with the §4.5 semantics, a fake fetcher and the local registry of §4.8 (`--fake`) |
+| `pulse_agent.py` | CLI: `run` (loop), `once` (one tick), `plan` (prints the planned actions without acting), `report` (summary of the log). `--fake` runs against `fakes.py` |
+| `tests/` | `unittest` tests for policy, ledger, cast output parsing (recorded from real calls), the fetcher's exit codes, and the executor with a full simulated run |
 
 **Config:**
 
 | Variable | Demo | Production |
 |---|---|---|
-| `PULSE_PLUS_ADDRESS`, `EVM_RPC_URL`, `AGENT_PRIVATE_KEY`, `PAYER_PRIVATE_KEY` (used by the fetch script) | required | required |
+| `PULSE_PLUS_ADDRESS`, `EVM_RPC_URLS` (comma-separated, tried in order; `EVM_RPC_URL` also works), `AGENT_PRIVATE_KEY`, `PAYER_PRIVATE_KEY` (used by the fetch script) | required | required |
 | `FETCH_CMD` | `api3/scripts/fetch-evidence.sh` (`fetch-local.sh` on the local chain) | same |
 | `TICK_SECONDS` | 30 | 300 |
 | `DUE_LEAD_SECONDS` | 300 | 86400 |
@@ -1363,7 +1369,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 | A GLEIF pointer is wrong, or a field is missing (C1a) | Fix §4.2 (two constants). If GLEIF fails completely, drop GLEIF and keep Companies House with all its rules |
 | A Companies House field is missing for some companies (HTTP 400) | Use demo companies where all fields exist and document it as a limit. If it's common, remove that field from the template (§4.9, before C2) |
 | AirnodeHub or x402 is down during the demo | Recorded video; the judge page still works with fixtures (stale cases); the v1 and v2 evidence links |
-| Sepolia RPC or gas trouble | `--slow --gas-estimate-multiplier 800`, and a second RPC (publicnode) |
+| Sepolia RPC or gas trouble | `--slow --gas-estimate-multiplier 800`, and a second RPC. Tenderly's public gateway refuses bursts with `-32603`; scripts then switch `EVM_RPC_URL` to publicnode, and the agent fails over automatically (`EVM_RPC_URLS`) |
 | The agent crashes overnight | Supervised loop; state in `state.json`; Julien watches |
 | A needed interface change | §4.9; additive only after C2 |
 | Running out of time | Cut list below |
