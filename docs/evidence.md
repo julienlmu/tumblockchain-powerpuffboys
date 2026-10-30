@@ -166,6 +166,10 @@ Generated with `AGENT_CONTRACT_VERSION=v1 python3 api3/agent/pulse_agent.py repo
 
 Checked on chain for cycle 59: the payment tx (a facilitator batch sent to Multicall3) contains an aUSD `Transfer` of 0.01 (`0x2710`, 6 decimals) from the agent wallet to the AirnodeHub payee `0x1505fd562ac2fb4307b85bc6c672ffeafb4d57a7`, and the contract tx succeeded on `0x91d7…74d7`.
 
+### v2 run (SupplierPulse+ v2, demo profile, since 30 Oct 18:18)
+
+Contract [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) (Orhun's C3 deploy). The agent started on it at 18:18 with no orders yet and acts on the demo orders as soon as they exist. Its transactions are added here at C4 with `python3 api3/agent/pulse_agent.py report --markdown`.
+
 ### C2 integration (local anvil, v1.1 contract, `api3/agent/c2_check.py`)
 
 All six sample orders of `plus-local.sh` (§4.8), the agent at 10 s ticks, 8 checks on chain and in the agent log.
