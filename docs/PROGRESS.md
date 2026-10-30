@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · change report: OpenAI key supported (branch orhun/doc-hash)
+- Changed: `plus-doc-diff.sh` uses `ANTHROPIC_API_KEY` first if set, otherwise `OPENAI_API_KEY` (from env or `api3/.env`). Default OpenAI model `gpt-5-mini`, override with `DOC_SUMMARY_MODEL`. `OPENAI_API_KEY=` added to `api3/.env.example`.
+- Notes: tested live with gpt-5-mini (default) and gpt-5.4-mini on a PO-1001 test pair (quantity, delivery place, payment terms, price changed): both summaries listed all four changes correctly.
+
 ### 2026-10-30 · Orhun · documents: locked or amendable + change report (branch orhun/doc-hash)
 - Changed: new `IOrderDocuments` interface implemented by `SupplierPulsePlus`. `createOrder` stays locked (the hash never changes); `createAmendableOrder` + `amendDocument` accept a new hash only with both buyer and supplier signatures (digest binds chain id, contract, order id, version, previous hash), and every version stays on chain (`documentHistory`). Scripts: `plus-amend-doc.sh sign|submit`, `ORDER_DOC_MODE=amendable` in `plus-create-order.sh`.
 - Changed: `plus-doc-diff.sh` change report (line diff + optional language-model summary when a key is set in `api3/.env`), called by `plus-verify-doc.sh` on a mismatch when the agreed file is given. Informational only, never affects payments. Fixed an early exit when `api3/.env` has no key line.
