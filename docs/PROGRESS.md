@@ -72,6 +72,13 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: agree on the proposals with Orhun, then implement 1 and 3 in `cardano-agent/agent.py`.
 - Notes: Sokosumi preprod: CLI 1.0.4 is broken (`404 route_not_found` on Personal Workspace commands), use 1.1.0. Vendor `powerpuffboys` and Coworker `powerpuffboys-agent` are registered on Julien's account (quickstart path, may not be needed for the MIP-003 agent). Julien's laptop: Node 24, Postgres 17, Foundry; no Docker or cloudflared yet.
 
+### 2026-10-30 · Batu
+- Changed: added `docs/decision-sheet.md` (ideas #0–#5 compared, facts vs inferences) and `docs/status/batu.md`. Docs only, branch `batu/decision-sheet`.
+- Next: Julien picks the idea and API3 scope. After that: README, Devfolio text, video script, pitch.
+- Notes:
+  - Masumi escrow releases after `unlockTime` unless a refund is requested, so "payment tied to result" needs our code to trigger the refund. `agent.py` currently returns a result even when `executed=false`.
+  - AirnodeHub: Nodary ETH/USD is free and first-party. The CoinGecko `simplePrice` used in `fetch-eth-usd.sh` costs $0.02 aUSD (x402).
+
 ### 2026-10-30 · Orhun
 - Changed: API3: added `api3/`, a Foundry vault that verifies AirnodeHub signed ETH/USD (signer, request hash, freshness, no replay) and pays out when the price crosses the threshold. 15 tests incl. all tamper cases; `scripts/local-demo.sh` runs the full flow on anvil. `scripts/submit.sh` for judges (tamper modes: value, stale, request, key), `scripts/agent-run.sh` for the Cardano agent.
 - Next: fetch a real AirnodeHub response, deploy to Base Sepolia (steps in `api3/README.md`), set `VAULT_ADDRESS` for the agent. Confirm the signing format at the API3 workshop.
