@@ -22,6 +22,16 @@ plus_request_hash() {
   fi
 }
 
+# Salted document hash: keccak256(salt ++ file bytes), salt = 32 random bytes (0x + 64 hex).
+# Used as the order's orderRef, so the order documents stay off chain and only this hash is public.
+plus_doc_hash() {
+  [[ -f "$1" ]] || { echo "no such file: $1" >&2; return 2; }
+  [[ "$2" =~ ^0x[0-9a-fA-F]{64}$ ]] || { echo "salt must be 0x + 64 hex characters" >&2; return 2; }
+  cast keccak "$2$(od -An -v -tx1 "$1" | tr -d ' \n')"
+}
+
+plus_new_salt() { echo "0x$(openssl rand -hex 32)"; }
+
 # Latest block timestamp of the chain (due dates and permits use chain time)
 plus_now() {
   cast block latest --rpc-url "$EVM_RPC_URL" -f timestamp
