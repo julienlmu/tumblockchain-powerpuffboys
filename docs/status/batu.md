@@ -2,6 +2,15 @@
 
 Newest on top.
 
+### 2026-10-30 ~14:05 · branch `batu/api3-setup`
+- Done (role E): drafts in `docs/drafts/`.
+  - `README.md`: will replace the root README after team review.
+  - `devfolio.md`: problem, build, how it works, Cardano tools, the API3 questions, real-world use.
+  - `video-script.md`: 2:30 max, voice-over 275 words, covers the Cardano paid job and the API3 tamper test.
+- Facts only from `docs/evidence.md`, `docs/decision-sheet.md` and `docs/samples/`. Missing items are marked `TODO`: SupplierPulse deploy address, judge script, SupplierPulse Cardano app, fifth team member.
+- Checked: every tx hash in the drafts matches `docs/evidence.md`. Julien's PROGRESS entry "first paid job" writes the result tx as `4d622fc4…a6e9a34`; the full hash ends `…d6e9a34`.
+- Next: team review of the drafts. Then move the README to the root and fill the TODOs as Orhun and Julien deliver.
+
 ### 2026-10-30 ~13:55 · branch `batu/api3-setup`
 - Done: `git fetch origin && git rebase origin/main` onto Julien's `68762a5` (Cardano: first paid job and refund path on preprod). Every replayed commit conflicted in the `docs/PROGRESS.md` log. Resolved each time by keeping both sides and dropping exact duplicates. Checked afterwards: no log entry from `origin/main` or from the pre-rebase branch is missing, and the non-log part equals `origin/main`.
 - Fixed: log order by time. Some of Batu's time labels were 8–13 minutes later than the real commit times; they now use the commit times (`git log`), in PROGRESS, in this file and in `docs/decision-sheet.md`.

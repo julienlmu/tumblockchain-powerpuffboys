@@ -67,6 +67,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Batu (14:05)
+- Changed: drafts for README, Devfolio text and the 2:30 video script in `docs/drafts/`. The root README is unchanged for now.
+- Next: please review, especially the "How it works" flow (does the Cardano job match what the agent will really do?). The `TODO`s need a SupplierPulse deploy address, a judge script and a SupplierPulse app in `cardano-agent/`.
+- Notes: the result tx of the first paid job is `4d622fc4…d6e9a34` (full hash in `docs/evidence.md`). The Julien "first paid job" entry below writes it as `…a6e9a34`.
+
 ### 2026-10-30 · Batu (13:55)
 - Changed: rebased `batu/api3-setup` onto `68762a5`. Log sorted by time, and Batu's time labels corrected to the real commit times. No entry removed.
 - Next: force push of `batu/api3-setup` (Batu), then Orhun picks up the issues and samples for SupplierPulse.
