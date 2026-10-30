@@ -24,7 +24,13 @@ Living project doc. Read it before you start; update it with every push.
 
 ## Interfaces
 
-**Cardano agent to EVM script**
+**Cardano agent to SupplierPulse agent script** (`cardano-agent/executors/supplier_pulse.py`, app `apps/supplier-pulse.json`)
+- The agent runs `api3/scripts/supplier-agent.sh` (cwd `cardano-agent/`) with `ORDER_ID` and `COMPANY_NUMBER` set from the job input (`order_id`, `company_number`). The EVM and x402 vars come from `cardano-agent/.env`.
+- The script fetches the signed company profile, calls `checkAndRelease` and logs to stderr. The last stdout line is JSON:
+  - decision: `{"outcome": "Paid" | "AwaitingApproval" | "Held", "txHash": "0x…", "orderId": 0, "milestone": 0, "status": "active", "chainId": 11155111, "contract": "0x…"}`. The agent is paid.
+  - no decision: `{"outcome": "NoData", "reason": "…"}` or exit ≠ 0 (retried until the job deadline), or `{"outcome": "Rejected", "reason": "WrongRequest"}` for a verification revert (final). The buyer is refunded.
+
+**Cardano agent to EVM script (ETH vault, fallback)**
 - The agent runs `api3/scripts/agent-run.sh` with `THRESHOLD_USD` set (from the job input `threshold_usd`).
 - The last stdout line is JSON: `txHash`, `price`, `executed`, `chainId`, `vault`, `orderId`. The agent returns it as the job result.
 
@@ -66,6 +72,12 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next:
 - Notes: (tx hashes, addresses, blockers)
 ```
+
+### 2026-10-30 · Julien (Cardano) · SupplierPulse on the Cardano side
+- Changed: the Cardano side is ready for SupplierPulse. New app `apps/supplier-pulse.json` + `executors/supplier_pulse.py`, paid for a verified decision as in the plan: `Paid`, `AwaitingApproval` and `Held` put the result on chain and the escrow pays the agent. `NoData` retries until the deadline and `Rejected` is final; both refund the buyer. Tested on preprod with a simulated EVM side (`apps/supplier-pulse-sim.json`): a held supplier means the agent is paid (job `09fa4cf7…`), no data means 5 tADA back to the buyer (job `79293455…`). Seller receipt verified on chain for job `c00c4fcf…`: 5 tADA from escrow into the selling wallet (tx `1929a3d1…`). 16 tests.
+- **Orhun:** the agent script the Cardano side calls is specified under "Interfaces" above (`api3/scripts/supplier-agent.sh`, env `ORDER_ID` + `COMPANY_NUMBER`, one JSON line out). Once it exists, the only change is `APP_CONFIG=apps/supplier-pulse.json`.
+- Next: seller payout of the held job (~14:40). A real SupplierPulse job once the script and the Sepolia deployment exist; it needs the EVM gas key and the aUSD payer key in `cardano-agent/.env` on Julien's laptop. Rename the Masumi registration to SupplierPulse. Cardano Devfolio text.
+- Notes: Masumi collects the seller's payment 10 min after the unlock time, so with the `.env.example` deadlines the agent is paid ~46 min after a job. In payment service 0.29 a buyer can release early only through the dispute path.
 
 ### 2026-10-30 · Orhun
 - Changed: `api3/src/SupplierPulse.sol`: milestone payments to a supplier. Each payment needs a permit from fresh signed registry evidence (status `active`), bound to one order, supplier wallet, stage and amount, expiring after `permitTtl` and used up by the payment. Any other status holds the rest; the buyer can take it back. 14 tests (pay, hold + refund, expiry, approval, edited status, stale, other company, wrong key, replay). `PriceParser.parseString` added.

@@ -10,8 +10,10 @@ locked, process_job runs the selected app's executor through the gate
   escrow releases to us after the unlock time.
 - not passed (after any retries, before the deadline): no result goes on
   chain. The job is recorded as refundable and refunds.py authorizes the
-  buyer's refund request, so the customer only pays for work that passed.
+  buyer's refund request, so the customer only pays for a delivered result.
 
+What counts as passed is the app's call. For SupplierPulse, any verified
+decision passes, including a held payment (see executors/supplier_pulse.py).
 APP_CONFIG selects the app (default apps/mock.json).
 """
 import json

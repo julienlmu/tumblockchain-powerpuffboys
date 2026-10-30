@@ -1,4 +1,4 @@
-"""Tests for the pay-on-pass gate, the refund store and the proof's tx list.
+"""Tests for the pay-on-pass gate, the SupplierPulse executor, the refund store and the proof's tx list.
 
 Run from cardano-agent/: venv/bin/python -m unittest -v
 """
@@ -12,6 +12,7 @@ from receipt import transactions
 from refunds import RefundStore
 
 MOCK = load_app("apps/mock.json")
+PULSE_SIM = load_app("apps/supplier-pulse-sim.json")
 
 
 def app(**overrides):
@@ -52,6 +53,45 @@ class GateTest(unittest.IsolatedAsyncioTestCase):
     async def test_option_given_as_index_list(self):
         verdict, _ = await gate(app(), [1])  # index 1 = "fail"
         self.assertFalse(verdict.passed)
+
+
+def pulse(**overrides):
+    return dataclasses.replace(PULSE_SIM, **{"retry_interval_s": 0, "max_wait_s": 1, **overrides})
+
+
+async def check_supplier(a, company):
+    return await run_gate(a, {"order_id": 3, "company_number": company}, deadline_for(a), log=lambda *_: None)
+
+
+class SupplierPulseTest(unittest.IsolatedAsyncioTestCase):
+    async def test_active_supplier_paid_is_a_delivered_decision(self):
+        verdict, _ = await check_supplier(pulse(), "01234567")
+        self.assertTrue(verdict.passed)
+        self.assertEqual(verdict.evidence["outcome"], "Paid")
+
+    async def test_held_payment_is_a_delivered_decision(self):
+        verdict, _ = await check_supplier(pulse(), "07654321")
+        self.assertTrue(verdict.passed)
+        self.assertEqual(verdict.evidence["outcome"], "Held")
+
+    async def test_no_data_retries_then_fails(self):
+        verdict, attempts = await check_supplier(pulse(), "99999999")
+        self.assertFalse(verdict.passed)
+        self.assertGreater(len(attempts), 1)
+        self.assertEqual(verdict.evidence["outcome"], "NoData")
+
+    async def test_rejected_evidence_is_final(self):
+        rejected = 'echo \'{"outcome": "Rejected", "reason": "WrongRequest"}\''
+        a = pulse(executor=[sys.executable, "executors/supplier_pulse.py", "/bin/sh", "-c", rejected])
+        verdict, attempts = await check_supplier(a, "01234567")
+        self.assertFalse(verdict.passed)
+        self.assertEqual(len(attempts), 1)
+
+    async def test_missing_agent_script_is_no_data(self):
+        a = pulse(executor=[sys.executable, "executors/supplier_pulse.py", "./no-such-script.sh"], max_wait_s=0)
+        verdict, _ = await check_supplier(a, "01234567")
+        self.assertFalse(verdict.passed)
+        self.assertTrue(verdict.retryable)
 
 
 class ParseAndDeadlineTest(unittest.TestCase):

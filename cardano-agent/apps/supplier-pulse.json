@@ -1,0 +1,47 @@
+{
+  "name": "supplier-pulse",
+  "description": "Checks the supplier's current Companies House status (signed via API3 AirnodeHub) before the next milestone payment of a SupplierPulse order and applies the decision on chain: paid, waiting for approval, or held. Paid for the verified decision, refunded if none could be made.",
+  "executor": [
+    "{python}",
+    "executors/supplier_pulse.py",
+    "../api3/scripts/supplier-agent.sh"
+  ],
+  "timeout_s": 240,
+  "retry": {
+    "interval_s": 60,
+    "max_wait_s": 300
+  },
+  "submit_margin_s": 300,
+  "input_schema": {
+    "input_data": [
+      {
+        "id": "order_id",
+        "type": "number",
+        "name": "SupplierPulse order ID",
+        "data": {
+          "description": "Your order in the SupplierPulse contract. The agent checks the supplier before its next payment."
+        },
+        "validations": [
+          {
+            "validation": "min",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "id": "company_number",
+        "type": "string",
+        "name": "Supplier company number",
+        "data": {
+          "description": "Companies House number of the supplier, e.g. 01234567"
+        },
+        "validations": [
+          {
+            "validation": "min",
+            "value": "1"
+          }
+        ]
+      }
+    ]
+  }
+}

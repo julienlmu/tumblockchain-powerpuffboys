@@ -1,0 +1,48 @@
+{
+  "name": "supplier-pulse-sim",
+  "description": "SIMULATED SupplierPulse (no registry call, no EVM tx) to test the Cardano side. Company 01234567 is active (paid), 07654321 is dissolved (held), anything else has no data (refund).",
+  "executor": [
+    "{python}",
+    "executors/supplier_pulse.py",
+    "{python}",
+    "executors/supplier_agent_sim.py"
+  ],
+  "timeout_s": 30,
+  "retry": {
+    "interval_s": 30,
+    "max_wait_s": 90
+  },
+  "submit_margin_s": 120,
+  "input_schema": {
+    "input_data": [
+      {
+        "id": "order_id",
+        "type": "number",
+        "name": "SupplierPulse order ID",
+        "data": {
+          "description": "Your order in the SupplierPulse contract. The agent checks the supplier before its next payment."
+        },
+        "validations": [
+          {
+            "validation": "min",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "id": "company_number",
+        "type": "string",
+        "name": "Supplier company number",
+        "data": {
+          "description": "Companies House number of the supplier, e.g. 01234567"
+        },
+        "validations": [
+          {
+            "validation": "min",
+            "value": "1"
+          }
+        ]
+      }
+    ]
+  }
+}
