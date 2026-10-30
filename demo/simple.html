@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try to Break It</title>
+<!-- The simple view of "Try to break it" (judge.html is the detailed view). One signed record, the four tamper cases
+     of the API3 track and the replay, each judged by the live contract: an eth_call of submitEvidence from 0x…dEaD,
+     exactly as in judge.html. No wallet and no gas, except the one real send of the replay step. -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
+<script src="common.js"></script>
+<link rel="stylesheet" href="base.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232457d6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
+<style>
+  .wrap { max-width: 720px; padding-top: var(--s5); }
+  header { align-items: center; }
+  .brand { font-weight: 700; font-size: var(--t0); color: var(--text); text-decoration: none; }
+  .brand:hover { text-decoration: none; }
+  .brand .plus { color: var(--accent); }
+  #theme-btn { width: 36px; padding: 0; }
+  main { margin-top: var(--s7); display: flex; flex-direction: column; gap: var(--s5); }
+  .intro h1 { font-size: var(--t5); letter-spacing: -0.02em; }
+  .intro p { margin: var(--s2) 0 0; color: var(--muted); font-size: var(--t1); line-height: 1.45; max-width: 52ch; text-wrap: pretty; }
+  .intro .ctx { margin-top: var(--s3); font-size: var(--t-1); }
+  .intro .ctx b { color: var(--text); font-weight: 500; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s5); display: flex; flex-direction: column; gap: var(--s3); }
+  .card h2 { margin: 0; font-size: var(--t0); font-weight: 600; }
+  .card-head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between; }
+  .order { display: flex; gap: var(--s2); align-items: center; font-size: var(--t-1); color: var(--muted); min-width: 0; flex: 1 1 240px; justify-content: flex-end; }
+  .order select { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+  .rec-line { margin: 0; display: flex; gap: var(--s2); align-items: flex-start; font-size: var(--t0); }
+  .rec-line .i { margin-top: 0.2em; }
+  .rec-line.ok .i { color: var(--ok); } .rec-line.warn { color: var(--wait); } .rec-line.bad { color: var(--hold); }
+  .rec-line.info { color: var(--muted); }
+  .rec-line .sub { color: var(--muted); }
+  .rec-line.warn .sub, .rec-line.bad .sub { color: inherit; }
+  .acts { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  textarea { width: 100%; font-family: var(--mono); font-size: 12px; line-height: 1.45; resize: vertical; display: block; }
+  textarea[aria-invalid="true"] { border-color: var(--hold); }
+  button.link { background: none; border: none; padding: 0; min-height: 0; color: var(--accent); font-size: var(--t-1); }
+  button.link:hover { background: none; text-decoration: underline; }
+  details.how > summary { color: var(--accent); }
+  .how-body { margin-top: var(--s2); font-size: var(--t-1); color: var(--muted); display: flex; flex-direction: column; gap: var(--s2); }
+  .cmd-line { display: flex; gap: 6px; align-items: flex-start; }
+  .cmd-line code { flex: 1 1 auto; min-width: 0; background: var(--bg); padding: 6px 8px; border-radius: var(--r-sm); overflow-wrap: anywhere; color: var(--text); }
+  .cmd-line .copy { margin-left: 0; flex: none; }
+
+  button.run { min-height: 52px; font-size: var(--t1); border-radius: var(--r-lg); }
+
+  /* the verdict: one sentence, coloured by the outcome, with its icon and word (never colour alone) */
+  .verdict { border-radius: var(--r-md); padding: var(--s4); display: flex; gap: var(--s3); align-items: flex-start; }
+  .verdict .i { width: 28px; height: 28px; stroke-width: 2.2; }
+  .verdict .big { font-size: var(--t2); font-weight: 700; line-height: 1.2; }
+  .verdict .why { margin-top: 2px; color: var(--text); }
+  .verdict.ok { background: var(--ok-bg); color: var(--ok); }
+  .verdict.warn { background: var(--wait-bg); color: var(--wait); }
+  .verdict.bad { background: var(--hold-bg); color: var(--hold); }
+
+  ol.results { list-style: none; margin: 0; padding: 0; }
+  ol.results > li { border-top: 1px solid var(--line); }
+  ol.results > li:first-child { border-top: none; }
+  .line { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: var(--s3); align-items: center; padding: var(--s3) 0; }
+  ol.results summary { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto 14px; gap: var(--s3); align-items: center; width: 100%; padding: var(--s3) 0; color: var(--text); font-size: var(--t0); border-radius: var(--r-sm); }
+  ol.results summary::before { order: 9; color: var(--muted); }
+  ol.results summary:hover { color: var(--text); }
+  .nm { display: flex; flex-direction: column; min-width: 0; }
+  .nm b { font-weight: 600; }
+  .nm .sub { color: var(--muted); font-size: var(--t-1); }
+  .st { display: grid; place-items: center; width: 24px; height: 24px; }
+  .st .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line-strong); }
+  .out { font-size: var(--t-1); color: var(--muted); text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .out .mono { font-size: 12px; }
+  li.pass .st, li.pass .out { color: var(--ok); }
+  li.near .st, li.near .out { color: var(--wait); }
+  li.fail .st, li.fail .out { color: var(--hold); }
+  li.pass .out, li.near .out, li.fail .out { font-weight: 600; }
+  .more { margin: 0 0 var(--s3) calc(24px + var(--s3)); font-size: var(--t-1); color: var(--muted); display: flex; flex-direction: column; gap: var(--s1); overflow-wrap: anywhere; }
+  .more p { margin: 0; }
+  .more .what { color: var(--text); }
+  .replay-act { margin: 0 0 var(--s3) calc(24px + var(--s3)); display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; font-size: var(--t-1); color: var(--muted); }
+  .foot { margin: 0; font-size: var(--t-1); color: var(--muted); text-align: center; }
+
+  @media (max-width: 520px) {
+    main { margin-top: var(--s5); }
+    .intro h1 { font-size: var(--t4); }
+    .intro p { font-size: var(--t0); }
+    .card { padding: var(--s4); }
+    .order { justify-content: flex-start; flex-basis: 100%; }
+    .order select { flex: 1 1 auto; }
+    ol.results summary { grid-template-columns: 24px minmax(0, 1fr) 14px; }
+    ol.results summary .out { grid-column: 2; grid-row: 2; align-items: flex-start; text-align: left; }
+    .line { grid-template-columns: 24px minmax(0, 1fr); }
+    .line .out { grid-column: 2; align-items: flex-start; text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" id="dash-link" href="index.html">SupplierPulse<span class="plus">+</span></a>
+    <div class="head-links">
+      <nav class="view-switch" aria-label="View"><a href="simple.html" aria-current="page">Simple</a><a id="detailed-link" href="judge.html">Detailed</a></nav>
+      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"></button>
+    </div>
+  </header>
+
+  <main>
+    <div class="intro">
+      <h1>Try to break it</h1>
+      <p>Forge a signed register record four ways and see whether the live contract would act on any of them. Every attempt is simulated: no wallet, no gas.</p>
+      <p class="ctx" id="ctx">Connecting to the contract…</p>
+    </div>
+
+    <section class="card" aria-labelledby="rec-h">
+      <div class="card-head">
+        <h2 id="rec-h">The signed record</h2>
+        <label class="order">Order <select id="order" disabled><option>Reading the orders…</option></select></label>
+      </div>
+      <p class="rec-line" id="rec-line" role="status" aria-live="polite"></p>
+      <div class="acts" id="local-acts" hidden>
+        <button type="button" id="resign" data-icon="key">Sign a new one</button>
+        <button type="button" class="link" id="own-toggle" aria-expanded="false" aria-controls="own">Use my own record instead</button>
+      </div>
+      <div id="own" hidden>
+        <textarea id="resp" rows="4" spellcheck="false" aria-label="Signed record (JSON)" placeholder="Paste the signed record JSON (from fetch-evidence.sh), or drop the file here"></textarea>
+        <div class="acts" style="margin-top: var(--s2)">
+          <button type="button" id="upload-btn" data-icon="upload">Upload file</button><input type="file" id="file" accept=".json,application/json" hidden>
+          <details class="how" id="how"><summary>No record? Get a fresh one</summary><div class="how-body" id="how-body"></div></details>
+        </div>
+      </div>
+    </section>
+
+    <button type="button" class="primary run" id="run" data-icon="play" disabled>Run the tamper test</button>
+
+    <section class="card" aria-labelledby="res-h">
+      <h2 id="res-h">What the contract says</h2>
+      <div id="verdict" role="status" aria-live="polite"></div>
+      <ol class="results" id="results"></ol>
+    </section>
+
+    <p class="foot">The <a id="detailed-foot" href="judge.html">detailed view</a> adds attacks with genuine old records, every check the contract runs, a scoreboard and the judge kit.</p>
+  </main>
+</div>
+
+<script>
+(() => {
+  const P = window.PULSE;
+  const { esc, short, nowSec } = P;
+  const $ = (id) => document.getElementById(id);
+  // Public anvil test keys (§4.8), the same as judge.html. Used only on the local test chain (chain id 31337).
+  const LOCAL = {
+    signer: ["0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"],
+    agent: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
+    // api3/x402/local-registry.json
+    registry: {
+      "ch:01234567": { accounts_overdue: false, confirmation_overdue: false, status: "active" },
+      "ch:07654321": { accounts_overdue: true, confirmation_overdue: false, status: "liquidation" },
+      "gleif:TESTLEI0000000000000": { entity_status: "ACTIVE", registration_status: "ISSUED" },
+      "gleif:TESTLEI0000000000001": { entity_status: "ACTIVE", registration_status: "LAPSED" },
+    },
+    clean: [{ accounts_overdue: false, confirmation_overdue: false, status: "active" }, { entity_status: "ACTIVE", registration_status: "ISSUED" }],
+  };
+  // The real record and the four tamper cases of the API3 track, then the replay.
+  const ROWS = [
+    { mode: "asis", name: "The real record", sub: "untouched", expect: "accepted" },
+    { mode: "value", name: "(a) One value edited", sub: "a value in the signed data changed, signature kept", expect: "WrongSigner" },
+    { mode: "stale", name: "(b) Too old", sub: "dated one hour earlier", expect: "StaleResponse" },
+    { mode: "request", name: "(c) Another company", sub: "the request of a different company", expect: "WrongRequest" },
+    { mode: "key", name: "(d) Wrong key", sub: "re-signed by a random key", expect: "WrongSigner" },
+  ];
+  const REPLAY = { mode: "replay", name: "Replay", sub: "the real record, sent a second time", expect: "Replayed" };
+
+  const params = new URLSearchParams(location.search);
+  const cfg = { contract: params.get("contract") || "", rpc: params.get("rpc") || P.DEFAULT_RPC, order: params.get("order") };
+
+  // ---------------------------------------------------------------- theme (shared with the other pages)
+
+  const THEMES = ["auto", "light", "dark"];
+  let theme = "auto";
+  try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
+  function applyTheme() {
+    if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
+    $("theme-btn").innerHTML = P.icon("theme");
+    $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
+    $("theme-btn").dataset.tip = `Theme: ${theme}`;
+  }
+  $("theme-btn").addEventListener("click", () => {
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    try { localStorage.setItem("pulse-theme", theme); } catch { /* storage blocked */ }
+    applyTheme();
+  });
+  applyTheme();
+  P.hydrateIcons();
+
+  // ---------------------------------------------------------------- state
+
+  let provider = null, contract = null, chainId = null, explorer = null, version = 2, maxAge = 300;
+  let iface = new ethers.Interface(P.ABI);
+  const order = { id: null, info: null, airnode: null };
+  const nameOf = P.orderNamer();
+  const sent = new Map(); // digest -> block of the records this tab sent for real
+  let record = null, recordErr = "", ownMode = false, busy = false, lastPass = false;
+  const isLocal = () => chainId === 31337 && version === 2;
+  const digestOf = (r) => P.digestOf(r.requestHash, r.timestamp, r.data).toLowerCase();
+
+  // One order model for v1 and v2, the same as judge.html.
+  async function readOrder(id) {
+    if (version === 2) {
+      const [info, st] = await Promise.all([contract.orderInfo(id), contract.orderStatus(id)]);
+      return { source: Number(info.source), supplierId: info.supplierId, requestHash: info.requestHash, orderRef: info.orderRef, state: Number(st.state), lastCheck: Number(st.lastCheck) };
+    }
+    const [info, st, num] = await Promise.all([contract.orderInfo(id), contract.orderStatus(id), contract.companyNumberOf(id)]);
+    return { source: 0, supplierId: num, requestHash: info.companyRequest, orderRef: info.orderRef, state: Number(st.state), lastCheck: Number(st.lastCheck) };
+  }
+  const airnodeFor = (source) => (version === 2 ? contract.airnodeOf(source) : contract.airnode());
+  async function chainNow() {
+    // a local anvil only mines on transactions: mine one empty block so its clock is now (local test chain only)
+    if (chainId === 31337) { try { await provider.send("evm_mine", []); } catch { /* not anvil */ } }
+    return Number((await provider.getBlock("latest")).timestamp);
+  }
+
+  // The other view and the dashboard keep the contract, the network and the order.
+  function viewLinks() {
+    const q = new URLSearchParams();
+    if (cfg.contract) q.set("contract", cfg.contract);
+    if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
+    const dq = q.toString();
+    if (order.id !== null) q.set("order", order.id);
+    $("detailed-link").href = $("detailed-foot").href = "judge.html" + (q.toString() ? "?" + q : "");
+    $("dash-link").href = (version === 1 ? "v1.html?orders=0,1" + (dq ? "&" + dq : "") : "index.html" + (dq ? "?" + dq : ""));
+  }
+
+  // ---------------------------------------------------------------- the record
+
+  function recLine(kind, html) {
+    const icon = { ok: "check", warn: "alert", bad: "x", wait: "loader", info: "info" }[kind];
+    $("rec-line").className = "rec-line " + kind;
+    $("rec-line").innerHTML = `${P.icon(icon, kind === "wait" ? "spin" : "")}<span>${html}</span>`;
+  }
+  function describe(r) {
+    const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
+    return `${esc(s.name)} <span class="mono">${esc(r.supplierId || "?")}</span>`;
+  }
+  // Says what the loaded record is, and what is wrong with it, before Run is pressed.
+  function showRecord() {
+    if (recordErr) { recLine("bad", esc(recordErr)); return; }
+    if (!record) { recLine("info", ownMode || !isLocal() ? "No record yet. Paste one, upload the file, or get a fresh one below." : "No record yet."); return; }
+    const age = nowSec() - Number(record.timestamp);
+    const who = describe(record);
+    if (order.info && record.supplierId && String(record.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
+      recLine("warn", `A record of ${who}, but this order is for <span class="mono">${esc(order.info.supplierId)}</span>. <span class="sub">Every attempt would stop at the request check: pick the matching order or load its record.</span>`);
+    else if (sent.has(digestOf(record)))
+      recLine("warn", `This record of ${who} was sent for real in block ${sent.get(digestOf(record))}. <span class="sub">${isLocal() && !ownMode ? "Press Run: a new one is signed for you." : "Load a fresh one to test again."}</span>`);
+    else if (age > maxAge)
+      recLine("warn", `A record of ${who}, signed ${P.ago(age)}. <span class="sub">Too old: the contract accepts at most ${maxAge} s, so every forgery would stop at the freshness check.${isLocal() && !ownMode ? " Press Run: a new one is signed for you." : ""}</span>`);
+    else
+      recLine("ok", `A fresh record of ${who}, signed ${P.ago(Math.max(0, age))}${isLocal() && !ownMode ? " in your browser with the public local test key" : ""}. <span class="sub">Fresh for ${P.span(maxAge - age)} more.</span>`);
+  }
+  setInterval(() => { if (record && !recordErr) showRecord(); }, 1000);
+
+  function readBox() {
+    const text = $("resp").value.trim();
+    record = null; recordErr = "";
+    $("resp").removeAttribute("aria-invalid");
+    if (!text) return;
+    let obj;
+    try { obj = JSON.parse(text); } catch { recordErr = "This is not valid JSON. Paste the whole file from fetch-evidence.sh."; }
+    if (obj) { try { record = P.normalizeRecord(obj, order.info ? order.info.source : 0); } catch (e) { recordErr = `This is not a signed record: ${e.message}.`; } }
+    if (recordErr) $("resp").setAttribute("aria-invalid", "true");
+  }
+  let typing = null;
+  $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => { readBox(); showRecord(); resetResults(); }, 300); });
+  async function loadFile(f) {
+    if (!f) return;
+    $("resp").value = await f.text();
+    readBox(); showRecord(); resetResults();
+  }
+  $("upload-btn").addEventListener("click", () => $("file").click());
+  $("file").addEventListener("change", async (e) => { await loadFile(e.target.files[0]); e.target.value = ""; });
+  $("resp").addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
+  $("resp").addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (!f) return; e.preventDefault(); loadFile(f); });
+
+  // Local test chain: a fresh record of the order's supplier, signed in the browser with the public test key.
+  async function signFresh() {
+    const source = Number(order.info.source), id = order.info.supplierId;
+    const fields = LOCAL.registry[`${P.SOURCES[source].key}:${id}`] || LOCAL.clean[source];
+    const raw = JSON.stringify(fields);
+    const data = ethers.hexlify(ethers.toUtf8Bytes(raw));
+    const ts = String(await chainNow());
+    const requestHash = P.requestHashFor(source, id);
+    const w = new ethers.Wallet(LOCAL.signer[source]);
+    const signature = await w.signMessage(ethers.getBytes(P.digestOf(requestHash, ts, data)));
+    record = P.normalizeRecord({ source: P.SOURCES[source].key, supplierId: id, airnode: w.address, requestHash, timestamp: ts, data, raw, signature }, source);
+    recordErr = "";
+    showRecord();
+  }
+  $("resign").addEventListener("click", () => signFresh().then(resetResults).catch((e) => recLine("bad", esc(P.friendlyError(e, { rpc: cfg.rpc }).text))));
+  function setOwn(on) {
+    ownMode = on;
+    $("own").hidden = !on;
+    $("own-toggle").setAttribute("aria-expanded", String(on));
+    $("own-toggle").textContent = on ? "Use a record signed in the browser instead" : "Use my own record instead";
+    if (on) { readBox(); $("resp").focus(); } else if (isLocal() && order.info) signFresh().catch(() => {});
+    showRecord(); resetResults();
+  }
+  $("own-toggle").addEventListener("click", () => setOwn(!ownMode));
+
+  function howToGet() {
+    const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
+    const id = order.info ? order.info.supplierId : "09729896";
+    const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
+    $("how-body").innerHTML = `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>
+      <p style="margin:0">From a checkout of this repo, with Node 22 or newer and <span class="mono">PAYER_PRIVATE_KEY</span> set to a Base Sepolia
+      wallet holding aUSD (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>).
+      Each record costs $0.01 and stays fresh for ${maxAge} s. Then upload <span class="mono">response.json</span> here.</p>`;
+  }
+
+  // ---------------------------------------------------------------- results
+
+  function rowHtml(row) {
+    const exp = row.expect === "accepted" ? "should be accepted" : `should be rejected`;
+    return `<li data-mode="${row.mode}"><details><summary><span class="st" aria-hidden="true"><span class="dot"></span></span>
+      <span class="nm"><b>${esc(row.name)}</b><span class="sub">${esc(row.sub)}</span></span><span class="out">${exp}</span></summary>
+      <div class="more"><p>Expected answer: <span class="mono">${esc(row.expect)}</span>.</p></div></details></li>`;
+  }
+  function replayHtml() {
+    return `<li data-mode="replay"><div class="line"><span class="st" aria-hidden="true"><span class="dot"></span></span>
+      <span class="nm"><b>${REPLAY.name}</b><span class="sub">${REPLAY.sub}</span></span><span class="out">should be rejected</span></div>
+      <div class="replay-act" id="replay-act">After a passed test: send the real record for real, then submit it again.</div></li>`;
+  }
+  function resetResults() {
+    lastPass = false;
+    $("run").classList.add("primary");
+    $("verdict").innerHTML = "";
+    $("results").innerHTML = ROWS.map(rowHtml).join("") + replayHtml();
+  }
+  function setRow(mode, state, out, more) {
+    const li = $("results").querySelector(`li[data-mode="${mode}"]`);
+    li.className = state;
+    const icon = { running: P.icon("loader", "spin"), pass: P.icon("check"), near: P.icon("alert"), fail: P.icon("x") }[state] || `<span class="dot"></span>`;
+    li.querySelector(".st").innerHTML = icon;
+    if (out !== undefined) li.querySelector(".out").innerHTML = out;
+    if (more !== undefined && li.querySelector(".more")) li.querySelector(".more").innerHTML = more;
+  }
+
+  // One attempt: the tampered record, asked of the contract as an eth_call of submitEvidence from 0x…dEaD.
+  async function attempt(base, mode) {
+    const t = await P.tamper(base, mode, version === 1 ? { requestHashFor: P.requestHashV1 } : {});
+    const r = t.record;
+    try {
+      const ret = await provider.call({ to: cfg.contract, from: P.DEAD, data: iface.encodeFunctionData("submitEvidence", [order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature]) });
+      return { t, accepted: true, clean: iface.decodeFunctionResult("submitEvidence", ret)[0] };
+    } catch (e) {
+      const err = P.decodeRevert(iface, e);
+      if (!err) throw e; // the RPC, not the contract, failed
+      return { t, accepted: false, err };
+    }
+  }
+  // pass = as the track expects; near = rejected, but by an earlier check (or the real record refused); fail = a forgery accepted
+  function judge(row, a) {
+    if (row.mode === "asis") return a.accepted ? "pass" : "near";
+    if (a.accepted) return "fail";
+    return a.err.name === row.expect ? "pass" : "near";
+  }
+  function outText(row, a, state) {
+    if (a.accepted) return row.mode === "asis" ? `Accepted<span>${a.clean ? "would pay this milestone" : "would hold the order"}</span>` : "Accepted: not stopped";
+    const name = `<span class="mono">${esc(a.err.name)}</span>`;
+    return row.mode === "asis" ? `Refused${name}` : state === "pass" ? `Rejected${name}` : `Rejected earlier${name}`;
+  }
+  function moreText(row, a, state) {
+    const why = a.accepted
+      ? (a.clean ? "The record is genuine, fresh and meant for this order, and the supplier passes every rule: the contract would issue a payment permit, the go-ahead to pay the next milestone." : "The record is genuine, but the supplier fails the buyer's rules: the contract would hold the order and protect the balance.")
+      : P.explain(a.err.name, a.err.args, { expectedSigner: order.airnode });
+    const note = state === "near" && row.mode !== "asis" ? `<p>Expected <span class="mono">${esc(row.expect)}</span>: an earlier check stopped it first.</p>` : "";
+    return `<p class="what">${esc(a.t.what)}</p><p>${esc(why)}</p>${note}`;
+  }
+
+  function verdict(kind, big, why) {
+    const icon = { ok: "shield", warn: "alert", bad: "x" }[kind];
+    $("verdict").innerHTML = `<div class="verdict ${kind}">${P.icon(icon)}<div><div class="big">${big}</div><div class="why">${why}</div></div></div>`;
+  }
+  function setBusy(on, label) {
+    busy = on;
+    for (const b of document.querySelectorAll("#run, #resign, #order, #upload-btn, #resp, #own-toggle, #replay-btn")) b.disabled = on;
+    $("run").innerHTML = on ? `${P.icon("loader", "spin")}${label}` : `${P.icon("play")}Run the tamper test`;
+    $("results").setAttribute("aria-busy", String(on));
+  }
+
+  async function runTest() {
+    if (busy || !order.info) return;
+    if (isLocal() && !ownMode && (!record || sent.has(digestOf(record)) || nowSec() - Number(record.timestamp) > maxAge - 20)) await signFresh();
+    if (ownMode) readBox();
+    if (!record) {
+      showRecord();
+      if (ownMode || !isLocal()) { $("resp").focus(); $("how").open = true; }
+      return;
+    }
+    const age = (await chainNow()) - Number(record.timestamp);
+    if (age > maxAge || sent.has(digestOf(record))) {
+      resetResults();
+      verdict("warn", sent.has(digestOf(record)) ? "This record is already on chain" : `This record is ${P.span(age)} old`,
+        `With it, every forgery would stop ${sent.has(digestOf(record)) ? "early" : "at the freshness check"}, so the test would show nothing. Get a fresh one (below) and run again.`);
+      $("how").open = true;
+      $("verdict").scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      return;
+    }
+    resetResults();
+    const results = [];
+    setBusy(true, "Asking the contract…");
+    try {
+      for (const [i, row] of ROWS.entries()) {
+        $("run").innerHTML = `${P.icon("loader", "spin")}Asking the contract… ${i + 1} of ${ROWS.length}`;
+        setRow(row.mode, "running");
+        const a = await attempt(record, row.mode);
+        const state = judge(row, a);
+        results.push({ row, a, state });
+        setRow(row.mode, state, outText(row, a, state), moreText(row, a, state));
+      }
+    } catch (e) {
+      for (const row of ROWS) if ($("results").querySelector(`li[data-mode="${row.mode}"]`).className === "running") setRow(row.mode, "");
+      verdict("bad", "Could not ask the contract", `${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)} Nothing was sent; press Run to try again.`);
+      return;
+    } finally { setBusy(false); }
+    const valid = results[0], attacks = results.slice(1);
+    const caught = attacks.filter((x) => !x.a.accepted).length;
+    if (valid.a.accepted && caught === attacks.length) {
+      lastPass = true;
+      verdict("ok", "Passed", `The contract accepted the real record and rejected all ${attacks.length} forgeries. Press a row to see why.`);
+      $("replay-act").innerHTML = `<button type="button" class="primary" id="replay-btn" data-icon="send">Send for real, then replay</button>
+        <span>${isLocal() ? "Sent with the local test chain's agent key." : "MetaMask asks first; it costs a little Sepolia gas."}</span>`;
+      P.hydrateIcons($("replay-act"));
+      $("run").classList.remove("primary");
+    } else if (caught === attacks.length) {
+      verdict("warn", "Not tested", `The contract refused the real record itself (<span class="mono">${esc(valid.a.err.name)}</span>), so the forgeries never reached their own checks. Nothing failed in the contract: load a fresh record and run again.`);
+    } else {
+      verdict("bad", "Not passed", `The contract accepted ${attacks.length - caught === 1 ? "a forgery" : `${attacks.length - caught} forgeries`}: ${attacks.filter((x) => x.a.accepted).map((x) => esc(x.row.name)).join(", ")}.`);
+    }
+  }
+  $("run").addEventListener("click", () => runTest().catch((e) => { setBusy(false); verdict("bad", "Could not ask the contract", esc(P.friendlyError(e, { rpc: cfg.rpc }).text)); }));
+
+  // The replay step: the one real transaction. Local chain: the public agent key; elsewhere: MetaMask.
+  async function sendForReal(r) {
+    let signer;
+    if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
+    else {
+      if (!window.ethereum) throw new Error("No browser wallet found. Install MetaMask, or send it from a terminal: api3/scripts/plus-submit.sh <order> response.json --send");
+      const bp = new ethers.BrowserProvider(window.ethereum);
+      await bp.send("eth_requestAccounts", []);
+      if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
+      signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
+    }
+    const c = new ethers.Contract(cfg.contract, version === 2 ? P.ABI : P.ABI_V1, signer);
+    const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature);
+    $("replay-act").innerHTML = `${P.icon("loader", "spin")}<span>Sent ${txLink(tx.hash)}, waiting for the block…</span>`;
+    let rc;
+    try { rc = await tx.wait(); } catch (e) { rc = e.receipt || null; if (!rc) throw e; } // ethers 6 throws on a reverted receipt
+    return { status: rc.status, hash: tx.hash, block: rc.blockNumber };
+  }
+  const txLink = (h) => explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}</a>` : `<span class="mono">${short(h)}</span>`;
+  async function replay() {
+    if (busy || !lastPass || !record) return;
+    const r = record;
+    setBusy(true, "Sending the real record…");
+    setRow("replay", "running");
+    try {
+      const s = await sendForReal(r);
+      if (s.status !== 1) { setRow("replay", "fail", "Not sent"); $("replay-act").innerHTML = `The send reverted on chain in block ${s.block}: ${txLink(s.hash)}`; return; }
+      sent.set(digestOf(r), s.block);
+      $("run").innerHTML = `${P.icon("loader", "spin")}Submitting it again…`;
+      const a = await attempt(r, "replay");
+      const state = a.accepted ? "fail" : a.err.name === "Replayed" ? "pass" : "near";
+      setRow("replay", state, a.accepted ? "Accepted: not stopped" : `${state === "pass" ? "Rejected" : "Rejected earlier"}<span class="mono">${esc(a.err.name)}</span>`);
+      $("replay-act").innerHTML = `<span>Sent for real in block ${s.block} (${txLink(s.hash)}). Submitted again: ${a.accepted ? "accepted" : esc(P.explain(a.err.name, a.err.args))}</span>`;
+      lastPass = false;
+    } catch (e) {
+      const err = P.decodeRevert(iface, e);
+      setRow("replay", "");
+      $("replay-act").innerHTML = `<span>${err ? `Not sent: the contract refuses it with <span class="mono">${esc(err.name)}</span>. ${esc(P.explain(err.name, err.args))}` : esc(e.message && e.message.startsWith("No browser wallet") ? e.message : P.friendlyError(e, { rpc: cfg.rpc }).text)}</span>`;
+    } finally { setBusy(false); showRecord(); }
+  }
+  $("results").addEventListener("click", (e) => { if (e.target.closest("#replay-btn")) replay().catch(() => setBusy(false)); });
+
+  // ---------------------------------------------------------------- orders and start
+
+  async function selectOrder(id) {
+    order.id = id;
+    order.info = await readOrder(id);
+    order.airnode = await airnodeFor(order.info.source);
+    const q = new URLSearchParams(location.search);
+    q.set("order", id);
+    history.replaceState(null, "", "?" + q);
+    viewLinks();
+    howToGet();
+    resetResults();
+    if (isLocal() && !ownMode) await signFresh(); else { readBox(); showRecord(); }
+  }
+  $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => recLine("bad", esc(P.friendlyError(err, { rpc: cfg.rpc }).text))));
+
+  async function init() {
+    resetResults();
+    recLine("wait", "Connecting to the contract…");
+    provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
+    chainId = Number((await provider.getNetwork()).chainId);
+    explorer = P.EXPLORERS[chainId] || null;
+    if (!cfg.contract) {
+      const v2 = await P.discoverV2(provider);
+      if (v2) cfg.contract = v2;
+      else if (chainId === 11155111) cfg.contract = P.V1_SEPOLIA;
+      else throw new Error("No SupplierPulse+ contract found on this network. Open the detailed view to enter its address in Settings.");
+    }
+    if ((await provider.getCode(cfg.contract)) === "0x") throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
+    contract = new ethers.Contract(cfg.contract, P.ABI, provider);
+    try { await contract.airnodeOf(0); version = 2; }
+    catch { version = 1; contract = new ethers.Contract(cfg.contract, P.ABI_V1, provider); iface = contract.interface; }
+    maxAge = Number(await contract.maxAge());
+    const contractLink = explorer ? `<a class="mono" href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">${short(cfg.contract)}</a>` : `<span class="mono">${short(cfg.contract)}</span>`;
+    $("ctx").innerHTML = `<span class="live-dot"></span>Live on <b>${esc(P.NETWORKS[chainId] || `chain ${chainId}`)}</b> · ${version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1"} ${contractLink}`;
+    $("local-acts").hidden = !isLocal();
+    $("own").hidden = isLocal();
+    ownMode = !isLocal();
+    viewLinks();
+    const count = Number(await contract.ordersLength());
+    if (!count) { $("order").innerHTML = "<option>No orders yet</option>"; recLine("warn", "This contract has no orders yet: there is nothing to attack. The buyer creates one with api3/scripts/plus-create-order.sh."); return; }
+    const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
+    $("order").innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">#${i}${n ? " " + esc(n) : ""} · ${P.STATE[o.state]}</option>`; }).join("");
+    // a held or closed order refuses every record: start on the first active one unless the URL names an order
+    const asked = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : -1;
+    const want = asked >= 0 ? asked : Math.max(0, infos.findIndex((o) => o.state === 0));
+    $("order").value = String(want);
+    $("order").disabled = false;
+    await selectOrder(want);
+    $("run").disabled = false;
+  }
+  init().catch((e) => {
+    const f = P.friendlyError(e, { rpc: cfg.rpc, reading: true, contract: cfg.contract });
+    $("ctx").textContent = "Not connected.";
+    recLine("bad", `${esc(e.message && e.message.startsWith("No SupplierPulse+") ? e.message : f.text)} <a href="${$("detailed-link").href}">Open the detailed view</a> to change the contract or the network.`);
+  });
+})();
+</script>
+</body>
+</html>

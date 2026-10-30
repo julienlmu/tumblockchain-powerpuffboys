@@ -199,6 +199,7 @@
       <p class="tagline">Tamper with a signed register record and see whether the live contract would act on it. No wallet, no gas.</p>
     </div>
     <div class="head-links">
+      <nav class="view-switch" aria-label="View"><a id="simple-link" href="simple.html">Simple</a><a href="judge.html" aria-current="page">Detailed</a></nav>
       <a class="btn" id="dash-link" href="index.html" data-icon="arrow-left">Dashboard</a>
       <button type="button" id="guide-btn" data-icon="help" aria-expanded="false" aria-controls="guide" aria-keyshortcuts="?">How it works<kbd class="kb-k" aria-hidden="true">?</kbd></button>
       <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
@@ -555,6 +556,7 @@
       <tr><th>Expected request</th><td class="mono" title="${info.requestHash}">${short(info.requestHash)}</td></tr>
       <tr><th>Trusted signer</th><td>${addr(airnode)}${signerName(airnode)}</td></tr>`;
     $("fresh").hidden = chainId !== 31337 || version !== 2;
+    simpleLink();
     // on the local chain the Fresh button says it all (its tooltip names the key); elsewhere, where fresh records come from
     $("fresh-note").textContent = $("fresh").hidden ? "Fresh records: Judge kit, below" : "";
     renderKit();
@@ -1059,6 +1061,12 @@
   if (cfg.contract) dashQs.set("contract", cfg.contract);
   if (cfg.rpc !== P.DEFAULT_RPC) dashQs.set("rpc", cfg.rpc);
   $("dash-link").href = "index.html" + (dashQs.toString() ? "?" + dashQs : "");
+  function simpleLink() {
+    const q = new URLSearchParams(dashQs);
+    if (order.id !== null) q.set("order", order.id);
+    $("simple-link").href = "simple.html" + (q.toString() ? "?" + q : "");
+  }
+  simpleLink();
 
   $("sample").innerHTML += (window.PULSE_SAMPLE_RESPONSES || []).map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join("");
   $("sample").addEventListener("change", (e) => {
@@ -1279,6 +1287,7 @@
     $("cfg-note").innerHTML = `${found && version === 2 ? "Contract found automatically: the newest SupplierPulse+ v1.1 deployed by the team. " : ""}Every attempt is simulated from <span class="mono">${short(P.DEAD)}</span>.`;
     const dq = new URLSearchParams({ contract: cfg.contract });
     if (cfg.rpc !== P.DEFAULT_RPC) dq.set("rpc", cfg.rpc);
+    dashQs.set("contract", cfg.contract);
     $("dash-link").href = (version === 2 ? "index.html?" : "v1.html?orders=0,1&") + dq;
     connecting = false;
     await loadOrders();
