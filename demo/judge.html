@@ -229,7 +229,7 @@
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
         <p class="keys" id="keys">Keys: <kbd>R</kbd> run the full test · <kbd>1</kbd>–<kbd>8</kbd> one attempt, in button order · <kbd>Esc</kbd> stop · <kbd>?</kbd> how this page works</p>
-        <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons send real inputs: untouched records genuinely signed by the Airnode, nothing edited.</p>
+        <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons use real inputs: untouched records genuinely signed by the Airnode, simulated like the others.</p>
       </div>
     </section>
 
@@ -346,6 +346,11 @@
 
   const addr = (a) => explorer ? `<a class="mono" href="${explorer}/address/${a}" target="_blank" rel="noopener">${short(a)}</a>` : `<span class="mono" title="${a}">${short(a)}</span>`;
   const signerName = (a) => (a && P.KNOWN_SIGNERS[a.toLowerCase()]) ? ` (${P.KNOWN_SIGNERS[a.toLowerCase()]})` : "";
+  const signerLabel = (a) => P.KNOWN_SIGNERS[a.toLowerCase()] || "an unknown key";
+  // one line, short addresses (full on hover): the recovered signer against the one the contract trusts
+  const signerLine = (got, want) => got.toLowerCase() === want.toLowerCase()
+    ? `recovers to the trusted Airnode: ${esc(signerLabel(got))} (<span class="mono" title="${got}">${short(got)}</span>)`
+    : `recovers to ${esc(signerLabel(got))} (<span class="mono" title="${got}">${short(got)}</span>), but the contract trusts ${esc(signerLabel(want))} (<span class="mono" title="${want}">${short(want)}</span>)`;
   function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""; }
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join(""); }
   function respMsg(html, bad) { $("resp-msg").innerHTML = html ? `<span style="color:var(${bad ? "--hold" : "--muted"})">${html}</span>` : ""; }
@@ -527,14 +532,14 @@
     const checks = [
       { ok: st.state === 0, t: "The order is active", d: `state ${P.STATE[st.state]}` },
       { ok: r.requestHash.toLowerCase() === order.info.requestHash.toLowerCase(), t: "Request matches the order", d: `got ${short(r.requestHash)}, order expects ${short(order.info.requestHash)}` },
-      { ok: ts <= now + 60, t: "Not from the future", d: `signed ${dayClock(ts)}, chain time ${dayClock(now)}` },
-      { ok: age <= Number(maxAge), t: `Fresh (at most ${maxAge} s old)`, d: `age ${age} s` },
+      { ok: ts <= now + 60, t: "Not from the future", d: `signed ${P.dayClockS(ts)}, chain time ${P.dayClockS(now)}` },
+      { ok: age <= Number(maxAge), t: `Fresh (at most ${maxAge} s old)`, d: `age ${age < 0 ? "in the future" : age >= 120 ? `${P.span(age)} (${age.toLocaleString("en")} s)` : `${age} s`}` },
       { ok: used === false, t: "Not used before", d: digest ? `digest ${short(digest)} ${used ? "already used" : "unused"}` : esc(recoverErr || "") },
-      { ok: ts > st.lastCheck, t: "Newer than the order's last record", d: st.lastCheck ? `last record ${dayClock(st.lastCheck)}` : "no record yet" },
-      { ok: !!recovered && recovered.toLowerCase() === airnode.toLowerCase(), t: "Signed by the trusted Airnode", d: recovered ? `recovers to ${recovered}${signerName(recovered)}; trusted ${airnode}${signerName(airnode)}` : esc(recoverErr || "") },
+      { ok: ts > st.lastCheck, t: "Newer than the order's last record", d: st.lastCheck ? `last record signed ${P.dayClockS(st.lastCheck)}` : "no record yet" },
+      { ok: !!recovered && recovered.toLowerCase() === airnode.toLowerCase(), t: "Signed by the trusted Airnode", d: recovered ? signerLine(recovered, airnode) : esc(recoverErr || "") },
     ];
     // v1.1: a clean record older than a known base failure of the supplier is refused (SupplierFailed)
-    if (version === 2) checks.push({ ok: failed !== 0 || ts > lastFailure, t: "A clean record is newer than any known failure of this supplier", d: lastFailure ? `register status failed in a record signed ${dayClock(lastFailure)}` : "no failure on record" });
+    if (version === 2) checks.push({ ok: failed !== 0 || ts > lastFailure, t: "A clean record is newer than any known failure of this supplier", d: lastFailure ? `register status failed in a record signed ${P.dayClockS(lastFailure)}` : "no failure on record" });
     const stop = checks.findIndex((c) => !c.ok);
 
     // The verdict: the contract itself, simulated.
@@ -747,7 +752,7 @@
   const clsOf = (s) => (s.notApplicable ? "na" : s.mode === "asis" ? (s.accepted ? "pass" : "fail") : s.accepted ? "fail" : s.match ? "pass" : "near");
   function legendOf(list) {
     const has = new Set(list.map(clsOf));
-    return [["pass", "check", "Valid record accepted, or attack rejected with its own error"], ["near", "alert", "Rejected, but by an earlier check"],
+    return [["pass", "check", "Valid record accepted, or attack rejected by the check it targets"], ["near", "alert", "Rejected, but by an earlier check"],
       ["fail", "x", "Not as expected (an attack accepted, or the valid record refused)"], ["na", "minus", "Not tested by this record"]]
       .filter(([k]) => has.has(k)).map(([k, ic, t]) => `<li class="${k}">${P.icon(ic)}${t}</li>`).join("");
   }
@@ -756,7 +761,7 @@
     const icon = { pass: "check", fail: "x", near: "alert", na: "minus" }[cls];
     const status = s.mode === "asis"
       ? { pass: "Accepted", fail: "Not accepted", na: "Not tested" }[cls]
-      : { pass: "Rejected: own error", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
+      : { pass: "Rejected by its target check", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
     const note = cls === "near" ? `at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
     return `<button type="button" class="tile ${cls}" data-attempt="${s.attempt}" title="Show this attempt's checks">
       <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span><span class="v">${esc(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
