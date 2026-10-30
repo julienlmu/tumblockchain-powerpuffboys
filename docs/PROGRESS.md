@@ -73,6 +73,15 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · C1a: live fields verified, paid fetch, fixtures
+- Changed: **All §4.2 pointers verified live** (Companies House and GLEIF): request hashes and signers match, no interface change. `api3/scripts/fetch-evidence.sh <ch|gleif> <id> [out.json]` (paid, x402) with the §4.7 exit codes. Real signed fixtures in `api3/fixtures/`. Results in `docs/data-sources.md`.
+- Next: a clean UK company for order A, then `plus-submit.sh` (needs Foundry).
+- Notes:
+  - **Orhun / Ulaş: `09729896` is NOT clean.** Its signed record has accounts and confirmation statement overdue, so order A with rules `0x07` would be held. It fits order C (rules `0x02`) instead. Order A still needs a clean company; I'm looking.
+  - `12493325` has no `/accounts/overdue` → HTTP 400, no data (the §9 risk is real for some companies). 4xx answers are not charged.
+  - Demo picks: B `07418033`, C `09729896`, D `391200JI69LS8L648F30` (ASR Component GmbH, ACTIVE/ISSUED), E `52990092KBQJF8QBGJ50` (MoKa Projekt GmbH, LAPSED).
+  - Spent $0.04 of the $0.60 budget.
+
 ### 2026-10-30 · Emre · verify and tamper tools (§6.2)
 - Changed: `node api3/x402/verify.mjs <file> [--max-age 300] [--local]` runs the contract's checks off chain (signer per source, request hash, age, projected fields) and prints a table; exit 0 valid, 1 invalid. `node api3/x402/tamper.mjs <file> <value|stale|request|key|replay>` writes the tampered record with the §4.7 semantics (value edits only the one field, the other bytes stay as signed). Tests: 11/11 in `test-requests.mjs`.
 - Next: live calls (C1a), `fetch-evidence.sh`, `plus-submit.sh`.
