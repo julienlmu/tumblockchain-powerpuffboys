@@ -109,7 +109,7 @@
         <label class="btn" for="file">Upload file</label><input type="file" id="file" accept=".json,application/json" hidden>
         <button type="button" id="fresh" hidden title="Signs a fresh record in the browser with the public local test key (anvil). Local chain only.">Fresh local record</button>
       </div>
-      <textarea id="resp" spellcheck="false" placeholder='{"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
+      <textarea id="resp" spellcheck="false" placeholder='{"source":"ch","supplierId":"03778796","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
       <div class="msg" id="resp-msg"></div>
 
       <h2><span class="step">3</span>Attack it</h2>
@@ -154,12 +154,12 @@
     agent: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
     // api3/x402/local-registry.json
     registry: {
-      "ch:01234567": { accounts_overdue: false, confirmation_overdue: false, insolvency: false, status: "active" },
-      "ch:07654321": { accounts_overdue: true, confirmation_overdue: false, insolvency: true, status: "liquidation" },
+      "ch:01234567": { accounts_overdue: false, confirmation_overdue: false, status: "active" },
+      "ch:07654321": { accounts_overdue: true, confirmation_overdue: false, status: "liquidation" },
       "gleif:TESTLEI0000000000000": { entity_status: "ACTIVE", registration_status: "ISSUED" },
       "gleif:TESTLEI0000000000001": { entity_status: "ACTIVE", registration_status: "LAPSED" },
     },
-    clean: [{ accounts_overdue: false, confirmation_overdue: false, insolvency: false, status: "active" }, { entity_status: "ACTIVE", registration_status: "ISSUED" }],
+    clean: [{ accounts_overdue: false, confirmation_overdue: false, status: "active" }, { entity_status: "ACTIVE", registration_status: "ISSUED" }],
   };
   const MODE_NAME = { asis: "Valid record", value: "(a) Edit value", stale: "(b) Too old", request: "(c) Different request", key: "(d) Wrong key", replay: "Replay" };
 
@@ -345,7 +345,7 @@
       let signer;
       if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
       else {
-        if (!window.ethereum) { out.textContent = "No browser wallet found. Use api3/scripts/plus-submit.sh … --send instead."; return; }
+        if (!window.ethereum) { out.textContent = "No browser wallet found. Install or enable MetaMask to send this transaction."; return; }
         const bp = new ethers.BrowserProvider(window.ethereum);
         await bp.send("eth_requestAccounts", []);
         if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
@@ -381,14 +381,15 @@
 
   function renderKit() {
     const s = order.info ? P.SOURCES[Number(order.info.source)] : P.SOURCES[0];
-    const id = order.info ? order.info.supplierId : "09729896";
+    const id = order.info ? order.info.supplierId : "03778796";
     const net = chainId ? (P.NETWORKS[chainId] || `chain ${chainId}`) : "not connected";
     $("kit").innerHTML = `
       <li>Contract: ${cfg.contract ? `${addr(cfg.contract)} on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>` : ""}.</li>
       <li>Get your own fresh signed response ($0.01 over x402, needs aUSD on Base Sepolia): <code>api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json</code>, then paste or upload the file.</li>
       <li>Or call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:<br><code>${esc(s.body(id))}</code></li>
       <li>The request hash is <code>keccak256(utf8(${esc(s.request(id))}))</code>. The contract builds it on chain from the order's source and id.</li>
-      <li>The same attacks from a terminal: <code>api3/scripts/plus-submit.sh ${order.id ?? 0} response.json [value|stale|request|key|replay] [--send]</code>.</li>
+      <li>CLI alternative: <code>api3/scripts/plus-submit.sh ${order.id ?? 0} response.json [value|stale|request|key|replay]</code> simulates the contract call. Add <code>--send</code> to broadcast; reverted transactions consume gas.</li>
+      <li>Offline record tools: <code>node api3/x402/verify.mjs response.json</code> and <code>node api3/x402/tamper.mjs response.json [value|stale|request|key|replay]</code>.</li>
       <li>What a pass proves: the register said it, unaltered and recently. It does not prove the supplier will deliver; that stays the buyer's approval.</li>`;
   }
 

@@ -8,7 +8,7 @@ SupplierPulse+ is a prototype for milestone-based supplier payments gated by fre
 
 ## Try it
 
-**Status at 30 October 2026, 17:02 CET:** the live contract and transaction evidence in this branch are for SupplierPulse v1. SupplierPulse+ v2 has a build specification, but its contract, fetch tools, dashboard, and judge page are not yet integrated or deployed here. Do not present v2 behavior as live.
+**Status:** this branch integrates the SupplierPulse+ v2 contract and tests, local deployment scripts, signed-data tools and fixtures, dashboard, and judge page. V2 has **not** been deployed to Sepolia, so there is no verified v2 on-chain payment/tamper run yet. The live contract transactions below are for v1; the paid API3 fetches in [`docs/data-sources.md`](docs/data-sources.md) are live data-source evidence, not v2 contract evidence.
 
 ### Existing v1 test flow
 
@@ -24,7 +24,23 @@ The existing v1 contract is deployed on Ethereum Sepolia at [`0x91d7dbae109029b2
 
 The v1 live run, including a paid outcome, a held outcome, and four simulated tamper rejections, is recorded in [`docs/evidence.md`](docs/evidence.md). The four tamper checks were `eth_call` simulations, not mined revert transactions.
 
-The v2 local flow and judge tools described in [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md) are planned integration work, not runnable commands in this branch. Their contract address, transactions, dashboard, and judge-page links remain pending. Do not use a local signer or fixture as public-network evidence.
+### SupplierPulse+ v2 local demo
+
+The v2 contract, tests and Anvil flow are in `api3/`; the screens are in [`demo/`](demo/). With Foundry and `jq` installed, run the contract tests and start the local demo from a Bash-compatible shell:
+
+```sh
+cd api3
+forge test
+./scripts/plus-local.sh
+```
+
+In another shell, start the static dashboard from the repository root:
+
+```sh
+python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
+```
+
+Open `http://localhost:8765/?sample=1` for illustrative data without a chain. To use the local Anvil deployment, follow [`demo/README.md`](demo/README.md) and source `api3/.local/plus-local.env`. The current browser sample mode has been checked; the v1.1 Anvil end-to-end integration still needs a rerun. Neither sample data nor local-chain interactions are Sepolia evidence. The browser judge page is [`demo/judge.html`](demo/judge.html); real v2 deployment, testnet transactions, and overnight agent evidence remain pending. Do not use a local signer or fixture as public-network evidence.
 
 ## SupplierPulse+ v2 design
 
@@ -93,14 +109,14 @@ For the API3/Foundry v1 flow:
 The full SupplierPulse+ workflow also uses Python 3.8+ for the agent, Node.js 22.18+ for the x402 data tools, and environment values copied from the committed `*.env.example` files. Never commit `.env` files, API keys, mnemonics, or private keys. Do not make paid calls outside the approved hackathon budgets.
 
 ```sh
-git clone --branch supplierpulse-plus https://github.com/julienlmu/tumblockchain-powerpuffgirls.git
+git clone --branch ulas/plus-story https://github.com/julienlmu/tumblockchain-powerpuffgirls.git
 cd tumblockchain-powerpuffgirls
 nvm use
 cd api3
 forge test
 ```
 
-For environment variables and deploy/test instructions, see [`api3/README.md`](api3/README.md), [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md), and the existing [`docs/agent.md`](docs/agent.md). The v2 data-source guide and demo tools are not present in this branch yet.
+For environment variables and deploy/test instructions, see [`api3/README.md`](api3/README.md), [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md), [`docs/data-sources.md`](docs/data-sources.md), and [`docs/agent.md`](docs/agent.md).
 
 ## Repository map
 
@@ -110,7 +126,7 @@ For environment variables and deploy/test instructions, see [`api3/README.md`](a
 | `api3/test/` | Foundry tests |
 | `api3/scripts/` | Contract, fetch, judge, and local-demo scripts |
 | `api3/agent/` | Autonomous agent implementation |
-| `demo/` | Planned v2 dashboard and judge tamper page; not present in this branch |
+| `demo/` | V2 dashboard, sample mode, and judge tamper page |
 | `docs/SUPPLIERPULSE_PLUS.md` | Frozen build specification and integration runbook |
 | `docs/evidence.md` | Testnet transaction evidence |
 | `docs/research.md` | Sourced context and prior-art notes |

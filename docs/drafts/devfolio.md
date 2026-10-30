@@ -1,6 +1,6 @@
 # Devfolio submission draft — API3 track
 
-> **Not submission-ready (30 October 2026, 17:02 CET).** The v2 feature description below is the intended design, not a deployed product claim. The only live contract evidence in this branch is SupplierPulse v1, which checks Companies House status only. Keep this as a draft until the v2 contract, data tools, judge experience, and live evidence are integrated and verified.
+> **Submission status:** the v2 contract, tests/local scripts, signed-data tools/fixtures, dashboard, and judge page are integrated in this branch. V2 is **not deployed to Sepolia** and has no verified v2 on-chain run. The live contract transactions currently documented are SupplierPulse v1 (Companies House status only); live paid API3 fetches are documented separately and do not prove v2 contract behavior.
 
 ## Project name
 
@@ -14,9 +14,9 @@ Your supplier was approved last month. That should not approve today's payment.
 
 Buyers commonly qualify suppliers at onboarding, then pay advances and milestone instalments over time. A later registry change—such as liquidation or an overdue statutory filing—may not be reflected in the buyer's next payment decision. In England and Wales, the Insolvency Service reported 1,882 company insolvencies in September 2026; 1,761 were compulsory or creditors' voluntary liquidations. That is a monthly aggregate, not a forecast of supplier failures.
 
-## SupplierPulse+ v2 design (not yet deployed)
+## SupplierPulse+ v2 prototype (integrated, not yet deployed)
 
-The intended SupplierPulse+ v2 system gates supplier milestone payments on fresh, signed registry evidence. An agent would pay for a projected Companies House or GLEIF response through API3 AirnodeHub and submit the exact signed bytes to an Ethereum contract. This v2 flow is specified but is not yet integrated or deployed in this branch.
+SupplierPulse+ v2 gates supplier milestone payments on fresh, signed registry evidence. The branch includes the contract, test suite and local-chain scripts; live-verified Companies House and GLEIF request pointers with genuine signed fixtures; and the dashboard and judge page. An agent can fetch a projected Companies House or GLEIF response through API3 AirnodeHub and submit the exact signed bytes to the Ethereum contract. These components have not yet been demonstrated together on Sepolia.
 
 The contract verifies the expected Airnode, supplier-specific request hash, response freshness, timestamp ordering, and replay protection. It evaluates buyer-selected rules and either issues an expiring permit for exactly the next milestone or holds the unpaid balance for the buyer. Buyer approval remains required to release a milestone because a registry cannot verify delivery.
 
@@ -50,11 +50,11 @@ We did not find German Handelsregister records or German insolvency notices amon
 
 ## How judges can test it
 
-The v2 judge experience is not available in this branch. The current v1 run and scripts are documented in [`docs/evidence.md`](../evidence.md); the v1 tamper attempts were `eth_call` simulations, not mined reverted transactions. Before submission, add the real v2 deployment and judge links here:
+The v2 judge page is integrated at [`demo/judge.html`](../../demo/judge.html), with setup and local-chain instructions in [`demo/README.md`](../../demo/README.md). The dashboard is [`demo/index.html`](../../demo/index.html); `?sample=1` displays illustrative data without a chain. The current v1 run and scripts are documented in [`docs/evidence.md`](../evidence.md); its four tamper attempts were `eth_call` simulations, not mined reverted transactions. V2 Sepolia deployment and on-chain judge evidence are still pending. Before submission:
 
-- Dashboard: **[pending: verify published URL or integrated repository path]**
-- “Try to break it” judge page: **[pending: verify published URL or integrated repository path]**
-- CLI: **[pending: verify v2 judge CLI path and invocation]**
+- Dashboard hosted URL: **[pending: publish and verify, if available]**
+- “Try to break it” hosted URL: **[pending: publish and verify, if available]**
+- CLI: [`api3/scripts/plus-submit.sh`](../../api3/scripts/plus-submit.sh) simulates by default; add `--send` to broadcast. A reverted transaction consumes gas.
 
 The v2 demonstration must first show an accepted fresh response that causes the intended outcome, then reject the edited value, stale response, different request, and wrong signer. Replay is an additional rejection case. Distinguish simulations from transactions actually sent on the testnet.
 

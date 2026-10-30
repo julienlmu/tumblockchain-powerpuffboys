@@ -241,7 +241,6 @@
       permitValidUntil: Number(s.permitValidUntil), permitValidRead: Boolean(s.permitValid), lastCheck: Number(s.lastCheck),
       lastFailedRules: Number(h.lastFailedRules), heldAt: Number(h.heldAt), autoRefundAt: Number(h.autoRefundAt), tier: Number(h.tier),
       rec: { cleanStreak: Number(r.cleanStreak), checks: Number(r.checks), failures: Number(r.failures), lastCheckAt: Number(r.lastCheckAt), tier: Number(r.tier) },
-      effTtl: Number(o.effectivePermitTtl),
       events: o.events || [],
     };
   }
@@ -304,7 +303,7 @@
       case "PermitIssued": return { text: `Payment permit for milestone ${Number(a.milestone) + 1} (${tok(a.amount)} tokens), valid until ${dayClock(a.validUntil)}` };
       case "MilestonePaid": return { cls: "ev-ok", text: `Milestone ${Number(a.milestone) + 1} paid: ${tok(a.amount)} tokens to the supplier` };
       case "OrderHeld": return { cls: "ev-hold", text: `Order held: ${P.failedLabels(src, a.failedRules).join(", ")}. ${tok(a.remaining)} tokens protected; anyone can trigger the refund from ${dayClock(a.autoRefundAt)}` };
-      case "OrderRefunded": return { text: `${tok(a.amount)} tokens refunded to the buyer, triggered by ${isAgent(a.triggeredBy) ? "the agent" : a.triggeredBy && o.info.buyer && a.triggeredBy.toLowerCase() === o.info.buyer.toLowerCase() ? "the buyer" : addr(a.triggeredBy)}` };
+      case "OrderRefunded": return { text: `${tok(a.amount)} tokens refunded to the buyer${a.noDataExit ? " through the no-data exit" : ""}, triggered by ${isAgent(a.triggeredBy) ? "the agent" : a.triggeredBy && o.info.buyer && a.triggeredBy.toLowerCase() === o.info.buyer.toLowerCase() ? "the buyer" : addr(a.triggeredBy)}` };
       case "TierChanged": return { text: `Supplier tier ${P.TIERS[Number(a.oldTier)]} → ${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
       default: return { text: e.name };
     }
@@ -338,7 +337,7 @@
       </div>`;
     } else if (refunded) {
       const ev = o.events.find((e) => e.name === "OrderRefunded");
-      statusBox = `<div class="closed-box">Closed after a hold: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</div>`;
+      statusBox = `<div class="closed-box">${ev && ev.args.noDataExit ? "Closed through the no-data exit" : "Closed after a hold"}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</div>`;
     } else if (closed) {
       statusBox = `<div class="closed-box">Fully paid: every milestone was paid against its own fresh signed record.</div>`;
     }
@@ -354,7 +353,7 @@
     else if (permitValid(o)) permitRow = `<b style="color:var(--ok)">valid</b> for M${o.next + 1} until ${clock(o.permitValidUntil)} · ${cd(o.permitValidUntil, "expired")} left`;
     else if (o.permitValidUntil > 0) permitRow = `<span style="color:var(--wait)">expired at ${clock(o.permitValidUntil)}</span>`;
     else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid M${o.next}` : "none yet"}</span>`;
-    permitRow += `<div class="small-muted">lifetime ${duration(o.info.permitTtl)} × ${P.TIER_MULT[o.tier] || 1} (${P.TIERS[o.tier]}) = ${duration(o.effTtl)} from the signed time</div>`;
+    permitRow += `<div class="small-muted">lifetime ${duration(o.info.permitTtl)} from the signed time; tiers change monitoring frequency only</div>`;
 
     const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
     const trailKey = `trail-${o.id}`;
@@ -415,7 +414,7 @@
         case "PermitIssued": return `permit M${Number(a.milestone) + 1}`;
         case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b> (${tok(a.amount)})`;
         case "OrderHeld": return "<b>held 🔒</b>";
-        case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer`;
+        case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
         case "TierChanged": return `tier → ${P.TIERS[Number(a.newTier)]}`;
         default: return e.name;
       }
@@ -522,10 +521,10 @@
     const evBy = eventsByOrder();
 
     const orders = await Promise.all(ids.map(async (id) => {
-      const [info, milestones, status, schedule, ttl] = await Promise.all([
-        contract.orderInfo(id), contract.orderMilestones(id), contract.orderStatus(id), contract.orderSchedule(id), contract.effectivePermitTtl(id)]);
+      const [info, milestones, status, schedule] = await Promise.all([
+        contract.orderInfo(id), contract.orderMilestones(id), contract.orderStatus(id), contract.orderSchedule(id)]);
       const supplier = await contract.supplierRecord(P.supplierKeyOf(Number(info.source), info.supplierId));
-      return norm({ id, info, milestones, status, schedule, supplier, effectivePermitTtl: ttl, events: evBy[id] || [] });
+      return norm({ id, info, milestones, status, schedule, supplier, events: evBy[id] || [] });
     }));
 
     const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);

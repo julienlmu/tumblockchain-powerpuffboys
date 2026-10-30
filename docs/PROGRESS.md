@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Ulaş · integrate SupplierPulse+ data and UI workstreams
+- Changed: resolved the dashboard/judge-page cherry-pick, retaining the current progress history; integrated v2 contract/local scripts, signed-data tools/fixtures, and dashboard/judge pages into `ulas/plus-story`. Aligned the UI ABI, request templates, rules, permits, refund events, and samples to v1.1; added the missing CLI judge submit tool. Updated submission docs to distinguish integration from deployment.
+- Next: run Foundry and Node test suites; perform a local end-to-end integration; deploy v2 to Sepolia and record contract transactions; collect overnight agent evidence; publish/record the video; finish the sourced 2025/26 liquidation timeline.
+- Notes: the five genuine fixture payment transactions are linked in `docs/evidence.md`; existing fixture responses are stale and are not on-chain v2 evidence. Browser validation confirmed the v1.1 request vector, four judge-sample signatures/request hashes, rule results, and the 375 px sample dashboard. Agent tests: 54 run, 53 passed, 1 skipped; Foundry/Node are not installed, so contract/data suites and current Anvil end-to-end remain unverified. No new paid calls were made.
+
 ### 2026-10-30 · Emre · data layer on spec v1.1, v1.1 pointers verified live (C1a)
 - Changed: Julien's v1.1 checklist for the data layer is done on `emre/plus-data` (merged `supplierpulse-plus` in):
   - `requests.mjs`: the Companies House projection has 3 fields (`/accounts/next_accounts/overdue`), the rule `0x01` is gone, and the `0x08` label is "LEI renewal overdue". Tests 11/11 with the vector `0x6e84…7f0f`.

@@ -50,15 +50,16 @@ If the CDN is unreachable, both pages load the bundled copy in `vendor/ethers.um
 - **Fresh local record** (local chain only) signs a record in the browser with the anvil key of the order's registry, using the fields of `api3/x402/local-registry.json`.
 - **Order of attempts for the video:** run all six as simulations first (nothing changes on chain), then **Send for real** with the valid record, then **Replay**. After a real send, (a) and (d) stop at an earlier check (`NotNewer`, `Replayed`), because they reuse the same timestamp or digest; the checklist shows this.
 - **Send for real** uses MetaMask, or on the local chain the public anvil #3 agent key.
+- CLI alternative: `api3/scripts/plus-submit.sh <order-id> response.json [value|stale|request|key|replay]` simulates by default. Add `--send` to broadcast; sending a tampered record creates a reverted transaction and spends gas.
 - On the local chain the page mines one empty block before each simulation. `eth_call` runs against the latest block, and anvil only mines on transactions, so its clock can lag minutes behind and a fresh record would look like `FutureResponse`.
 
-## Checked (30 Oct 2026, ~17:15)
+## Validation status
 
-Local anvil chain, `SupplierPulsePlus` from `orhun/plus-contract` (`plus-local.sh`), records from Emre's `sign-local.mjs`:
+The local Anvil checks below were reported by the original UI workstream before this branch integrated the v1.1 contract and data layer. The UI has since been aligned to v1.1, so those checks do **not** establish current end-to-end compatibility:
 
-- Judge page on order 0: valid record accepted (permit), (a) `WrongSigner`, (b) `StaleResponse`, (c) `WrongRequest`, (d) `WrongSigner`; Replay of an unsent record marked "not a replay"; after **Send for real**, Replay gives `Replayed`.
-- The four §4.2 test vectors (`requestHashFor`, `supplierKeyOf`) match in the browser.
-- Dashboard live: order 0 paid M1, order 1 held then refunded by the buyer, order 2 checked and paid in one transaction, order 3 held (LEI lapsed) with the refund countdown; agent panel and audit trails with decoded signed data. Desktop and phone width (375 px, no horizontal scroll). No console errors.
-- Sample mode, dark and light.
+- The earlier judge run reported accepted/rejected cases on its local chain, including a valid record, four tamper cases, and replay.
+- The earlier dashboard run reported paid, held, and refunded states plus agent activity.
 
-**Not checked yet:** Sepolia v2 (not deployed), real signed v2 responses (Emre's fixtures), MetaMask flows.
+Current browser validation of this branch covers the no-chain sample mode and static judge data: the dashboard renders six orders without horizontal overflow at 375 px; the Companies House request-hash vector matches v1.1; all four judge samples recover to their expected local signers and match their request hashes; and the Companies House/GLEIF sample rules match their displayed failed-rule bits.
+
+**Still unverified:** the v1.1 Anvil end-to-end flow, loading Emre's live fixtures against a v1.1 contract, Sepolia v2 (not deployed), and MetaMask transaction flows.

@@ -1,11 +1,63 @@
-// Sample signed records for demo/judge.html ("Load sample"), in the §4.1 format.
-// Signed with the local test keys (anvil #1 Companies House, #2 GLEIF) by api3/x402/sign-local.mjs at a fixed
-// timestamp (30 Oct 2026, 17:00 CET), so they are stale on purpose: submitted to the local chain they give StaleResponse.
-// A chain that trusts the real Airnodes rejects them earlier (WrongRequest, or WrongSigner for a matching request).
-// Fresh records: "Fresh local record" on the local chain, or api3/scripts/fetch-evidence.sh for a real signed one.
+// Fixed-time records signed by the public Anvil test keys; they match the v1.1 request templates and are stale on purpose.
 window.PULSE_SAMPLE_RESPONSES = [
-  { label: "Companies House 01234567: active, clean", record: {"source":"ch","supplierId":"01234567","airnode":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","requestHash":"0x799f6de394b16f9db02e057ac528a4a597d35064d4502fa61560b1abcb60f29c","timestamp":"1793376000","data":"0x7b226163636f756e74735f6f766572647565223a66616c73652c22636f6e6669726d6174696f6e5f6f766572647565223a66616c73652c22696e736f6c76656e6379223a66616c73652c22737461747573223a22616374697665227d","raw":"{\"accounts_overdue\":false,\"confirmation_overdue\":false,\"insolvency\":false,\"status\":\"active\"}","signature":"0x4c69908d9cf3d48bc889b41ec125047904947713b24aa8e007edc0a61c0bd73a51d64f9a94ade24be611b07cbd5dcb042325fd62f57955c098597b902b00656a1c","paymentTx":null,"priceUsd":"0"} },
-  { label: "Companies House 07654321: liquidation", record: {"source":"ch","supplierId":"07654321","airnode":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","requestHash":"0x579538ad04d67b1713ffa35d14187b6dd7f75ad87308bc0b336cc37a82211019","timestamp":"1793376000","data":"0x7b226163636f756e74735f6f766572647565223a747275652c22636f6e6669726d6174696f6e5f6f766572647565223a66616c73652c22696e736f6c76656e6379223a747275652c22737461747573223a226c69717569646174696f6e227d","raw":"{\"accounts_overdue\":true,\"confirmation_overdue\":false,\"insolvency\":true,\"status\":\"liquidation\"}","signature":"0x76cc6b64d8a16cb0ee172b26770fc0e9f70bb4cd2e535cdd20e7ea48152d617d31eddaabe91d884c5cbb6ac02538c3fc39abeaa6a7775cce03044eefa0cbdda21c","paymentTx":null,"priceUsd":"0"} },
-  { label: "GLEIF TESTLEI…000: ACTIVE / ISSUED", record: {"source":"gleif","supplierId":"TESTLEI0000000000000","airnode":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","requestHash":"0x82e8da1da50a59eb4941e8461f35869cb1a4a95183dc1ea84075b99af97d790f","timestamp":"1793376000","data":"0x7b22656e746974795f737461747573223a22414354495645222c22726567697374726174696f6e5f737461747573223a22495353554544227d","raw":"{\"entity_status\":\"ACTIVE\",\"registration_status\":\"ISSUED\"}","signature":"0x62b0df82ae6eb526d2f04bf35a14e66f7d03be6badf6837d65ae84ce01ca9b6b39ed457da99880371dbabef215d650ec438a2bc0bd4d67abc48f1886b83c03071b","paymentTx":null,"priceUsd":"0"} },
-  { label: "GLEIF TESTLEI…001: ACTIVE / LAPSED", record: {"source":"gleif","supplierId":"TESTLEI0000000000001","airnode":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","requestHash":"0x2b667bb34ab4dc809dd96a1affd53f0b44cf680daa9742c803c41ca461fbf158","timestamp":"1793376000","data":"0x7b22656e746974795f737461747573223a22414354495645222c22726567697374726174696f6e5f737461747573223a224c4150534544227d","raw":"{\"entity_status\":\"ACTIVE\",\"registration_status\":\"LAPSED\"}","signature":"0xed35458742daf919f126dfde3443f71c51e38093364af1475638d5ca360d1c4f5c55e9d21f41189ce9b7e6979ab8516c91813d7f6e476a418ef7d0e1b4dccbb81b","paymentTx":null,"priceUsd":"0"} },
+  {
+    label: "Companies House 01234567: active, clean",
+    record: {
+      source: "ch",
+      supplierId: "01234567",
+      airnode: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      requestHash: "0x3d9bb0fe3c861da695f81743e423225c9cfa3c2bd5a9fa7b0089d06767f60420",
+      timestamp: "1793376000",
+      data: "0x7b226163636f756e74735f6f766572647565223a66616c73652c22636f6e6669726d6174696f6e5f6f766572647565223a66616c73652c22737461747573223a22616374697665227d",
+      raw: "{\"accounts_overdue\":false,\"confirmation_overdue\":false,\"status\":\"active\"}",
+      signature: "0xe6dbe4254f8e2420b2b747125e0fd80fa30ea9ddadbe36c3f5cc0840e4b7b5e80c7dbf7a65ead0a6143ee7459f08945801f177d4f9b4c7efc64a7102142630161b",
+      paymentTx: null,
+      priceUsd: "0",
+    },
+  },
+  {
+    label: "Companies House 07654321: liquidation",
+    record: {
+      source: "ch",
+      supplierId: "07654321",
+      airnode: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      requestHash: "0x983d25455a2184ba0d3a508b5d4c0099216735c0771e3c256d2d34721a00a3f7",
+      timestamp: "1793376000",
+      data: "0x7b226163636f756e74735f6f766572647565223a747275652c22636f6e6669726d6174696f6e5f6f766572647565223a66616c73652c22737461747573223a226c69717569646174696f6e227d",
+      raw: "{\"accounts_overdue\":true,\"confirmation_overdue\":false,\"status\":\"liquidation\"}",
+      signature: "0xd27b5d7c82701747ab89cc2ef69db3357a14b508e9e84084a49ffe79392446f5680d740ff69e7e53c1bf6f4daace60d969aa0866b8459b995be87eed0924f4e01b",
+      paymentTx: null,
+      priceUsd: "0",
+    },
+  },
+  {
+    label: "GLEIF TESTLEI…000: ACTIVE / ISSUED",
+    record: {
+      source: "gleif",
+      supplierId: "TESTLEI0000000000000",
+      airnode: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      requestHash: "0x82e8da1da50a59eb4941e8461f35869cb1a4a95183dc1ea84075b99af97d790f",
+      timestamp: "1793376000",
+      data: "0x7b22656e746974795f737461747573223a22414354495645222c22726567697374726174696f6e5f737461747573223a22495353554544227d",
+      raw: "{\"entity_status\":\"ACTIVE\",\"registration_status\":\"ISSUED\"}",
+      signature: "0x62b0df82ae6eb526d2f04bf35a14e66f7d03be6badf6837d65ae84ce01ca9b6b39ed457da99880371dbabef215d650ec438a2bc0bd4d67abc48f1886b83c03071b",
+      paymentTx: null,
+      priceUsd: "0",
+    },
+  },
+  {
+    label: "GLEIF TESTLEI…001: ACTIVE / LAPSED",
+    record: {
+      source: "gleif",
+      supplierId: "TESTLEI0000000000001",
+      airnode: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      requestHash: "0x2b667bb34ab4dc809dd96a1affd53f0b44cf680daa9742c803c41ca461fbf158",
+      timestamp: "1793376000",
+      data: "0x7b22656e746974795f737461747573223a22414354495645222c22726567697374726174696f6e5f737461747573223a224c4150534544227d",
+      raw: "{\"entity_status\":\"ACTIVE\",\"registration_status\":\"LAPSED\"}",
+      signature: "0xed35458742daf919f126dfde3443f71c51e38093364af1475638d5ca360d1c4f5c55e9d21f41189ce9b7e6979ab8516c91813d7f6e476a418ef7d0e1b4dccbb81b",
+      paymentTx: null,
+      priceUsd: "0",
+    },
+  },
 ];

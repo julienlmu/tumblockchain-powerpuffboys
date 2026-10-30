@@ -3,7 +3,7 @@
 **Target runtime:** 2:30 maximum
 **Recording plan:** capture real Sepolia interactions and real signed registry evidence. Local-chain steps may be used for development only; never present them as live/testnet proof.
 
-> **Not record-ready (30 October 2026, 17:02 CET):** this storyboard requires a deployed v2 contract, integrated dashboard and judge page, and a real agent run. None is evidenced in this branch yet. Current v1 evidence is in `docs/evidence.md`; its four tamper rejections were simulations, not mined revert transactions. Do not narrate the v2 storyboard as an accomplished live demo until each precondition below is met.
+> **Not record-ready:** the v2 contract, dashboard, judge page, and local flow are integrated, but v2 is not deployed to Sepolia and a real agent run is not yet evidenced. The current live contract evidence in `docs/evidence.md` is v1; its four tamper rejections were simulations, not mined revert transactions. Do not narrate the v2 storyboard as an accomplished live demo until each precondition below is met.
 
 ## Preconditions before recording
 

@@ -8,10 +8,9 @@
     "function orderMilestones(uint256) view returns (uint256[] amounts, uint64[] dueDates, bool[] approved)",
     "function orderStatus(uint256) view returns (uint8 state, uint256 paid, uint256 remaining, uint256 nextMilestone, uint256 milestones, uint64 permitValidUntil, bool permitValid, uint256 lastCheck)",
     "function orderSchedule(uint256) view returns (uint64 nextDueDate, bool nextApproved, uint8 lastFailedRules, uint64 heldAt, uint64 autoRefundAt, uint8 tier)",
-    "function supplierRecord(bytes32) view returns (uint32 cleanStreak, uint32 checks, uint32 failures, uint64 lastCountedAt, uint64 lastCheckAt, uint8 tier)",
+    "function supplierRecord(bytes32) view returns (uint32 cleanStreak, uint32 checks, uint32 failures, uint64 lastCountedAt, uint64 lastCheckAt, uint64 lastBaseFailureAt, uint8 tier)",
     "function supplierKeyOf(uint8 source, string supplierId) pure returns (bytes32)",
     "function requestHashFor(uint8 source, string supplierId) pure returns (bytes32)",
-    "function effectivePermitTtl(uint256) view returns (uint64)",
     "function airnodeOf(uint8) view returns (address)",
     "function maxAge() view returns (uint256)",
     "function tierCountGap() view returns (uint64)",
@@ -23,20 +22,22 @@
     "function release(uint256 orderId)",
     "function checkAndRelease(uint256 orderId, bytes32 requestHash, uint256 timestamp, bytes data, bytes signature) returns (uint8 outcome)",
     "function refundRemaining(uint256 orderId)",
+    "function applySupplierFailure(uint256 orderId)",
     "event OrderCreated(uint256 indexed orderId, address indexed buyer, bytes32 indexed supplierKey, address supplier, uint8 source, string supplierId, bytes32 requestHash, bytes32 orderRef, uint256 total, uint8 rules)",
     "event MilestoneApproved(uint256 indexed orderId, uint256 milestone)",
     "event EvidenceAccepted(uint256 indexed orderId, bytes32 indexed supplierKey, bool clean, uint8 failedRules, uint256 timestamp, bytes32 digest, address submitter, bytes data)",
     "event PermitIssued(uint256 indexed orderId, uint256 milestone, uint256 amount, uint64 validUntil, bytes32 evidence)",
     "event MilestonePaid(uint256 indexed orderId, uint256 milestone, address supplier, uint256 amount, bytes32 evidence)",
     "event OrderHeld(uint256 indexed orderId, uint8 failedRules, uint256 remaining, uint64 autoRefundAt)",
-    "event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy)",
+    "event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy, bool noDataExit)",
     "event TierChanged(bytes32 indexed supplierKey, uint8 oldTier, uint8 newTier, uint32 cleanStreak)",
     "error WrongSigner(address recovered)", "error WrongRequest(bytes32 got, bytes32 expected)",
     "error StaleResponse(uint256 timestamp, uint256 nowTs)", "error FutureResponse(uint256 timestamp, uint256 nowTs)",
     "error Replayed(bytes32 digest)", "error NotNewer(uint256 timestamp, uint256 lastCheck)",
     "error NoValidPermit(uint256 milestone)", "error PermitExpired(uint256 validUntil, uint256 nowTs)",
     "error NotApproved(uint256 milestone)", "error NotDue(uint256 dueDate, uint256 nowTs)",
-    "error NotActive(uint8 state)", "error NotHeld()", "error RefundNotYet(uint256 autoRefundAt)",
+    "error NotActive(uint8 state)", "error NotRefundable()", "error RefundNotYet(uint256 refundableAt)",
+    "error SupplierFailed(uint256 failedAt)", "error NoNewerFailure()",
     "error BadOrder()", "error BadSource()", "error BadSupplierId()", "error BadRules()",
     "error NotAuthorized()", "error TransferFailed()",
     "error InvalidSignatureLength()", "error InvalidSignatureS()", "error InvalidSignatureV()", "error InvalidSigner()",
@@ -54,14 +55,12 @@
   const STATE = ["Active", "Held", "Closed"];
   const OUTCOME = ["Paid", "AwaitingApproval", "NotDue", "Held"];
   const TIERS = ["Standard", "Trusted", "Premium"];
-  const TIER_MULT = [1, 2, 4];
-
   // §4.2 request templates. Index = contract source id.
   const SOURCES = [
     {
       key: "ch", badge: "CH", name: "Companies House",
-      request: (id) => `["getCompanyProfile",[["company_number","${id}"]],[["accounts_overdue","/accounts/overdue"],["confirmation_overdue","/confirmation_statement/overdue"],["insolvency","/has_insolvency_history"],["status","/company_status"]]]`,
-      body: (id) => `{"operation":"getCompanyProfile","parameters":{"company_number":"${id}"},"responseProjection":{"accounts_overdue":"/accounts/overdue","confirmation_overdue":"/confirmation_statement/overdue","insolvency":"/has_insolvency_history","status":"/company_status"}}`,
+      request: (id) => `["getCompanyProfile",[["company_number","${id}"]],[["accounts_overdue","/accounts/next_accounts/overdue"],["confirmation_overdue","/confirmation_statement/overdue"],["status","/company_status"]]]`,
+      body: (id) => `{"operation":"getCompanyProfile","parameters":{"company_number":"${id}"},"responseProjection":{"accounts_overdue":"/accounts/next_accounts/overdue","confirmation_overdue":"/confirmation_statement/overdue","status":"/company_status"}}`,
       registerUrl: (id) => `https://find-and-update.company-information.service.gov.uk/company/${encodeURIComponent(id)}`,
       otherId: "00000001", otherIdAlt: "00000002",
     },
@@ -89,10 +88,9 @@
     { field: "entity_status", clean: (v) => v === "ACTIVE", label: "LEI entity not active", rule: "LEI entity active" },
   ];
   const RULES = [
-    { bit: 0x01, source: 0, field: "insolvency", clean: (v) => v === false, label: "insolvency history", rule: "no insolvency history" },
     { bit: 0x02, source: 0, field: "accounts_overdue", clean: (v) => v === false, label: "accounts overdue", rule: "accounts filed" },
     { bit: 0x04, source: 0, field: "confirmation_overdue", clean: (v) => v === false, label: "confirmation statement overdue", rule: "confirmation statement filed" },
-    { bit: 0x08, source: 1, field: "registration_status", clean: (v) => v === "ISSUED", label: "LEI registration not issued (e.g. lapsed)", rule: "LEI registration issued" },
+    { bit: 0x08, source: 1, field: "registration_status", clean: (v) => v === "ISSUED", label: "LEI renewal overdue", rule: "LEI registration issued" },
   ];
 
   /** Rule chips for an order: the base check plus each enabled bit. */
@@ -216,8 +214,10 @@
         return "The signature bytes are malformed, so no signer can be recovered.";
       case "KeyNotFound": case "NoString": case "NoBool": case "NoNumber":
         return "A field the order's rules need is missing or has the wrong type in the signed data. Without it the order can never pay (fail-safe).";
-      case "NotHeld": return "Only a held order can be refunded.";
+      case "NotRefundable": return "The order does not meet either refund path: it is not held long enough, or no-data exit conditions are not met.";
       case "RefundNotYet": return `Before ${t(a[0])} only the buyer can claim the remaining balance.`;
+      case "SupplierFailed": return `A newer failed base-status record at ${t(a[0])} blocks this older permit.`;
+      case "NoNewerFailure": return "There is no newer verified base-status failure to apply to this order.";
       case "NotAuthorized": return "Only the buyer may do this.";
       default: return "";
     }
@@ -262,7 +262,7 @@
   }
 
   window.PULSE = {
-    ABI, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS, TIER_MULT,
+    ABI, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,
     ruleNames, failedLabels, evaluate, requestHashFor, supplierKeyOf, digestOf, normalizeRecord, parseFields,
     tamper, decodeRevert, explain,

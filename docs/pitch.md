@@ -1,6 +1,6 @@
 # SupplierPulse+ pitch and judge Q&A
 
-> **Readiness gate (30 October 2026, 17:02 CET):** This is the intended v2 pitch, not a claim that v2 is live. The current deployed and evidenced contract is v1, which checks Companies House status only. Use the v2 claims below only after the integration and its evidence are verified; otherwise describe the v1 demo and say v2 is still in development.
+> **Readiness gate:** V2's contract, local flow, signed-data tools, dashboard, and judge page are integrated in this branch, but v2 has not been deployed to Sepolia or verified in an on-chain run. The live contract evidence currently available is for v1, which checks Companies House status only. Present v2 as an integrated testnet prototype until its deployment and run are independently verified.
 
 ## 90-second pitch
 
@@ -60,7 +60,7 @@ We did not find German Handelsregister and German insolvency notices among the A
 
 ### Where can we verify the contract and tamper cases?
 
-Use the v2 address and transaction links in [`docs/evidence.md`](evidence.md) once deployment is complete. The judge page and `api3/scripts/plus-submit.sh` are intended for independent submissions; the testnet contract must first accept a valid fresh response before the edited-value, stale, different-request, and wrong-key attempts are demonstrated.
+The branch contains the local judge page at [`demo/judge.html`](../demo/judge.html) and the CLI at [`api3/scripts/plus-submit.sh`](../api3/scripts/plus-submit.sh); both default to simulation, while `--send` broadcasts and a reverted transaction costs gas. V2 has no Sepolia address or transaction links yet; the live contract currently evidenced in [`docs/evidence.md`](evidence.md) is v1. Do not describe the local judge results as testnet transactions. A v2 testnet demonstration must first accept a valid fresh response before the edited-value, stale, different-request, and wrong-key attempts are shown.
 
 ## Claims to keep bounded
 

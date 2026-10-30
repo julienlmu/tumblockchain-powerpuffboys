@@ -267,9 +267,9 @@ Rule-specific failures (accounts or confirmation statement overdue, LEI renewal)
 
 | Order | Supplier | Registry | Rules | Milestones (tokens), due | Expected |
 |---|---|---|---|---|---|
-| **A** "PO-1001 Motor supply" | `09729896` (active, flags to verify) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
+| **A** "PO-1001 Motor supply" | `03778796` (active, clean) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
 | **B** "PO-1002 Gearbox" | `07418033` (liquidation) | Companies House | `0x06` | 1,000 (C3 + 20 min), 2,000 | Held at the first check. The agent triggers the refund after the grace period |
-| **C** "PO-1003 Sensors" | active company with **accounts overdue** (Emre finds it) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
+| **C** "PO-1003 Sensors" | `09729896` (active, accounts and confirmation overdue) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
 | **D** "PO-1004 Cable harness (DE)" | German company with an LEI, `ACTIVE`/`ISSUED` (Emre finds it) | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
 | **E** "PO-1005 Castings" | LEI with registration **LAPSED** (Emre finds it) | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
 | **B2** (created live in the video) | `07418033` | Companies House | `0x06` | 1,000, 2,000 (due in 2 minutes) | Held at once by the **supplier-wide stop** (order B already showed `liquidation`), without a new fetch. The refund countdown and the "Claim now" option appear on screen |
@@ -1091,7 +1091,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
    - Decode errors by selector for every error in §4.6.
    - `--send` sends the transaction with `EVM_PRIVATE_KEY`. Use it for the video: real reverted transactions show as a red "Fail" on Etherscan.
 7. **(→ 21:00) Demo suppliers.** Find real entities for orders A to E (§2.5) and document them in `docs/data-sources.md`, with links to the register pages and the expected flags:
-   - Companies House active and clean (check `09729896`).
+   - Companies House active and clean (`03778796`).
    - Companies House in liquidation (`07418033`).
    - Companies House **active but with accounts overdue**. Hint: a company incorporated about 2 to 3 years ago that never filed. Use `advancedSearchCompanies` at $0.01 to list candidates, then profile a few. If you can't find one, use an active company with an overdue confirmation statement instead.
    - A German LEI that is `ACTIVE`/`ISSUED`, and an LEI with registration `LAPSED`. The free search returns full records with `registration.status`, so filter them there. Only the final `getLegalEntity` is paid.
@@ -1413,7 +1413,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 ### 7.2 C3: Sepolia launch (00:00)
 
 1. **Orhun** deploys v2 with the demo constants and records the address in §3.2, `docs/evidence.md` and `api3/.env.example`.
-2. **Emre** confirms the demo supplier ids and exports `DEMO_CH_A=09729896`, `DEMO_CH_B=07418033`, `DEMO_CH_C=…`, `DEMO_LEI_D=…`, `DEMO_LEI_E=…`.
+2. **Emre** confirms the demo supplier ids and exports `DEMO_CH_A=03778796`, `DEMO_CH_B=07418033`, `DEMO_CH_C=09729896`, `DEMO_LEI_D=…`, `DEMO_LEI_E=…`.
 3. **Orhun** runs `plus-demo-orders.sh` (orders A to E plus the approvals in §2.5). The supplier wallets are fresh team addresses.
 4. **Batu** sends at least 2 aUSD on Base Sepolia to the agent wallet, and **Julien** checks the balances.
 5. **Julien** starts the agent in the supervised loop with `AGENT_PROFILE=demo` and watches the first cycles: A M1 and D M1 paid; B, C and E held.

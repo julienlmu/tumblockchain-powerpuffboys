@@ -137,3 +137,21 @@ APP_CONFIG=apps/supplier-pulse-sim.json venv/bin/python agent.py
 venv/bin/python buy_job.py --input '{"order_id": 0, "company_number": "07654321"}'   # held: agent paid
 venv/bin/python buy_job.py --input '{"order_id": 0, "company_number": "99999999"}'   # no data: refunded
 ```
+
+## SupplierPulse+ v2 integration and evidence status
+
+The v2 contract, tests and local deployment scripts, data tools and fixtures, dashboard, and judge page are integrated in this branch. **V2 is not deployed on Sepolia.** There is no v2 deployment address, on-chain payment/hold/refund run, or testnet tamper transaction to report. The live v1 contract evidence above must not be presented as v2 evidence. Earlier UI-workstream Anvil checks were performed before the v1.1 integration and have not been rerun against the current branch; current browser-only validation is summarized in [`demo/README.md`](../demo/README.md).
+
+### Live API3 data fetches (Base Sepolia)
+
+The five genuine signed fixtures below include the x402 payment transaction in their metadata. They support the live data-source verification described in [`data-sources.md`](data-sources.md), not an on-chain v2 contract run. The records are stale for contract submission; do not use them as fresh evidence.
+
+| Source / supplier | Signed fixture | x402 payment transaction |
+|---|---|---|
+| Companies House `03778796` | [`ch-03778796-202610301614.json`](../api3/fixtures/ch-03778796-202610301614.json) | [`0xa6d5a8356f695766c844e310962c88fb677337036ff9d1d44327969aba997918`](https://sepolia.basescan.org/tx/0xa6d5a8356f695766c844e310962c88fb677337036ff9d1d44327969aba997918) |
+| Companies House `07418033` | [`ch-07418033-202610301614.json`](../api3/fixtures/ch-07418033-202610301614.json) | [`0x4338a7e319f321e3e8218bbd3e4f240c9b51e6ab46f8b91736c4dc779451b1e2`](https://sepolia.basescan.org/tx/0x4338a7e319f321e3e8218bbd3e4f240c9b51e6ab46f8b91736c4dc779451b1e2) |
+| Companies House `09729896` | [`ch-09729896-202610301614.json`](../api3/fixtures/ch-09729896-202610301614.json) | [`0xb1a74544cb2fc12fcd69015a47e1b04ef7a73dd494dc03a6fa5dc13b7b5befc4`](https://sepolia.basescan.org/tx/0xb1a74544cb2fc12fcd69015a47e1b04ef7a73dd494dc03a6fa5dc13b7b5befc4) |
+| GLEIF `391200JI69LS8L648F30` | [`gleif-391200JI69LS8L648F30-202610301607.json`](../api3/fixtures/gleif-391200JI69LS8L648F30-202610301607.json) | [`0xa4f2ce0b540c045bad0f24e2e61dd00dc81e05303b9b13c8889a36c7b94f4a5c`](https://sepolia.basescan.org/tx/0xa4f2ce0b540c045bad0f24e2e61dd00dc81e05303b9b13c8889a36c7b94f4a5c) |
+| GLEIF `52990092KBQJF8QBGJ50` | [`gleif-52990092KBQJF8QBGJ50-202610301607.json`](../api3/fixtures/gleif-52990092KBQJF8QBGJ50-202610301607.json) | [`0x4bed5393cb3eebde913aee4a44edd990e65a86963cffbf2c30e03bc0e36aa7c1`](https://sepolia.basescan.org/tx/0x4bed5393cb3eebde913aee4a44edd990e65a86963cffbf2c30e03bc0e36aa7c1) |
+
+Five fixture calls represent $0.05 of the $0.08 total reported in `data-sources.md`; further paid requests are not needed for this integration step.
