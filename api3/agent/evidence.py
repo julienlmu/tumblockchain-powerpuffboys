@@ -1,0 +1,81 @@
+"""Fresh signed records through FETCH_CMD (docs/SUPPLIERPULSE_PLUS.md §4.7).
+
+The command is api3/scripts/fetch-evidence.sh (paid, x402) or fetch-local.sh
+(local signer, free). Both print the §4.1 JSON and signal failures by exit code.
+"""
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+from typing import Callable, List, Optional, Sequence
+
+from model import Evidence
+
+
+class FetchFailed(Exception):
+    kind = "fetch_error"
+
+
+class NoData(FetchFailed):
+    """Exit 3: the Airnode answered with an error, the supplier is unknown or a field is missing."""
+
+    kind = "no_data"
+
+
+class PaymentFailed(FetchFailed):
+    """Exit 4: the x402 payment did not go through (for example no aUSD left)."""
+
+    kind = "payment_failed"
+
+
+class VerificationFailed(FetchFailed):
+    """Exit 5: unexpected request hash or signer. Never submit such a record."""
+
+    kind = "verification_failed"
+
+
+EXIT_CODES = {3: NoData, 4: PaymentFailed, 5: VerificationFailed}
+
+
+def parse_evidence(text: str) -> Evidence:
+    lines = [line for line in text.splitlines() if line.strip()]
+    if not lines:
+        raise FetchFailed("fetch printed nothing")
+    try:
+        d = json.loads(lines[-1]) if lines[-1].lstrip().startswith("{") else json.loads(text)
+        return Evidence(
+            source=d["source"],
+            supplier_id=d["supplierId"],
+            request_hash=d["requestHash"],
+            timestamp=int(d["timestamp"]),
+            data=d["data"],
+            signature=d["signature"],
+            raw=d.get("raw") or "",
+            payment_tx=d.get("paymentTx"),
+            price_usd=float(d.get("priceUsd") or 0),
+        )
+    except (ValueError, KeyError, TypeError) as e:
+        raise FetchFailed("fetch output is not a signed response file: %s" % e)
+
+
+class Fetcher:
+    def __init__(self, cmd: Sequence[str], cwd: Path, timeout: int = 180,
+                 runner: Optional[Callable[..., subprocess.CompletedProcess]] = None):
+        self.cmd: List[str] = list(cmd)
+        self.cwd = cwd
+        self.timeout = timeout
+        self._run = runner or subprocess.run
+
+    def fetch(self, source: str, supplier_id: str) -> Evidence:
+        try:
+            res = self._run(self.cmd + [source, supplier_id], capture_output=True, text=True,
+                            cwd=str(self.cwd), timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            raise NoData("fetch timed out after %ss" % self.timeout)
+        except OSError as e:
+            raise FetchFailed("cannot run %s: %s" % (self.cmd[0], e))
+        if res.returncode != 0:
+            reason = ((res.stderr or "").strip().splitlines() or ["exit %d" % res.returncode])[-1][:300]
+            raise EXIT_CODES.get(res.returncode, FetchFailed)(reason)
+        return parse_evidence(res.stdout)
