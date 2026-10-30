@@ -239,10 +239,10 @@
       case "key": {
         const w = ethers.Wallet.createRandom();
         out.signature = await w.signMessage(ethers.getBytes(digestOf(r.requestHash, r.timestamp, r.data)));
-        return { record: out, what: `(d) Wrong key: the untouched response, re-signed by a random key ${w.address}.`, expect: "WrongSigner", signer: w.address };
+        return { record: out, what: `(d) Wrong key: the untouched record, re-signed by a random key ${w.address}.`, expect: "WrongSigner", signer: w.address };
       }
       case "replay":
-        return { record: out, what: "Replay: the response unchanged. It is rejected once the original was accepted on chain.", expect: "Replayed" };
+        return { record: out, what: "Replay: the record unchanged. It is rejected once the original was accepted on chain.", expect: "Replayed" };
       default:
         return { record: out, what: "Submit as is: the record untouched.", expect: null };
     }
@@ -266,10 +266,10 @@
     const t = (x) => dayClockS(x);
     switch (name) {
       case "WrongSigner": return `The signature recovers to ${a[0]}, not the Airnode this contract trusts for this registry${ctx.expectedSigner ? ` (${ctx.expectedSigner})` : ""}. Any edit of the signed bytes, or a different key, changes the recovered address.`;
-      case "WrongRequest": return "The response answers a different request (another company, operation or projection) than the one this order was built for.";
-      case "StaleResponse": return `The response was signed at ${t(a[0])}, more than the contract's maximum age (maxAge) before the chain's time ${t(a[1])}. Old evidence cannot pay today's milestone.`;
+      case "WrongRequest": return "The record answers a different request (another company, operation or projection) than the one this order was built for.";
+      case "StaleResponse": return `The record was signed at ${t(a[0])}, more than the contract's maximum age (maxAge) before the chain's time ${t(a[1])}. Old evidence cannot pay today's milestone.`;
       case "FutureResponse": return `The timestamp ${t(a[0])} lies more than 60 s in the future of the chain's time ${t(a[1])}.`;
-      case "Replayed": return "This exact signed response was already used once. Each record can move the order only once.";
+      case "Replayed": return "This exact signed record was already used once. Each record can move the order only once.";
       case "NotNewer": return "The order already accepted a record signed at the same time or later. Older evidence cannot overwrite newer evidence.";
       case "NotActive": return `The order is ${STATE[Number(a[0])] || "not active"}: a held or closed order accepts no new evidence.`;
       case "BadOrder": return "There is no order with this id.";
