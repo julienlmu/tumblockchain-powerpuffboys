@@ -16,7 +16,7 @@ plus_source() {
 # Same as SupplierPulsePlus.requestHashFor() on chain (docs/SUPPLIERPULSE_PLUS.md §4.2)
 plus_request_hash() {
   if [[ "$(plus_source "$1")" == 0 ]]; then
-    cast keccak "[\"getCompanyProfile\",[[\"company_number\",\"$2\"]],[[\"accounts_overdue\",\"/accounts/overdue\"],[\"confirmation_overdue\",\"/confirmation_statement/overdue\"],[\"insolvency\",\"/has_insolvency_history\"],[\"status\",\"/company_status\"]]]"
+    cast keccak "[\"getCompanyProfile\",[[\"company_number\",\"$2\"]],[[\"accounts_overdue\",\"/accounts/next_accounts/overdue\"],[\"confirmation_overdue\",\"/confirmation_statement/overdue\"],[\"status\",\"/company_status\"]]]"
   else
     cast keccak "[\"getLegalEntity\",[[\"lei\",\"$2\"]],[[\"entity_status\",\"/data/attributes/entity/status\"],[\"registration_status\",\"/data/attributes/registration/status\"]]]"
   fi
@@ -45,7 +45,8 @@ plus_error() {
   for e in "WrongSigner(address)" "WrongRequest(bytes32,bytes32)" "StaleResponse(uint256,uint256)" \
            "FutureResponse(uint256,uint256)" "Replayed(bytes32)" "NotNewer(uint256,uint256)" \
            "NoValidPermit(uint256)" "PermitExpired(uint256,uint256)" "NotApproved(uint256)" \
-           "NotDue(uint256,uint256)" "NotActive(uint8)" "NotHeld()" "RefundNotYet(uint256)" \
+           "NotDue(uint256,uint256)" "NotActive(uint8)" "NotRefundable()" "RefundNotYet(uint256)" \
+           "SupplierFailed(uint256)" "NoNewerFailure()" \
            "BadOrder()" "BadSource()" "BadSupplierId()" "BadRules()" "NotAuthorized()" "TransferFailed()" \
            "InvalidSignatureLength()" "InvalidSignatureS()" "InvalidSignatureV()" "InvalidSigner()" \
            "KeyNotFound()" "NoNumber()" "NoString()" "NoBool()"; do
@@ -54,14 +55,13 @@ plus_error() {
   echo "$name"
 }
 
-# Screen labels for failedRules bits (§4.3)
+# Screen labels for failedRules bits (§4.3, v1.1)
 plus_rule_labels() {
   local f="$1" out=()
   (( f & 0x80 )) && out+=("registry status not active")
-  (( f & 0x01 )) && out+=("insolvency history")
   (( f & 0x02 )) && out+=("accounts overdue")
   (( f & 0x04 )) && out+=("confirmation statement overdue")
-  (( f & 0x08 )) && out+=("LEI registration not issued")
+  (( f & 0x08 )) && out+=("LEI renewal overdue")
   if [[ ${#out[@]} -eq 0 ]]; then echo none; else printf '%s, ' "${out[@]}" | sed 's/, $//'; fi
 }
 

@@ -39,7 +39,7 @@ contract SupplierPulsePlusTest is TestBase {
 
     string constant CH_ID = "09729896";
     string constant LEI = "TESTLEI0000000000000";
-    bytes32 constant CH_REQ = 0xde8d697c8cd5e5ead92f39da40c08b65459caf8ba0b60d4543b39369c65e7775;
+    bytes32 constant CH_REQ = 0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f;
     bytes32 constant LEI_REQ = 0x82e8da1da50a59eb4941e8461f35869cb1a4a95183dc1ea84075b99af97d790f;
 
     address payable supplier = payable(address(0xBEEF));
@@ -80,18 +80,12 @@ contract SupplierPulsePlusTest is TestBase {
         );
     }
 
-    function _ch(bool insolvency, bool accounts, bool confirmation, string memory status)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function _ch(bool accounts, bool confirmation, string memory status) internal pure returns (bytes memory) {
         return abi.encodePacked(
             '{"accounts_overdue":',
             accounts ? "true" : "false",
             ',"confirmation_overdue":',
             confirmation ? "true" : "false",
-            ',"insolvency":',
-            insolvency ? "true" : "false",
             ',"status":"',
             status,
             '"}'
@@ -99,7 +93,7 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function _chClean() internal pure returns (bytes memory) {
-        return _ch(false, false, false, "active");
+        return _ch(false, false, "active");
     }
 
     function _gleif(string memory entity, string memory reg) internal pure returns (bytes memory) {
@@ -135,11 +129,15 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function _tier(bytes32 key) internal view returns (uint8 t) {
-        (,,,,, t) = pulse.supplierRecord(key);
+        (,,,,,, t) = pulse.supplierRecord(key);
     }
 
     function _streak(bytes32 key) internal view returns (uint32 s) {
-        (s,,,,,) = pulse.supplierRecord(key);
+        (s,,,,,,) = pulse.supplierRecord(key);
+    }
+
+    function _failedAt(bytes32 key) internal view returns (uint64 f) {
+        (,,,,, f,) = pulse.supplierRecord(key);
     }
 
     function _expectRevert(bytes memory err) internal {
@@ -188,8 +186,10 @@ contract SupplierPulsePlusTest is TestBase {
     function test_badRules() public {
         vm.expectRevert(ISupplierPulsePlus.BadRules.selector);
         pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x08);
+        vm.expectRevert(ISupplierPulsePlus.BadRules.selector); // 0x01 is reserved since v1.1
+        pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x01);
         vm.expectRevert(ISupplierPulsePlus.BadRules.selector);
-        pulse.createOrder{value: 1 ether}(1, LEI, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x01);
+        pulse.createOrder{value: 1 ether}(1, LEI, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x02);
         vm.expectRevert(ISupplierPulsePlus.BadRules.selector);
         pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x80);
     }
@@ -239,7 +239,7 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_approveOnlyBuyerAndInRange() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         vm.prank(stranger);
         vm.expectRevert(ISupplierPulsePlus.NotAuthorized.selector);
         pulse.approveMilestone(id, 0);
@@ -249,13 +249,12 @@ contract SupplierPulsePlusTest is TestBase {
 
     function test_orderViews() public {
         uint256 id = pulse.createOrder{value: 3 ether}(
-            0, CH_ID, supplier, keccak256("PO-9"), _amounts(2), _dues(2, NOW + 100, 50), TTL, 0x05
+            0, CH_ID, supplier, keccak256("PO-9"), _amounts(2), _dues(2, NOW + 100, 50), TTL, 0x04
         );
         pulse.approveMilestone(id, 1);
         _checkInfo(id);
         _checkMilestonesAndStatus(id);
         assertEq(pulse.ordersLength(), 1, "length");
-        assertEq(pulse.effectivePermitTtl(id), TTL, "ttl standard");
     }
 
     function _checkInfo(uint256 id) internal view {
@@ -263,7 +262,7 @@ contract SupplierPulsePlusTest is TestBase {
             pulse.orderInfo(id);
         assertTrue(b == address(this) && s == supplier && src == 0, "parties");
         assertTrue(keccak256(bytes(sid)) == keccak256(bytes(CH_ID)) && req == CH_REQ, "id and request");
-        assertTrue(ref == keccak256("PO-9") && ttl == TTL && rules == 0x05, "ref ttl rules");
+        assertTrue(ref == keccak256("PO-9") && ttl == TTL && rules == 0x04, "ref ttl rules");
     }
 
     function _checkMilestonesAndStatus(uint256 id) internal view {
@@ -282,7 +281,7 @@ contract SupplierPulsePlusTest is TestBase {
     // ------------------------------------------------------ Companies House
 
     function test_chCleanIssuesPermit() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         assertTrue(_submit(id, _chClean(), NOW), "clean");
         (,,,,, uint64 until, bool pv, uint256 last) = pulse.orderStatus(id);
         assertTrue(pv && until == NOW + TTL && last == NOW, "permit");
@@ -290,10 +289,10 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_chEachRuleFailsAlone() public {
-        bytes[3] memory data = [_ch(true, false, false, "active"), _ch(false, true, false, "active"), _ch(false, false, true, "active")];
-        uint8[3] memory bit = [0x01, 0x02, 0x04];
-        for (uint256 i = 0; i < 3; i++) {
-            uint256 id = _order(0, CH_ID, 2, 0x07);
+        bytes[2] memory data = [_ch(true, false, "active"), _ch(false, true, "active")];
+        uint8[2] memory bit = [0x02, 0x04];
+        for (uint256 i = 0; i < 2; i++) {
+            uint256 id = _order(0, CH_ID, 2, 0x06);
             assertTrue(!_submit(id, data[i], NOW - 3 + i), "held");
             assertEq(_failed(id), bit[i], "exact failedRules");
             assertEq(_state(id), 1, "state held");
@@ -301,32 +300,32 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_chLiquidationSetsBaseBit() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
-        assertTrue(!_submit(id, _ch(true, true, false, "liquidation"), NOW), "held");
-        assertEq(_failed(id), 0x80 | 0x01 | 0x02, "base plus enabled failures");
+        uint256 id = _order(0, CH_ID, 2, 0x06);
+        assertTrue(!_submit(id, _ch(true, false, "liquidation"), NOW), "held");
+        assertEq(_failed(id), 0x80 | 0x02, "base plus enabled failures");
 
         uint256 id2 = _order(0, CH_ID, 1, 0);
-        assertTrue(!_submit(id2, _ch(false, false, false, "dissolved"), NOW - 1), "held, no rules");
+        assertTrue(!_submit(id2, _ch(false, false, "dissolved"), NOW - 1), "held, no rules");
         assertEq(_failed(id2), 0x80, "base only");
     }
 
     function test_chDisabledRuleIgnored() public {
         uint256 id = _order(0, CH_ID, 2, 0x02); // only accounts rule
-        assertTrue(_submit(id, _ch(true, false, true, "active"), NOW), "insolvency and confirmation ignored");
+        assertTrue(_submit(id, _ch(false, true, "active"), NOW), "confirmation ignored");
         // a disabled rule's field may even be missing
         uint256 id2 = _order(0, CH_ID, 1, 0);
         assertTrue(_submit(id2, bytes('{"status":"active"}'), NOW - 1), "status only");
     }
 
     function test_chKeyOrderAndSpacesDoNotMatter() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes memory data =
-            bytes('{"status": "active", "insolvency": false, "confirmation_overdue": false, "accounts_overdue": false}');
+            bytes('{"status": "active", "confirmation_overdue": false, "accounts_overdue": false}');
         assertTrue(_submit(id, data, NOW), "parsed by key");
     }
 
     function test_chMissingEnabledFieldReverts() public {
-        uint256 id = _order(0, CH_ID, 1, 0x01);
+        uint256 id = _order(0, CH_ID, 1, 0x02);
         bytes memory data = bytes('{"status":"active"}');
         vm.expectRevert(JsonFields.KeyNotFound.selector);
         pulse.submitEvidence(id, CH_REQ, NOW, data, _sign(CH_KEY, CH_REQ, NOW, data));
@@ -364,9 +363,9 @@ contract SupplierPulsePlusTest is TestBase {
     // ----------------------------------------------------------------- tamper
 
     function test_tamperEditedValue() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
-        bytes memory sig = _sign(CH_KEY, CH_REQ, NOW, _ch(false, false, false, "liquidation"));
-        bytes memory edited = _ch(false, false, false, "active");
+        uint256 id = _order(0, CH_ID, 1, 0x06);
+        bytes memory sig = _sign(CH_KEY, CH_REQ, NOW, _ch(false, false, "liquidation"));
+        bytes memory edited = _ch(false, false, "active");
         // the recovered address is some random one, so check the error selector only
         try pulse.submitEvidence(id, CH_REQ, NOW, edited, sig) {
             revert("accepted");
@@ -376,7 +375,7 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_tamperStale() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes memory data = _chClean();
         uint256 ts = NOW - MAX_AGE - 1;
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.StaleResponse.selector, ts, NOW));
@@ -385,7 +384,7 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_tamperFuture() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes memory data = _chClean();
         uint256 ts = NOW + 61;
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.FutureResponse.selector, ts, NOW));
@@ -394,7 +393,7 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_tamperOtherRequest() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes memory data = _chClean();
         bytes32 other = pulse.requestHashFor(0, "00000001");
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.WrongRequest.selector, other, CH_REQ));
@@ -409,14 +408,14 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_tamperWrongKey() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes memory data = _chClean();
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.WrongSigner.selector, vm.addr(ATTACKER_KEY)));
         pulse.submitEvidence(id, CH_REQ, NOW, data, _sign(ATTACKER_KEY, CH_REQ, NOW, data));
     }
 
     function test_tamperReplay() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         bytes memory data = _chClean();
         bytes memory sig = _sign(CH_KEY, CH_REQ, NOW, data);
         pulse.submitEvidence(id, CH_REQ, NOW, data, sig);
@@ -427,8 +426,8 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_tamperReplayAcrossOrders() public {
-        uint256 a = _order(0, CH_ID, 1, 0x07);
-        uint256 b = _order(0, CH_ID, 1, 0x07);
+        uint256 a = _order(0, CH_ID, 1, 0x06);
+        uint256 b = _order(0, CH_ID, 1, 0x06);
         bytes memory data = _chClean();
         bytes memory sig = _sign(CH_KEY, CH_REQ, NOW, data);
         pulse.submitEvidence(a, CH_REQ, NOW, data, sig);
@@ -439,15 +438,15 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_tamperNotNewer() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         _submit(id, _chClean(), NOW);
-        bytes memory older = _ch(false, false, false, "active ");
+        bytes memory older = _ch(false, false, "active ");
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.NotNewer.selector, NOW - 10, NOW));
         pulse.submitEvidence(id, CH_REQ, NOW - 10, older, _sign(CH_KEY, CH_REQ, NOW - 10, older));
     }
 
     function test_tamperHighS() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes memory data = _chClean();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(CH_KEY, AirnodeVerifier.ethSignedHash(AirnodeVerifier.digest(CH_REQ, NOW, data)));
         bytes memory flipped = abi.encodePacked(r, bytes32(N - uint256(s)), v == 27 ? uint8(28) : uint8(27));
@@ -456,8 +455,8 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_heldOrderRejectsEvidence() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
-        _submit(id, _ch(false, false, false, "liquidation"), NOW - 5);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
+        _submit(id, _ch(false, false, "liquidation"), NOW - 5);
         bytes memory data = _chClean();
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.NotActive.selector, uint8(1)));
         pulse.submitEvidence(id, CH_REQ, NOW, data, _sign(CH_KEY, CH_REQ, NOW, data));
@@ -465,24 +464,21 @@ contract SupplierPulsePlusTest is TestBase {
 
     // ---------------------------------------------------------------- permits
 
-    function test_permitLifetimePerTier() public {
+    function test_tierNeverExtendsPermit() public {
         // Premium needs 6 counted clean records; gap 60 s between counted ones
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes32 key = pulse.supplierKeyOf(0, CH_ID);
-        uint64[3] memory mult = [uint64(1), 2, 4];
         for (uint256 i = 0; i < 6; i++) {
             vm.warp(NOW + i * GAP);
             _submit(id, _chClean(), NOW + i * GAP);
             (,,,,, uint64 until,,) = pulse.orderStatus(id);
-            uint8 t = _tier(key);
-            assertEq(until, NOW + i * GAP + TTL * mult[t], "ttl x tier");
-            assertEq(pulse.effectivePermitTtl(id), TTL * mult[t], "effective ttl");
+            assertEq(until, NOW + i * GAP + TTL, "always permitTtl");
         }
         assertEq(_tier(key), 2, "premium");
     }
 
     function test_permitExpired() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         _submit(id, _chClean(), NOW);
         pulse.approveMilestone(id, 0);
         vm.warp(NOW + TTL + 1);
@@ -491,7 +487,7 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_permitUsedUpAndNextNeedsEvidence() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         pulse.approveMilestone(id, 0);
         pulse.approveMilestone(id, 1);
         assertEq(_check(id, _chClean(), NOW), 0, "paid");
@@ -504,13 +500,13 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_noPermitAtAll() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.NoValidPermit.selector, 0));
         pulse.release(id);
     }
 
     function test_newerCleanRecordReplacesPermit() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         _submit(id, _chClean(), NOW - 100);
         _submit(id, _chClean(), NOW);
         (,,,,, uint64 until,,) = pulse.orderStatus(id);
@@ -521,7 +517,7 @@ contract SupplierPulsePlusTest is TestBase {
 
     function test_notDueThenPaid() public {
         uint256 id = pulse.createOrder{value: 1 ether}(
-            0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW + 100, 0), TTL, 0x07
+            0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW + 100, 0), TTL, 0x06
         );
         pulse.approveMilestone(id, 0);
         _submit(id, _chClean(), NOW);
@@ -533,7 +529,7 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_notApproved() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         _submit(id, _chClean(), NOW);
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.NotApproved.selector, 0));
         pulse.release(id);
@@ -541,34 +537,34 @@ contract SupplierPulsePlusTest is TestBase {
 
     function test_checkAndReleaseOutcomes() public {
         // 1 AwaitingApproval
-        uint256 a = _order(0, CH_ID, 1, 0x07);
+        uint256 a = _order(0, CH_ID, 1, 0x06);
         assertEq(_check(a, _chClean(), NOW - 4), 1, "awaiting approval");
         // 2 NotDue
         uint256 b = pulse.createOrder{value: 1 ether}(
-            0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW + 100, 0), TTL, 0x07
+            0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW + 100, 0), TTL, 0x06
         );
         pulse.approveMilestone(b, 0);
         assertEq(_check(b, _chClean(), NOW - 3), 2, "not due");
         assertEq(supplier.balance, 0, "nothing paid yet");
         // 3 Held
-        uint256 c = _order(0, CH_ID, 1, 0x07);
-        assertEq(_check(c, _ch(false, true, false, "active"), NOW - 2), 3, "held");
+        uint256 c = _order(0, CH_ID, 1, 0x06);
+        assertEq(_check(c, _ch(true, false, "active"), NOW - 2), 3, "held");
         // 0 Paid
-        uint256 d = _order(0, CH_ID, 1, 0x07);
+        uint256 d = _order(0, CH_ID, 1, 0x06);
         pulse.approveMilestone(d, 0);
         assertEq(_check(d, _chClean(), NOW - 1), 0, "paid");
         assertEq(supplier.balance, 1 ether, "supplier paid");
     }
 
     function test_checkAndReleaseRevertsOnVerificationFailure() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes memory data = _chClean();
         vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.WrongSigner.selector, vm.addr(ATTACKER_KEY)));
         pulse.checkAndRelease(id, CH_REQ, NOW, data, _sign(ATTACKER_KEY, CH_REQ, NOW, data));
     }
 
     function test_orderStatusAfterPartialPayment() public {
-        uint256 id = _order(0, CH_ID, 3, 0x07);
+        uint256 id = _order(0, CH_ID, 3, 0x06);
         pulse.approveMilestone(id, 0);
         _check(id, _chClean(), NOW);
         (uint8 st, uint256 paid, uint256 rem, uint256 next,,, bool pv,) = pulse.orderStatus(id);
@@ -580,7 +576,7 @@ contract SupplierPulsePlusTest is TestBase {
     // ------------------------------------------------------------------ tiers
 
     function test_streakCountsOnlyAfterGap() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         bytes32 key = pulse.supplierKeyOf(0, CH_ID);
         _submit(id, _chClean(), NOW - 30);
         _submit(id, _chClean(), NOW - 1); // 29 s later: not counted
@@ -588,13 +584,13 @@ contract SupplierPulsePlusTest is TestBase {
         vm.warp(NOW + 30);
         _submit(id, _chClean(), NOW + 30); // 60 s after the counted one
         assertEq(_streak(key), 2, "two counted");
-        (, uint32 checks,,,,) = pulse.supplierRecord(key);
+        (, uint32 checks,,,,,) = pulse.supplierRecord(key);
         assertEq(checks, 3, "all checks counted");
     }
 
     function test_streakResetsOnFailureAndTiersEmit() public {
         bytes32 key = pulse.supplierKeyOf(0, CH_ID);
-        uint256 id = _order(0, CH_ID, 1, 0x07);
+        uint256 id = _order(0, CH_ID, 1, 0x06);
         for (uint256 i = 0; i < 3; i++) {
             vm.warp(NOW + i * GAP);
             if (i == 2) {
@@ -615,20 +611,20 @@ contract SupplierPulsePlusTest is TestBase {
         assertEq(_tier(key), 2, "premium");
 
         // a failure on another order of the same supplier resets the shared record
-        uint256 other = _order(0, CH_ID, 1, 0x07);
+        uint256 other = _order(0, CH_ID, 1, 0x06);
         vm.warp(NOW + 6 * GAP);
         vmE.expectEmit(true, false, false, true, address(pulse));
         emit ISupplierPulsePlus.TierChanged(key, 2, 0, 0);
-        _submit(other, _ch(false, false, false, "liquidation"), NOW + 6 * GAP);
-        (uint32 streak,, uint32 failures,,, uint8 tier) = pulse.supplierRecord(key);
-        assertTrue(streak == 0 && failures == 1 && tier == 0, "reset");
+        _submit(other, _ch(false, false, "liquidation"), NOW + 6 * GAP);
+        (uint32 streak,, uint32 failures,,, uint64 failedAt, uint8 tier) = pulse.supplierRecord(key);
+        assertTrue(streak == 0 && failures == 1 && tier == 0 && failedAt == NOW + 6 * GAP, "reset");
         (,,,,, uint8 t) = pulse.orderSchedule(id);
         assertEq(t, 0, "first order sees the shared tier");
     }
 
     function test_twoOrdersShareSupplierRecord() public {
-        uint256 a = _order(0, CH_ID, 1, 0x07);
-        uint256 b = _order(0, CH_ID, 1, 0x07);
+        uint256 a = _order(0, CH_ID, 1, 0x06);
+        uint256 b = _order(0, CH_ID, 1, 0x06);
         bytes32 key = pulse.supplierKeyOf(0, CH_ID);
         _submit(a, _chClean(), NOW - GAP);
         _submit(b, _chClean(), NOW);
@@ -637,13 +633,95 @@ contract SupplierPulsePlusTest is TestBase {
         assertTrue(pulse.supplierKeyOf(1, LEI) != key, "other key");
     }
 
+    function test_olderRecordDoesNotMoveHistory() public {
+        uint256 a = _order(0, CH_ID, 1, 0x06);
+        uint256 b = _order(0, CH_ID, 1, 0x06);
+        bytes32 key = pulse.supplierKeyOf(0, CH_ID);
+        _submit(a, _chClean(), NOW);
+        // b gets an older record: it serves b's own order, but the history stays
+        assertTrue(_submit(b, _ch(false, false, "liquidation"), NOW - 10) == false, "b held");
+        (uint32 streak, uint32 checks, uint32 failures,, uint64 lastCheckAt, uint64 failedAt,) = pulse.supplierRecord(key);
+        assertTrue(streak == 1 && checks == 1 && failures == 0 && lastCheckAt == NOW && failedAt == 0, "unchanged");
+        assertEq(_state(a), 0, "a still active");
+    }
+
+    function test_ruleOnlyFailureKeepsStreak() public {
+        uint256 a = _order(0, CH_ID, 1, 0x02);
+        bytes32 key = pulse.supplierKeyOf(0, CH_ID);
+        _submit(a, _chClean(), NOW - GAP);
+        uint256 b = _order(0, CH_ID, 1, 0x02);
+        assertTrue(!_submit(b, _ch(true, false, "active"), NOW), "b held for accounts");
+        (uint32 streak, uint32 checks, uint32 failures,,, uint64 failedAt,) = pulse.supplierRecord(key);
+        assertTrue(streak == 2 && checks == 2 && failures == 0 && failedAt == 0, "base passed, counted");
+    }
+
+    // ---------------------------------------------------- supplier-wide stop
+
+    /// order a has a valid permit, then order b of the same supplier shows liquidation
+    function _stopSetup() internal returns (uint256 a, uint256 b) {
+        a = _order(0, CH_ID, 2, 0x06);
+        b = _order(0, CH_ID, 2, 0x06);
+        pulse.approveMilestone(a, 0);
+        _submit(a, _chClean(), NOW - 20);
+        _submit(b, _ch(false, false, "liquidation"), NOW - 10);
+    }
+
+    function test_supplierStopBlocksOtherPermit() public {
+        (uint256 a,) = _stopSetup();
+        assertEq(_failedAt(pulse.supplierKeyOf(0, CH_ID)), NOW - 10, "failure stored");
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.SupplierFailed.selector, NOW - 10));
+        pulse.release(a);
+    }
+
+    function test_applySupplierFailureHolds() public {
+        (uint256 a,) = _stopSetup();
+        vmE.expectEmit(true, false, false, true, address(pulse));
+        emit ISupplierPulsePlus.OrderHeld(a, 0x80, 3 ether, uint64(NOW + GRACE));
+        pulse.applySupplierFailure(a);
+        assertEq(_state(a), 1, "held");
+        assertEq(_failed(a), 0x80, "base label");
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.NotActive.selector, uint8(1)));
+        pulse.applySupplierFailure(a);
+    }
+
+    function test_noNewerFailure() public {
+        _stopSetup();
+        // an order of the failed supplier whose own last check is newer than the failure
+        uint256 c = _order(0, CH_ID, 1, 0x06);
+        _submit(c, _chClean(), NOW);
+        vm.expectRevert(ISupplierPulsePlus.NoNewerFailure.selector);
+        pulse.applySupplierFailure(c);
+    }
+
+    function test_cleanRecordOlderThanFailure() public {
+        _stopSetup();
+        uint256 c = _order(0, CH_ID, 1, 0x06);
+        bytes memory data = _chClean();
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.SupplierFailed.selector, NOW - 10));
+        pulse.submitEvidence(c, CH_REQ, NOW - 15, data, _sign(CH_KEY, CH_REQ, NOW - 15, data));
+        assertTrue(_submit(c, data, NOW), "a newer clean record is fine");
+    }
+
+    function test_ruleOnlyFailureDoesNotStopOthers() public {
+        uint256 a = _order(0, CH_ID, 1, 0x06);
+        uint256 b = _order(0, CH_ID, 1, 0x02);
+        pulse.approveMilestone(a, 0);
+        _submit(a, _chClean(), NOW - 10);
+        assertTrue(!_submit(b, _ch(true, false, "active"), NOW), "b held for its own rule");
+        pulse.release(a);
+        assertEq(supplier.balance, 1 ether, "a paid");
+        uint256 c = _order(0, CH_ID, 1, 0x06);
+        vm.expectRevert(ISupplierPulsePlus.NoNewerFailure.selector); // no base failure stored
+        pulse.applySupplierFailure(c);
+    }
+
     // ----------------------------------------------------------------- refund
 
     function _heldOrder() internal returns (uint256 id) {
-        id = _order(0, CH_ID, 3, 0x07);
+        id = _order(0, CH_ID, 3, 0x06);
         pulse.approveMilestone(id, 0);
         _check(id, _chClean(), NOW - 10); // pays 1 ether
-        _submit(id, _ch(false, false, false, "liquidation"), NOW); // holds 5 ether
+        _submit(id, _ch(false, false, "liquidation"), NOW); // holds 5 ether
     }
 
     function test_buyerRefundsAtOnce() public {
@@ -667,25 +745,64 @@ contract SupplierPulsePlusTest is TestBase {
         vm.warp(NOW + GRACE);
         uint256 before = address(this).balance;
         vmE.expectEmit(true, false, false, true, address(pulse));
-        emit ISupplierPulsePlus.OrderRefunded(id, address(this), 5 ether, stranger);
+        emit ISupplierPulsePlus.OrderRefunded(id, address(this), 5 ether, stranger, false);
         vm.prank(stranger);
         pulse.refundRemaining(id);
         assertEq(address(this).balance - before, 5 ether, "money reached the buyer");
         assertEq(stranger.balance, 0, "stranger got nothing");
     }
 
-    function test_refundNotHeld() public {
-        uint256 id = _order(0, CH_ID, 1, 0x07);
-        vm.expectRevert(ISupplierPulsePlus.NotHeld.selector);
-        pulse.refundRemaining(id);
-        _heldOrderRefund();
-    }
-
-    function _heldOrderRefund() internal {
+    function test_refundClosedOrderNotRefundable() public {
         uint256 id = _heldOrder();
         pulse.refundRemaining(id);
-        vm.expectRevert(ISupplierPulsePlus.NotHeld.selector);
+        vm.expectRevert(ISupplierPulsePlus.NotRefundable.selector);
         pulse.refundRemaining(id); // no double refund
+    }
+
+    // no-data exit: two milestones due at NOW + 100 and NOW + 200, milestone 0 paid at its due date
+    function _noDataOrder() internal returns (uint256 id) {
+        id = pulse.createOrder{value: 3 ether}(
+            0, CH_ID, supplier, 0, _amounts(2), _dues(2, NOW + 100, 100), TTL, 0x06
+        );
+        pulse.approveMilestone(id, 0);
+        vm.warp(NOW + 100);
+        _check(id, _chClean(), NOW + 100); // pays 1 ether
+    }
+
+    function test_noDataExit() public {
+        uint256 id = _noDataOrder();
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.NotApproved.selector, 1));
+        pulse.refundRemaining(id);
+
+        pulse.approveMilestone(id, 1);
+        (,,,, uint64 autoAt,) = pulse.orderSchedule(id);
+        assertEq(autoAt, NOW + 200 + GRACE, "no-data exit time");
+        vm.warp(NOW + 200 + GRACE - 1);
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.RefundNotYet.selector, NOW + 200 + GRACE));
+        pulse.refundRemaining(id);
+
+        vm.warp(NOW + 200 + GRACE);
+        uint256 before = address(this).balance;
+        vmE.expectEmit(true, false, false, true, address(pulse));
+        emit ISupplierPulsePlus.OrderRefunded(id, address(this), 2 ether, stranger, true);
+        vm.prank(stranger);
+        pulse.refundRemaining(id);
+        assertEq(address(this).balance - before, 2 ether, "remaining back to the buyer");
+        assertEq(supplier.balance, 1 ether, "paid milestone stays paid");
+        assertEq(_state(id), 2, "closed");
+        vm.expectRevert(ISupplierPulsePlus.NotRefundable.selector);
+        pulse.refundRemaining(id);
+    }
+
+    function test_noDataExitBlockedByValidPermit() public {
+        uint256 id = _noDataOrder();
+        pulse.approveMilestone(id, 1);
+        vm.warp(NOW + 200 + GRACE);
+        _submit(id, _chClean(), NOW + 200 + GRACE); // fresh permit for milestone 1
+        vm.expectRevert(ISupplierPulsePlus.NotRefundable.selector);
+        pulse.refundRemaining(id);
+        (,,,, uint64 autoAt,) = pulse.orderSchedule(id);
+        assertEq(autoAt, 0, "no exit while a permit is valid");
     }
 
     function test_heldOrderCannotRelease() public {
@@ -700,16 +817,16 @@ contract SupplierPulsePlusTest is TestBase {
         bytes32 key = pulse.supplierKeyOf(0, CH_ID);
         vmE.expectEmit(true, true, true, true, address(pulse));
         emit ISupplierPulsePlus.OrderCreated(
-            0, address(this), key, supplier, 0, CH_ID, CH_REQ, keccak256("PO-1001"), 3 ether, 0x07
+            0, address(this), key, supplier, 0, CH_ID, CH_REQ, keccak256("PO-1001"), 3 ether, 0x06
         );
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         vmE.expectEmit(true, false, false, true, address(pulse));
         emit ISupplierPulsePlus.MilestoneApproved(id, 1);
         pulse.approveMilestone(id, 1);
     }
 
     function test_eventsCleanPath() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         pulse.approveMilestone(id, 0);
         bytes32 key = pulse.supplierKeyOf(0, CH_ID);
         bytes memory data = _chClean();
@@ -726,14 +843,14 @@ contract SupplierPulsePlusTest is TestBase {
     }
 
     function test_eventsHeldPath() public {
-        uint256 id = _order(0, CH_ID, 2, 0x07);
+        uint256 id = _order(0, CH_ID, 2, 0x06);
         bytes32 key = pulse.supplierKeyOf(0, CH_ID);
-        bytes memory data = _ch(true, false, false, "active");
+        bytes memory data = _ch(true, false, "active");
         bytes32 d = AirnodeVerifier.digest(CH_REQ, NOW, data);
         vmE.expectEmit(true, true, false, true, address(pulse));
-        emit ISupplierPulsePlus.EvidenceAccepted(id, key, false, 0x01, NOW, d, address(this), data);
+        emit ISupplierPulsePlus.EvidenceAccepted(id, key, false, 0x02, NOW, d, address(this), data);
         vmE.expectEmit(true, false, false, true, address(pulse));
-        emit ISupplierPulsePlus.OrderHeld(id, 0x01, 3 ether, uint64(NOW + GRACE));
+        emit ISupplierPulsePlus.OrderHeld(id, 0x02, 3 ether, uint64(NOW + GRACE));
         pulse.submitEvidence(id, CH_REQ, NOW, data, _sign(CH_KEY, CH_REQ, NOW, data));
     }
 

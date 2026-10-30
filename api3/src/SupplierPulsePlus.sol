@@ -9,11 +9,12 @@ import {JsonFields} from "./JsonFields.sol";
 /// @title SupplierPulsePlus
 /// @notice Milestone payments to a supplier that need fresh signed registry evidence before every payment.
 /// Two registries: Companies House (UK company number) and GLEIF (LEI). The buyer picks rules per order
-/// (no insolvency history, accounts current, confirmation statement current, LEI issued).
+/// (accounts current, confirmation statement current, LEI issued).
 /// Clean evidence issues a permit for exactly the next milestone; anything else holds the remaining
-/// balance for the buyer. Every accepted record also updates the supplier's trust tier, which makes
-/// permits last longer (fewer paid checks for suppliers with a clean track record).
-/// Behaviour is specified in docs/SUPPLIERPULSE_PLUS.md §4.5.
+/// balance for the buyer. Every newer record updates the supplier's verification history (tier), which only
+/// tells the agent how often to re-check; permits are never extended. A failed register status stops payments
+/// on every order of that supplier, and data that never arrives lets the buyer take the money back.
+/// Behaviour is specified in docs/SUPPLIERPULSE_PLUS.md §4.5 (v1.1).
 contract SupplierPulsePlus is ISupplierPulsePlus {
     uint8 internal constant SOURCE_CH = 0;
     uint8 internal constant SOURCE_GLEIF = 1;
@@ -27,12 +28,11 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
     uint8 internal constant OUTCOME_NOT_DUE = 2;
     uint8 internal constant OUTCOME_HELD = 3;
 
-    uint8 public constant RULE_NO_INSOLVENCY = 0x01;
     uint8 public constant RULE_ACCOUNTS_CURRENT = 0x02;
     uint8 public constant RULE_CONFIRMATION_CURRENT = 0x04;
     uint8 public constant RULE_LEI_ISSUED = 0x08;
     uint8 public constant BASE_FAILED = 0x80;
-    uint8 internal constant CH_RULES = 0x07;
+    uint8 internal constant CH_RULES = 0x06; // 0x01 is reserved since v1.1
     uint8 internal constant GLEIF_RULES = 0x08;
 
     uint256 public constant MAX_FUTURE_SKEW = 60;
@@ -42,7 +42,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
     // request templates (§4.2): prefix + supplier id + suffix
     bytes internal constant CH_PREFIX = '["getCompanyProfile",[["company_number","';
     bytes internal constant CH_SUFFIX =
-        '"]],[["accounts_overdue","/accounts/overdue"],["confirmation_overdue","/confirmation_statement/overdue"],["insolvency","/has_insolvency_history"],["status","/company_status"]]]';
+        '"]],[["accounts_overdue","/accounts/next_accounts/overdue"],["confirmation_overdue","/confirmation_statement/overdue"],["status","/company_status"]]]';
     bytes internal constant GLEIF_PREFIX = '["getLegalEntity",[["lei","';
     bytes internal constant GLEIF_SUFFIX =
         '"]],[["entity_status","/data/attributes/entity/status"],["registration_status","/data/attributes/registration/status"]]]';
@@ -50,6 +50,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
     struct Permit {
         uint64 validUntil; // 0: no permit
         uint32 milestone;
+        uint64 evidenceAt; // timestamp of that response
         bytes32 evidence; // digest of the signed response it is based on
     }
 
@@ -81,6 +82,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         uint32 failures;
         uint64 lastCountedAt;
         uint64 lastCheckAt;
+        uint64 lastBaseFailureAt; // newest record whose register status failed; stops all orders of the supplier
         uint8 tier;
     }
 
@@ -147,15 +149,28 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         emit MilestoneApproved(orderId, milestone);
     }
 
-    /// @notice After a hold: the buyer any time, anyone from autoRefundAt on. The money always goes to the buyer.
+    /// @notice Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the
+    /// next milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external {
         Order storage o = _order(orderId);
-        if (o.state != STATE_HELD) revert NotHeld();
-        uint256 autoRefundAt = uint256(o.heldAt) + refundGrace;
-        if (msg.sender != o.buyer && block.timestamp < autoRefundAt) revert RefundNotYet(autoRefundAt);
+        bool noDataExit;
+        if (o.state == STATE_HELD) {
+            uint256 at = uint256(o.heldAt) + refundGrace;
+            if (msg.sender != o.buyer && block.timestamp < at) revert RefundNotYet(at);
+        } else if (o.state == STATE_ACTIVE) {
+            uint256 m = o.paidCount;
+            if (!o.approved[m]) revert NotApproved(m);
+            if (_permitValid(o)) revert NotRefundable();
+            uint256 at = uint256(o.dueDates[m]) + refundGrace;
+            if (block.timestamp < at) revert RefundNotYet(at);
+            noDataExit = true;
+        } else {
+            revert NotRefundable();
+        }
         uint256 amount = _remaining(o);
         o.state = STATE_CLOSED;
-        emit OrderRefunded(orderId, o.buyer, amount, msg.sender);
+        o.permit = Permit(0, 0, 0, bytes32(0));
+        emit OrderRefunded(orderId, o.buyer, amount, msg.sender, noDataExit);
         (bool ok,) = payable(o.buyer).call{value: amount}("");
         if (!ok) revert TransferFailed();
     }
@@ -186,9 +201,11 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         if (block.timestamp > p.validUntil) revert PermitExpired(p.validUntil, block.timestamp);
         if (!o.approved[m]) revert NotApproved(m);
         if (block.timestamp < o.dueDates[m]) revert NotDue(o.dueDates[m], block.timestamp);
+        uint64 failedAt = suppliers[o.supplierKey].lastBaseFailureAt;
+        if (p.evidenceAt <= failedAt) revert SupplierFailed(failedAt); // a newer failure on any order stops this payment
 
         uint256 amount = o.amounts[m];
-        o.permit = Permit(0, 0, bytes32(0)); // used up: the next milestone needs new evidence
+        o.permit = Permit(0, 0, 0, bytes32(0)); // used up: the next milestone needs new evidence
         o.paidCount = uint32(m + 1);
         o.paid += amount;
         if (o.paidCount == o.amounts.length) o.state = STATE_CLOSED;
@@ -212,6 +229,16 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         if (block.timestamp < o.dueDates[m]) return OUTCOME_NOT_DUE;
         release(orderId);
         return OUTCOME_PAID;
+    }
+
+    /// @notice Hold this order because its supplier's register status failed on another order. The failure is
+    /// already verified on chain, so no new (paid) evidence is needed.
+    function applySupplierFailure(uint256 orderId) external {
+        Order storage o = _order(orderId);
+        if (o.state != STATE_ACTIVE) revert NotActive(o.state);
+        if (suppliers[o.supplierKey].lastBaseFailureAt <= o.lastCheck) revert NoNewerFailure();
+        o.lastFailedRules = BASE_FAILED;
+        _hold(orderId, o, BASE_FAILED);
     }
 
     // ---------------------------------------------------------------- views
@@ -281,8 +308,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         nextMilestone = o.paidCount;
         milestones = o.amounts.length;
         permitValidUntil = p.validUntil;
-        permitValid = o.state == STATE_ACTIVE && p.validUntil != 0 && p.milestone == o.paidCount
-            && block.timestamp <= p.validUntil;
+        permitValid = _permitValid(o);
         lastCheck = o.lastCheck;
     }
 
@@ -305,7 +331,11 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         }
         lastFailedRules = o.lastFailedRules;
         heldAt = o.heldAt;
-        if (o.state == STATE_HELD) autoRefundAt = o.heldAt + refundGrace;
+        if (o.state == STATE_HELD) {
+            autoRefundAt = o.heldAt + refundGrace;
+        } else if (o.state == STATE_ACTIVE && o.approved[o.paidCount] && !_permitValid(o)) {
+            autoRefundAt = o.dueDates[o.paidCount] + refundGrace; // the no-data exit
+        }
         tier = suppliers[o.supplierKey].tier;
     }
 
@@ -318,16 +348,12 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
             uint32 failures,
             uint64 lastCountedAt,
             uint64 lastCheckAt,
+            uint64 lastBaseFailureAt,
             uint8 tier
         )
     {
         SupplierRecord storage r = suppliers[supplierKey];
-        return (r.cleanStreak, r.checks, r.failures, r.lastCountedAt, r.lastCheckAt, r.tier);
-    }
-
-    function effectivePermitTtl(uint256 orderId) external view returns (uint64) {
-        Order storage o = _order(orderId);
-        return uint64(uint256(o.permitTtl) * _multiplier(suppliers[o.supplierKey].tier));
+        return (r.cleanStreak, r.checks, r.failures, r.lastCountedAt, r.lastCheckAt, r.lastBaseFailureAt, r.tier);
     }
 
     function airnodeOf(uint8 source) public view returns (address) {
@@ -381,24 +407,37 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
     {
         uint8 failedRules = _failedRules(o.source, o.rules, data);
         clean = failedRules == 0;
+        uint64 failedAt = suppliers[o.supplierKey].lastBaseFailureAt;
+        if (clean && timestamp <= failedAt) revert SupplierFailed(failedAt); // older than a known failure
+
         usedDigests[d] = true;
         o.lastCheck = timestamp;
         o.lastFailedRules = failedRules;
-        uint8 tier = _updateSupplier(o.supplierKey, clean, timestamp);
+        _updateSupplier(o.supplierKey, failedRules & BASE_FAILED == 0, timestamp);
         _emitAccepted(orderId, o, d, timestamp, data);
 
         if (!clean) {
-            o.state = STATE_HELD;
-            o.heldAt = uint64(block.timestamp);
-            o.permit = Permit(0, 0, bytes32(0));
-            emit OrderHeld(orderId, failedRules, _remaining(o), o.heldAt + refundGrace);
+            _hold(orderId, o, failedRules);
             return false;
         }
 
-        // counted from the evidence time, not from when it was submitted
-        uint64 validUntil = uint64(timestamp + uint256(o.permitTtl) * _multiplier(tier));
-        o.permit = Permit(validUntil, o.paidCount, d);
+        // counted from the evidence time, not from when it was submitted; the tier never extends it
+        uint64 validUntil = uint64(timestamp + o.permitTtl);
+        o.permit = Permit(validUntil, o.paidCount, uint64(timestamp), d);
         emit PermitIssued(orderId, o.paidCount, o.amounts[o.paidCount], validUntil, d);
+    }
+
+    function _hold(uint256 orderId, Order storage o, uint8 failedRules) internal {
+        o.state = STATE_HELD;
+        o.heldAt = uint64(block.timestamp);
+        o.permit = Permit(0, 0, 0, bytes32(0));
+        emit OrderHeld(orderId, failedRules, _remaining(o), o.heldAt + refundGrace);
+    }
+
+    function _permitValid(Order storage o) internal view returns (bool) {
+        Permit storage p = o.permit;
+        return o.state == STATE_ACTIVE && p.validUntil != 0 && p.milestone == o.paidCount
+            && block.timestamp <= p.validUntil;
     }
 
     function _emitAccepted(uint256 orderId, Order storage o, bytes32 d, uint256 timestamp, bytes calldata data)
@@ -412,9 +451,6 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
     function _failedRules(uint8 source, uint8 rules, bytes calldata data) internal pure returns (uint8 failed) {
         if (source == SOURCE_CH) {
             if (keccak256(PriceParser.parseString(data, '"status":')) != keccak256("active")) failed |= BASE_FAILED;
-            if (rules & RULE_NO_INSOLVENCY != 0 && JsonFields.parseBool(data, '"insolvency":')) {
-                failed |= RULE_NO_INSOLVENCY;
-            }
             if (rules & RULE_ACCOUNTS_CURRENT != 0 && JsonFields.parseBool(data, '"accounts_overdue":')) {
                 failed |= RULE_ACCOUNTS_CURRENT;
             }
@@ -432,12 +468,14 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         }
     }
 
-    /// @return tier the supplier's tier after this record
-    function _updateSupplier(bytes32 key, bool clean, uint256 timestamp) internal returns (uint8 tier) {
+    /// @dev Verification history (§2.4): only the base status counts, and only a record newer than anything seen
+    /// for this supplier moves it, so the history never goes backwards.
+    function _updateSupplier(bytes32 key, bool baseOk, uint256 timestamp) internal {
         SupplierRecord storage r = suppliers[key];
+        if (timestamp <= r.lastCheckAt) return;
         r.checks++;
         r.lastCheckAt = uint64(timestamp);
-        if (clean) {
+        if (baseOk) {
             if (r.lastCountedAt == 0 || timestamp >= uint256(r.lastCountedAt) + tierCountGap) {
                 r.cleanStreak++;
                 r.lastCountedAt = uint64(timestamp);
@@ -445,17 +483,14 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         } else {
             r.failures++;
             r.cleanStreak = 0;
+            r.lastBaseFailureAt = uint64(timestamp);
         }
         uint8 old = r.tier;
-        tier = r.cleanStreak >= PREMIUM_STREAK ? 2 : r.cleanStreak >= TRUSTED_STREAK ? 1 : 0;
+        uint8 tier = r.cleanStreak >= PREMIUM_STREAK ? 2 : r.cleanStreak >= TRUSTED_STREAK ? 1 : 0;
         if (tier != old) {
             r.tier = tier;
             emit TierChanged(key, old, tier, r.cleanStreak);
         }
-    }
-
-    function _multiplier(uint8 tier) internal pure returns (uint256) {
-        return tier == 2 ? 4 : tier == 1 ? 2 : 1;
     }
 
     /// @dev Companies House: 1 to 10 of [0-9A-Z]. GLEIF: exactly 20 of [0-9A-Z]. Nothing to escape.

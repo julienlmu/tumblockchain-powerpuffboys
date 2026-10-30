@@ -41,9 +41,14 @@ else echo "Payment permit:   none (needs fresh evidence)"; fi
 last="$(plus_num "${st[7]}")"
 if [[ "$last" != "0" ]]; then
   echo "Last check:       $(fmt_time "$last"), failed rules: $(plus_rule_labels "${sc[2]}")"
+elif [[ "${sc[2]}" != 0 ]]; then echo "Last check:       none on this order; held by the supplier-wide stop ($(plus_rule_labels "${sc[2]}"))"
 else echo "Last check:       none yet"; fi
 if [[ "${st[0]}" == 1 ]]; then
   auto="$(plus_num "${sc[4]}")"
   if (( now >= auto )); then echo "Refund:           anyone can trigger it now (money goes to the buyer)"
   else echo "Refund:           buyer can claim now; automatic in $((auto - now)) s"; fi
+elif [[ "${st[0]}" == 0 && "$(plus_num "${sc[4]}")" != 0 ]]; then
+  auto="$(plus_num "${sc[4]}")"
+  if (( now >= auto )); then echo "No-data exit:     anyone can refund the buyer now (no signed record arrived)"
+  else echo "No-data exit:     if no signed record arrives, refundable in $((auto - now)) s"; fi
 fi

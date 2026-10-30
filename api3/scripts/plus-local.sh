@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Local test chain for SupplierPulse+ (docs/SUPPLIERPULSE_PLUS.md §4.8). No money, no waiting.
 # Starts anvil on :8545 unless it is already running (and leaves it running), deploys the contract with
-# local Airnode keys, creates the four sample orders and writes api3/.local/plus-local.env.
+# local Airnode keys, creates the six sample orders and writes api3/.local/plus-local.env.
 # Then: source api3/.local/plus-local.env
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -44,10 +44,12 @@ order() {
   done
   echo "order $n: $id, rules $rules, approved: $*" >&2
 }
-order 0 01234567 "$SUPPLIER_1" 0x07 500,1000,1500 +60,+600,+1200 0 1
-order 0 07654321 "$SUPPLIER_2" 0x07 1000,2000 +60,+600 0
+order 0 01234567 "$SUPPLIER_1" 0x06 500,1000,1500 +60,+600,+1200 0 1
+order 0 07654321 "$SUPPLIER_2" 0x06 1000,2000 +60,+600 0
 order 1 TESTLEI0000000000000 "$SUPPLIER_1" 0x08 500,1000 +60,+600 0 1
 order 1 TESTLEI0000000000001 "$SUPPLIER_2" 0x08 500,500 +60,+600 0
+order 0 07654321 "$SUPPLIER_2" 0x06 500,500 +60,+600 0   # same supplier as order 1 (supplier-wide stop)
+order 0 99999999 "$SUPPLIER_1" 0x06 500,500 +60,+600 0   # no data (no-data exit)
 
 cat > .local/plus-local.env <<ENV
 export EVM_RPC_URL=$EVM_RPC_URL

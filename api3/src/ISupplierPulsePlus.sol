@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// SupplierPulse+ interface, frozen in docs/SUPPLIERPULSE_PLUS.md §4.4.
+/// SupplierPulse+ interface, frozen in docs/SUPPLIERPULSE_PLUS.md §4.4 (v1.1).
 /// Enums travel as uint8:
 ///   source  0 CompaniesHouse, 1 Gleif
 ///   state   0 Active, 1 Held, 2 Closed
 ///   outcome 0 Paid, 1 AwaitingApproval, 2 NotDue, 3 Held
 ///   tier    0 Standard, 1 Trusted, 2 Premium
-/// rules / failedRules bits: 0x01 no insolvency history (CH), 0x02 accounts current (CH),
+/// rules / failedRules bits: 0x01 reserved (unused), 0x02 accounts current (CH),
 ///   0x04 confirmation statement current (CH), 0x08 LEI registration issued (GLEIF),
 ///   0x80 (failedRules only) base status check failed.
 interface ISupplierPulsePlus {
@@ -37,7 +37,7 @@ interface ISupplierPulsePlus {
     event PermitIssued(uint256 indexed orderId, uint256 milestone, uint256 amount, uint64 validUntil, bytes32 evidence);
     event MilestonePaid(uint256 indexed orderId, uint256 milestone, address supplier, uint256 amount, bytes32 evidence);
     event OrderHeld(uint256 indexed orderId, uint8 failedRules, uint256 remaining, uint64 autoRefundAt);
-    event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy);
+    event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy, bool noDataExit);
     event TierChanged(bytes32 indexed supplierKey, uint8 oldTier, uint8 newTier, uint32 cleanStreak);
     event ConfigUpdated(uint8 source, address airnode, uint256 maxAgeSeconds);
 
@@ -52,8 +52,10 @@ interface ISupplierPulsePlus {
     error NotApproved(uint256 milestone);
     error NotDue(uint256 dueDate, uint256 nowTs);
     error NotActive(uint8 state);
-    error NotHeld();
-    error RefundNotYet(uint256 autoRefundAt);
+    error NotRefundable();
+    error RefundNotYet(uint256 refundableAt);
+    error SupplierFailed(uint256 failedAt);
+    error NoNewerFailure();
     error BadOrder();
     error BadSource();
     error BadSupplierId();
@@ -73,7 +75,8 @@ interface ISupplierPulsePlus {
         uint8 rules
     ) external payable returns (uint256 orderId);
     function approveMilestone(uint256 orderId, uint256 milestone) external;
-    /// buyer: any time after a hold. Anyone: from autoRefundAt on. The money always goes to the buyer.
+    /// Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the next
+    /// milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external;
 
     // ---- anyone (agent, judges)
@@ -92,6 +95,8 @@ interface ISupplierPulsePlus {
         bytes calldata data,
         bytes calldata signature
     ) external returns (uint8 outcome);
+    /// Hold this order because its supplier's register status failed on another order (no new evidence needed).
+    function applySupplierFailure(uint256 orderId) external;
 
     // ---- views
     function requestHashFor(uint8 source, string calldata supplierId) external pure returns (bytes32);
@@ -147,9 +152,9 @@ interface ISupplierPulsePlus {
             uint32 failures,
             uint64 lastCountedAt,
             uint64 lastCheckAt,
+            uint64 lastBaseFailureAt,
             uint8 tier
         );
-    function effectivePermitTtl(uint256 orderId) external view returns (uint64);
     function airnodeOf(uint8 source) external view returns (address);
     function maxAge() external view returns (uint256);
     function tierCountGap() external view returns (uint64);

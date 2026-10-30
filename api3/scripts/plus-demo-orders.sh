@@ -25,8 +25,8 @@ demo() {
   for m in "$@"; do ./plus-approve.sh "$id" "$m" >/dev/null; done
   echo "$label=$id"
 }
-demo A "PO-1001 Motor supply"        ch    "$DEMO_CH_A"  "$DEMO_SUPPLIER_1" 0x07 500,1000,1500 "+1200,$SAT_1145,$SAT_1530" 0 1
-demo B "PO-1002 Gearbox"             ch    "$DEMO_CH_B"  "$DEMO_SUPPLIER_2" 0x07 1000,2000      "+1200,$SAT_1145" 0
+demo A "PO-1001 Motor supply"        ch    "$DEMO_CH_A"  "$DEMO_SUPPLIER_1" 0x06 500,1000,1500 "+1200,$SAT_1145,$SAT_1530" 0 1
+demo B "PO-1002 Gearbox"             ch    "$DEMO_CH_B"  "$DEMO_SUPPLIER_2" 0x06 1000,2000      "+1200,$SAT_1145" 0
 demo C "PO-1003 Sensors"             ch    "$DEMO_CH_C"  "$DEMO_SUPPLIER_1" 0x02 500,500        "+1200,$SAT_1200" 0
 demo D "PO-1004 Cable harness (DE)"  gleif "$DEMO_LEI_D" "$DEMO_SUPPLIER_1" 0x08 500,1000       "+1800,$SAT_1200" 0 1
 demo E "PO-1005 Castings"            gleif "$DEMO_LEI_E" "$DEMO_SUPPLIER_2" 0x08 500,500        "+1800,$SAT_1200" 0
