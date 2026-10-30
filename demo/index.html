@@ -1134,6 +1134,10 @@
       row("Max age", `${d.maxAge} s`, `a signed record is accepted only if it is at most ${duration(d.maxAge)} old`),
       row("Tier gap", duration(d.tierCountGap), `the verification history counts at most one clean check per ${duration(d.tierCountGap)}`),
       row("Refund grace", duration(d.refundGrace), `after a hold, or an approved milestone overdue without data, the refund opens to anyone after ${duration(d.refundGrace)}`),
+      // which events the audit trails and the agent panel count: all of them, or only a recent range
+      d.fromBlock != null ? row("Events from", `block ${d.fromBlock.toLocaleString("en")}`, cfg.from && d.fromBlock === Number(cfg.from)
+        ? "the block you set: audit trails and agent activity count every event from there"
+        : `older events are not counted in audit trails and agent activity. <button type="button" class="link-order" data-fix="from">Open Settings</button> to set the deploy block`) : "",
     ].join(""));
   }
   // ---------------------------------------------------------------- read status (the meta line)
@@ -1178,7 +1182,7 @@
   // ---------------------------------------------------------------- live data
 
   let provider, contract, iface, chainId, consts;
-  const evState = { next: null, list: [], blockTime: {}, txFrom: {} };
+  const evState = { next: null, list: [], blockTime: {}, txFrom: {}, from: null }; // from: the first block searched
 
   async function loadEvents(latest) {
     let from = evState.next;
@@ -1186,6 +1190,7 @@
     if (from === null) {
       from = cfg.from ? Number(cfg.from) : Math.max(0, latest - LOG_CHUNK);
       if (latest - from > LOG_CHUNK * MAX_CHUNKS) { from = latest - LOG_CHUNK * MAX_CHUNKS; note = ` · history limited to the last ${LOG_CHUNK * MAX_CHUNKS} blocks`; }
+      evState.from = from;
     }
     const fresh = [];
     while (from <= latest) {
@@ -1267,7 +1272,7 @@
       protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n),
     });
     $("orders").classList.remove("stale");
-    renderDetails({ contract: cfg.contract, airnodes: consts.airnodes, maxAge: consts.maxAge, tierCountGap: consts.tierCountGap, refundGrace: consts.refundGrace });
+    renderDetails({ contract: cfg.contract, airnodes: consts.airnodes, maxAge: consts.maxAge, tierCountGap: consts.tierCountGap, refundGrace: consts.refundGrace, fromBlock: evState.from });
     $("cfg-box").classList.remove("keep"); // a good read: Settings goes back to Detailed (it stays while open)
     banner(missing.length ? "info" : "", missing.length ? `${I("info")}<span>${missing.length === 1 ? `Order ${missing[0]} is` : `Orders ${missing.join(", ")} are`} not on this contract: it has ${count} ${count === 1 ? "order" : "orders"}${count ? ` (#0 to #${count - 1})` : ""}. Change the order IDs, or leave them empty for all. <span class="banner-actions"><button type="button" data-fix="orders">Open Settings</button></span></span>` : ""); // no orders: the empty state in the grid says it
     lastOrders = orders;
