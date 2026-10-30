@@ -348,7 +348,7 @@
     // reading a contract that has code but not SupplierPulse+ v1.1's functions (for example the v1 contract)
     if (ctx.reading && (code === "BAD_DATA" || (code === "CALL_EXCEPTION" && !(e.data && e.data !== "0x"))))
       return { kind: "address", notV2: true, text: `This address answers, but not as SupplierPulse+ v1.1${ctx.contract ? ` (${short(ctx.contract)})` : ""}. If it is the v1 contract, open the v1 screen; otherwise check the address in Settings.` };
-    return { kind: "other", text: msg };
+    return { kind: "other", text: `Unexpected answer from the RPC or the contract: ${msg}` };
   }
 
   // ---------------------------------------------------------------- icons (presentation only)

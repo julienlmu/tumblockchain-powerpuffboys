@@ -597,7 +597,8 @@
       box = `<div class="verdict bad"><div class="big">${P.icon("x")}<span>Rejected: <span class="mono">${esc(verdict.err.name)}(${esc(args.map((a) => (a.length > 20 ? short(a) : a)).join(", "))})</span></span></div>
         <div class="why">${esc(P.explain(verdict.err.name, verdict.err.args, { expectedSigner: airnode }))}</div>`;
     } else {
-      box = `<div class="verdict bad"><div class="big">${P.icon("x")}<span>The call failed</span></div><div class="why">${esc(verdict.raw)}</div>`;
+      const f = P.friendlyError({ shortMessage: verdict.raw, message: verdict.raw }, { rpc: cfg.rpc });
+      box = `<div class="verdict bad"><div class="big">${P.icon("x")}<span>The call failed</span></div><div class="why">${esc(f.text)} Your record is kept: check the RPC in Settings, or try again.</div>`;
     }
     const gotName = verdict.accepted ? "accepted" : verdict.err ? verdict.err.name : "error";
     const expected = t.expect || "accepted";
@@ -738,13 +739,19 @@
     if (age > maxAge && chainId === 31337 && version === 2) { await freshLocal(); rec = readRecord(); age = 0; }
     if (age > maxAge && !force) {
       const s = P.SOURCES[order.info.source], id = order.info.supplierId;
+      // the two real inputs need no record and no setup: offer them first, then the paid route for the full test
+      const noSetup = `<div class="why">Try now, without any setup: these send genuine signed records bundled with the page.</div>
+        <div class="row"><button type="button" data-try="realOld" data-icon="file">(b) Real old record</button><button type="button" data-try="realOther" data-icon="file">(c) Real, other company</button></div>`;
       $("result").innerHTML = `<h2>The contract's verdict</h2>
-        <div class="verdict warn"><div class="big">${P.icon("clock")}<span>${rec ? `This record is ${P.span(age)} old` : "No record loaded"}</span></div>
-          <div class="why">The contract accepts records at most ${maxAge} s old. With ${rec ? "this record" : "no record"}, every attempt stops at the freshness check,
-            so the attacks would not show their own errors. Get a fresh signed record ($0.01 over x402), paste it, and press the button again:</div>
+        <div class="verdict warn"><div class="big">${P.icon("clock")}<span>${rec ? `This record is ${P.span(age)} old` : "No record in step 2"}</span></div>
+          <div class="why">${rec ? `The contract accepts records at most ${maxAge} s old. With this record every attempt stops at the freshness check, so the attacks would not show their own errors.`
+            : "Paste a signed record, upload one, or load a sample in step 2, then press Run again."}</div>
+          ${noSetup}
+          <div class="why">For the full test, get a fresh signed record of ${esc(id)} ($0.01 over x402), paste it in step 2 and press Run again:</div>
           <div class="why">${fetchCode()}</div></div>
         ${rec ? `<div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>` : ""}`;
       P.hydrateIcons($("result"));
+      if (!rec) { $("resp").setAttribute("aria-invalid", "true"); respMsg("No record yet: paste one, upload one, or load a sample.", true); }
       return;
     }
     // A record this tab already sent is used: Submit as is would get Replayed and (a), (d) stop early.
@@ -1042,6 +1049,7 @@
     else if (t.id === "suite-replay") sendThenReplay().catch(runFailed);
     else if (t.id === "suite-fresh") freshLocal().then(() => runSuite()).catch(runFailed);
     else if (t.id === "suite-replay-only") replayOnly().catch(runFailed);
+    else if (t.dataset.try) run(t.dataset.try).then(reveal).catch(runFailed);
   });
 
   // Keyboard accelerators; never while typing in a field.
