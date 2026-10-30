@@ -20,8 +20,11 @@
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <style>
   .wrap { max-width: 1240px; padding-top: var(--s4); }
+  /* hashes, addresses and error names inside 12.5 px text stay at 12 px (base.css sets 0.88em, 11 px there) */
+  code, .mono { font-size: max(12px, 0.88em); }
   .tagline { max-width: 84ch; }
-  .layout { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: var(--s4); margin-top: var(--s4); align-items: start; }
+  /* the attack panel is a little wider: each attack button holds its label and its expected answer at 12.5 px */
+  .layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--s4); margin-top: var(--s4); align-items: start; }
   .stack { display: flex; flex-direction: column; gap: var(--s4); margin-top: var(--s4); }
   .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
   .panel h2 { margin: 0; font-size: var(--t0); font-weight: 600; display: flex; align-items: center; gap: var(--s2); }
@@ -44,7 +47,7 @@
   #sample:has(+ :popover-open) .caret::before { transform: rotate(-90deg); }
   .menu { inset: auto; margin: 0; padding: var(--s1); width: max-content; max-width: min(520px, calc(100vw - 16px)); overflow: auto; overscroll-behavior: contain;
     border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--card); color: var(--text); box-shadow: 0 10px 28px -8px rgb(0 0 0 / 0.35); }
-  .menu .menu-note { margin: 0; padding: 6px 10px 4px; font-size: 12px; color: var(--muted); }
+  .menu .menu-note { margin: 0; padding: 6px 10px 4px; font-size: var(--t-1); color: var(--muted); }
   .menu button { display: flex; width: 100%; justify-content: flex-start; text-align: left; border: none; border-radius: var(--r-sm); background: none; min-height: 32px; padding: 6px 10px; font-weight: 400; line-height: 1.35; }
   .menu button:hover, .menu button:focus-visible { background: var(--raised); }
   .menu button:focus-visible { outline-offset: -2px; }
@@ -60,7 +63,7 @@
   .kv th { text-align: left; color: var(--muted); font-weight: 400; padding: 5px var(--s3) 5px 0; vertical-align: top; width: 32%; }
   .kv td { padding: 5px 0; overflow-wrap: anywhere; vertical-align: top; }
   .kv tr + tr th, .kv tr + tr td { border-top: 1px solid var(--line); }
-  .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 6px; border-radius: var(--r-sm); color: var(--accent); background: var(--accent-bg); }
+  .reg { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 6px; border-radius: var(--r-sm); color: var(--accent); background: var(--accent-bg); }
 
   /* attack controls */
   button.suite { width: 100%; min-height: 40px; font-size: var(--t0); }
@@ -70,8 +73,8 @@
   .attack-groups .ag { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .attacks.synth { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .attacks.real-grid { grid-template-columns: minmax(0, 1fr); }
-  .ag-head { font-size: 12px; color: var(--muted); line-height: 1.3; }
-  .h-note { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
+  .ag-head { font-size: var(--t-1); color: var(--muted); line-height: 1.3; }
+  .h-note { margin-left: auto; font-size: var(--t-1); font-weight: 400; color: var(--muted); text-align: right; }
   .panel h2:has(.h-note) { flex-wrap: wrap; }
   details.prereq { margin-top: 4px; font-size: var(--t-1); }
   details.prereq > summary, .kit details > summary { color: var(--accent); }
@@ -126,21 +129,21 @@
   /* the key on its target: small, muted, and gone on touch screens */
   .kb-k { font-size: 10px; padding: 1px 4px; margin-left: 6px; color: var(--muted); font-weight: 500; }
   button.primary .kb-k { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 45%, transparent); }
-  button.sm { min-height: 28px; padding: 2px 10px; font-size: 12px; font-weight: 500; gap: 4px; }
+  button.sm { min-height: 28px; padding: 2px 10px; font-size: var(--t-1); font-weight: 500; gap: 4px; }
   #cfg-note { grid-column: 1 / -1; }
   #cfg-note:empty { display: none; }
   .cmd-line { display: flex; gap: 6px; align-items: flex-start; margin-top: 4px; }
   .cmd-line code { flex: 1 1 auto; min-width: 0; }
   .cmd-line .copy { margin-left: 0; flex: none; }
-  .attacks button { min-height: 40px; padding: 5px 8px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
+  .attacks button { min-height: 40px; padding: 5px 7px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
   .attacks button .l { display: flex; gap: 5px; align-items: flex-start; }
   .attacks button .l .i { margin-top: 0.05em; }
-  .attacks button .d { color: var(--muted); font-weight: 400; font-size: 11.5px; }
+  .attacks button .d { color: var(--muted); font-weight: 400; font-size: var(--t-1); }
   /* the key and the contract's expected answer are on the button, not only in the guide */
   .attacks button { position: relative; }
   .attacks button .d.exp { padding-right: 14px; } /* the key badge reaches 12 px into the content box */
   .attacks button .kb { position: absolute; bottom: 5px; right: 5px; font-size: 10px; padding: 1px 4px; color: var(--muted); }
-  .attacks button .d.exp .mono { font-size: 11px; color: var(--text); }
+  .attacks button .d.exp .mono { font-size: 12px; color: var(--text); }
   /* neutral buttons: colour only marks the kind (green = the valid record, red marker = an attack); filled colour is kept for results */
   .attacks button .l .i { color: var(--hold); }
   .attacks button.valid { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
@@ -148,9 +151,13 @@
   .attacks button.valid:hover { border-color: var(--ok); }
   .attacks button.atk:hover { border-color: var(--hold); }
   .attacks button.real { border-style: dashed; }
-  /* the loaded record cannot test this attempt: said on the button before it is pressed */
-  .attacks button .d.blk { color: var(--wait); font-weight: 600; padding-right: 14px; } /* clear of the key badge */
-  .attacks button .d.blk .i { color: var(--wait); }
+  /* the loaded record cannot test some attempts: the cause once above the buttons, an amber mark on each one it stops */
+  .blk-note { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--t-1); font-weight: 500; color: var(--wait); }
+  .blk-note > span { display: flex; gap: 6px; align-items: flex-start; }
+  .blk-note > span > .i { margin-top: 0.15em; }
+  .blk-note .mono { font-size: 12px; }
+  .attacks button .l .blk-ic { margin-left: auto; flex: none; display: inline-flex; }
+  .attacks button .l .blk-ic .i { color: var(--wait); }
   /* the expected answer's arrow is the icon set's, not a text glyph */
   .attacks button .d .i { width: 0.9em; height: 0.9em; vertical-align: -0.1em; margin-right: 2px; }
 
@@ -195,11 +202,11 @@
   ol.checks .ic { line-height: 1.3; }
   ol.checks .ic.y { color: var(--ok); } ol.checks .ic.n { color: var(--hold); } ol.checks .ic.l { color: var(--wait); } ol.checks .ic.q { color: var(--muted); }
   ol.checks .t { font-weight: 500; }
-  ol.checks .d { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  ol.checks .d { color: var(--muted); font-size: var(--t-1); overflow-wrap: anywhere; }
   ol.checks li.stop { background: var(--hold-bg); border-radius: var(--r-sm); padding: 6px var(--s2); margin: 2px calc(-1 * var(--s2)); border-top-color: transparent; }
   ol.checks li.stop + li { border-top-color: transparent; }
   ol.checks .stop-tag { color: var(--hold); font-weight: 600; margin-left: var(--s2); white-space: nowrap; }
-  pre.json { margin: var(--s2) 0 0; font-family: var(--mono); font-size: 11.5px; background: var(--bg); padding: var(--s3); border-radius: var(--r-sm); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+  pre.json { margin: var(--s2) 0 0; font-family: var(--mono); font-size: 12px; background: var(--bg); padding: var(--s3); border-radius: var(--r-sm); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
 
   table.score { width: 100%; border-collapse: collapse; font-size: var(--t-1); }
   table.score th { text-align: left; color: var(--muted); font-weight: 400; padding: 6px var(--s2) 6px 0; border-bottom: 1px solid var(--line-strong); }
@@ -210,10 +217,13 @@
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
   table.score tr.sep td { color: var(--muted); padding: var(--s3) 0 4px; white-space: normal; }
   .cd { color: var(--muted); font-weight: 400; } /* time left on an Undo or an armed send */
-  a.def { color: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-  a.def:hover { text-decoration-style: solid; }
+  /* a definition link: a light dotted line in running text; in tiles, tables and the check list (where every error name
+     is one) no line until hover or focus */
+  a.def { color: inherit; text-decoration: underline dotted color-mix(in srgb, currentColor 55%, transparent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a.def:hover, a.def:focus-visible { text-decoration: underline solid currentColor; }
+  :is(.tile, table.score, ol.checks-pre) a.def:not(:hover, :focus-visible) { text-decoration-line: none; }
   #guide tr:target > *, #guide tr.flash > * { background: var(--accent-bg); transition: background-color 600ms var(--ease); }
-  .qual { color: var(--muted); font-family: var(--sans); font-size: 11.5px; }
+  .qual { color: var(--muted); font-family: var(--sans); font-size: var(--t-1); }
   .res { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; white-space: nowrap; }
   .res.pass { color: var(--ok); } .res.fail { color: var(--hold); } .res.na { color: var(--muted); font-weight: 400; }
   #kit-panel:focus { outline: none; }
@@ -225,7 +235,10 @@
   .note .i { margin-top: 0.15em; }
 
   /* tamper test tiles: state by icon + words, not colour alone */
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s2); }
+  /* the valid record (and its replay, once sent) on one row, the attacks below in rows of three (two on phones) */
+  .tile-groups { display: flex; flex-direction: column; gap: var(--s2); }
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+  .tiles.lead { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .tile { position: relative; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s2) var(--s3); border-radius: var(--r-md); border: 1px solid transparent; }
   .tile:hover { border-color: currentColor; }
   /* the whole tile reopens the attempt (its button covers it); the error name sits above that and opens the glossary */
@@ -235,9 +248,9 @@
   .tile a.def { position: relative; z-index: 1; }
   .tile .n { font-weight: 600; font-size: var(--t-1); display: flex; gap: 6px; align-items: flex-start; }
   .tile .n .i { margin-top: 0.1em; }
-  .tile .s { font-size: 11.5px; font-weight: 600; }
+  .tile .s { font-size: var(--t-1); font-weight: 600; }
   .tile .v { font-family: var(--mono); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
-  .tile .x { font-size: 11.5px; color: var(--text); opacity: 0.8; }
+  .tile .x { font-size: var(--t-1); color: var(--text); opacity: 0.8; }
   /* passing tiles are outlined, exceptions filled: on a pass the hero is the one focal point */
   .tile.pass { background: transparent; color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
   /* on a pass the hero, the legend and the scoreboard already say it: the status line is for screen readers only */
@@ -270,7 +283,7 @@
   @media (max-width: 520px) {
     /* three header buttons in one row: the theme button keeps its icon and its spoken label */
     #theme-btn .lbl, #theme-btn .kb-k { display: none; }
-    .attacks, .attacks.synth, .attacks.real-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .attacks, .attacks.synth, .attacks.real-grid, .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .attack-groups { grid-template-columns: minmax(0, 1fr); }
     .panel { padding: var(--s3); }
     .verdict.hero { flex-direction: column; align-items: flex-start; gap: var(--s2); }
@@ -385,6 +398,7 @@
         <h2><span class="step" aria-hidden="true">3</span>Attack it</h2>
         <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test<kbd class="kb-k" aria-hidden="true">R</kbd></button>
         <p class="progress" id="suite-progress" role="status" aria-live="polite" hidden></p>
+        <p class="blk-note" id="blk-note" hidden></p>
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
@@ -615,32 +629,55 @@
   // In the contract's order of checks: the order's state first, then the request, freshness, reuse. A missing record
   // comes before all of them: those attempts would not even ask. The two real records need no record from step 2.
   const SYNTH = ["asis", "value", "stale", "request", "key", "replay"];
+  const SHORT = { asis: "Submit as is", value: "(a)", stale: "(b)", request: "(c)", key: "(d)", replay: "Replay", realOld: "(b) real", realOther: "(c) real" };
   const all = (modes, t) => Object.fromEntries(modes.map((m) => [m, t]));
+  // cause -> { why: in a few words, modes: { attempt: the error it answers instead, or "" }, line: said once instead }
   const BLOCKED = {
-    empty: all(SYNTH, "needs a record"),
-    invalid: all(SYNTH, "record needs fixing"),
-    held: all([...SYNTH, "realOld", "realOther"], 'order not active: answers <span class="mono">NotActive</span>'),
-    other: all(["asis", "value", "stale", "key", "replay"], 'other company: answers <span class="mono">WrongRequest</span>'),
-    stale: all(["asis", "value", "key", "replay"], 'too old: answers <span class="mono">StaleResponse</span>'),
-    used: { asis: 'already sent: answers <span class="mono">Replayed</span>', value: 'already sent: answers <span class="mono">NotNewer</span>', key: 'already sent: answers <span class="mono">Replayed</span>' },
+    empty: { why: "needs a record", modes: all(SYNTH, ""), line: "The six attempts built in your browser need a record: load one in step 2." },
+    invalid: { why: "the record needs fixing", modes: all(SYNTH, ""), line: "The six attempts built in your browser need the record in step 2 fixed first." },
+    held: { why: "order not active", modes: all([...SYNTH, "realOld", "realOther"], "NotActive") },
+    other: { why: "record of another company", modes: all(["asis", "value", "stale", "key", "replay"], "WrongRequest") },
+    stale: { why: "record too old", modes: all(["asis", "value", "key", "replay"], "StaleResponse") },
+    used: { why: "already sent", modes: { asis: "Replayed", value: "NotNewer", key: "Replayed" } },
   };
+  const listOf = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+  // One cause is said once, above the buttons, with the attempts it stops and the error they answer instead; each
+  // stopped button carries only an amber mark (its words for screen readers, and in its tip).
   let marked = null;
   function markAttacks() {
     const box = $("resp");
     const reasons = noOrder ? [] : [
-      !box.value.trim() && "empty", box.getAttribute("aria-invalid") === "true" && "invalid",
+      !box.value.trim() && "empty", box.value.trim() && box.getAttribute("aria-invalid") === "true" && "invalid",
       order.info && order.info.state !== 0 && "held",
       recordTs !== null && recordOther && "other", recordTs !== null && recordUsed !== null && "used", isStale() && "stale",
     ].filter(Boolean);
     const key = reasons.join();
     if (key === marked) return;
     marked = key;
-    for (const b of document.querySelectorAll(".attacks [data-mode]")) {
-      const old = b.querySelector(".d.blk");
-      if (old) old.remove();
-      const why = reasons.find((r) => BLOCKED[r][b.dataset.mode]);
-      if (why) b.querySelector(".d.exp").insertAdjacentHTML("afterend", `<span class="d blk">${P.icon("alert")} ${BLOCKED[why][b.dataset.mode]}</span>`);
+    const hits = new Map(); // cause -> Map(answer -> [attempts])
+    const buttons = document.querySelectorAll(".attacks [data-mode]");
+    for (const b of buttons) {
+      const m = b.dataset.mode;
+      for (const old of b.querySelectorAll(".blk-ic, .blk-sr")) old.remove();
+      delete b.dataset.blk;
+      const why = reasons.find((r) => m in BLOCKED[r].modes);
+      if (!why) continue;
+      const ans = BLOCKED[why].modes[m];
+      b.dataset.blk = `${BLOCKED[why].why}${ans ? `: answers <span class="mono">${ans}</span>` : ""}`;
+      b.querySelector(".l").insertAdjacentHTML("beforeend", `<span class="blk-ic">${P.icon("alert")}</span><span class="sr-only blk-sr">With this record: ${b.dataset.blk}</span>`);
+      if (!hits.has(why)) hits.set(why, new Map());
+      const byAns = hits.get(why);
+      byAns.set(ans, [...(byAns.get(ans) || []), m]);
     }
+    const lines = [...hits].map(([r, byAns]) => {
+      if (BLOCKED[r].line) return BLOCKED[r].line;
+      const n = [...byAns.values()].flat().length;
+      const parts = [...byAns].map(([ans, ms]) => n === buttons.length ? `every attempt answers ${errLink(ans)}`
+        : `${listOf(ms.map((m) => SHORT[m]))} ${ms.length > 1 ? "answer" : "answers"} ${errLink(ans)}`);
+      return `${BLOCKED[r].why[0].toUpperCase()}${BLOCKED[r].why.slice(1)}: ${parts.join("; ")}.`;
+    });
+    $("blk-note").hidden = !lines.length;
+    $("blk-note").innerHTML = lines.map((l) => `<span>${P.icon("alert")}<span>${l}</span></span>`).join("");
   }
   // Checks the record while it is typed or loaded, before any button is pressed: JSON, fields, age and supplier.
   function checkRecordInput(note = "") {
@@ -658,7 +695,7 @@
     recordOther = !!(order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase());
     markAttacks();
     const parts = [`<span class="okc">${P.icon("check")}</span> ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, <span class="rec-age${isStale() ? " warn" : ""}" aria-hidden="true">${ageText()}</span><span class="sr-only">signed ${age >= 0 ? P.ago(age) : "in the future"}</span>.`];
-    if (recordUsed !== null) parts.push(`<span class="warn">Already sent in this tab (block ${recordUsed}): attacks on it stop early. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Load a fresh record"} to test each check.</span>`);
+    if (recordUsed !== null) parts.push(`<span class="warn">Already sent in this tab (block ${recordUsed}). ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Load a fresh record"} to test each check.</span>`);
     else if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : `Get a fresh one (<a href="#kit-panel">Judge kit</a>)`} to test each check.</span>`);
     if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
       parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>${order.info.state === 0 ? `: attempts stop at "Request matches the order"` : ""}.</span>`);
@@ -1142,6 +1179,11 @@
       <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span></button><span class="v">${gotHtml(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</div>`;
   }
 
+  function tilesHtml(list) {
+    const lead = list.filter((s) => s.mode === "asis" || s.mode === "replay"), rest = list.filter((s) => s.mode !== "asis" && s.mode !== "replay");
+    return `<div class="tile-groups">${lead.length ? `<div class="tiles lead">${lead.map(tileOf).join("")}</div>` : ""}${rest.length ? `<div class="tiles">${rest.map(tileOf).join("")}</div>` : ""}</div>`;
+  }
+
   function renderSuite() {
     if (!suite.length) return;
     // a run that failed partway has no verdict: its summary is the failure box with the tiles answered so far
@@ -1183,7 +1225,7 @@
       <div class="verdict hero ${passed ? "ok" : suiteStopped ? "done" : notTested ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : notTested ? "clock" : "x")}</span>
         <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : notTested ? "Not tested" : "Not passed"}</div><div class="why">${why}</div>${notTested ? fix : ""}</div></div>
       ${replayStep}
-      <div class="tiles">${suite.map(tileOf).join("")}</div>
+      ${tilesHtml(suite)}
       <ul class="legend">${legendOf(suite)}<li>Press a tile for its checklist.</li></ul>
       ${skippedNote}${txNote}`;
     P.hydrateIcons($("result"));
@@ -1418,7 +1460,7 @@
     const f = P.friendlyError(e, { rpc: cfg.rpc });
     const fix = f.kind === "network" ? "" : " Nothing was sent. Your record is kept in step 2.";
     const back = !partial && suite.length ? `<button type="button" class="link" data-summary aria-keyshortcuts="B">${P.icon("arrow-left")} Tamper test summary<kbd class="kb-k" aria-hidden="true">B</kbd></button>` : "";
-    const tiles = partial ? `<p class="hint">Answered before the failure: ${suite.length} of ${SUITE.length} attempts. Press a tile for its checklist.</p><div class="tiles">${suite.map(tileOf).join("")}</div>` : "";
+    const tiles = partial ? `<p class="hint">Answered before the failure: ${suite.length} of ${SUITE.length} attempts. Press a tile for its checklist.</p>${tilesHtml(suite)}` : "";
     $("result").innerHTML = `${back}<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(f.text)}${fix}</div>${recoverRow(again ? "data-retry" : null)}</div>${tiles}`;
     P.hydrateIcons($("result"));
     if (partial) suiteFailView = $("result").innerHTML;
