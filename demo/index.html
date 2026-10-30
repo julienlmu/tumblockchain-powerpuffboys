@@ -251,11 +251,11 @@
         <dt id="g-permit" tabindex="-1">Payment permit</dt><dd>The contract's go-ahead to pay one milestone. A record that passes every rule gives one. It is valid for the order's permit time (in each card's Details; 30 min on the demo orders) from the record's signed time, and the payment uses it up. A tier never extends it.</dd>
         <dt id="g-record" tabindex="-1">Signed register record</dt><dd>A register answer (Companies House or GLEIF) signed by its Airnode, which the agent buys over x402 for $0.01. The contract takes it only from the expected signer, for the order's request, while it is fresh (Contract details: max age), and only once.</dd>
         <dt>Airnode</dt><dd>API3's signer for one register. The contract trusts one per register (Contract details: trusted signers).</dd>
-        <dt>Rules</dt><dd>The register status check always runs; per order the buyer can add accounts filed, confirmation statement filed or LEI renewed.</dd>
+        <dt>Rules</dt><dd>The register status check always runs; per order the buyer can add accounts filed, confirmation statement filed or LEI registration issued.</dd>
         <dt id="g-stop" tabindex="-1">Supplier-wide stop</dt><dd>A failed register status on any order stops payments on every order of that supplier. The agent then holds the others without paying for a new check (contract call <span class="mono">applySupplierFailure</span>).</dd>
         <dt id="g-grace" tabindex="-1">Grace period, no-data exit</dt><dd>After a hold the buyer can refund at once, and anyone can once the grace period passed. When an approved milestone is overdue and no valid record came within the grace period (the no-data exit), anyone can send the rest back to the buyer. The money only ever goes to the buyer.</dd>
         <dt id="g-tiers" tabindex="-1">Verification history</dt><dd>Standard (0 to 2 clean checks in a row), Trusted (3 to 5), Premium (6 or more). Only the register status counts, at most once per tier gap; a failed status resets it to 0. A tier only changes how often the agent re-checks between due dates. It is not a credit score.</dd>
-        <dt>Tokens</dt><dd id="g-unit"></dd>
+        <dt id="g-unit" tabindex="-1">Tokens</dt><dd id="g-unit-text"></dd>
         <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
       </dl>
       <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order · <kbd>0</kbd> all orders · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide, or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back.</p>
@@ -504,7 +504,7 @@
       if (!o.approved[i]) approve = approveWays(o, i, env);
     }
     return `<li class="${cls}"><span class="st">${I(ic)}</span><div>
-      <div class="line1"><span class="n">M${i + 1}</span><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
+      <div class="line1"><span class="n">Milestone ${i + 1}</span><span class="amt">${tok(o.amounts[i])} tokens</span><span class="due">due ${dayClock(due)}</span></div>
       <div class="line2">${parts.map((x) => `<span>${x}</span>`).join("")}</div>${approve}</div></li>`;
   }
 
@@ -564,7 +564,7 @@
         const labels = failedWords(src, a.failedRules, raw);
         return {
           cls: a.clean ? "ev-ok" : "ev-hold",
-          text: a.clean ? `${I("check")} Genuine register record accepted: it passes every rule` : `${I("x")} Genuine register record accepted; it fails: ${esc(labels.join(", "))}`,
+          text: a.clean ? `${I("check")} Genuine signed record checked: passes every rule` : `${I("x")} Genuine signed record checked: fails ${esc(labels.join(", "))}`,
           detail: `<div class="evd">
             <div>signed data <code>${esc(raw)}</code></div>
             <div>signed at ${dayClock(a.timestamp)} · digest <span class="mono tipped" tabindex="0" data-tip="${esc(a.digest)}" aria-describedby="tip">${short(a.digest)}</span></div>
@@ -592,7 +592,7 @@
   // Six states, one per order; the order is the filter order and the keys 1–6.
   const STATES = {
     ok: { cls: "ok", icon: "check", label: "Eligible", def: "A fresh record passed every rule." },
-    rule: { cls: "hold", icon: "x", label: "Rule failed", def: "A genuine record failed a rule: payments stop." },
+    rule: { cls: "hold", icon: "x", label: "Payments stopped", def: "A genuine record failed a rule, on this order or on another order of the same supplier." },
     nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid record since the due date." },
     pending: { cls: "muted", icon: "search", label: "Awaiting check", def: "No valid payment permit yet." },
     paid: { cls: "ok", icon: "shield", label: "Fully paid", def: "Every milestone was paid." },
@@ -631,7 +631,11 @@
 
     const vs = STATES[stateOf(o)];
     const notHeldYet = !held && !closed && supplierStopped(o);
-    const badge = `<span class="badge ${vs.cls}">${I(vs.icon)}${vs.label}${held ? ", held" : notHeldYet ? ", not held yet" : ""}</span>`;
+    // §2.4a: a failed base check on any order stops payments on every order of the supplier
+    const cause = ctx.cause, byOther = cause && cause.id !== o.id && supplierStopped(o);
+    // stopped by another order's record: the badge names the supplier, not a rule of this order
+    const bySupplier = byOther && (!held || o.lastFailedRules === P.BASE_FAILED);
+    const badge = `<span class="badge ${vs.cls}">${I(vs.icon)}${bySupplier ? "Supplier stopped" : vs.label}${held ? ", held" : notHeldYet ? ", not held yet" : ""}</span>`;
     const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
     const restWord = held ? "held" : refunded ? "refunded" : "remaining";
     const bar = `<div class="bar" role="img" aria-label="${tok(o.paid)} of ${tok(total)} tokens paid, ${tok(total - o.paid)} ${restWord}">
@@ -658,9 +662,8 @@
     // in sample mode the sentence that explains the disabled button says why it is off
     const offNote = env.sample ? ". Sample data: the button is off" : "";
 
-    // §2.4a: a failed base check on any order stops payments on every order of the supplier. Said once, in the
-    // status box: on the order whose record caused it ("also stops") and on every order it stops ("stopped by").
-    const cause = ctx.cause, byOther = cause && cause.id !== o.id && supplierStopped(o);
+    // The supplier-wide stop is said once, in the status box: on the order whose record caused it ("also stops")
+    // and on every order it stops ("stopped by").
     const when = o.rec.lastBaseFailureAt ? dayClock(o.rec.lastBaseFailureAt) : "";
     const failRec = [o, cause].filter(Boolean).flatMap((x) => x.events)
       .find((e) => e.name === "EvidenceAccepted" && Number(e.args.timestamp) === o.rec.lastBaseFailureAt);
@@ -684,12 +687,12 @@
         <div class="title">${I("stop")}<span>Supplier-wide stop</span></div>
         ${byOther ? `<p class="orders">Stopped by ${orderLink(cause)}</p>` : ""}${alsoStops}${stopLine}
         <p class="note"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent can hold it without paying for a new check.</p>
-        ${nd ? `<p id="${whoId}">No verified data since M${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
+        ${nd ? `<p id="${whoId}">No verified data since milestone ${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
     } else if (!closed && o.autoRefundAt > 0) {
       // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
       box = `<div class="held-box nodata">
-        <div class="title">${I("clock")}<span>No verified data since M${o.next + 1} was due</span></div>
+        <div class="title">${I("clock")}<span>No verified data since milestone ${o.next + 1} was due</span></div>
         <p id="${whoId}">Nothing bad is known about the supplier, only no proof. Anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>
         ${claimRow(nowSec() >= o.autoRefundAt)}
       </div>`;
@@ -718,9 +721,9 @@
     let permitRow;
     if (held) permitRow = `<span class="small-muted">cleared by the hold</span>`;
     else if (closed) permitRow = `<span class="small-muted">none (order closed)</span>`;
-    else if (permitValid(o)) permitRow = `<span class="good">valid</span> for M${o.next + 1} <span class="small-muted">(see its row)</span>`;
+    else if (permitValid(o)) permitRow = `<span class="good">valid</span> for milestone ${o.next + 1} <span class="small-muted">(see its row)</span>`;
     else if (o.permitValidUntil > 0) permitRow = `<span class="late">expired</span> at ${clock(o.permitValidUntil)}`;
-    else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid M${o.next}` : "none yet"}</span>`;
+    else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid milestone ${o.next}` : "none yet"}</span>`;
     if (!held && !closed) permitRow += ` <span class="small-muted">· each lasts ${duration(o.info.permitTtl)} from the record's signed time</span>`;
 
     const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
@@ -747,7 +750,7 @@
           ${badge}
         </div>
         <div class="hero">
-          <div><div class="label">Protected remaining balance</div><div class="big">${tok(o.remaining)}<span class="unit">tokens</span></div></div>
+          <div><div class="label">Protected remaining balance</div><div class="big">${tok(o.remaining)}<button type="button" class="term unit" data-guide="g-unit" data-tip="${tok(o.remaining)} tokens = ${ethers.formatEther(o.remaining)} test ETH" aria-describedby="tip">tokens</button></div></div>
           <div class="paid">Paid <b>${tok(o.paid)}</b> of ${tok(total)}</div>
         </div>
         ${bar}
@@ -786,8 +789,8 @@
     const a = e.args;
     switch (e.name) {
       case "EvidenceAccepted": return a.clean ? "Register check passed" : brief ? "Register check failed" : `Register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
-      case "PermitIssued": return `payment permit for M${Number(a.milestone) + 1}`;
-      case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b>: ${tok(a.amount)} tokens to the supplier`;
+      case "PermitIssued": return `payment permit for milestone ${Number(a.milestone) + 1}`;
+      case "MilestonePaid": return `<b>paid milestone ${Number(a.milestone) + 1}</b>: ${tok(a.amount)} tokens to the supplier`;
       case "OrderHeld": return "<b>payment held</b>";
       case "OrderRefunded": return `<b>refunded ${tok(a.amount)} tokens</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
       case "TierChanged": return `Verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} to ${P.TIERS[Number(a.newTier)]}`;
@@ -912,7 +915,7 @@
     renderGrid(!orders.length
       ? `<div class="empty-state">${I("file")}<b>No orders on this contract yet</b><span>A buyer creates one with <span class="mono">api3/scripts/plus-create-order.sh</span>${P.copyBtn("api3/scripts/plus-create-order.sh")}; it appears here within 12 s.</span></div>`
       : !shown.length
-      ? `<div class="empty-state">${I(STATES[filter].icon)}<b>No orders are ${STATES[filter].label.toLowerCase()} right now</b><span>${STATES[filter].def}</span><button type="button" data-filter="">Show all ${orders.length} orders</button></div>`
+      ? `<div class="empty-state">${I(STATES[filter].icon)}<b>No orders in “${STATES[filter].label}” right now</b><span>${STATES[filter].def}</span><button type="button" data-filter="">Show all ${orders.length} orders</button></div>`
       : shown.map((o) => {
         const cause = causeOf(o, orders);
         const stops = orders.filter((x) => x.id !== o.id && supplierStopped(x) && causeOf(x, orders) === o);
@@ -1214,14 +1217,14 @@
 
   const DO = {
     ok: `Approve the next milestone once its work is delivered: in the Detailed view, “Approve milestone <i>n</i> (script)” under that milestone holds the exact <span class="mono">api3/scripts/plus-approve.sh</span> command, numbers filled in, with Copy. The agent pays it when it is due.`,
-    rule: "Refund the rest from the buyer's wallet now, or let anyone (the agent) do it after the grace period.",
+    rule: "Once the order is held: refund the rest from the buyer's wallet now, or let anyone (the agent) do it after the grace period. An order not held yet is held by the agent on its next pass, without a new paid check.",
     nodata: "Wait for the grace period; then anyone can send the rest back to you. Nothing bad is known about the supplier.",
     pending: "Nothing: the agent fetches a fresh record before the due date.",
     paid: "Nothing.",
     closed: "Nothing; the audit trail shows who triggered the refund.",
   };
   $("guide-states").innerHTML = STATE_KEYS.map((k, i) => `<tr><td><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span> <kbd>${i + 1}</kbd></td><td>${STATES[k].def}</td><td>${DO[k]}</td></tr>`).join("");
-  $("g-unit").textContent = `Amounts are in tokens of test ETH: 1 token = ${UNIT.toLocaleString("en")} wei${UNIT === 10n ** 12n ? " (10¹²), so 1,000,000 tokens are 1 ETH" : `, set by the unit parameter (default 10¹²)`}.`;
+  $("g-unit-text").textContent = `Amounts are in tokens of test ETH: 1 token = ${UNIT.toLocaleString("en")} wei${UNIT === 10n ** 12n ? " (10¹²), so 1,000,000 tokens are 1 ETH" : `, set by the unit parameter (default 10¹²)`}.`;
   function openGuide(targetId) {
     const g = $("guide");
     g.open = true;
