@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "cardano-dev-skills": {
+      "source": {
+        "source": "github",
+        "repo": "cardano-foundation/cardano-dev-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "cardano-dev-skills@cardano-dev-skills": true
+  }
+}

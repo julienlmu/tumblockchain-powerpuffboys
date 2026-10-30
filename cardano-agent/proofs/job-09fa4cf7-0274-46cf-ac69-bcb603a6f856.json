@@ -11,11 +11,11 @@
   },
   "jobStatus": "completed",
   "result": "{\"app\": \"supplier-pulse-sim\", \"passed\": true, \"summary\": \"order 0, company 07654321: registry status 'dissolved', payment held, the remaining balance stays locked for the buyer\", \"evidence\": {\"outcome\": \"Held\", \"txHash\": null, \"orderId\": 0, \"milestone\": 0, \"status\": \"dissolved\", \"simulated\": true}, \"attempts\": 1, \"checkedAt\": 1793364918}",
-  "purchaseOnChainState": "ResultSubmitted",
-  "paymentOnChainState": "ResultSubmitted",
+  "purchaseOnChainState": "Withdrawn",
+  "paymentOnChainState": "Withdrawn",
   "escrow": {
-    "onChainState": "ResultSubmitted",
-    "settled": false,
+    "onChainState": "Withdrawn",
+    "settled": true,
     "price": [
       {
         "amount": "5000000",
@@ -36,15 +36,31 @@
       "txHash": "00c676f11a3a8dbfe228cf8b9164899a69b6513db8614378679ad0de7b9de2eb",
       "onChainState": "ResultSubmitted",
       "explorer": "https://preprod.cardanoscan.io/transaction/00c676f11a3a8dbfe228cf8b9164899a69b6513db8614378679ad0de7b9de2eb"
+    },
+    {
+      "txHash": "3ddd27bd1d9752bb6ff900b94e93679c4ba0aef486aea7ea5ee06dc5f98af92b",
+      "onChainState": "Withdrawn",
+      "explorer": "https://preprod.cardanoscan.io/transaction/3ddd27bd1d9752bb6ff900b94e93679c4ba0aef486aea7ea5ee06dc5f98af92b"
     }
   ],
   "cardanoTxHashes": [
     "fc3e095eb7a1c9733b1cda53f2c925b091c28cf9a2882017bbf910d51417c06b",
-    "00c676f11a3a8dbfe228cf8b9164899a69b6513db8614378679ad0de7b9de2eb"
+    "00c676f11a3a8dbfe228cf8b9164899a69b6513db8614378679ad0de7b9de2eb",
+    "3ddd27bd1d9752bb6ff900b94e93679c4ba0aef486aea7ea5ee06dc5f98af92b"
   ],
   "explorer": [
     "https://preprod.cardanoscan.io/transaction/fc3e095eb7a1c9733b1cda53f2c925b091c28cf9a2882017bbf910d51417c06b",
-    "https://preprod.cardanoscan.io/transaction/00c676f11a3a8dbfe228cf8b9164899a69b6513db8614378679ad0de7b9de2eb"
+    "https://preprod.cardanoscan.io/transaction/00c676f11a3a8dbfe228cf8b9164899a69b6513db8614378679ad0de7b9de2eb",
+    "https://preprod.cardanoscan.io/transaction/3ddd27bd1d9752bb6ff900b94e93679c4ba0aef486aea7ea5ee06dc5f98af92b"
   ],
-  "checkedAt": "2026-10-30T13:04:05.842880+00:00"
+  "checkedAt": "2026-10-30T13:40:31.832075+00:00",
+  "sellerReceipt": {
+    "wallet": "addr_test1qr3l0k6npvhznqv8u0x7v6www8p4phnsjq8m8cxlmynpyxrdt6tjh8gq2f8m95av4jl0dpzxlugtg6v8aaafl2725kyqhuz79v",
+    "txHash": "3ddd27bd1d9752bb6ff900b94e93679c4ba0aef486aea7ea5ee06dc5f98af92b",
+    "fromEscrowLovelace": 5000000,
+    "feeLovelace": 662061,
+    "netLovelace": 4337939,
+    "netAda": 4.337939,
+    "explorer": "https://preprod.cardanoscan.io/transaction/3ddd27bd1d9752bb6ff900b94e93679c4ba0aef486aea7ea5ee06dc5f98af92b"
+  }
 }

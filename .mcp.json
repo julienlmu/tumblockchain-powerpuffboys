@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "airnodehub": {
+      "type": "http",
+      "url": "https://airnodehub.api3.org/mcp"
+    }
+  }
+}
