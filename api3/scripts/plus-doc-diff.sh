@@ -20,12 +20,12 @@ as_text "$1" > "$tmp/agreed"; as_text "$2" > "$tmp/presented"
 diff -u --label agreed --label presented "$tmp/agreed" "$tmp/presented" > "$tmp/diff" || true
 if [[ ! -s "$tmp/diff" ]]; then echo "No text differences (the files differ only in bytes the text view does not show)."; exit 0; fi
 
-echo "=== Changes (agreed -> presented) ==="
+echo "=== Changes (agreed -> presented; informational only, does not affect payments) ==="
 cat "$tmp/diff"
 
 key="${ANTHROPIC_API_KEY:-}"
 envfile="$(dirname "$0")/../.env"
-if [[ -z "$key" && -f "$envfile" ]]; then key="$(grep -E '^ANTHROPIC_API_KEY=' "$envfile" | tail -1 | cut -d= -f2- | tr -d "\"' \r")"; fi
+if [[ -z "$key" && -f "$envfile" ]]; then key="$(grep -E '^ANTHROPIC_API_KEY=' "$envfile" | tail -1 | cut -d= -f2- | tr -d "\"' \r" || true)"; fi
 if [[ -z "$key" ]]; then echo; echo "(no ANTHROPIC_API_KEY: summary skipped, the diff above is the full report)"; exit 0; fi
 
 prompt="Two versions of a purchase-order document are compared below as a unified diff ('-' = agreed version, '+' = version now presented). In at most 6 short bullet points, state in plain language what changed, quoting the old and new values for quantities, prices, dates, delivery terms and parties. Do not judge whether anyone should be paid or who is right; only describe the changes.
