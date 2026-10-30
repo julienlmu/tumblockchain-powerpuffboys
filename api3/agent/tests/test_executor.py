@@ -62,8 +62,10 @@ class ExecutorTest(unittest.TestCase):
         self.assertEqual(len(self.entries(action="refundRemaining", outcome="Refunded")), 4)
         self.assertTrue(self.entries(action="tier"))
         self.assertLessEqual(self.ledger.spent(self.chain.now()), self.cfg.daily_budget_usd)
-        # the only alert: three failed fetches for the supplier without data (order 5), as specified
-        self.assertEqual({e["orderId"] for e in self.entries(outcome="alert")}, {5})
+        # alerts only for the supplier without data (order 5), and no paid fetch for it once it is refunded
+        # (the refund tick used to monitor it too: a third, wasted fetch)
+        self.assertLessEqual({e["orderId"] for e in self.entries(outcome="alert")}, {5})
+        self.assertEqual([e for e in self.entries(orderId=5, action="fetch") if e["cycle"] >= refund5["cycle"]], [])
 
         spent = self.ledger.spent(self.chain.now())
         self.run_ticks(10)  # past due and unapproved: no paid checks while the buyer decides

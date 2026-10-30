@@ -1133,7 +1133,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
 
-**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass. **C2 passed (~17:20)** against Orhun's v1.1 contract on a local chain (`api3/agent/c2_check.py`, 8/8). **C2.5 review fixes (~17:45):** the check window respects `permitTtl`, no monitoring while a due milestone waits for the buyer, quarantine blocks every action, and one last try before the no-data refund. 61 tests pass.
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. **v1.1 done (~17:00):** supplier-wide stop (priority 0), no-data exit refunds, verification history, and the v1 hedge mode (`AGENT_CONTRACT_VERSION=v1`, `api3/agent/fetch-v1.sh`). 54 tests pass. **C2 passed (~17:20)** against Orhun's v1.1 contract on a local chain (`api3/agent/c2_check.py`, 8/8). **C2.5 review fixes (~17:45):** the check window respects `permitTtl`, no monitoring while a due milestone waits for the buyer, quarantine blocks every action, and one last try before the no-data refund. **C2 with Emre's real `fetch-local.sh` passed (~17:40, 8/8)**; it showed that P4 could pay for a fetch on an order refunded in the same tick, now fixed. 63 tests pass.
 
 **Modules (`api3/agent/`):**
 
@@ -1180,7 +1180,8 @@ P3 due      state=Active and now ≥ nextDueDate − min(DUE_LEAD, permitTtl −
             and (nextApproved or now < nextDueDate)        # don't pay for checks while waiting for the buyer
             and backoff elapsed (or P1's last try)       → fetch(source, id) →
                                                           now ≥ nextDueDate ? checkAndRelease : submitEvidence
-P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer, and no P3 fetch this tick:
+P4 monitor  per supplierKey with ≥ 1 Active order not waiting for the buyer and without a P0–P3 action this tick,
+            and no P3 due check for that supplier (run or skipped):
             now − lastCheckAt ≥ interval(tier)            → fetch once → submitEvidence to that supplier's
                                                           Active order with the nearest nextDueDate
 Budget      P3 only if spentToday + cost ≤ DAILY_BUDGET_USD
