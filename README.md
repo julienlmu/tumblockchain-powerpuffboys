@@ -4,6 +4,8 @@ TUM Blockchain hackathon project: a paid Cardano agent (Masumi/Sokosumi) that fe
 
 **Plan, status and team log: [docs/PROGRESS.md](docs/PROGRESS.md).** Update it with every push.
 
+**Judges, SupplierPulse+ tamper test in one command** (Foundry, Node.js and jq; no keys, no money): `api3/scripts/judge-tamper.sh` deploys the contract on a local anvil chain, rejects four tampered records (edited value, too old, other request, wrong key), pays one valid record and rejects its replay. Against the live v2 on Sepolia: `api3/scripts/judge-tamper.sh --live <orderId> <fresh record.json>` (simulated, no gas). In the browser: [demo/judge.html](demo/judge.html).
+
 ## Prerequisites
 
 - Node.js 24 (`nvm use` picks it up from `.nvmrc`)

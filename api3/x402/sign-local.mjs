@@ -5,6 +5,7 @@
 import { encodePacked, keccak256, toHex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { normalizeId, requestHash, sourceOf } from './requests.mjs';
+import { pathToFileURL } from 'node:url';
 
 export const LOCAL_KEYS = {
   ch: process.env.LOCAL_CH_KEY ?? '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
@@ -40,7 +41,8 @@ export async function signRecord(source, id, raw, { key = LOCAL_KEYS[source], ti
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// run as a script (pathToFileURL: the repository path may contain spaces)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [source, id, raw, timestamp] = process.argv.slice(2);
   try {
     if (!source || !id || !raw) throw new Error('usage: node sign-local.mjs <ch|gleif> <id> \'<data json>\' [timestamp]');
