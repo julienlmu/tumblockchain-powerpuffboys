@@ -5,7 +5,8 @@ This is the scripted alternative to hiring the agent in the Sokosumi UI. If the
 work passes, the escrow releases to the seller. If it does not pass, this
 script requests a refund, the seller's refund guard authorizes it, and the
 escrowed tADA returns to the buyer. Every Cardano tx hash of the purchase goes
-into proofs/ as qualification evidence.
+into proofs/ as qualification evidence. The seller's payout comes after the
+unlock time; receipt.py adds it to the proof.
 
 Usage:
   python buy_job.py --input '{"task": "demo", "outcome": "pass"}'   # apps/mock.json
@@ -24,7 +25,8 @@ import aiohttp
 from dotenv import load_dotenv
 from masumi import Config
 
-from masumi_v2 import SOURCE_TYPE, V2Purchase as Purchase
+from masumi_v2 import V2Purchase as Purchase
+from receipt import complete, find
 
 PROOFS = pathlib.Path(__file__).parent / "proofs"
 REFUNDED = {"RefundWithdrawn"}
@@ -35,27 +37,6 @@ async def get_json(session, url, **kw):
     async with session.get(url, **kw) as r:
         r.raise_for_status()
         return await r.json()
-
-
-async def find_purchase(session, payment_url, headers, network, blockchain_identifier):
-    data = await get_json(
-        session,
-        f"{payment_url}/purchase/",
-        headers=headers,
-        params={"network": network, "limit": "50", "includeHistory": "true", "filterPaymentSourceType": SOURCE_TYPE},
-    )
-    for p in data.get("data", {}).get("Purchases", []):
-        if p.get("blockchainIdentifier") == blockchain_identifier:
-            return p
-    return None
-
-
-def tx_hashes(purchase):
-    hashes = []
-    for tx in [purchase.get("CurrentTransaction")] + (purchase.get("TransactionHistory") or []):
-        if tx and tx.get("txHash") and tx["txHash"] not in hashes:
-            hashes.append(tx["txHash"])
-    return hashes
 
 
 async def request_refund(purchase, deadline):
@@ -82,7 +63,6 @@ async def main():
     network = os.getenv("NETWORK", "Preprod")
     payment_url = os.environ["BUYER_PAYMENT_SERVICE_URL"]
     api_key = os.environ["BUYER_PAYMENT_API_KEY"]
-    headers = {"token": api_key}
     purchaser_id = secrets.token_hex(13)  # Masumi requires 14-26 chars
     input_data = json.loads(args.input)
     deadline = time.time() + args.timeout
@@ -122,12 +102,21 @@ async def main():
             await asyncio.sleep(POLL_S)
 
         outcome = {"completed": "paid", "failed": "not passed"}.get(status.get("status"), "timed out")
+        if outcome == "paid":
+            # The agent reports completed once it has the result; the result tx follows a few blocks later.
+            while time.time() < deadline:
+                p = await find(session, "purchase", network, job["blockchainIdentifier"])
+                state = p and p.get("onChainState")
+                print("purchase state:", state)
+                if state not in (None, "FundsLocked"):
+                    break
+                await asyncio.sleep(POLL_S)
         if status.get("status") == "failed" and not args.no_refund:
             if await request_refund(purchase, deadline):
                 print("refund requested, waiting for the seller to authorize and the escrow to pay back")
                 outcome = "refund requested"
                 while time.time() < deadline:
-                    p = await find_purchase(session, payment_url, headers, network, job["blockchainIdentifier"])
+                    p = await find(session, "purchase", network, job["blockchainIdentifier"])
                     state = p and p.get("onChainState")
                     print("purchase state:", state)
                     if state in REFUNDED:
@@ -135,23 +124,18 @@ async def main():
                         break
                     await asyncio.sleep(POLL_S)
 
-        p = await find_purchase(session, payment_url, headers, network, job["blockchainIdentifier"])
+        proof = await complete(session, {
+            "time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "network": network,
+            "outcome": outcome,
+            "jobId": job["id"],
+            "agentIdentifier": job["agentIdentifier"],
+            "blockchainIdentifier": job["blockchainIdentifier"],
+            "input": input_data,
+            "jobStatus": status.get("status"),
+            "result": status.get("result"),
+        })
 
-    hashes = tx_hashes(p) if p else []
-    proof = {
-        "time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "network": network,
-        "outcome": outcome,
-        "jobId": job["id"],
-        "agentIdentifier": job["agentIdentifier"],
-        "blockchainIdentifier": job["blockchainIdentifier"],
-        "input": input_data,
-        "jobStatus": status.get("status"),
-        "result": status.get("result"),
-        "purchaseOnChainState": p and p.get("onChainState"),
-        "cardanoTxHashes": hashes,
-        "explorer": [f"https://preprod.cardanoscan.io/transaction/{h}" for h in hashes],
-    }
     PROOFS.mkdir(exist_ok=True)
     out = PROOFS / f"job-{job['id']}.json"
     out.write_text(json.dumps(proof, indent=2))

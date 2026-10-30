@@ -1,0 +1,73 @@
+{
+  "time": "2026-10-30T12:17:45.264446+00:00",
+  "network": "Preprod",
+  "outcome": "refunded",
+  "jobId": "a81464d0-6740-4e75-9c23-f335fde02b46",
+  "agentIdentifier": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b10e01432821eb869e1711c8fdaec0090f133ae05941f68b4916cf4a0bb000000",
+  "blockchainIdentifier": "3300602c06c0c602604c05602301d8512520a60b4c0863001c5804653058e0272959448066552730502738fbe8dc63526e9aa30410123081820a7ca44146a70a187c0c30822d413e248bc550420e7e3049f11464993052d7f88146d4ad9820ec82c20918607089c3629110435162a261425813d0808350815b0303e17823519a49129009234232abbbc9c49401d301696b018290e5816950b9a9c0c0fba0c2951180208753e282b0a380f571f960091169f1c35041cb5630c3a7d1c041b2530123672540a1d300c04384c292a48a121c42d511eb8dc3e0cb4a41813b88a303bcf700267b0230a09c10a0521c0b0331b9105058760c0b0526a140b0283d3008cb0a18fd182e2f0c1164a0c204424b2c3509ca46a1b8409c301625a29281a8e85930241185677241a890ac3fdf0e7720f07a445d148202154300c5e2080d3ba01101f8152d240c05066140dd74ec522c91181460291814ab06060303f3e18cfd5cb585ead6b0a176fd4f231f03d303782a70106e219281102176512ea380229520c160205c751beb2556b4884b6f50cb80871b90a1f931298d6cf0b0b9fd3905270f848a3b881034881f07561506300e897c1ec230c890d4a0c6220e8d4c652a99bc43bf138e26b6b3cac613299c06673170d29661282add6d0ad8b9d87b6861d8ea7126bacd526badcc0f701d9a004e007d000b96000ceb7a4001dc005e0fb01c25f8a040002c006b17cb037c001b280a0000ac5f6a0005b18000370011c404bd5087c00730003c2037c00ea9f004200075bc30fe918522003b0f85f30030a000",
+  "input": {
+    "task": "pay-on-pass demo (fail)",
+    "outcome": "fail"
+  },
+  "jobStatus": "failed",
+  "result": null,
+  "purchaseOnChainState": "RefundWithdrawn",
+  "cardanoTxHashes": [
+    "457707eaf832319548525b12b6fb28f04958899d06aa631438e224ff35194820",
+    "0dfec1b9d54b2f36b611860bc43dddb99ee87a8260b205d73ab09271c54f5eec",
+    "a4f91f7f23b0c8f80a56f869dade19e852009c4a237a5e18c36adbbb2adfdde0",
+    "0fefbb1baef53e19c9a844c9261a374735bfcf5d59c84828b8f1538bd89ffe2b"
+  ],
+  "explorer": [
+    "https://preprod.cardanoscan.io/transaction/457707eaf832319548525b12b6fb28f04958899d06aa631438e224ff35194820",
+    "https://preprod.cardanoscan.io/transaction/0dfec1b9d54b2f36b611860bc43dddb99ee87a8260b205d73ab09271c54f5eec",
+    "https://preprod.cardanoscan.io/transaction/a4f91f7f23b0c8f80a56f869dade19e852009c4a237a5e18c36adbbb2adfdde0",
+    "https://preprod.cardanoscan.io/transaction/0fefbb1baef53e19c9a844c9261a374735bfcf5d59c84828b8f1538bd89ffe2b"
+  ],
+  "paymentOnChainState": "RefundWithdrawn",
+  "escrow": {
+    "onChainState": "RefundWithdrawn",
+    "settled": true,
+    "price": [
+      {
+        "amount": "5000000",
+        "unit": ""
+      }
+    ],
+    "unlockTime": "2026-10-30T12:49:12.418000+00:00",
+    "withdrawnForSeller": [],
+    "withdrawnForBuyer": []
+  },
+  "transactions": [
+    {
+      "txHash": "457707eaf832319548525b12b6fb28f04958899d06aa631438e224ff35194820",
+      "onChainState": "FundsLocked",
+      "explorer": "https://preprod.cardanoscan.io/transaction/457707eaf832319548525b12b6fb28f04958899d06aa631438e224ff35194820"
+    },
+    {
+      "txHash": "0dfec1b9d54b2f36b611860bc43dddb99ee87a8260b205d73ab09271c54f5eec",
+      "onChainState": "RefundRequested",
+      "explorer": "https://preprod.cardanoscan.io/transaction/0dfec1b9d54b2f36b611860bc43dddb99ee87a8260b205d73ab09271c54f5eec"
+    },
+    {
+      "txHash": "a4f91f7f23b0c8f80a56f869dade19e852009c4a237a5e18c36adbbb2adfdde0",
+      "onChainState": "RefundAuthorized",
+      "explorer": "https://preprod.cardanoscan.io/transaction/a4f91f7f23b0c8f80a56f869dade19e852009c4a237a5e18c36adbbb2adfdde0"
+    },
+    {
+      "txHash": "0fefbb1baef53e19c9a844c9261a374735bfcf5d59c84828b8f1538bd89ffe2b",
+      "onChainState": "RefundWithdrawn",
+      "explorer": "https://preprod.cardanoscan.io/transaction/0fefbb1baef53e19c9a844c9261a374735bfcf5d59c84828b8f1538bd89ffe2b"
+    }
+  ],
+  "buyerRefund": {
+    "wallet": "addr_test1qrldwrtkgfrrn7z3cm964ug8sexheptkdazplz5vq8qej2ppzxctqj7xkry8989peauhfgxzg2qr8q67amm48l5vavysmuf5mv",
+    "txHash": "0fefbb1baef53e19c9a844c9261a374735bfcf5d59c84828b8f1538bd89ffe2b",
+    "fromEscrowLovelace": 5000000,
+    "feeLovelace": 654893,
+    "netLovelace": 4345107,
+    "netAda": 4.345107,
+    "explorer": "https://preprod.cardanoscan.io/transaction/0fefbb1baef53e19c9a844c9261a374735bfcf5d59c84828b8f1538bd89ffe2b"
+  },
+  "checkedAt": "2026-10-30T12:18:24.212505+00:00"
+}

@@ -1,0 +1,50 @@
+{
+  "time": "2026-10-30T12:13:11.970524+00:00",
+  "network": "Preprod",
+  "outcome": "paid",
+  "jobId": "c00c4fcf-3967-44d4-aeb6-7dd1af2df057",
+  "agentIdentifier": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b10e01432821eb869e1711c8fdaec0090f133ae05941f68b4916cf4a0bb000000",
+  "blockchainIdentifier": "1985604c06cc086046905300b2c2d25200c0132403806625b6d64c046580cc1018d6a5ca76916cc0760404e0c27b408649304cc020476ec584b899697300da2d7211ca63c5c43472f2208040842638e9cb43cc1c887205635b059d983b77b267b342920260f187204583c082e047276664b6c683a4c4c2e515b0258cc101e72313c58242e555a6024680f3278b2803a764c00b4a6760276081f045250686d607f6c72bc241010ae686a72302abeff4c5f642e3c4d6030302e342a616c74ba4817020402726c82025a76581dec0870d258ae1812715860dd643068093526a6e77d7afafe82449a02301d8a410351e008459e0f69c43b6010e22e2d010915a0118c70aabfd8054040e180d8051a8022135b719cb02e3b8d28e6c581b0295a3284e595e300ac1e24284f09c20741ae70467b5663a7104042110218bf44d42bf4c0982c0b89008683cc4050580d82007632186c0a7a015e0b0681acf0d063811dc833018995c61c9a22489058edfa5806b90b88d7ba64d91465161e8f4f3981ecd842bc5cc09090b4b894bf149a0601b1a2fa303a0a038e27c955fcc62f638488a5023802f37635de38d086d3c86b6c2f58a0c2e2c1d840a8184c6ec5d795d01401ef99cf108004e5933034d66d70592ce0447c7ad689b038ecf65443b1d4ee77ac9bb83733a081e48a433cfb240013801f4002e0800338dfc800770017bdf951067fc840000b0035b3e082be000dbd00015b3e5c000b6d80006e0023a6017b21f7800e60007840afbfe44340704000e379a143300c4400760d33e481a140000",
+  "input": {
+    "task": "pay-on-pass demo (pass)",
+    "outcome": "pass"
+  },
+  "jobStatus": "completed",
+  "result": "{\"app\": \"mock\", \"passed\": true, \"summary\": \"mock 'pass', attempt 1: passed\", \"evidence\": {\"task\": \"pay-on-pass demo (pass)\", \"attempt\": 1}, \"attempts\": 1, \"checkedAt\": 1793362380}",
+  "purchaseOnChainState": "ResultSubmitted",
+  "cardanoTxHashes": [
+    "d12f846ff2089418fef72838b77093fe31f0fb50e26b141d392e7fbef4143fcd",
+    "0d7bc5e70e33857a08d956ad2a9d14f5af1800dfa26eb86c0a0ac5b721051574"
+  ],
+  "explorer": [
+    "https://preprod.cardanoscan.io/transaction/d12f846ff2089418fef72838b77093fe31f0fb50e26b141d392e7fbef4143fcd",
+    "https://preprod.cardanoscan.io/transaction/0d7bc5e70e33857a08d956ad2a9d14f5af1800dfa26eb86c0a0ac5b721051574"
+  ],
+  "paymentOnChainState": "ResultSubmitted",
+  "escrow": {
+    "onChainState": "ResultSubmitted",
+    "settled": false,
+    "price": [
+      {
+        "amount": "5000000",
+        "unit": ""
+      }
+    ],
+    "unlockTime": "2026-10-30T12:46:55.870000+00:00",
+    "withdrawnForSeller": [],
+    "withdrawnForBuyer": []
+  },
+  "transactions": [
+    {
+      "txHash": "d12f846ff2089418fef72838b77093fe31f0fb50e26b141d392e7fbef4143fcd",
+      "onChainState": "FundsLocked",
+      "explorer": "https://preprod.cardanoscan.io/transaction/d12f846ff2089418fef72838b77093fe31f0fb50e26b141d392e7fbef4143fcd"
+    },
+    {
+      "txHash": "0d7bc5e70e33857a08d956ad2a9d14f5af1800dfa26eb86c0a0ac5b721051574",
+      "onChainState": "ResultSubmitted",
+      "explorer": "https://preprod.cardanoscan.io/transaction/0d7bc5e70e33857a08d956ad2a9d14f5af1800dfa26eb86c0a0ac5b721051574"
+    }
+  ],
+  "checkedAt": "2026-10-30T12:19:08.443264+00:00"
+}

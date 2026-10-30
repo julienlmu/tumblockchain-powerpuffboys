@@ -32,6 +32,10 @@ agent.py ──job input──▶ executor (app) ──▶ {"passed": true|false
   the escrow only pays the seller ~30 h after a job; the `.env.example` values make it ~36 min.
 - `buy_job.py`: the buyer. Starts a job, pays, waits, requests the refund if the
   job failed, and writes all Cardano tx hashes to `proofs/job-<id>.json`.
+- `receipt.py`: completes a proof once the escrow settles. Reads both sides
+  (seller's payment, buyer's purchase), lists every tx of the job, and checks on
+  chain (Koios) how much the final tx took out of escrow into the selling wallet
+  (`sellerReceipt`) or back to the purchasing wallet (`buyerRefund`).
 - `apps/mock.json` + `executors/mock.py`: test app. The buyer picks the outcome.
 - `apps/eth-vault.json` + `executors/api3_vault.py`: the API3 ETH/USD vault (`api3/`).
 - `test_gate.py`: tests for the gate and the refund store.
@@ -86,7 +90,12 @@ A new app is one executor plus one `apps/<name>.json` with its `input_schema`
    python buy_job.py --input '{"task": "demo", "outcome": "pass"}'
    python buy_job.py --input '{"task": "demo", "outcome": "fail"}'
    ```
-   Or hire the agent on Sokosumi preprod and pay there.
+   Or hire the agent on Sokosumi preprod and pay there. The refund settles within
+   minutes. The seller's payout waits for the unlock time (~36 min with the
+   `.env.example` deadlines):
+   ```bash
+   python receipt.py --wait 3600 proofs/job-<id>.json
+   ```
 7. Commit `proofs/job-*.json` and copy the tx hashes into `docs/evidence.md`.
 
 Quick test without Masumi: `masumi run agent.py --standalone --input '{"task": "x", "outcome": "pass"}'`.

@@ -1,4 +1,4 @@
-"""Tests for the pay-on-pass gate and the refund store.
+"""Tests for the pay-on-pass gate, the refund store and the proof's tx list.
 
 Run from cardano-agent/: venv/bin/python -m unittest -v
 """
@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 from gate import ExecutorError, deadline_for, load_app, parse_verdict, run_gate
+from receipt import transactions
 from refunds import RefundStore
 
 MOCK = load_app("apps/mock.json")
@@ -75,6 +76,17 @@ class RefundStoreTest(unittest.TestCase):
             store.mark("bid2", "did not pass")
             store.mark_authorized("bid1")
             self.assertEqual(store.pending(), {"bid2"})
+
+
+
+class TransactionsTest(unittest.TestCase):
+    def test_merges_both_sides_oldest_first(self):
+        lock = {"txHash": "a", "blockTime": 1, "newOnChainState": "FundsLocked"}
+        result = {"txHash": "b", "blockTime": 2, "newOnChainState": "ResultSubmitted"}
+        pending = {"txHash": "c", "blockTime": None, "newOnChainState": "Withdrawn"}
+        purchase = {"CurrentTransaction": result, "TransactionHistory": [lock]}
+        payment = {"CurrentTransaction": pending, "TransactionHistory": [result]}
+        self.assertEqual([t["txHash"] for t in transactions(purchase, payment, None)], ["a", "b", "c"])
 
 
 if __name__ == "__main__":

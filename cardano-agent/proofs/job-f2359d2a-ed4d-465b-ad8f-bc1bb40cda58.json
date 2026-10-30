@@ -13,11 +13,38 @@
   "result": "{\"app\": \"mock\", \"passed\": true, \"summary\": \"mock 'pass', attempt 1: passed\", \"evidence\": {\"task\": \"first paid job: TUM hackathon qualification\", \"attempt\": 1}, \"attempts\": 1, \"checkedAt\": 1793362091}",
   "purchaseOnChainState": "ResultSubmitted",
   "cardanoTxHashes": [
-    "4d622fc4d56338df6feb34c3e8a44f02105c280befb287f823f04f426d6e9a34",
-    "cef9996cc16d5d3b018bef7eb5555e32e2103536cb85d3914f3b2179d49370a2"
+    "cef9996cc16d5d3b018bef7eb5555e32e2103536cb85d3914f3b2179d49370a2",
+    "4d622fc4d56338df6feb34c3e8a44f02105c280befb287f823f04f426d6e9a34"
   ],
   "explorer": [
-    "https://preprod.cardanoscan.io/transaction/4d622fc4d56338df6feb34c3e8a44f02105c280befb287f823f04f426d6e9a34",
-    "https://preprod.cardanoscan.io/transaction/cef9996cc16d5d3b018bef7eb5555e32e2103536cb85d3914f3b2179d49370a2"
-  ]
+    "https://preprod.cardanoscan.io/transaction/cef9996cc16d5d3b018bef7eb5555e32e2103536cb85d3914f3b2179d49370a2",
+    "https://preprod.cardanoscan.io/transaction/4d622fc4d56338df6feb34c3e8a44f02105c280befb287f823f04f426d6e9a34"
+  ],
+  "paymentOnChainState": "ResultSubmitted",
+  "escrow": {
+    "onChainState": "ResultSubmitted",
+    "settled": false,
+    "price": [
+      {
+        "amount": "5000000",
+        "unit": ""
+      }
+    ],
+    "unlockTime": "2026-10-31T18:05:00.681000+00:00",
+    "withdrawnForSeller": [],
+    "withdrawnForBuyer": []
+  },
+  "transactions": [
+    {
+      "txHash": "cef9996cc16d5d3b018bef7eb5555e32e2103536cb85d3914f3b2179d49370a2",
+      "onChainState": "FundsLocked",
+      "explorer": "https://preprod.cardanoscan.io/transaction/cef9996cc16d5d3b018bef7eb5555e32e2103536cb85d3914f3b2179d49370a2"
+    },
+    {
+      "txHash": "4d622fc4d56338df6feb34c3e8a44f02105c280befb287f823f04f426d6e9a34",
+      "onChainState": "ResultSubmitted",
+      "explorer": "https://preprod.cardanoscan.io/transaction/4d622fc4d56338df6feb34c3e8a44f02105c280befb287f823f04f426d6e9a34"
+    }
+  ],
+  "checkedAt": "2026-10-30T12:18:45.770655+00:00"
 }
