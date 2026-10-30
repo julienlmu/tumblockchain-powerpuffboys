@@ -87,6 +87,7 @@
   body.view-simple .agent > ol > li:nth-child(n+2), body.view-simple .agent details { display: none; }
   /* the sentence that says who may refund, and from when, stays: a disabled refund button never shows without its reason */
   body.view-simple .held-box > p[id^="who-"] { display: block; }
+  .agent:empty { display: none; } /* nothing read yet: no empty frame above the loading cards */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
   .agent-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; justify-content: space-between; }
   .agent-head h2 { margin: 0; font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: center; }
@@ -104,6 +105,11 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: stretch; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; scroll-margin-top: var(--s4); }
   .card.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
+  /* a card whose on-chain facts just changed: a short tint that fades; a static outline under reduced motion */
+  .card.changed { animation: card-changed 2.4s var(--ease); }
+  @keyframes card-changed { from { background: var(--accent-bg); box-shadow: 0 0 0 2px var(--accent); } to { background: var(--card); box-shadow: 0 0 0 2px transparent; } }
+  @media (prefers-reduced-motion: reduce) { .card.changed { outline: 2px solid var(--accent); outline-offset: 2px; } }
+  .chip.new { color: var(--accent); background: var(--accent-bg); font-weight: 600; }
   .card-head { display: flex; justify-content: space-between; gap: var(--s3); align-items: flex-start; }
   .agent .wallet { margin: var(--s1) 0 0; }
   .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
@@ -199,7 +205,8 @@
   .evd code { overflow-wrap: anywhere; }
   .empty-state { grid-column: 1 / -1; padding: var(--s6) var(--s4); border: 1px dashed var(--line-strong); border-radius: var(--r-lg); color: var(--muted); text-align: center; display: flex; flex-direction: column; gap: var(--s2); align-items: center; }
   .empty-state b { color: var(--text); font-size: var(--t0); }
-  .skeleton { height: 420px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); }
+  .skeleton { height: 420px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); padding: var(--s4); }
+  .skeleton-label { margin: 0; color: var(--muted); font-size: var(--t-1); display: flex; gap: 6px; align-items: center; }
 
   footer { margin-top: var(--s6); color: var(--muted); font-size: var(--t-1); max-width: 72ch; text-wrap: pretty; }
   @media (max-width: 640px) {
@@ -280,7 +287,8 @@
     <button type="button" class="link-order" id="expand-all" hidden>Expand all details</button>
     <button type="button" class="link-order keys" data-guide="g-keys"><kbd>?</kbd> keyboard shortcuts</button></div>
   <nav class="jump" id="jump" aria-label="Go to order"></nav>
-  <div class="grid" id="orders" aria-live="off"><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
+  <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
+  <div class="grid" id="orders" aria-live="off" aria-busy="true"><div class="skeleton"><p class="skeleton-label" id="loading-label">Reading the contract…</p></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
   <footer>
     A signature proves the register said it, not that the supplier will deliver. Delivery stays the buyer's approval:
     each milestone needs both a valid permit from a fresh signed record and the buyer's approval.
@@ -352,6 +360,7 @@
     try { localStorage.setItem("pulse-view", view); } catch { /* storage blocked */ }
     if (view === "simple" && filter) setFilter(null); // the filters live in the detailed view
     applyView();
+    rerender(); // the agent panel shows a different number of rows per view on phones
   }
   for (const b of document.querySelectorAll("[data-view]")) b.addEventListener("click", () => setView(b.dataset.view));
   applyView();
@@ -377,8 +386,10 @@
     if (!h) return "";
     return explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}</a>` : `<span class="mono">${short(h)}</span>`;
   }
-  const cdText = (ts, done) => { const l = ts - nowSec(); return l > 0 ? span(l) : done; };
-  const cd = (ts, done = "now") => `<span class="cd" data-until="${ts}" data-done="${esc(done)}">${cdText(ts, done)}</span>`;
+  const cdText = (ts, done, pre = "") => { const l = ts - nowSec(); return l > 0 ? pre + span(l) : done; };
+  const cd = (ts, done = "now", pre = "") => `<span class="cd" data-until="${ts}" data-done="${esc(done)}"${pre ? ` data-pre="${pre}"` : ""}>${cdText(ts, done, pre)}</span>`;
+  // a moment in one phrase: "Fri 30 Oct, 22:50:07 (in 19 min 57 s)"
+  const at = (ts) => `${dayClock(ts)} (${cd(ts, "now", "in ")})`;
   const since = (ts) => `<span class="since" data-since="${ts}">${ago(nowSec() - ts)}</span>`;
   const chip = (cls, text) => `<span class="chip ${cls}">${text}</span>`;
   const I = P.icon;
@@ -412,6 +423,7 @@
   // The order grid: one element per card, replaced only when that card's markup changed.
   function renderGrid(cards) {
     const grid = $("orders");
+    grid.removeAttribute("aria-busy"); // the first render ends the loading state
     if (typeof cards === "string") { grid._cards = null; setHTML(grid, cards); return; }
     if (!grid._cards) { grid._cards = new Map(); grid._key = null; grid.innerHTML = ""; }
     const seen = new Set();
@@ -508,12 +520,17 @@
         ? `Ready: the agent pays milestone ${n} on its next pass${last}.`
         : `Ready: milestone ${n} can be paid now (valid permit, buyer approved, due). Anyone may send the payment.`];
     }
-    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. Its payment permit is valid.`];
+    // each line says when: the due date with its countdown, and how long the permit lasts
+    const dueWhen = nowSec() < due ? `due ${at(due)}` : `due since ${dayClock(due)}`;
+    const Due = dueWhen.replace(/^d/, "D");
+    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. ${Due}; its payment permit is valid ${cd(o.permitValidUntil, "0 s")} more.`];
     if (permitValid(o)) {
       const late = o.permitValidUntil < due;
-      return ["info", `Next: milestone ${n} pays at its due date${late ? ". The permit ends earlier, so the agent re-checks before then" : "; the permit is valid"}.`];
+      return ["info", late
+        ? `Next: milestone ${n} is ${dueWhen}. Its permit ends earlier (${cd(o.permitValidUntil, "now", "in ")}), so the agent re-checks before then.`
+        : `Next: milestone ${n} pays at its due date, ${at(due)}; its permit lasts until then.`];
     }
-    return ["wait", `Next: milestone ${n} needs a fresh signed register record before it can pay.`];
+    return ["wait", `Next: milestone ${n} needs a fresh signed register record before it can pay. ${Due}.`];
   }
 
   // ---------------------------------------------------------------- events → words
@@ -637,7 +654,9 @@
           <div class="ways-body">${env.sample ? sampleCmdNote(o) : ""}<p>Without a browser wallet: <code class="cmd">api3/scripts/plus-refund.sh ${o.id}</code>${P.copyBtn(`api3/scripts/plus-refund.sh ${o.id}`)} (signs with the buyer key in <span class="mono">api3/.env</span>).</p></div></details>`;
     };
     // when the refund opens, in one phrase
-    const opens = (at) => (nowSec() >= at ? "<b>now</b>" : `from ${dayClock(at)} (<b>${cd(at, "now")}</b>)`);
+    const opens = (t) => (nowSec() >= t ? "<b>now</b>" : `from ${dayClock(t)} (<b>${cd(t, "now")}</b>)`);
+    // in sample mode the sentence that explains the disabled button says why it is off
+    const offNote = env.sample ? ". Sample data: the button is off" : "";
 
     // §2.4a: a failed base check on any order stops payments on every order of the supplier. Said once, in the
     // status box: on the order whose record caused it ("also stops") and on every order it stops ("stopped by").
@@ -656,7 +675,7 @@
       box = `<div class="held-box">
         <div class="title">${I("lock")}<span>Payment held: ${esc(ownStop ? "supplier-wide stop" : failedOf(o).join(", ") || "failed register check")}</span></div>
         ${ownStop ? `<p class="orders">Stopped by ${orderLink(cause)}</p>` : alsoStops}
-        <p id="${whoId}">The ${tok(o.remaining)} tokens can only go back to the buyer: the buyer can refund now, anyone ${opens(o.autoRefundAt)}.</p>
+        <p id="${whoId}">The ${tok(o.remaining)} tokens can only go back to the buyer: ${nowSec() >= o.autoRefundAt ? "the buyer or anyone can refund <b>now</b>" : `the buyer can refund now, anyone ${opens(o.autoRefundAt)}`}${offNote}.</p>
         ${claimRow(true)}
       </div>`;
     } else if (notHeldYet) {
@@ -665,13 +684,13 @@
         <div class="title">${I("stop")}<span>Supplier-wide stop</span></div>
         ${byOther ? `<p class="orders">Stopped by ${orderLink(cause)}</p>` : ""}${alsoStops}${stopLine}
         <p class="note"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent can hold it without paying for a new check.</p>
-        ${nd ? `<p id="${whoId}">No verified data since M${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
+        ${nd ? `<p id="${whoId}">No verified data since M${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
     } else if (!closed && o.autoRefundAt > 0) {
       // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
       box = `<div class="held-box nodata">
         <div class="title">${I("clock")}<span>No verified data since M${o.next + 1} was due</span></div>
-        <p id="${whoId}">Nothing bad is known about the supplier, only no proof. Anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}.</p>
+        <p id="${whoId}">Nothing bad is known about the supplier, only no proof. Anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>
         ${claimRow(nowSec() >= o.autoRefundAt)}
       </div>`;
     } else if (refunded) {
@@ -782,22 +801,67 @@
     ? `<b>Payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderName(cause)}` : ""} (no new paid check needed)`
     : g.evs.map((e) => agentWord(e, o, brief)).join(arrow);
 
+  // Rows that arrived after the first render carry a "new" chip for 30 s.
+  const rowKey = (g) => g.tx || `${g.time}-${g.order}`;
+  const agentSeen = new Set(), agentNewAt = new Map();
+  let agentPrimed = false;
   function renderAgent(orders, rows) {
     const byId = Object.fromEntries(orders.map((o) => [o.id, o]));
+    const nowMs = Date.now();
+    for (const g of rows) { const k = rowKey(g); if (!agentSeen.has(k)) { agentSeen.add(k); if (agentPrimed) agentNewAt.set(k, nowMs); } }
+    agentPrimed = true;
+    const isNew = (g) => nowMs - (agentNewAt.get(rowKey(g)) || 0) < 30000;
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
       <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : "set an agent address in Settings to highlight its transactions"}</span></div>`;
     const li = (g) => {
       const o = byId[g.order];
       const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
-        <span>#${g.order} ${name}: ${o ? agentWords(g, o, causeOf(o, orders)) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+        <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${o ? agentWords(g, o, causeOf(o, orders)) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
-    const SHOWN = narrow.matches ? 0 : 3; // the latest three; the rest, and the agent's wallet, one click away
+    // the latest three; on phones the latest one in Simple, none in Detailed (its first order then shows first);
+    // the rest, and the agent's wallet, one click away
+    const SHOWN = !narrow.matches ? 3 : view === "simple" ? 1 : 0;
     const more = rows.length > SHOWN
       ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rows.length - SHOWN} earlier transactions` : `${rows.length} transactions`}, all sent by the agent on its own</summary>
           <p class="small-muted wallet">Agent wallet ${addr(agentAddr)}</p><ol>${rows.slice(SHOWN, 60).map(li).join("")}</ol></details>`
       : "";
     setHTML($("agent"), head + (rows.length ? `${SHOWN ? `<ol>${rows.slice(0, SHOWN).map(li).join("")}</ol>` : ""}${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
+  }
+
+  // ---------------------------------------------------------------- what changed since the last read
+
+  // A card whose on-chain facts changed gets a short highlight, and one sentence goes to the polite live region.
+  // Only data counts (not countdowns, open disclosures or a refund confirm), so the cue fires on real changes only.
+  const sigOf = (o) => [stateOf(o), o.state, o.paid, o.remaining, o.next, o.permitValidUntil, o.lastCheck, o.autoRefundAt, o.approved.join(), o.events.length].join("|");
+  const prevOrder = new Map(); // order id -> { sig, o }
+  const changedAt = new Map(); // order id -> Date.now() of its last change
+  function changeWords(a, o) {
+    if (!a) return `Order #${o.id}: new order`;
+    const out = [];
+    if (o.next > a.next) out.push(o.next - a.next > 1 ? `milestones ${a.next + 1} to ${o.next} paid` : `milestone ${o.next} paid`);
+    if (o.state !== a.state) out.push(o.state === 1 ? "payment held" : o.state === 2 ? (o.paid >= totalOf(o) ? "fully paid" : "refunded to the buyer") : "active again");
+    else if (stateOf(o) !== stateOf(a)) out.push(`now ${STATES[stateOf(o)].label}`);
+    if (o.permitValidUntil !== a.permitValidUntil && permitValid(o)) out.push(`new payment permit for milestone ${o.next + 1}`);
+    if (o.approved.join() !== a.approved.join()) out.push("buyer approval recorded");
+    return `Order #${o.id}: ${out.length ? out.join(", ") : "updated"}`;
+  }
+  function trackChanges(orders) {
+    const first = prevOrder.size === 0, said = [];
+    for (const o of orders) {
+      const sig = sigOf(o), prev = prevOrder.get(o.id);
+      if (!first && (!prev || prev.sig !== sig)) { changedAt.set(o.id, Date.now()); said.push(changeWords(prev && prev.o, o)); }
+      prevOrder.set(o.id, { sig, o });
+    }
+    if (said.length) { const a = $("announce"); a.textContent = ""; setTimeout(() => { a.textContent = said.slice(0, 3).join(". ") + (said.length > 3 ? `, and ${said.length - 3} more` : "") + "."; }, 50); }
+  }
+  function markChanged() {
+    const hold = matchMedia("(prefers-reduced-motion: reduce)").matches ? 5000 : 2600; // a static outline stays a little longer
+    for (const [id, t] of changedAt) {
+      const left = hold - (Date.now() - t), el = $(`order-${id}`);
+      if (left <= 0) { changedAt.delete(id); continue; }
+      if (el && !el.classList.contains("changed")) { el.classList.add("changed"); setTimeout(() => el.classList.remove("changed"), left); }
+    }
   }
 
   const STATE_KEYS = Object.keys(STATES);
@@ -834,6 +898,7 @@
   function renderAll(orders, env) {
     lastEnv = env;
     const keep = focusKey();
+    trackChanges(orders);
     const rows = agentGroups(orders);
     renderStates(orders);
     renderAgent(orders, rows);
@@ -853,6 +918,7 @@
         const stops = orders.filter((x) => x.id !== o.id && supplierStopped(x) && causeOf(x, orders) === o);
         return { id: o.id, html: renderOrder(o, env, { cause, stops, agent: rows.find((g) => g.order === o.id) || null, agentLast }) };
       }));
+    markChanged();
     if (keep) { const el = document.querySelector(keep); if (el && el !== document.activeElement) el.focus({ preventScroll: true }); }
     syncExpandLabel();
     if (!renderAll.done && orders.length) { // first render: go to the order named in the fragment
@@ -879,8 +945,11 @@
   let readCulprit = null; // the Settings field the last read error points at ("rpc" or "contract")
   // Where the data comes from, the protected total, when it was read, and when the next read happens.
   const status = { mode: cfg.sample ? "sample" : "start", network: "", protectedTotal: null, readAt: 0, note: "", failed: false };
-  const MODE_WORDS = { sample: "sample", start: "reading the contract…", discover: "looking for SupplierPulse+ v2…", none: "not configured" };
+  // the meta line speaks in short sentences, not "Mode x"
+  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract in Settings" };
   const rpcHost = () => { try { return new URL(cfg.rpc).host; } catch { return "the RPC"; } };
+  const netGuess = () => (cfg.rpc === P.DEFAULT_RPC ? "Ethereum Sepolia" : rpcHost());
+  $("loading-label").innerHTML = `${I("loader", "spin")}<span>${cfg.contract ? `Reading orders from ${esc(netGuess())}…` : cfg.sample ? "Loading the sample data…" : `Looking for SupplierPulse+ v2 on ${esc(netGuess())}…`}</span>`;
   function nextReadText() {
     if (busy) return "reading now…";
     const s = Math.max(0, nextReadAt - nowSec());
@@ -889,7 +958,7 @@
   function renderMeta() {
     const items = [];
     if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
-    else items.push(`Mode <b>${MODE_WORDS[status.mode]}</b>`);
+    else items.push(MODE_WORDS[status.mode]);
     if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b>`);
     if (cfg.unit) items.push(UNIT === BigInt(/^[1-9]\d*$/.test(cfg.unit) ? cfg.unit : 0)
       ? `<span class="warn">Custom unit: <b>1 token = ${UNIT.toLocaleString("en")} wei</b></span>`
@@ -1270,7 +1339,7 @@
   // Countdowns, "ago" values and the next-read note move every second without a re-render.
   const moveClocks = () => {
     for (const el of document.querySelectorAll(".next-read")) el.textContent = nextReadText();
-    for (const el of document.querySelectorAll(".cd")) el.textContent = cdText(Number(el.dataset.until), el.dataset.done);
+    for (const el of document.querySelectorAll(".cd")) el.textContent = cdText(Number(el.dataset.until), el.dataset.done, el.dataset.pre || "");
     for (const el of document.querySelectorAll(".since")) el.textContent = ago(nowSec() - Number(el.dataset.since));
   };
   setInterval(moveClocks, 1000);
@@ -1334,6 +1403,9 @@
     const [net, addrFound] = await Promise.all([probe.getNetwork(), P.discoverV2(probe)]);
     if (addrFound) {
       cfg.contract = addrFound;
+      status.mode = "start"; // found: now reading it
+      renderMeta();
+      $("loading-label").innerHTML = `${I("loader", "spin")}<span>Reading orders from ${esc(P.NETWORKS[Number(net.chainId)] || netGuess())}…</span>`;
       const q = new URLSearchParams({ contract: addrFound });
       if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
       history.replaceState(null, "", "?" + q + (cfg.orders ? "&orders=" + cfg.orders : "") + location.hash); // a shareable URL
