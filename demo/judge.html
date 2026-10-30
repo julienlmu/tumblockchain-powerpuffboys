@@ -32,7 +32,7 @@
   .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
   select, textarea { width: 100%; }
   textarea[aria-invalid="true"] { border-color: var(--hold); }
-  textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: 68px; min-height: 52px; resize: vertical; display: block; }
+  textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: 60px; min-height: 52px; resize: vertical; display: block; }
   .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
   .row select { width: auto; flex: 1 1 200px; }
   .order-sum { font-size: var(--t-1); color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
@@ -51,7 +51,10 @@
   /* attack controls */
   button.suite { width: 100%; min-height: 42px; font-size: var(--t0); }
   .attacks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); }
-  .attacks button { min-height: 40px; padding: 6px 8px; text-align: left; justify-content: flex-start; line-height: 1.25; }
+  .attacks button { min-height: 40px; padding: 6px 8px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
+  .attacks button .l { display: flex; gap: 5px; align-items: flex-start; }
+  .attacks button .l .i { margin-top: 0.05em; }
+  .attacks button .d { color: var(--muted); font-weight: 400; font-size: 11.5px; }
   /* neutral buttons: colour only marks the kind (green = the valid record, red marker = an attack); filled colour is kept for results */
   .attacks button .i { color: var(--hold); }
   .attacks button.valid { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
@@ -124,7 +127,7 @@
   .tile.na { background: var(--done-bg); color: var(--muted); }
   .legend { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); font-size: var(--t-1); color: var(--muted); margin: 0; padding: 0; list-style: none; }
   .legend li { display: inline-flex; gap: 6px; align-items: center; }
-  .legend .pass { color: var(--ok); } .legend .near { color: var(--wait); }
+  .legend .pass { color: var(--ok); } .legend .near { color: var(--wait); } .legend .fail { color: var(--hold); }
   button.link { background: none; border: none; padding: 0; min-height: 0; color: var(--accent); font-size: var(--t-1); align-self: flex-start; }
   button.link:hover { background: none; text-decoration: underline; }
   button.link:disabled { background: none; border: none; }
@@ -154,16 +157,18 @@
       <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
     </div>
   </header>
-  <div class="meta" id="meta"></div>
+  <div class="meta-row">
+    <div class="meta" id="meta"></div>
+    <details class="cfg-box" id="cfg-box">
+      <summary>Settings: contract, network</summary>
+      <form class="cfg" id="cfg">
+        <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
+        <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
+        <div class="btns"><button class="primary" type="submit">Load contract</button></div>
+      </form>
+    </details>
+  </div>
   <div id="banner" role="status" aria-live="polite"></div>
-  <details class="cfg-box" id="cfg-box">
-    <summary>Settings: contract and network</summary>
-    <form class="cfg" id="cfg">
-      <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
-      <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
-      <div class="btns"><button class="primary" type="submit">Load contract</button></div>
-    </form>
-  </details>
 
   <div class="layout">
     <section class="panel" aria-label="Attack controls">
@@ -178,10 +183,10 @@
         <div class="row">
           <select id="sample" aria-label="Load a sample record"><option value="">Load sample (old on purpose)…</option></select>
           <button type="button" id="upload-btn" data-icon="upload">Upload file</button>
-          <button type="button" id="clear-rec" class="link" data-icon="x">Clear</button><input type="file" id="file" accept=".json,application/json" hidden>
+          <button type="button" id="clear-rec" data-icon="x">Clear</button><input type="file" id="file" accept=".json,application/json" hidden>
           <button type="button" id="fresh" hidden data-icon="key" title="Signs a fresh record in the browser with the public local test key (anvil). Local chain only.">Fresh local record</button>
         </div>
-        <textarea id="resp" spellcheck="false" aria-label="Signed record (§4.1 JSON: from fetch-evidence.sh, AirnodeHub or the samples)" placeholder='Paste a §4.1 record: {"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
+        <textarea id="resp" spellcheck="false" aria-label="Signed record (the JSON from fetch-evidence.sh, AirnodeHub or the samples)" placeholder='Paste a signed record (the JSON from fetch-evidence.sh): {"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
         <div class="msg" id="resp-msg" role="status" aria-live="polite"></div>
       </div>
 
@@ -190,17 +195,17 @@
         <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test</button>
         <p class="progress" id="suite-progress" role="status" aria-live="polite" hidden></p>
         <div class="attacks" role="group" aria-label="Single attempts">
-          <button type="button" class="valid" data-mode="asis" data-icon="check">Submit as is</button>
-          <button type="button" class="atk" data-mode="value" data-icon="target">(a) Edit value</button>
-          <button type="button" class="atk" data-mode="stale" data-icon="target">(b) Too old</button>
-          <button type="button" class="atk" data-mode="request" data-icon="target">(c) Different request</button>
-          <button type="button" class="atk" data-mode="key" data-icon="target">(d) Wrong key</button>
-          <button type="button" class="atk" data-mode="replay" data-icon="target">Replay</button>
-          <button type="button" class="atk real" data-mode="realOld" data-icon="file" title="A genuine signed record of this order's supplier, fetched earlier">(b) Real old record</button>
-          <button type="button" class="atk real" data-mode="realOther" data-icon="file" title="A genuine signed record of another company">(c) Real, other company</button>
+          <button type="button" class="valid" data-mode="asis"><span class="l" data-icon="check">Submit as is</span><span class="d">untouched</span></button>
+          <button type="button" class="atk" data-mode="value"><span class="l" data-icon="target">(a) Edit value</span><span class="d">one value edited</span></button>
+          <button type="button" class="atk" data-mode="stale"><span class="l" data-icon="target">(b) Too old</span><span class="d">signed 1 h earlier</span></button>
+          <button type="button" class="atk" data-mode="request"><span class="l" data-icon="target">(c) Different request</span><span class="d">another company</span></button>
+          <button type="button" class="atk" data-mode="key"><span class="l" data-icon="target">(d) Wrong key</span><span class="d">random key signs</span></button>
+          <button type="button" class="atk" data-mode="replay"><span class="l" data-icon="target">Replay</span><span class="d">same record twice</span></button>
+          <button type="button" class="atk real" data-mode="realOld"><span class="l" data-icon="file">(b) Real old record</span><span class="d">genuine, signed earlier</span></button>
+          <button type="button" class="atk real" data-mode="realOther"><span class="l" data-icon="file">(c) Real, other company</span><span class="d">genuine, other firm</span></button>
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
-        <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons send real inputs: untouched records genuinely signed by the Airnode, nothing edited (§4.7).</p>
+        <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons send real inputs: untouched records genuinely signed by the Airnode, nothing edited.</p>
       </div>
     </section>
 
@@ -246,8 +251,8 @@
     clean: [{ accounts_overdue: false, confirmation_overdue: false, status: "active" }, { entity_status: "ACTIVE", registration_status: "ISSUED" }],
   };
   const MODE_NAME = {
-    asis: "Valid record", value: "(a) Edit value", stale: "(b) Too old", request: "(c) Different request", key: "(d) Wrong key", replay: "Replay",
-    realOld: "(b) Real old record", realOther: "(c) Real record, other company",
+    asis: "Submit as is", value: "(a) Edit value", stale: "(b) Too old", request: "(c) Different request", key: "(d) Wrong key", replay: "Replay",
+    realOld: "(b) Real old record", realOther: "(c) Real, other company",
   };
   const SAMPLES = window.PULSE_SAMPLE_RESPONSES || [];
   // error names break between their words (Wrong<wbr>Request), never mid-word on a phone
@@ -337,7 +342,7 @@
     $("resp").removeAttribute("aria-invalid");
     const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
     const age = nowSec() - Number(r.timestamp);
-    const parts = [`<span class="okc">${P.icon("check")} Signed record</span>: ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, signed ${age >= 0 ? P.ago(age) : "in the future"}.`];
+    const parts = [`<span class="okc">${P.icon("check")}</span> ${s.badge} <span class="mono">${esc(r.supplierId || "?")}</span>, signed ${age >= 0 ? P.ago(age) : "in the future"}.`];
     if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Get a fresh one (Judge kit, below)"} to test each check.</span>`);
     if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
       parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>: attempts stop at "Request matches the order".</span>`);
@@ -381,9 +386,11 @@
     order.id = id; order.info = info; order.airnode = airnode;
     const s = P.SOURCES[source];
     const failedNow = info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : "";
-    $("order-sum").innerHTML = `<span><span class="reg">${s.badge}</span> <span class="mono">${esc(info.supplierId)}</span></span>
-      <span>State <b>${P.STATE[info.state]}${failedNow}</b></span>
-      <span>Last record <b>${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</b></span>`;
+    // supplier and state are in the select itself; the summary adds what the attacks target
+    $("order-sum").innerHTML = `${info.state === 1 ? `<span>Held <b>${failedNow.replace(/^ \(|\)$/g, "")}</b></span>` : ""}
+      <span>Last record <b>${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</b></span>
+      <span>Signer <b class="mono" title="${airnode}${esc(signerName(airnode))}">${short(airnode)}</b></span>
+      <span>Request <b class="mono" title="${info.requestHash}">${short(info.requestHash)}</b></span>`;
     $("order-info").innerHTML = `
       <tr><th>Supplier</th><td><span class="reg">${s.badge}</span> <a class="mono" href="${s.registerUrl(info.supplierId)}" target="_blank" rel="noopener">${esc(info.supplierId)}</a></td></tr>
       <tr><th>State</th><td>${P.STATE[info.state]}${info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : ""} · last check ${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</td></tr>
@@ -431,8 +438,8 @@
       }
       const rec = P.normalizeRecord(s.record, Number(order.info.source));
       t = mode === "realOld"
-        ? { record: rec, what: `(b) Real old record, untouched: ${s.label}, signed ${dayClock(rec.timestamp)}.`, expect: "StaleResponse" }
-        : { record: rec, what: `(c) Real record of another company, untouched: ${s.label}.`, expect: "WrongRequest" };
+        ? { record: rec, what: `(b) Real old record: ${s.label}, untouched, signed ${dayClock(rec.timestamp)}.`, expect: "StaleResponse" }
+        : { record: rec, what: `(c) Real, other company: an untouched record of ${s.label}.`, expect: "WrongRequest" };
     } else {
       let base;
       try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); return null; }
@@ -522,7 +529,7 @@
       </ol>
       <details><summary>The submitted record</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>
       <div class="row"><button type="button" id="send">${P.icon("send")}${verdict.accepted ? "Send for real" : "Send anyway as a real transaction (it reverts on chain)"} ${chainId === 31337 ? "(local agent key)" : "(MetaMask)"}</button><span class="msg" id="send-msg" role="status"></span></div>
-      ${verdict.accepted ? "" : `<p class="hint">For the video (§4.7): a rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
+      ${verdict.accepted ? "" : `<p class="hint">A rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
     $("send").addEventListener("click", sendForReal);
 
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
@@ -638,8 +645,15 @@
     reveal();
   }
 
+  const clsOf = (s) => (s.notApplicable ? "na" : s.mode === "asis" ? (s.accepted ? "pass" : "fail") : s.accepted ? "fail" : s.match ? "pass" : "near");
+  function legendOf(list) {
+    const has = new Set(list.map(clsOf));
+    return [["pass", "check", "Valid record accepted, or attack rejected with its own error"], ["near", "alert", "Rejected, but by an earlier check"],
+      ["fail", "x", "Not as expected (an attack accepted, or the valid record refused)"], ["na", "minus", "Not tested by this record"]]
+      .filter(([k]) => has.has(k)).map(([k, ic, t]) => `<li class="${k}">${P.icon(ic)}${t}</li>`).join("");
+  }
   function tileOf(s) {
-    const cls = s.notApplicable ? "na" : s.mode === "asis" ? (s.accepted ? "pass" : "fail") : s.accepted ? "fail" : s.match ? "pass" : "near";
+    const cls = clsOf(s);
     const icon = { pass: "check", fail: "x", near: "alert", na: "minus" }[cls];
     const status = s.mode === "asis"
       ? { pass: "Accepted", fail: "Not accepted", na: "Not tested" }[cls]
@@ -671,11 +685,12 @@
     const txNote = suiteTx ? `<p class="hint">Valid record on chain: ${explorer ? `<a class="mono" href="${explorer}/tx/${suiteTx.hash}" target="_blank" rel="noopener">${short(suiteTx.hash)}</a>` : `<span class="mono">${short(suiteTx.hash)}</span>`} (block ${suiteTx.block}).</p>` : "";
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
-      <h2>Tamper test, order #${order.id}</h2>
+      <h2>The contract's verdict</h2>
+      <p class="hint">Tamper test on order #${order.id}${suiteTx ? ", then the replay" : ""}: ${suite.length} attempts, all simulated${suiteTx ? " except the one real send" : ""}.</p>
       <div class="verdict hero ${passed ? "ok" : suiteStopped ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : "x")}</span>
         <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : "Not passed"}</div><div class="why">${why}</div></div></div>
       <div class="tiles">${suite.map(tileOf).join("")}</div>
-      <ul class="legend"><li class="pass">${P.icon("check")}Rejected with the attack's own error</li><li class="near">${P.icon("alert")}Rejected, but by an earlier check</li><li>Press a tile for its checklist.</li></ul>
+      <ul class="legend">${legendOf(suite)}<li>Press a tile for its checklist.</li></ul>
       ${txNote}${replayStep}`;
     P.hydrateIcons($("result"));
   }
@@ -706,7 +721,7 @@
     const w = new ethers.Wallet(LOCAL.signer[source]);
     const signature = await w.signMessage(ethers.getBytes(P.digestOf(requestHash, ts, data)));
     setRecord({ source: P.SOURCES[source].key, supplierId: id, airnode: w.address, requestHash, timestamp: ts, data, raw, signature, paymentTx: null, priceUsd: "0", fetchedAt: new Date().toISOString() },
-      `Signed now with the local ${P.SOURCES[source].name} test key; valid for ${Number(await contract.maxAge())} s.`);
+      `Signed now with the local test key.`);
   }
 
   // ---------------------------------------------------------------- judge kit

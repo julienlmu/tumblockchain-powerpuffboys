@@ -104,6 +104,10 @@ button[aria-busy="true"] { cursor: progress; }
 
 /* settings */
 details.cfg-box { margin-top: var(--s3); }
+/* the meta line and the settings toggle share one row; open settings take the full width below */
+.meta-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s4); margin-top: var(--s3); }
+.meta-row .meta, .meta-row details.cfg-box { margin-top: 0; }
+.meta-row details.cfg-box[open] { flex-basis: 100%; }
 form.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s3); margin-top: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); }
 form.cfg label { display: flex; flex-direction: column; gap: var(--s1); font-size: var(--t-1); color: var(--muted); }
 form.cfg input, select, textarea {

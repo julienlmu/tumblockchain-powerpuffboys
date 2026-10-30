@@ -208,7 +208,7 @@
         const { raw, what } = editValue(r.source, ethers.toUtf8String(r.data));
         out.raw = raw;
         out.data = ethers.hexlify(ethers.toUtf8Bytes(raw));
-        return { record: out, what: `(a) Edited value: ${what}. The signature is unchanged.`, expect: "WrongSigner" };
+        return { record: out, what: `(a) Edit value: ${what}. The signature is unchanged.`, expect: "WrongSigner" };
       }
       case "stale":
         out.timestamp = String(BigInt(r.timestamp) - 3600n);
@@ -227,7 +227,7 @@
       case "replay":
         return { record: out, what: "Replay: the response unchanged. It is rejected once the original was accepted on chain.", expect: "Replayed" };
       default:
-        return { record: out, what: "Submitted as is.", expect: null };
+        return { record: out, what: "Submit as is: the record untouched.", expect: null };
     }
   }
 
