@@ -39,7 +39,7 @@ Opening the files straight from disk also works (`file://`); sample data is a `.
 | `names` | the demo order names | extra order names, comma-separated. Orders store `orderRef = keccak256(name)` (`plus-create-order.sh`), which cannot be decoded, so the page matches known names by hash. `LOCAL-<id>` from `plus-local.sh` is matched too |
 | `sample` | off | `1` shows the sample data |
 
-The dashboard reads the chain every 12 s; countdowns move every second. Light and dark follow the system; the ◐ button overrides it.
+The dashboard reads the chain every 12 s; countdowns move every second. Light and dark follow the system; the **Theme** button (auto, light, dark) overrides it.
 
 ## Sample mode
 

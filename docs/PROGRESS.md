@@ -73,6 +73,14 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Batu · design pass on both screens (no behaviour change)
+- Changed, `demo/` only: same data, contract calls, tamper semantics and URL parameters; new look and hierarchy. One type family (IBM Plex Sans, Plex Mono for hashes; system fonts if offline), one SVG icon set instead of emoji, focus rings, dark-mode button contrast fixed, loading / empty / error states, inline favicon (the `favicon.ico` 404 was the only console error).
+  - **Judge page:** at 1280×720 the attack buttons and the verdict are on screen together (the verdict column is sticky). **Passed** is a large card; each tile says in words what happened (*Rejected: own error*, *Rejected earlier*, *Not rejected*), so green vs amber also reads without colour. Order details sit behind "Details +"; the scoreboard says Pass / Fail / n/a.
+  - **Dashboard:** each card reads state → protected balance → supplier-wide stop → next step or hold → milestones (one status line each) → facts → audit trail. The supplier-wide stop is one red-outlined strip on both cards, with link chips "Stopped by #1 …" and "This record also stops #5 …" that jump to the other card and flash it.
+- Verified (local anvil, fresh `plus-local.sh` contract `0x5bf5…528a`): Run the full tamper test → Passed (valid + 6 rejections), then Send-and-replay → `Replayed`; sample mode shows all states, filter strip and the jump link work; live Sepolia `0xf25A…3DfC` loads without errors (still 0 orders at 19:00); `v1.html` renders; no horizontal scroll at 375 px; 0 text elements below 4.5:1 contrast in light and dark; keyboard-only path through the judge page works.
+- **For the video:** record the judge page at 1280×720 or larger; press Run, keep the Passed card and the tiles in frame. On the dashboard, click "Stopped by #1" on the B2 card to show the jump. Theme button = "Theme: auto/light/dark".
+- Not checked: a real screen reader, a real MetaMask extension (code paths unchanged).
+
 ### 2026-10-30 · Julien (agent) · Sepolia acceptance check; heads-up on C and E for the video
 - Changed: `python3 api3/agent/c3_check.py` checks the Sepolia acceptance of §6.3 against the live v2 contract and the agent's log. It is read-only and costs nothing. It finds the demo orders by supplier id, so B2 and dry-run orders don't confuse it. It prints PASS or WAIT for each point: A and D milestone 1 paid by the agent, B held then refunded, C and E held, A's tier risen, ≥ 10 cycles, no failed actions. Live now: 20 cycles, clean, the order lines wait for orders A–E.
 - **Heads-up for the video (Ulaş, Orhun, Batu):** the agent refunds *every* held order once its grace period is over (P1, §6.3), not only B. Overnight, **C and E will also be refunded** 10 minutes after they are held. On Saturday the dashboard shows them as refunded, with their failed rules.
