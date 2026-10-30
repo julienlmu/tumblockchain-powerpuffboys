@@ -158,4 +158,6 @@ details[open] > summary::before, details[open] > summary .disclosure-mark::befor
 .view-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--card); }
 .view-switch a { padding: 5px 12px; border-radius: 7px; font-size: var(--t-1); font-weight: 500; line-height: 1.2; color: var(--muted); text-decoration: none; }
 .view-switch a:hover { color: var(--text); text-decoration: none; background: var(--raised); }
-.view-switch a[aria-current="page"] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.view-switch button { border: none; background: none; min-height: 0; padding: 5px 12px; border-radius: 7px; font-size: var(--t-1); font-weight: 500; line-height: 1.2; color: var(--muted); }
+.view-switch button:hover { color: var(--text); background: var(--raised); border: none; }
+.view-switch a[aria-current="page"], .view-switch button[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }

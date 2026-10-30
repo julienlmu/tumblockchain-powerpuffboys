@@ -177,6 +177,7 @@
   ];
   const REPLAY = { mode: "replay", name: "Replay", sub: "the real record, sent a second time", expect: "Replayed" };
 
+  try { localStorage.setItem("pulse-view", "simple"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
   const cfg = { contract: params.get("contract") || "", rpc: params.get("rpc") || P.DEFAULT_RPC, order: params.get("order") };
 

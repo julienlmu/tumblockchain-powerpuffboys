@@ -79,6 +79,14 @@
   .banner:has(.banner-btn) { align-items: center; }
 
   /* agent panel */
+  /* Simple view: per card the state, the protected balance, the bar, one status line and the refund button; milestones,
+     details, filters and the explanations are one switch away (Detailed). Nothing is removed from the page. */
+  body.view-simple #details-box, body.view-simple #cfg-box, body.view-simple .filters, body.view-simple #toolbar, body.view-simple #jump,
+  body.view-simple .card .sub, body.view-simple .card .ms, body.view-simple .card details.more, body.view-simple .card details.ways,
+  body.view-simple .held-box > p, body.view-simple .closed-box .orders, body.view-simple footer,
+  body.view-simple .agent > ol > li:nth-child(n+2), body.view-simple .agent details { display: none; }
+  /* the sentence that says who may refund, and from when, stays: a disabled refund button never shows without its reason */
+  body.view-simple .held-box > p[id^="who-"] { display: block; }
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
   .agent-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; justify-content: space-between; }
   .agent-head h2 { margin: 0; font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: center; }
@@ -213,6 +221,7 @@
       <p class="tagline">Every milestone pays only with a <button type="button" class="term" data-guide="g-permit">payment permit</button>: the contract's short-lived go-ahead after a fresh, signed register check.</p>
     </div>
     <div class="head-links">
+      <div class="view-switch" role="group" aria-label="View"><button type="button" data-view="simple" aria-pressed="false">Simple</button><button type="button" data-view="detailed" aria-pressed="false">Detailed</button></div>
       <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
       <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
     </div>
@@ -319,6 +328,28 @@
     applyTheme();
   });
   applyTheme();
+
+  // Simple or detailed: one choice for the dashboard and "Try to break it", remembered in this browser.
+  let view = "simple";
+  try { view = localStorage.getItem("pulse-view") === "detailed" ? "detailed" : "simple"; } catch { /* storage blocked */ }
+  let judgeQuery = "";
+  function setJudgeLinks(q) {
+    if (q !== undefined) judgeQuery = q;
+    for (const id of ["judge-link", "judge-link2", "judge-link3"]) $(id).href = (view === "simple" ? "simple.html" : "judge.html") + (judgeQuery ? "?" + judgeQuery : "");
+  }
+  function applyView() {
+    document.body.classList.toggle("view-simple", view === "simple");
+    for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
+    setJudgeLinks();
+  }
+  function setView(v) {
+    view = v;
+    try { localStorage.setItem("pulse-view", view); } catch { /* storage blocked */ }
+    if (view === "simple" && filter) setFilter(null); // the filters live in the detailed view
+    applyView();
+  }
+  for (const b of document.querySelectorAll("[data-view]")) b.addEventListener("click", () => setView(b.dataset.view));
+  applyView();
 
   // ---------------------------------------------------------------- names for orderRef
 
@@ -755,7 +786,7 @@
   const STATE_KEYS = Object.keys(STATES);
   // UI state kept in the fragment (#filter=rule&order=3), so a view can be reloaded and shared; the query is untouched
   const frag = new URLSearchParams(location.hash.slice(1));
-  let filter = STATES[frag.get("filter")] ? frag.get("filter") : null; // a STATES key: show only the orders in that state
+  let filter = STATES[frag.get("filter")] && view === "detailed" ? frag.get("filter") : null; // a STATES key: show only the orders in that state
   let focusOrder = /^\d+$/.test(frag.get("order") || "") ? Number(frag.get("order")) : null;
   function writeFragment() {
     const f = new URLSearchParams();
@@ -1063,7 +1094,7 @@
   });
   window.addEventListener("hashchange", () => {
     const f = new URLSearchParams(location.hash.slice(1));
-    filter = STATES[f.get("filter")] ? f.get("filter") : null;
+    filter = STATES[f.get("filter")] && view === "detailed" ? f.get("filter") : null;
     const order = /^\d+$/.test(f.get("order") || "") ? Number(f.get("order")) : null;
     if (backTo && order === backTo.from) backTo = null; // came back
     rerender();
@@ -1139,7 +1170,7 @@
     if (e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest("input, textarea, select, [contenteditable]"))) return;
     const k = e.key;
     if (k === "Escape" && !tip.hidden) { e.preventDefault(); hideTip(); }
-    else if (/^[1-6]$/.test(k)) { e.preventDefault(); setFilter(STATE_KEYS[Number(k) - 1]); }
+    else if (/^[1-6]$/.test(k)) { e.preventDefault(); if (view === "simple") setView("detailed"); setFilter(STATE_KEYS[Number(k) - 1]); }
     else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(); }
     else if (k === "Escape" && Object.values(claimState).includes("confirm")) {
       e.preventDefault(); // cancel the refund confirm; focus back on its refund button
@@ -1187,7 +1218,7 @@
   const judgeQs = new URLSearchParams();
   if (cfg.contract) judgeQs.set("contract", cfg.contract);
   if (cfg.rpc !== P.DEFAULT_RPC) judgeQs.set("rpc", cfg.rpc);
-  for (const id of ["judge-link", "judge-link2", "judge-link3"]) $(id).href = "judge.html" + (judgeQs.toString() ? "?" + judgeQs : "");
+  setJudgeLinks(judgeQs.toString());
 
   // Countdowns, "ago" values and the next-read note move every second without a re-render.
   const moveClocks = () => {
@@ -1259,7 +1290,7 @@
       const q = new URLSearchParams({ contract: addrFound });
       if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
       history.replaceState(null, "", "?" + q + (cfg.orders ? "&orders=" + cfg.orders : "") + location.hash); // a shareable URL
-      for (const id of ["judge-link", "judge-link2", "judge-link3"]) $(id).href = "judge.html?" + q;
+      setJudgeLinks(q.toString());
       startLive();
     } else if (Number(net.chainId) === 11155111) {
       notConfigured(`SupplierPulse+ v2 is not deployed on Sepolia yet. The live v1 contract: <a href="v1.html?contract=${P.V1_SEPOLIA}&orders=0,1">v1 screen</a> · <a href="judge.html">try to break v1</a> · or the <a href="?sample=1">sample data</a>.`);

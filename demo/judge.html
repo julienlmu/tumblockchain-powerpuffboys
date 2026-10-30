@@ -347,6 +347,7 @@
   // error names break between their words (Wrong<wbr>Request), never mid-word on a phone
   const wbr = (t) => esc(t).replace(/([a-z])([A-Z])/g, "$1<wbr>$2");
 
+  try { localStorage.setItem("pulse-view", "detailed"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
   const cfg = { contract: params.get("contract") || "", rpc: params.get("rpc") || P.DEFAULT_RPC, order: params.get("order") };
 
