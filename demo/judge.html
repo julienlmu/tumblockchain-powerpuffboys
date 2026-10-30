@@ -244,7 +244,7 @@
 
   <div class="stack">
     <section class="panel">
-      <div class="panel-head"><h2>Scoreboard</h2><span class="row"><button type="button" class="link" id="copy-score" data-icon="copy" disabled>Copy as Markdown</button><button type="button" class="link" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></span></div>
+      <div class="panel-head"><h2>Scoreboard</h2><span class="row"><span class="msg" id="score-undo" role="status"></span><button type="button" class="link" id="copy-score" data-icon="copy" disabled>Copy as Markdown</button><button type="button" class="link" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></span></div>
       <p class="hint">Every attempt in this browser tab. The tamper test passes when the valid record is accepted and every attack is rejected. Press an attempt's name to see its checks again.</p>
       <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
@@ -627,7 +627,7 @@
     if (suiteRunning) for (const b of $("result").querySelectorAll("button")) b.disabled = true;
   }
 
-  async function sendForReal() {
+  async function sendForReal(onSent = null) {
     const out = $("send-msg");
     if (!lastCandidate) return null;
     const r = lastCandidate.record;
@@ -646,6 +646,7 @@
       // failed transaction on the explorer.
       const overrides = lastCandidate.rejected ? { gasLimit: 400000n } : {};
       const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature, overrides);
+      if (onSent) onSent(tx);
       const link = explorer ? `<a class="mono" href="${explorer}/tx/${tx.hash}" target="_blank" rel="noopener">${short(tx.hash)}</a>` : `<span class="mono">${short(tx.hash)}</span>`;
       out.innerHTML = `sent ${link}, waiting…`;
       let rc;
@@ -678,15 +679,16 @@
     $("result").focus({ preventScroll: true });
   }
   const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
-  let stopRequested = false;
-  // While the test runs, the run button is the way out: it stops after the current attempt.
-  function lockButtons(on) {
+  let stopRequested = false, runFlow = "suite";
+  // While a run goes, the run button is the way out: the suite stops after the current attempt, send-and-replay before the send.
+  function lockButtons(on, flow = "suite") {
     suiteRunning = on;
     stopRequested = false;
+    runFlow = flow;
     for (const b of document.querySelectorAll(RUN_LOCKED)) b.disabled = (on && b.id !== "suite") || (noOrder && (b.matches(ORDER_CONTROLS) || b.id === "order"));
     const sb = $("suite");
     sb.setAttribute("aria-busy", String(on));
-    sb.innerHTML = on ? `${P.icon("stop")}Stop after this attempt` : `${P.icon("play")}Run the full tamper test`;
+    sb.innerHTML = on ? `${P.icon("stop")}${flow === "replay" ? "Stop before sending" : "Stop after this attempt"}` : `${P.icon("play")}Run the full tamper test`;
     if (!on) $("suite-progress").hidden = true;
     // a disabled button drops keyboard focus to <body>; give it back so the keyboard path continues from here
     if (!on && (!document.activeElement || document.activeElement === document.body)) sb.focus({ preventScroll: true });
@@ -783,7 +785,10 @@
       ? `The valid record is accepted and all ${attacks.length} attacks are rejected by the contract itself (eth_call of submitEvidence, no gas).`
       : notTested ? `The valid record ${valid ? NOT_USABLE[validGot] || `was refused (${esc(validGot)})` : "is missing"}, so the attacks could not reach their own checks. Nothing failed in the contract.`
       : "The contract accepted an attack.";
-    const replayStep = validOk && !replayed && !suiteStopped
+    const replayStep = validOk && !replayed && !suiteStopped && suiteTx
+      ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay-only" data-icon="refund">Replay the sent record</button>
+          <span class="hint">The valid record is on chain; this submits it once more, as a simulation.</span></div>`
+      : validOk && !replayed && !suiteStopped
       ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay" data-icon="send">Send the valid record, then replay it</button>
           <span class="hint">Last step. A replay is only a replay once the original is on chain: this sends the valid record for real
           (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then simulates it again.</span><span class="msg" id="send-msg" role="status"></span></div>`
@@ -811,21 +816,44 @@
     pr.innerHTML = `<span>Replay step ${step} of 3: ${text}</span><span class="track" aria-hidden="true"><span style="width:${Math.round(step / 3 * 100)}%"></span></span>`;
   }
   async function sendThenReplay() {
-    lockButtons(true);
+    lockButtons(true, "replay");
+    let outcome = "done";
     try {
       replayProgress(1, "simulate the valid record");
       const v = await run("asis");
-      if (!v || !v.accepted) return;
+      if (!v || !v.accepted) { outcome = "refused"; return; } // the attempt's checklist stays on screen and says why
+      if (stopRequested) { outcome = "stopped-before"; replayProgress(1, "stopped by you before the send. Nothing was sent."); await pause(1200); return; }
       replayProgress(2, "send it for real, then wait for the block");
-      const sent = await sendForReal();
-      if (!sent || sent.status !== 1) return;
+      const sent = await sendForReal(() => {
+        // the transaction is out: from here Stop cannot take it back
+        const sb = $("suite");
+        sb.disabled = true;
+        sb.innerHTML = `${P.icon("send")}Sent: can no longer be cancelled`;
+      });
+      if (!sent || sent.status !== 1) { outcome = "send-failed"; return; } // the send message stays on screen
       suiteTx = sent;
       await pause(400);
+      if (stopRequested) { outcome = "stopped-after"; return; }
       replayProgress(3, "submit the same record again");
       const r = await run("replay");
       if (r) { suite = suite.filter((s) => s.mode !== "replay"); suite.push(r); }
-    } finally { lockButtons(false); }
-    renderSuite();
+    } finally {
+      lockButtons(false);
+      if (outcome === "done" || outcome.startsWith("stopped")) {
+        renderSuite();
+        if (outcome.startsWith("stopped")) $("result").querySelector(".verdict.hero").insertAdjacentHTML("afterend",
+          `<p class="note">${P.icon("stop")}<span>${outcome === "stopped-before" ? "Replay stopped by you before the send: nothing was sent." : "The record was sent, then you pressed Stop: the replay was skipped."}</span></p>`);
+      }
+    }
+  }
+  // After a stop between the send and the replay: replay the record that is already on chain, without sending it again.
+  async function replayOnly() {
+    lockButtons(true, "replay");
+    try {
+      replayProgress(3, "submit the sent record again");
+      const r = await run("replay");
+      if (r) { suite = suite.filter((s) => s.mode !== "replay"); suite.push(r); }
+    } finally { lockButtons(false); renderSuite(); }
   }
 
   async function freshLocal() {
@@ -906,7 +934,20 @@
     e.target.value = "";
   });
   const EMPTY_SCORE = $("score").innerHTML;
-  $("clear-score").addEventListener("click", () => { $("score").innerHTML = EMPTY_SCORE; scoreRows = []; $("clear-score").disabled = $("copy-score").disabled = true; $("suite").focus(); });
+  // Clearing is undoable for 10 s: a misclick next to "Copy as Markdown" costs nothing.
+  let scoreUndo = null;
+  $("clear-score").addEventListener("click", () => {
+    const saved = { html: $("score").innerHTML, rows: scoreRows.slice() };
+    $("score").innerHTML = EMPTY_SCORE; scoreRows = []; $("clear-score").disabled = $("copy-score").disabled = true;
+    $("score-undo").innerHTML = `Scoreboard cleared · <button type="button" class="link" id="undo-score">Undo</button>`;
+    clearTimeout(scoreUndo);
+    scoreUndo = setTimeout(() => { $("score-undo").innerHTML = ""; }, 10000);
+    $("undo-score").addEventListener("click", () => {
+      $("score").innerHTML = saved.html; scoreRows = saved.rows; $("clear-score").disabled = $("copy-score").disabled = false;
+      $("score-undo").innerHTML = ""; clearTimeout(scoreUndo); $("clear-score").focus();
+    });
+    $("undo-score").focus();
+  });
   $("copy-score").addEventListener("click", async () => {
     const md = ["| Time | Order | Attempt | Contract verdict | Expected | Result |", "|---|---|---|---|---|---|",
       ...[...scoreRows].reverse().map((r) => `| ${r.time} | #${r.order} | ${r.name} | \`${r.got}\` | \`${r.expected}\` | ${r.res} |`)].join("\n");
@@ -920,7 +961,17 @@
     $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
     $("result").focus({ preventScroll: true });
   });
-  $("clear-rec").addEventListener("click", () => { $("resp").value = ""; $("resp").removeAttribute("aria-invalid"); respMsg(""); $("resp").focus(); });
+  let recUndo = null;
+  $("clear-rec").addEventListener("click", () => {
+    const saved = $("resp").value;
+    $("resp").value = ""; $("resp").removeAttribute("aria-invalid"); recordTs = null;
+    if (!saved.trim()) { respMsg(""); $("resp").focus(); return; }
+    respMsg(`Record cleared · <button type="button" class="link" id="undo-rec">Undo</button>`);
+    clearTimeout(recUndo);
+    recUndo = setTimeout(() => { if (!$("resp").value) respMsg(""); }, 10000);
+    $("undo-rec").addEventListener("click", () => { clearTimeout(recUndo); $("resp").value = saved; checkRecordInput("Record restored."); $("resp").focus(); });
+    $("resp").focus();
+  });
   let typing = null;
   $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
@@ -934,7 +985,7 @@
   };
   for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => run(b.dataset.mode).then(reveal).catch(runFailed));
   $("suite").addEventListener("click", () => {
-    if (suiteRunning) { stopRequested = true; $("suite").innerHTML = `${P.icon("loader", "spin")}Stopping after this attempt…`; return; }
+    if (suiteRunning) { stopRequested = true; $("suite").innerHTML = `${P.icon("loader", "spin")}${runFlow === "replay" ? "Stopping before the send…" : "Stopping after this attempt…"}`; return; }
     runSuite().catch(runFailed);
   });
   $("result").addEventListener("click", (e) => {
@@ -946,6 +997,7 @@
     else if (t.id === "suite-force") runSuite(true).catch(runFailed);
     else if (t.id === "suite-replay") sendThenReplay().catch(runFailed);
     else if (t.id === "suite-fresh") freshLocal().then(() => runSuite()).catch(runFailed);
+    else if (t.id === "suite-replay-only") replayOnly().catch(runFailed);
   });
 
   // Keyboard accelerators; never while typing in a field.
@@ -956,6 +1008,7 @@
     const k = e.key;
     if ((k === "r" || k === "R") && !suiteRunning) { e.preventDefault(); $("suite").click(); }
     else if (k === "Escape" && suiteRunning) { e.preventDefault(); $("suite").click(); }
+    else if (k === "Escape" && $("guide").open) { e.preventDefault(); $("guide").open = false; $("guide").querySelector("summary").focus(); }
     else if (/^[1-8]$/.test(k)) {
       const b = document.querySelectorAll(".attacks [data-mode]")[Number(k) - 1];
       if (b && !b.disabled) { e.preventDefault(); b.click(); }
