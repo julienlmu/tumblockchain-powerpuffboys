@@ -73,6 +73,12 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · live outcomes of demo orders A–E, source verified
+- Changed: A and D were paid at their due dates (A m0 at 20:03:48, D m0 at 20:16:48). The agent held B, C and E and then refunded them (tx in `docs/evidence.md`, "Outcomes"). Sourcify exact match for v2.
+- Also: `plus-local.sh` + `c2_check.py` rehearsed with the fixed contract: 8/8 PASS in 183 s, no changes needed.
+- Next: C2 at 22:00; Etherscan verification once an API key is in `api3/.env`.
+- Notes: for the video, open fresh held orders on Saturday morning, because B/C/E are already refunded.
+
 ### 2026-10-30 · Orhun · demo orders A–E on v2 (Sepolia)
 - Changed: the five demo orders exist on v2 `0xf25A…3DfC` (`ordersLength()` = 5). Details and tx hashes in `docs/evidence.md`.
   - A = 0: CH `03778796`, supplier 1, rules 0x06, 500/1,000/1,500, milestones 0 and 1 approved.

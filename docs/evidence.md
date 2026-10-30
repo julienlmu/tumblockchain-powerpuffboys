@@ -167,6 +167,21 @@ DEMO_SUPPLIER_1=0x535d7e4d7f6c3B13F34da2aC98afE379912bed4a DEMO_SUPPLIER_2=0x8cA
 
 The script stopped after creating C because one RPC call failed (no tx sent). C's approval, D and E were then sent one by one with `plus-approve.sh` and `plus-create-order.sh`, with the same arguments the script uses, after checking `ordersLength()` before each step. No order is duplicated.
 
+### Outcomes (agent on v2, 30 Oct)
+
+Read back on chain at 20:26 CET (`orderStatus`, `orderSchedule`, `cast logs` from block 12028630). Times are block times in CET.
+
+- **A (0):** EvidenceAccepted + PermitIssued at 19:52:00 [`0xcb3a45…e82b`](https://sepolia.etherscan.io/tx/0xcb3a459159a23a2b67726085f4640227c268f94522f58a7ca832301ddf0de82b) and 20:02:24 [`0xe5c9b0…af5b`](https://sepolia.etherscan.io/tx/0xe5c9b01a4a3edeffa53f7fe2d0fda3fcea425316d1462f5335abbad198d8af5b). MilestonePaid m0, 500 tokens to `0x535d7e4d7f6c3B13F34da2aC98afE379912bed4a` at 20:03:48 (due 20:03:24), block 12028638, [`0xa03f3d…5587`](https://sepolia.etherscan.io/tx/0xa03f3d72700ce72ea7cdc6b9dac97dc28a3f43211549b3342321a8e14fe75587).
+- **A (0), next milestone:** EvidenceAccepted + PermitIssued for m1 (1,000 tokens, permit valid until 20:42:42) and TierChanged 0 → 1 (clean streak 3) at 20:12:48, block 12028683, [`0xfe89bd…a382`](https://sepolia.etherscan.io/tx/0xfe89bdbb12e7feb8f9bed6bb3a6ec88d0cd72ca1b6f048346eb8624c38f8a382). m1 is due 31 Oct 11:45.
+- **B (1):** held with `0x86` at 19:45:00 [`0x254f08…2323`](https://sepolia.etherscan.io/tx/0x254f08265550daf0c8de4d20fb29a3dd7310c9050e59339bb87f6d40b1742323); refunded 3,000 tokens to the buyer at 19:55:36 [`0x37bd28…cb3f`](https://sepolia.etherscan.io/tx/0x37bd28187b99b48c6f25f309ce7683232d1a9f7cbd313d38b9ff1fa36ed6cb3f).
+- **C (2):** held with `0x02` at 19:45:48 [`0xbcc39c…d441`](https://sepolia.etherscan.io/tx/0xbcc39c8fc274c8674bac7b410b1cbc321cc1e82dc49640c7eabacbe8ed6dd441); refunded 1,000 tokens at 19:56:24 [`0x458093…0fd0`](https://sepolia.etherscan.io/tx/0x4580934a30754f43d9524e751fbc6c04ca443fd058e0a922400ba54fac250fd0).
+- **D (3):** EvidenceAccepted + PermitIssued at 19:52:12 [`0x625af3…ba6c`](https://sepolia.etherscan.io/tx/0x625af3c442f1c12fa078f7a0e9b90c922de8b8d405fda05595b0cbf3dbb8ba6c) and 20:02:36 [`0x8e0a95…3c38`](https://sepolia.etherscan.io/tx/0x8e0a95b32ded431dea2432e3ae547029a2ac85da1f8c64c9d41865ef36c93c38).
+- **D (3), new:** EvidenceAccepted + PermitIssued for m0 (500 tokens, permit valid until 20:42:50) and TierChanged 0 → 1 (clean streak 3) at 20:13:00, block 12028684, [`0xdb0cdc…d974`](https://sepolia.etherscan.io/tx/0xdb0cdc406b48b2102f93946edb6d4a8481c96d78aa666b292ae298337573d974).
+- **D (3) paid:** MilestonePaid m0, 500 tokens to `0x535d7e4d7f6c3B13F34da2aC98afE379912bed4a` at 20:16:48 (due 20:16:12), block 12028703, [`0x7af6c9…37ef`](https://sepolia.etherscan.io/tx/0x7af6c99da9dd1bc3ef0479f3bae07342875e37f86d1d69de97667e61f45137ef). It used the evidence from the 20:13:00 record. Afterwards `orderStatus(3)` = active, paid 500, remaining 1,000, next milestone 1 of 2; `orderSchedule(3)` = next due 31 Oct 12:00, approved, tier 1.
+- **E (4):** held with `0x08` at 19:48:12 [`0x0dbce4…9e3e`](https://sepolia.etherscan.io/tx/0x0dbce43cb2a1fdfc0ff20db3bb7a58eac80470cf651bd7095df0c5c7b8989e3e); refunded 1,000 tokens at 19:58:36 [`0xb617b1…2800`](https://sepolia.etherscan.io/tx/0xb617b152bd209fcf7f7cae7db112b2eac65994f580f31e7cc1cd8afa7f9f2800).
+- The agent wallet `0xED3418aE93669a640650728E70f7aA712083253a` sent all evidence, payment and refund transactions. Refunds went to the buyer `0xEb3EB6da882798062b30CeC11AAaDe306287ce41`. No OrderRefunded or OrderHeld events since block 12028630.
+- Source verification: Sourcify exact match (job https://sourcify.dev/server/verify-ui/jobs/4d49235a-c987-4166-8975-4ba46fa8926f), source `c668c51`. Etherscan verification is waiting for an API key.
+
 ### Judge CLI against live v2 (Emre, 30 Oct 20:10 CET)
 
 Fresh real signed records, fetched with `api3/scripts/fetch-evidence.sh` ($0.01 aUSD each on Base Sepolia), then checked with `api3/scripts/plus-submit.sh` (an `eth_call` simulation of `submitEvidence`, so nothing is sent).
