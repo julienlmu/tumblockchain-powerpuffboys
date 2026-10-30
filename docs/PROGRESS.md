@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun
+- Changed: **SupplierPulse live paid run on Ethereum Sepolia** (contract `0x91d7dbae109029b2b1245179a68ac362799674d7`). Order 0 (`09729896`, signed `active`): **Paid**, milestone 0 released. Order 1 (`07418033`, signed `liquidation`): **Held**, balance refundable to the buyer. Each check paid $0.01 aUSD over x402 on Base Sepolia. All 4 tampers (value, stale, request, key) rejected by the deployed contract. All tx hashes in `docs/evidence.md`.
+- Next: connect the Cardano executor to the live contract (`PULSE_ADDRESS` in `cardano-agent/.env`); record the demo.
+
 ### 2026-10-30 · Julien (Cardano) · held supplier paid, team setup files
 - Changed: **a held payment earns the agent's fee, verified on chain.** SupplierPulse job `09fa4cf7…` (supplier dissolved, payment held): the escrow paid 5 tADA into the selling wallet (payout tx `3ddd27bd…`, `docs/evidence.md`). `docs/SUBMISSION-cardano.md`: my Cardano section for Devfolio, meant as input for Batu's `docs/drafts/devfolio.md`, not a second draft. Its proof table uses the seller payout txs, which are stronger than the result tx alone. Team setup: `.nvmrc` (Node 24), `.mcp.json` (AirnodeHub MCP), `.claude/` (Cardano dev plugin, Masumi skills), root README prerequisites, `.gitignore` (`.local/`, `cache/`, `*.skey`, `.claude/settings.local.json`). Fixed the result tx typo Batu found below (`…d6e9a34`).
 - Next: switch the SupplierPulse stand-in to the real sample companies (`09729896` active, `07418033` liquidation, `12493325` dissolved); then the real job: Orhun's `supplier-agent.sh` (f611aa5) matches the Cardano executor's interface, so it only waits for the Sepolia deployment (`PULSE_ADDRESS` in `cardano-agent/.env`) and aUSD for the agent wallet `0xED3418aE93669a640650728E70f7aA712083253a` (has 0.05 Sepolia ETH for gas). Sokosumi questions (does our proof count, how to get listed, stable URL) go to the Masumi team on Telegram.

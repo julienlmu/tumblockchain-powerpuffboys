@@ -3,6 +3,8 @@
 Milestone payments to a supplier where **every payment needs fresh, signed registry evidence**.
 Plan: [`docs/SUPPLIERPULSE.md`](../docs/SUPPLIERPULSE.md). Contract: `src/SupplierPulse.sol`.
 
+**Live on Sepolia:** [`0x91d7dbae109029b2b1245179a68ac362799674d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7). Paid run, held run and all four tampers rejected: [`docs/evidence.md`](../docs/evidence.md#supplierpulse-live-run-ethereum-sepolia-2026-10-30).
+
 A buyer locks the whole order (e.g. 500 + 1,500) for one supplier, identified by its Companies House number.
 Before each milestone the agent fetches the supplier's status from the Companies House Airnode on AirnodeHub
 (`getCompanyProfile`, $0.01 paid over x402) and submits it:

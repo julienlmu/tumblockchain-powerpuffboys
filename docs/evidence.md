@@ -56,6 +56,67 @@ Proof files: `cardano-agent/proofs/job-*.json` (all txs of each job, both escrow
 | (c) different request | reject | | |
 | (d) wrong signer | reject | | |
 
+## SupplierPulse live run (Ethereum Sepolia, 2026-10-30)
+
+Explorers: contract txs on [sepolia.etherscan.io](https://sepolia.etherscan.io), aUSD payments (x402, Base Sepolia) on [sepolia.basescan.org](https://sepolia.basescan.org).
+
+| Item | Value |
+|---|---|
+| Contract | [`0x91d7dbae109029b2b1245179a68ac362799674d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7) (Ethereum Sepolia, chain 11155111) |
+| Deploy tx | [`0x21731862868abbc5394aa72799db6e03881eb8cf59d300493e1d782f6e596871`](https://sepolia.etherscan.io/tx/0x21731862868abbc5394aa72799db6e03881eb8cf59d300493e1d782f6e596871) |
+| Airnode (stored) | `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF` (Companies House) |
+| Max age | 300 s |
+| Buyer / agent wallet | `0xEb3EB6da882798062b30CeC11AAaDe306287ce41` (also paid the aUSD) |
+| Supplier wallet | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` |
+
+### Orders
+
+Both orders: 500000000000 + 1500000000000 wei, permit TTL 86400 s, milestone 0 approved by the buyer before the check.
+
+| Order | Company | Create tx | Approve milestone 0 |
+|---|---|---|---|
+| 0 | `09729896` | [`0x3589f9da38ff2753bc399ee9ae7b2a1b4b1325c87201954deed11799cee6b97e`](https://sepolia.etherscan.io/tx/0x3589f9da38ff2753bc399ee9ae7b2a1b4b1325c87201954deed11799cee6b97e) | [`0x64639b0e7901fd16fe8aa673f70111604a09f143f17a0072b40009c5730d6cfc`](https://sepolia.etherscan.io/tx/0x64639b0e7901fd16fe8aa673f70111604a09f143f17a0072b40009c5730d6cfc) |
+| 1 | `07418033` | [`0xad280cb11db7c51139e58c92f7740ea83d2ca401116f9e01fcfc4a54e8ac74b2`](https://sepolia.etherscan.io/tx/0xad280cb11db7c51139e58c92f7740ea83d2ca401116f9e01fcfc4a54e8ac74b2) | [`0xc1e2863978366a66d2633c56647059e436f9bc424529016d19b4ab3f69b55bdb`](https://sepolia.etherscan.io/tx/0xc1e2863978366a66d2633c56647059e436f9bc424529016d19b4ab3f69b55bdb) |
+
+### Agent runs (`supplier-agent.sh`, fresh signed Companies House profile, $0.01 aUSD each)
+
+| Order | Signed status | Outcome | x402 payment (Base Sepolia) | Contract tx (`checkAndRelease`) | Request hash | Signed timestamp |
+|---|---|---|---|---|---|---|
+| 0 | `active` | **Paid** (milestone 0, 500000000000 wei to the supplier) | [`0xc7a6651b910db763ef5be70ceca90c8195524e2e79ad7d43bd002227b89190d5`](https://sepolia.basescan.org/tx/0xc7a6651b910db763ef5be70ceca90c8195524e2e79ad7d43bd002227b89190d5) | [`0x40d395d728f5700756fd55117ef59fd501dca3a86cbb161f30d2a20b80d13f05`](https://sepolia.etherscan.io/tx/0x40d395d728f5700756fd55117ef59fd501dca3a86cbb161f30d2a20b80d13f05) | `0xcae416f2dce5fb6bb595eafe8c5f11ce9df4b33f8664042e10f8f776739fab48` | `1793368834` (15:00:34 CET) |
+| 1 | `liquidation` | **Held** (2000000000000 wei stays refundable to the buyer) | [`0x64bc4a4bd54c5c94582ebcc93735729dee1ad0b274af1d2cbb9d7ffd37610bd5`](https://sepolia.basescan.org/tx/0x64bc4a4bd54c5c94582ebcc93735729dee1ad0b274af1d2cbb9d7ffd37610bd5) | [`0x5e6af4d67af9cb7174afb72e0ef80b176a7d87c173c85e8457d256383065009b`](https://sepolia.etherscan.io/tx/0x5e6af4d67af9cb7174afb72e0ef80b176a7d87c173c85e8457d256383065009b) | `0x31975e4f7156ae305cc9e62a96e86e78272cf4f44ab7743deb7ec018a0f32456` | `1793368852` (15:00:52 CET) |
+
+State after the runs (`pulse-status.sh`): order 0 active, 500000000000 wei paid, next milestone 1 of 2, no permit (needs fresh evidence); order 1 held, 0 paid, 2000000000000 wei remaining.
+
+### Tamper test (order 0)
+
+Fresh signed response for `09729896` (`{"status":"active"}`, timestamp `1793368868`, x402 payment [`0x7eb81622de5b022ea1d4115b08d05d6154e79b4abf151d6399c7324d7043e024`](https://sepolia.basescan.org/tx/0x7eb81622de5b022ea1d4115b08d05d6154e79b4abf151d6399c7324d7043e024)), then tampered four ways. All four were rejected by the deployed contract in a dry run (`eth_call` against Sepolia), so no tx was sent and no gas was spent. The valid case is the order 0 run above.
+
+| Case | Tamper | Result | Revert |
+|---|---|---|---|
+| (a) value edited | status changed to `dissolved` | rejected | `WrongSigner(0x08cF6d380EC65b34fF5EB35538DA47491753e9E3)` |
+| (b) too old | signature timestamp moved back one hour (`1793365268`) | rejected | `StaleResponse(1793365268, 1793368860)` |
+| (c) different request | request hash of company `00000001` (`0xf3ca035268fbff78c4ad82e305b60d6a1f5e7bb758d3170d821dfaa59cba28e4`) | rejected | `WrongRequest(bytes32,bytes32)` |
+| (d) wrong signer | re-signed with random key `0x74D5A91F03A2892efCCfE9F13BC8d9DC75C04369` | rejected | `WrongSigner(0x74D5A91F03A2892efCCfE9F13BC8d9DC75C04369)` |
+
+### Commands
+
+```sh
+cd api3
+export PATH="$PATH:$HOME/.foundry/bin"; set -a; source .env; set +a   # EVM_RPC_URL, EVM_PRIVATE_KEY, PULSE_ADDRESS
+forge script script/DeploySupplierPulse.s.sol --rpc-url "$EVM_RPC_URL" --broadcast --slow --gas-estimate-multiplier 800
+cast call "$PULSE_ADDRESS" 'airnode()(address)' --rpc-url "$EVM_RPC_URL"
+cast call "$PULSE_ADDRESS" 'companyRequestHash(string)(bytes32)' 07418033 --rpc-url "$EVM_RPC_URL"
+id1=$(scripts/pulse-create-order.sh 09729896 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC 500000000000,1500000000000)
+id2=$(ORDER_REF=PO-2 scripts/pulse-create-order.sh 07418033 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC 500000000000,1500000000000)
+scripts/pulse-approve.sh "$id1" 0; scripts/pulse-approve.sh "$id2" 0
+cast call 0xbeA34973e5f67F18F656A2C6070C64326C791808 'balanceOf(address)(uint256)' 0xEb3EB6da882798062b30CeC11AAaDe306287ce41 --rpc-url https://sepolia.base.org
+ORDER_ID=0 scripts/supplier-agent.sh   # Paid
+ORDER_ID=1 scripts/supplier-agent.sh   # Held
+scripts/supplier-fetch.sh 09729896 r.json
+for t in value stale request key; do ORDER_ID=0 scripts/pulse-submit.sh r.json $t; done   # each: REJECTED by contract
+scripts/pulse-status.sh 0; scripts/pulse-status.sh 1
+```
+
 ## Exact run commands
 
 ```sh
