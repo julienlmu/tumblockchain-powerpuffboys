@@ -139,7 +139,33 @@ Deploy command (from `api3/`, `EVM_PRIVATE_KEY` in the environment):
 MAX_AGE=300 TIER_COUNT_GAP=300 REFUND_GRACE=600 forge script script/DeploySupplierPulsePlus.s.sol --rpc-url https://ethereum-sepolia-rpc.publicnode.com --broadcast --slow --gas-estimate-multiplier 800
 ```
 
-Demo orders A–E: not created yet.
+### Demo orders A–E (created 30 Oct, 19:43–19:48 CET)
+
+Buyer `0xEb3EB6da882798062b30CeC11AAaDe306287ce41`. Supplier 1 = `0x535d7e4d7f6c3B13F34da2aC98afE379912bed4a`, supplier 2 = `0x8cACCFf7C1a3384800cD9ff394448DB41b655c28`. Amounts in tokens (1 token = 10^12 wei). Permit TTL 1800 s for all. Values read back with `orderInfo` / `orderMilestones` / `orderSchedule`.
+
+| Label | Order id | Supplier id | Source | Rules | Supplier wallet | Amounts | Due dates (unix → CET) | Approved | createOrder tx |
+|---|---|---|---|---|---|---|---|---|---|
+| A · PO-1001 Motor supply | 0 | `03778796` | Companies House (0) | `0x06` | supplier 1 | 500 / 1,000 / 1,500 | 1793387004 (30 Oct 20:03:24) / 1793443500 (31 Oct 11:45) / 1793457000 (31 Oct 15:30) | 0, 1 | [`0xb6c320…5bc4`](https://sepolia.etherscan.io/tx/0xb6c320f591a20435d27217945cf6012daf024c41ce974c7ceaa12b84ffeb5bc4) |
+| B · PO-1002 Gearbox | 1 | `07418033` | Companies House (0) | `0x06` | supplier 2 | 1,000 / 2,000 | 1793387052 (30 Oct 20:04:12) / 1793443500 (31 Oct 11:45) | 0 | [`0xfd2fb4…2d25`](https://sepolia.etherscan.io/tx/0xfd2fb477d10e669a8c139636fe1f1ff06fdbab10927cf9f8ec792a0489bb2d25) |
+| C · PO-1003 Sensors | 2 | `09729896` | Companies House (0) | `0x02` | supplier 1 | 500 / 500 | 1793387076 (30 Oct 20:04:36) / 1793444400 (31 Oct 12:00) | 0 | [`0x16b512…e85f`](https://sepolia.etherscan.io/tx/0x16b512db25a552f859eb486e2962862e15a1d199c3476f81376999c135d1e85f) |
+| D · PO-1004 Cable harness (DE) | 3 | `391200JI69LS8L648F30` | GLEIF (1) | `0x08` | supplier 1 | 500 / 1,000 | 1793387772 (30 Oct 20:16:12) / 1793444400 (31 Oct 12:00) | 0, 1 | [`0x26197a…b7db`](https://sepolia.etherscan.io/tx/0x26197ae08cf3df9e13d34f257e0b8e748b9411586c1ea8e238c93f91653eb7db) |
+| E · PO-1005 Castings | 4 | `52990092KBQJF8QBGJ50` | GLEIF (1) | `0x08` | supplier 2 | 500 / 500 | 1793387808 (30 Oct 20:16:48) / 1793444400 (31 Oct 12:00) | 0 | [`0x07adaa…0a55`](https://sepolia.etherscan.io/tx/0x07adaa7bdaa92c9e76a074c21088684c1f00a13c9aa31671b561972565a70a55) |
+
+Approval txs (`approveMilestone`): A m0 `0xc4c0515cedef370538fb8081a5a36f49537347fbea60778e2f29afc06f241d76`, A m1 `0x693316481fb3f3338faeb677504d498fb03ae2a4c11774f8572543a54ad6fe95`, B m0 `0x02bb5d51ef6dc56aec47286a21593af329e273ee8707c3f3ebf63e8157e4a1bb`, C m0 `0x0768c6ea71a0b732c230056cdb5bae583be658f26e51eac4069fe44ff8952e9b`, D m0 `0x030812c65ae531c29ed87a58696876e762158cd9ddb5f7b3d1df987427644659`, D m1 `0x76d4b0f35228c457061d8af7fbac9fb9d880eab911fa10ab3b1948124c0a9e32`, E m0 `0xcde10b30185f4425a4737ace8e3cfce6d48f39fe20d8e41f657ace9c206718b1`. `ordersLength()` = 5 afterwards.
+
+The agent wallet `0xED34…253a` acted within a minute of creation: B held with failedRules `0x86` ([`0x254f08…2323`](https://sepolia.etherscan.io/tx/0x254f08265550daf0c8de4d20fb29a3dd7310c9050e59339bb87f6d40b1742323)), C held with `0x02` ([`0xbcc39c…d441`](https://sepolia.etherscan.io/tx/0xbcc39c8fc274c8674bac7b410b1cbc321cc1e82dc49640c7eabacbe8ed6dd441)).
+
+Buyer balance 0.049347717179651758 → 0.039757540142535541 ETH: 0.0095 ETH locked in the orders, 0.000090177 ETH gas.
+
+Run command (from `api3/scripts`, `BUYER_PRIVATE_KEY` in the environment from the local, uncommitted `api3/.env`):
+
+```
+EVM_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com PULSE_PLUS_ADDRESS=0xf25Aae1772326C95294D1923399D55c658493DfC \
+DEMO_SUPPLIER_1=0x535d7e4d7f6c3B13F34da2aC98afE379912bed4a DEMO_SUPPLIER_2=0x8cACCFf7C1a3384800cD9ff394448DB41b655c28 \
+./plus-demo-orders.sh
+```
+
+The script stopped after creating C because one RPC call failed (no tx sent). C's approval, D and E were then sent one by one with `plus-approve.sh` and `plus-create-order.sh`, with the same arguments the script uses, after checking `ordersLength()` before each step. No order is duplicated.
 
 ## SupplierPulse+ autonomous agent (Julien, `api3/agent/`)
 

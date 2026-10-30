@@ -73,6 +73,18 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · demo orders A–E on v2 (Sepolia)
+- Changed: the five demo orders exist on v2 `0xf25A…3DfC` (`ordersLength()` = 5). Details and tx hashes in `docs/evidence.md`.
+  - A = 0: CH `03778796`, supplier 1, rules 0x06, 500/1,000/1,500, milestones 0 and 1 approved.
+  - B = 1: CH `07418033` (liquidation), supplier 2, rules 0x06, 1,000/2,000, milestone 0 approved.
+  - C = 2: CH `09729896` (accounts overdue), supplier 1, rules 0x02, 500/500, milestone 0 approved.
+  - D = 3: LEI `391200JI69LS8L648F30` (ISSUED), supplier 1, rules 0x08, 500/1,000, milestones 0 and 1 approved.
+  - E = 4: LEI `52990092KBQJF8QBGJ50` (LAPSED), supplier 2, rules 0x08, 500/500, milestone 0 approved.
+- Next:
+  - **Emre:** real fetches + `plus-submit.sh` against ids 0–4.
+  - **Julien:** the agent already acts on v2 (held B with 0x86 and C with 0x02 within a minute). Keep it running: the first milestones are due at creation + 1200 s (A/B/C) or + 1800 s (D/E), so the no-data exit opens at due + 600 s, from ~20:13 CET tonight.
+- Notes: 0.0095 ETH locked in the orders plus 0.00009 ETH gas (buyer 0.0493 → 0.0398 ETH). One publicnode RPC error after C's create; the rest was sent step by step, no duplicate orders.
+
 ### 2026-10-30 · Batu · design pass on both screens (no behaviour change)
 - Changed, `demo/` only: same data, contract calls, tamper semantics and URL parameters; new look and hierarchy. One type family (IBM Plex Sans, Plex Mono for hashes; system fonts if offline), one SVG icon set instead of emoji, focus rings, dark-mode button contrast fixed, loading / empty / error states, inline favicon (the `favicon.ico` 404 was the only console error).
   - **Judge page:** at 1280×720 the attack buttons and the verdict are on screen together (the verdict column is sticky). **Passed** is a large card; each tile says in words what happened (*Rejected: own error*, *Rejected earlier*, *Not rejected*), so green vs amber also reads without colour. Order details sit behind "Details +"; the scoreboard says Pass / Fail / n/a.
