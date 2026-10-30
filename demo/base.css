@@ -9,7 +9,7 @@
   --accent: #2457d6; --accent-bg: #e8eefc; --sample: #6b3fc4; --sample-bg: #f1ebfd;
   --gold: #8a6100; --gold-bg: #fbf0d0;
   --on-accent: #ffffff; --on-ok: #ffffff; --on-hold: #ffffff;
-  --focus: #2457d6;
+  --focus: #2457d6; --field: #8a94a3; /* input borders: 3:1 against the card (WCAG 1.4.11) */
 
   --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -29,7 +29,7 @@
     --accent: #7aa2ff; --accent-bg: #1b2541; --sample: #b99bff; --sample-bg: #261c3d;
     --gold: #f0c75e; --gold-bg: #3a2e10;
     --on-accent: #0b1020; --on-ok: #07160d; --on-hold: #1d0503;
-    --focus: #7aa2ff;
+    --focus: #7aa2ff; --field: #66717f;
   }
 }
 :root[data-theme="dark"] {
@@ -40,7 +40,7 @@
   --accent: #7aa2ff; --accent-bg: #1b2541; --sample: #b99bff; --sample-bg: #261c3d;
   --gold: #f0c75e; --gold-bg: #3a2e10;
   --on-accent: #0b1020; --on-ok: #07160d; --on-hold: #1d0503;
-  --focus: #7aa2ff;
+  --focus: #7aa2ff; --field: #66717f;
 }
 
 /* ---------------------------------------------------------------- browser surfaces */
@@ -107,7 +107,7 @@ details.cfg-box { margin-top: var(--s3); }
 form.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s3); margin-top: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); }
 form.cfg label { display: flex; flex-direction: column; gap: var(--s1); font-size: var(--t-1); color: var(--muted); }
 form.cfg input, select, textarea {
-  font: 400 var(--t-1)/1.4 var(--sans); padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-strong);
+  font: 400 var(--t-1)/1.4 var(--sans); padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--field);
   background: var(--card); color: var(--text); min-width: 0;
   transition: border-color var(--fast) var(--ease);
 }

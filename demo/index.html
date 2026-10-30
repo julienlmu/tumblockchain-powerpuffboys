@@ -614,7 +614,7 @@
 
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, val]) => `<span>${k} <b>${val}</b></span>`).join(""); }
   renderMeta([["Mode", cfg.sample ? "sample" : "reading the contract…"]]);
-  function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
+  function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""; }
 
   // ---------------------------------------------------------------- live data
 
@@ -713,7 +713,7 @@
       ["Protected now", `${tok(protectedTotal)} tokens`],
       ["Updated", clock(nowSec()) + eventsNote],
     ]);
-    banner("", count ? "" : "This contract has no orders yet.");
+    banner("", ""); // no orders: the empty state in the grid says it
     lastOrders = orders;
     renderAll(orders, { sample: false });
   }
@@ -830,6 +830,7 @@
   function notConfigured(html) {
     $("cfg-box").open = true;
     $("orders").innerHTML = "";
+    html = `${I("info")}<span>${html}</span>`;
     renderMeta([["Mode", "not configured"]]);
     $("agent").hidden = true;
     banner("sample", html);
@@ -859,7 +860,7 @@
     loadSample();
     setInterval(loadSample, REFRESH_MS); // states change as sample times pass (permits expire, refunds open)
   } else if (cfg.contract) {
-    notConfigured("That contract address is not valid.");
+    notConfigured("That contract address is not valid: it must be 0x followed by 40 hex characters. Fix it in Settings.");
   } else {
     discover().catch((e) => notConfigured(`Could not search for the contract (${esc(e.shortMessage || e.message)}). Enter its address in Settings, or open the <a href="?sample=1">sample data</a>.`));
   }

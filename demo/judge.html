@@ -291,15 +291,15 @@
 
   const addr = (a) => explorer ? `<a class="mono" href="${explorer}/address/${a}" target="_blank" rel="noopener">${short(a)}</a>` : `<span class="mono" title="${a}">${short(a)}</span>`;
   const signerName = (a) => (a && P.KNOWN_SIGNERS[a.toLowerCase()]) ? ` (${P.KNOWN_SIGNERS[a.toLowerCase()]})` : "";
-  function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
+  function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""; }
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join(""); }
   function respMsg(html, bad) { $("resp-msg").innerHTML = html ? `<span style="color:var(${bad ? "--hold" : "--muted"})">${html}</span>` : ""; }
 
   function readRecord() {
     const text = $("resp").value.trim();
-    if (!text) throw new Error("Paste or load a response first.");
+    if (!text) throw new Error("No record loaded. Paste one, pick a sample or upload a file in step 2.");
     let obj;
-    try { obj = JSON.parse(text); } catch { throw new Error("The response is not valid JSON."); }
+    try { obj = JSON.parse(text); } catch { throw new Error("The record is not valid JSON. Paste the whole file from fetch-evidence.sh, or load a sample."); }
     return P.normalizeRecord(obj, order.info ? Number(order.info.source) : 0);
   }
   function setRecord(r) {
@@ -361,7 +361,7 @@
   }
 
   async function run(mode) {
-    if (!contract) { banner("error", "Connect a contract in Settings to get the contract's verdict."); return null; }
+    if (!contract) { banner("error", `${P.icon("alert")}<span>No contract connected. Enter its address in Settings, then press the button again.</span>`); return null; }
     let t;
     if (mode === "realOld" || mode === "realOther") {
       const s = realInput(mode);
@@ -526,6 +526,8 @@
     const sb = $("suite");
     sb.setAttribute("aria-busy", String(on));
     sb.innerHTML = on ? `${P.icon("loader", "spin")}Running the tamper test…` : `${P.icon("play")}Run the full tamper test`;
+    // a disabled button drops keyboard focus to <body>; give it back so the keyboard path continues from here
+    if (!on && (!document.activeElement || document.activeElement === document.body)) sb.focus({ preventScroll: true });
   }
 
   async function runSuite(force = false) {
@@ -679,7 +681,7 @@
     const f = e.target.files[0];
     if (!f) return;
     try { const obj = JSON.parse(await f.text()); setRecord(obj); respMsg(`Loaded ${esc(f.name)}.`); }
-    catch { respMsg(`${esc(f.name)} is not valid JSON.`, true); }
+    catch { respMsg(`${esc(f.name)} is not valid JSON. Upload the .json record written by fetch-evidence.sh.`, true); }
     e.target.value = "";
   });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
@@ -701,7 +703,7 @@
     if (cfg.contract && !ethers.isAddress(cfg.contract)) {
       $("cfg-box").open = true;
       renderMeta([["Mode", "not connected"]]);
-      banner("error", "That contract address is not valid.");
+      banner("error", `${P.icon("alert")}<span>That contract address is not valid: it must be 0x followed by 40 hex characters. Fix it in Settings.</span>`);
       return;
     }
     provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
@@ -717,7 +719,7 @@
       else {
         $("cfg-box").open = true;
         renderMeta([["Mode", "not connected"]]);
-        banner("sample", "No SupplierPulse+ contract found on this network. Enter its address in Settings.");
+        banner("sample", `${P.icon("info")}<span>No SupplierPulse+ contract found on this network. Enter its address in Settings.</span>`);
         return;
       }
     }
@@ -736,7 +738,7 @@
     $("dash-link").href = (version === 2 ? "index.html?" : "v1.html?orders=0,1&") + dq;
     await loadOrders();
   }
-  init().catch((e) => banner("error", `Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network.`));
+  init().catch((e) => banner("error", `${P.icon("alert")}<span>Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network in Settings, then reload the page.</span>`));
 })();
 </script>
 </body>
