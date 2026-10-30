@@ -50,7 +50,7 @@ We did not find German Handelsregister records or German insolvency notices amon
 
 ## How judges can test it
 
-The v2 judge page is integrated at [`demo/judge.html`](../../demo/judge.html), with setup and local-chain instructions in [`demo/README.md`](../../demo/README.md). The dashboard is [`demo/index.html`](../../demo/index.html); `?sample=1` displays illustrative data without a chain. The current v1 run and scripts are documented in [`docs/evidence.md`](../evidence.md); its four tamper attempts were `eth_call` simulations, not mined reverted transactions. V2 Sepolia deployment and on-chain judge evidence are still pending. Before submission:
+The v2 judge page is integrated at [`demo/judge.html`](../../demo/judge.html), with setup and local-chain instructions in [`demo/README.md`](../../demo/README.md). The dashboard is [`demo/index.html`](../../demo/index.html); `?sample=1` displays illustrative data without a chain. The current v1 run and scripts are documented in [`docs/evidence.md`](../evidence.md); its four tamper attempts were `eth_call` simulations, not mined reverted transactions. A current-branch local Anvil run accepted clean evidence, rejected replay and four tamper variants, paid a buyer-approved 500-token milestone, and refunded a held order. This validates local behavior only. V2 Sepolia deployment and public-chain judge evidence are still pending. Before submission:
 
 - Dashboard hosted URL: **[pending: publish and verify, if available]**
 - “Try to break it” hosted URL: **[pending: publish and verify, if available]**
@@ -60,7 +60,7 @@ The v2 demonstration must first show an accepted fresh response that causes the 
 
 ## Autonomous agent bonus
 
-The agent implementation and documentation exist in `api3/agent/` and `docs/agent.md`. Its updated 54-test suite ran locally: 53 passed and one was skipped because `cast` is not installed. A 45-tick `--fake` workflow also ran against an in-memory chain and registry; its synthetic transactions and spend are not live evidence. The overnight Sepolia run, real-cycle count, and verified spend are still pending. The intended demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call; confirm these against the deployed v2 agent configuration before submission.
+The agent implementation and documentation exist in `api3/agent/` and `docs/agent.md`. Its 54-test suite passed locally, including the `cast` selector check with Foundry available on `PATH`. A 45-tick `--fake` workflow also ran against an in-memory chain and registry; its synthetic transactions and spend are not live evidence. The overnight Sepolia run, real-cycle count, and verified spend are still pending. The intended demo limits are a $1.00 daily data budget, $0.20 reserved for due checks, at most three fetches per tick, and a $0.01 target cost per call; confirm these against the deployed v2 agent configuration before submission.
 
 **Before submission:** replace the above with the live cycle count, measured spend, overnight log, and Base Sepolia payment / Ethereum Sepolia action links—or state plainly that the agent bonus was not demonstrated.
 

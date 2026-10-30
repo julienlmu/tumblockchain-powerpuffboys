@@ -159,7 +159,7 @@ The local payout and refund were mined only on ephemeral Anvil and have no publi
 |---|---|
 | Foundry contract tests | 100 passed |
 | API3 request/data tests | 11 passed |
-| API3 agent Python tests | 54 passed, 1 skipped (`cast` unavailable on the original system PATH) |
+| API3 agent Python tests | 54 passed, including the `cast` selector check with Foundry available on `PATH` |
 | Cardano agent gate tests | 17 passed |
 
 ### Live API3 data fetches (Base Sepolia)
