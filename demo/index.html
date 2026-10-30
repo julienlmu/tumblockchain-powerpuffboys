@@ -19,6 +19,9 @@
 <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <style>
+  .define { margin: var(--s1) 0 0; color: var(--muted); font-size: var(--t-1); max-width: 96ch; text-wrap: pretty; }
+  .define dfn { font-style: normal; font-weight: 600; color: var(--text); }
+
   /* the three verification states, also a filter */
   .states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--s3); margin-top: var(--s4); align-items: stretch; }
   .state-btn { font: inherit; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s2) var(--s3); min-height: 0; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
@@ -66,7 +69,7 @@
   .done { color: var(--done); background: var(--done-bg); }
   .muted { color: var(--muted); background: var(--done-bg); }
   .info { color: var(--accent); background: var(--accent-bg); }
-  .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: var(--r-sm); color: var(--accent); background: var(--accent-bg); }
+  .reg { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: var(--r-sm); color: var(--accent); background: var(--accent-bg); white-space: nowrap; }
   .chips { display: flex; flex-wrap: wrap; gap: var(--s1) 6px; }
   .chip { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; padding: 1px 7px; border-radius: var(--r-sm); white-space: nowrap; }
   .chip.agent { color: var(--sample); background: var(--sample-bg); font-weight: 600; }
@@ -169,6 +172,7 @@
     <div>
       <h1>SupplierPulse<span class="plus">+</span></h1>
       <p class="tagline">Your supplier was approved last month. That should not approve today's payment. Every milestone below pays only with a fresh, signed register record the contract checked first.</p>
+      <p class="define"><dfn>Payment permit</dfn>: the contract's go-ahead to pay one milestone. A record that passes every rule gives one, valid only for a short time from the record's signed time.</p>
     </div>
     <div class="head-links">
       <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
@@ -361,9 +365,9 @@
     else {
       if (i === o.next) {
         cls = "next";
-        if (permitValid(o)) parts.push(word("ok", `Permit valid until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`));
-        else if (o.permitValidUntil > 0) parts.push(word("wait", "Permit expired: needs a fresh record"));
-        else parts.push("No permit yet");
+        if (permitValid(o)) parts.push(word("ok", `Payment permit valid until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`));
+        else if (o.permitValidUntil > 0) parts.push(word("wait", "Payment permit expired: needs a fresh record"));
+        else parts.push("No payment permit yet");
       } else ic = "minus";
       parts.push(o.approved[i] ? "approved by buyer" : word("wait", "awaiting approval"));
       parts.push(due > now ? `not due yet, in ${cd(due)}` : "due");
@@ -395,17 +399,36 @@
 
   // ---------------------------------------------------------------- events → words
 
+  // The signed JSON of an EvidenceAccepted event (sample data holds it as `raw`).
+  const rawOf = (a) => (a.raw != null ? a.raw : (() => { try { return ethers.toUtf8String(a.data); } catch { return a.data; } })());
+  // The order's latest record: the EvidenceAccepted event signed at the order's lastCheck.
+  const lastRecord = (o) => o.events.find((e) => e.name === "EvidenceAccepted" && Number(e.args.timestamp) === o.lastCheck) || null;
+  // Failed rules in words, for one record: with the signed value where it is a word ("LEI renewal overdue (LAPSED)").
+  const fieldOf = (raw, field) => { try { const v = JSON.parse(raw)[field]; return typeof v === "string" ? v : null; } catch { return null; } };
+  function failedWords(source, failed, raw) {
+    const val = (field) => { const v = raw ? fieldOf(raw, field) : null; return v ? ` (${v})` : ""; };
+    const f = Number(failed), out = [];
+    if (f & P.BASE_FAILED) out.push(P.BASE[source] ? P.BASE[source].label + val(P.BASE[source].field) : "base status check failed");
+    for (const r of P.RULES) if (f & r.bit) out.push(r.label + val(r.field));
+    return out;
+  }
+  // The order's failed rules, with the signed values when its latest record is the one that failed them.
+  const failedOf = (o) => {
+    const r = lastRecord(o);
+    return failedWords(o.info.source, o.lastFailedRules, r && Number(r.args.failedRules) === o.lastFailedRules ? rawOf(r.args) : null);
+  };
+
   function eventLine(e, o) {
     const a = e.args, src = o.info.source;
     switch (e.name) {
       case "OrderCreated": return { text: `Order created: ${tok(a.total)} tokens locked in ${o.amounts.length} milestones` };
       case "MilestoneApproved": return { text: `Buyer approved milestone ${Number(a.milestone) + 1}` };
       case "EvidenceAccepted": {
-        const labels = P.failedLabels(src, a.failedRules);
-        const raw = a.raw != null ? a.raw : (() => { try { return ethers.toUtf8String(a.data); } catch { return a.data; } })();
+        const raw = rawOf(a);
+        const labels = failedWords(src, a.failedRules, raw);
         return {
           cls: a.clean ? "ev-ok" : "ev-hold",
-          text: a.clean ? `${I("check")} Signed register record accepted: clean` : `${I("x")} Signed register record accepted: failed (${labels.join(", ")})`,
+          text: a.clean ? `${I("check")} Genuine register record accepted: it passes every rule` : `${I("x")} Genuine register record accepted; it fails: ${esc(labels.join(", "))}`,
           detail: `<div class="evd">
             <div>signed data <code>${esc(raw)}</code></div>
             <div>signed at ${dayClock(a.timestamp)} · digest <span class="mono" title="${esc(a.digest)}">${short(a.digest)}</span></div>
@@ -414,9 +437,14 @@
       }
       case "PermitIssued": return { text: `Payment permit for milestone ${Number(a.milestone) + 1} (${tok(a.amount)} tokens), valid until ${dayClock(a.validUntil)}` };
       case "MilestonePaid": return { cls: "ev-ok", text: `Milestone ${Number(a.milestone) + 1} paid: ${tok(a.amount)} tokens to the supplier` };
-      case "OrderHeld": return { cls: "ev-hold", text: `Order held: ${P.failedLabels(src, a.failedRules).join(", ")}. ${tok(a.remaining)} tokens protected; anyone can trigger the refund from ${dayClock(a.autoRefundAt)}` };
+      case "OrderHeld": {
+        // a hold without a record in the same transaction is the supplier-wide stop (applySupplierFailure)
+        const sameTx = (x) => (e.tx ? x.tx === e.tx : x.time === e.time);
+        const stop = Number(a.failedRules) === P.BASE_FAILED && !o.events.some((x) => x.name === "EvidenceAccepted" && sameTx(x));
+        return { cls: "ev-hold", text: `Order held: ${stop ? "the same supplier failed the register status on another order" : esc(P.failedLabels(src, a.failedRules).join(", "))}. ${tok(a.remaining)} tokens protected; anyone can trigger the refund from ${dayClock(a.autoRefundAt)}` };
+      }
       case "OrderRefunded": return { text: `${tok(a.amount)} tokens refunded to the buyer${a.noDataExit ? " (no-data exit)" : ""}, triggered by ${isAgent(a.triggeredBy) ? "the agent" : a.triggeredBy && o.info.buyer && a.triggeredBy.toLowerCase() === o.info.buyer.toLowerCase() ? "the buyer" : addr(a.triggeredBy)}` };
-      case "TierChanged": return { text: `Verification history ${P.TIERS[Number(a.oldTier)]}${arrow}${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
+      case "TierChanged": return { text: `Verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} from ${P.TIERS[Number(a.oldTier)]} to ${P.TIERS[Number(a.newTier)]} (clean streak ${a.cleanStreak})` };
       default: return { text: e.name };
     }
   }
@@ -487,12 +515,17 @@
     let stopStrip = "";
     if (supplierStopped(o) || ctx.stops.length) {
       const when = o.rec.lastBaseFailureAt ? dayClock(o.rec.lastBaseFailureAt) : "";
+      // the signed status word of the failing record, when its event is loaded ("liquidation")
+      const failRec = [o, cause].filter(Boolean).flatMap((x) => x.events)
+        .find((e) => e.name === "EvidenceAccepted" && Number(e.args.timestamp) === o.rec.lastBaseFailureAt);
+      const word = failRec && P.BASE[o.info.source] ? fieldOf(rawOf(failRec.args), P.BASE[o.info.source].field) : null;
+      const statusWord = word ? ` (<b>${esc(word)}</b>)` : "";
       const lines = [];
       if (supplierStopped(o) && byOther) {
         lines.push(`<div class="orders">Stopped by ${orderLink(cause)}</div>
-          <div>A signed record of the same supplier (<span class="mono">${esc(o.info.supplierId)}</span>) failed the register status on ${when}. Payments to this supplier are stopped on every order.</div>`);
+          <div>A signed record of the same supplier (<span class="mono">${esc(o.info.supplierId)}</span>) failed the register status${statusWord} on ${when}. Payments to this supplier are stopped on every order.</div>`);
       } else if (supplierStopped(o)) {
-        lines.push(`<div>Register status failed on ${when}: payments to this supplier are stopped on every order.</div>`);
+        lines.push(`<div>Register status failed${statusWord} on ${when}: payments to this supplier are stopped on every order.</div>`);
       }
       if (ctx.stops.length) lines.push(`<div class="orders">This record also stops the same supplier's ${ctx.stops.map(orderLink).join("")}</div>`);
       if (notHeldYet && o.autoRefundAt > 0) {
@@ -505,7 +538,7 @@
 
     let statusBox = "";
     if (held) {
-      const labels = P.failedLabels(o.info.source, o.lastFailedRules);
+      const labels = failedOf(o);
       const open = nowSec() >= o.autoRefundAt;
       statusBox = `<div class="held-box">
         <div class="title">${I("lock")}<span>Payment held: ${esc(labels.join(", ") || "failed register check")}</span></div>
@@ -537,7 +570,7 @@
     const stepIcon = { ok: "arrow-right", wait: "clock", info: "arrow-right" };
     const lastCheck = o.lastCheck
       ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span><div>${
-          o.lastFailedRules === 0 ? `<span class="good">${I("check")} clean</span>` : `<span class="bad">${I("x")} ${esc(P.failedLabels(o.info.source, o.lastFailedRules).join(", "))}</span>`}</div>`
+          o.lastFailedRules === 0 ? `<span class="good">${I("check")} clean</span>` : `<span class="bad">${I("x")} ${esc(failedOf(o).join(", "))}</span>`}</div>`
       : `<span class="small-muted">no signed record yet</span>`;
     let permitRow;
     if (held) permitRow = `<span class="small-muted">cleared by the hold</span>`;
@@ -563,7 +596,7 @@
       <article class="card${held ? " is-held" : ""}" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
         <div class="card-head">
           <div><h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
-            <div class="sub"><span class="reg" title="${esc(s.name)}">${s.badge}</span>
+            <div class="sub"><span class="reg">${esc(s.name)}</span>
               <a href="${s.registerUrl(o.info.supplierId)}" target="_blank" rel="noopener" class="mono" title="Open the register page">${esc(o.info.supplierId)}</a>
               <span>supplier wallet ${addr(o.info.supplier)}</span></div></div>
           ${badge}
@@ -581,7 +614,7 @@
           <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
           <dt>Payment permit</dt><dd>${permitRow}</dd>
           <dt>Last signed record</dt><dd>${lastCheck}</dd>
-          ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
+          ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o, ctx.cause)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
           <dt>Verification history</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed · register checks, not a credit score</span></dd>
         </dl>
         ${trail}
@@ -601,31 +634,35 @@
     }
     return [...groups.values()].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0));
   }
+  // One short sentence per event, in the buyer's words.
   function agentWord(e, o) {
     const a = e.args;
     switch (e.name) {
-      case "EvidenceAccepted": return a.clean ? "check clean" : `check failed: ${P.failedLabels(o.info.source, a.failedRules).join(", ")}`;
-      case "PermitIssued": return `permit M${Number(a.milestone) + 1}`;
-      case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b> (${tok(a.amount)})`;
-      case "OrderHeld": return "<b>held</b>";
-      case "OrderRefunded": return `<b>refunded ${tok(a.amount)}</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
-      case "TierChanged": return `history${arrow}${P.TIERS[Number(a.newTier)]}`;
+      case "EvidenceAccepted": return a.clean ? "Register check passed" : `Register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
+      case "PermitIssued": return `payment permit for M${Number(a.milestone) + 1}`;
+      case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b>: ${tok(a.amount)} tokens to the supplier`;
+      case "OrderHeld": return "<b>payment held</b>";
+      case "OrderRefunded": return `<b>refunded ${tok(a.amount)} tokens</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
+      case "TierChanged": return `Verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} to ${P.TIERS[Number(a.newTier)]}`;
       default: return e.name;
     }
   }
-  // a hold without evidence in the same transaction is applySupplierFailure: no paid fetch
+  // A hold without a record in the same transaction is the supplier-wide stop (applySupplierFailure): the failure is
+  // already verified on chain, so the agent holds without paying for a new check.
   const isSupplierStop = (g) => !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
-  const agentWords = (g, o) => `${isSupplierStop(g) ? `supplier-wide stop, no fetch${arrow}` : ""}${g.evs.map((e) => agentWord(e, o)).join(arrow)}`;
+  const agentWords = (g, o, cause) => isSupplierStop(g)
+    ? `<b>Payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderName(cause)}` : ""} (no new paid check needed)`
+    : g.evs.map((e) => agentWord(e, o)).join(arrow);
 
   function renderAgent(orders, rows) {
     const byId = Object.fromEntries(orders.map((o) => [o.id, o]));
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
-      <span class="sub">${agentAddr ? `agent ${addr(agentAddr)} · ${rows.length} autonomous transactions${rows[0] && rows[0].time ? ` · last ${since(rows[0].time)}` : ""}` : "set an agent address in Settings to highlight its transactions"}</span></div>`;
+      <span class="sub">${agentAddr ? `agent wallet ${addr(agentAddr)} · ${rows.length} transactions sent on its own${rows[0] && rows[0].time ? ` · last acted ${since(rows[0].time)}` : ""}` : "set an agent address in Settings to highlight its transactions"}</span></div>`;
     const li = (g) => {
       const o = byId[g.order];
       const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
-        <span>#${g.order} ${name}: ${o ? agentWords(g, o) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
+        <span>#${g.order} ${name}: ${o ? agentWords(g, o, causeOf(o, orders)) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
     const SHOWN = 3;
     const more = rows.length > SHOWN
