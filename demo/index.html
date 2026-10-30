@@ -644,17 +644,44 @@
     finally { busy = false; }
   }
 
-  if (cfg.contract && ethers.isAddress(cfg.contract)) {
+  function startLive() {
     tick();
     setInterval(tick, REFRESH_MS);
-  } else if (cfg.sample) {
-    loadSample();
-    setInterval(loadSample, REFRESH_MS); // states change as sample times pass (permits expire, refunds open)
-  } else {
+  }
+  function notConfigured(html) {
     $("cfg-box").open = true;
     renderMeta([["Mode", "not configured"]]);
     $("agent").hidden = true;
-    banner("sample", cfg.contract ? "That contract address is not valid." : "Enter the deployed SupplierPulsePlus address in Settings, or open the <a href=\"?sample=1\">sample data</a>.");
+    banner("sample", html);
+  }
+  // No address given: find the newest v2 deployed by the team (§7.2 C3), so the page needs no edit after launch.
+  async function discover() {
+    renderMeta([["Mode", "looking for SupplierPulse+ v2…"]]);
+    const probe = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
+    const [net, addrFound] = await Promise.all([probe.getNetwork(), P.discoverV2(probe)]);
+    if (addrFound) {
+      cfg.contract = addrFound;
+      const q = new URLSearchParams({ contract: addrFound });
+      if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
+      history.replaceState(null, "", "?" + q + (cfg.orders ? "&orders=" + cfg.orders : "")); // a shareable URL
+      for (const id of ["judge-link", "judge-link2"]) $(id).href = "judge.html?" + q;
+      startLive();
+    } else if (Number(net.chainId) === 11155111) {
+      notConfigured(`SupplierPulse+ v2 is not deployed on Sepolia yet. The live v1 contract: <a href="v1.html?contract=${P.V1_SEPOLIA}&orders=0,1">v1 screen</a> · <a href="judge.html">try to break v1</a> · or the <a href="?sample=1">sample data</a>.`);
+    } else {
+      notConfigured("No SupplierPulse+ contract found on this network. Enter its address in Settings, or open the <a href=\"?sample=1\">sample data</a>.");
+    }
+  }
+
+  if (cfg.contract && ethers.isAddress(cfg.contract)) {
+    startLive();
+  } else if (cfg.sample) {
+    loadSample();
+    setInterval(loadSample, REFRESH_MS); // states change as sample times pass (permits expire, refunds open)
+  } else if (cfg.contract) {
+    notConfigured("That contract address is not valid.");
+  } else {
+    discover().catch((e) => notConfigured(`Could not search for the contract (${esc(e.shortMessage || e.message)}). Enter its address in Settings, or open the <a href="?sample=1">sample data</a>.`));
   }
 })();
 </script>

@@ -194,9 +194,36 @@
   // ---------------------------------------------------------------- helpers
 
   let provider = null, contract = null, chainId = null, explorer = null;
-  const iface = new ethers.Interface(P.ABI);
+  let version = 2; // 1 = the live v1 contract (status only), the fallback of §7 while v2 is not deployed
+  let iface = new ethers.Interface(P.ABI);
   const order = { id: null, info: null };
   let lastCandidate = null;
+
+  // One order model for v1 and v2: { source, supplierId, requestHash, rules, state, lastCheck, nextMilestone, lastFailedRules }
+  async function readOrder(id) {
+    if (version === 2) {
+      const [info, st, sch] = await Promise.all([contract.orderInfo(id), contract.orderStatus(id), contract.orderSchedule(id)]);
+      return { source: Number(info.source), supplierId: info.supplierId, requestHash: info.requestHash, rules: Number(info.rules),
+        state: Number(st.state), lastCheck: Number(st.lastCheck), nextMilestone: Number(st.nextMilestone), lastFailedRules: Number(sch.lastFailedRules) };
+    }
+    const [info, st, num] = await Promise.all([contract.orderInfo(id), contract.orderStatus(id), contract.companyNumberOf(id)]);
+    return { source: 0, supplierId: num, requestHash: info.companyRequest, rules: 0, state: Number(st.state), lastCheck: Number(st.lastCheck),
+      nextMilestone: Number(st.nextMilestone), lastFailedRules: Number(st.state) === 1 ? P.BASE_FAILED : 0 };
+  }
+  const airnodeFor = (source) => (version === 2 ? contract.airnodeOf(source) : contract.airnode());
+  async function lastFailureOf(o) {
+    if (version !== 2) return 0; // v1 has no supplier-wide stop
+    return Number((await contract.supplierRecord(P.supplierKeyOf(o.source, o.supplierId))).lastBaseFailureAt);
+  }
+  // The request template a record was signed for: 2 for v1.1, 1 for v1 (status only), 0 unknown.
+  function templateOf(r) {
+    const id = String(r.supplierId || "");
+    if (!id) return 0;
+    const src = P.sourceIndex(r.source);
+    if (src >= 0 && P.requestHashFor(src, id).toLowerCase() === r.requestHash.toLowerCase()) return 2;
+    if (r.source === "ch" && P.requestHashV1(id).toLowerCase() === r.requestHash.toLowerCase()) return 1;
+    return 0;
+  }
 
   const addr = (a) => explorer ? `<a class="mono" href="${explorer}/address/${a}" target="_blank" rel="noopener">${short(a)}</a>` : `<span class="mono" title="${a}">${short(a)}</span>`;
   const signerName = (a) => (a && P.KNOWN_SIGNERS[a.toLowerCase()]) ? ` (${P.KNOWN_SIGNERS[a.toLowerCase()]})` : "";
@@ -222,26 +249,26 @@
     const count = Number(await contract.ordersLength());
     const sel = $("order");
     if (!count) { sel.innerHTML = "<option>No orders on this contract</option>"; return; }
-    const infos = await Promise.all([...Array(count).keys()].map((i) => contract.orderInfo(i)));
-    sel.innerHTML = infos.map((inf, i) => `<option value="${i}">#${i} · ${P.SOURCES[Number(inf.source)].badge} ${esc(inf.supplierId)}</option>`).join("");
+    const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
+    sel.innerHTML = infos.map((o, i) => `<option value="${i}">#${i} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`).join("");
     const want = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : 0;
     sel.value = String(want);
     await selectOrder(want);
   }
 
   async function selectOrder(id) {
-    const [info, st, sch] = await Promise.all([contract.orderInfo(id), contract.orderStatus(id), contract.orderSchedule(id)]);
-    const source = Number(info.source);
-    const airnode = await contract.airnodeOf(source);
+    const info = await readOrder(id);
+    const source = info.source;
+    const airnode = await airnodeFor(source);
     order.id = id; order.info = info; order.airnode = airnode;
     const s = P.SOURCES[source];
     $("order-info").innerHTML = `
       <tr><th>Supplier</th><td><span class="reg">${s.badge}</span> <a class="mono" href="${s.registerUrl(info.supplierId)}" target="_blank" rel="noopener">${esc(info.supplierId)}</a></td></tr>
-      <tr><th>State</th><td>${P.STATE[Number(st.state)]}${Number(st.state) === 1 ? ` (${esc(P.failedLabels(source, sch.lastFailedRules).join(", "))})` : ""} · last check ${Number(st.lastCheck) ? dayClock(st.lastCheck) : "none yet"}</td></tr>
-      <tr><th>Rules</th><td>${P.ruleNames(source, Number(info.rules)).map(esc).join(", ")}</td></tr>
+      <tr><th>State</th><td>${P.STATE[info.state]}${info.state === 1 ? ` (${esc(P.failedLabels(source, info.lastFailedRules).join(", "))})` : ""} · last check ${info.lastCheck ? dayClock(info.lastCheck) : "none yet"}</td></tr>
+      <tr><th>Rules</th><td>${version === 2 ? P.ruleNames(source, info.rules).map(esc).join(", ") : "status active (v1)"}</td></tr>
       <tr><th>Expected request</th><td class="mono" title="${info.requestHash}">${short(info.requestHash)}</td></tr>
       <tr><th>Trusted signer</th><td>${addr(airnode)}${signerName(airnode)}</td></tr>`;
-    $("fresh").hidden = chainId !== 31337;
+    $("fresh").hidden = chainId !== 31337 || version !== 2;
     renderKit();
   }
 
@@ -256,9 +283,12 @@
 
   // Real inputs (§4.7, v1.1): untouched, genuinely signed records from sample/responses.js. Off the local chain the
   // real Airnode records come first; on it, the local-key ones, whose request matches the local orders.
+  // Only records signed for this contract's request template count (v1 status-only vs v1.1), so (c) fails on the
+  // company, not on the projection.
   function realInput(mode) {
-    const src = P.SOURCES[Number(order.info.source)].key, id = order.info.supplierId, wantReal = chainId !== 31337;
-    const pool = SAMPLES.filter((s) => s.record.source === src).sort((a, b) => (b.real === wantReal) - (a.real === wantReal));
+    const src = P.SOURCES[order.info.source].key, id = order.info.supplierId, wantReal = chainId !== 31337;
+    const pool = SAMPLES.filter((s) => s.record.source === src && templateOf(s.record) === version)
+      .sort((a, b) => (b.real === wantReal) - (a.real === wantReal));
     return mode === "realOld" ? pool.find((s) => s.record.supplierId === id) : pool.find((s) => s.record.supplierId !== id);
   }
 
@@ -278,36 +308,35 @@
     } else {
       let base;
       try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); return; }
-      t = await P.tamper(base, mode);
+      t = await P.tamper(base, mode, version === 1 ? { requestHashFor: P.requestHashV1 } : {});
     }
     const r = t.record;
-    lastCandidate = { record: r, mode };
+    lastCandidate = { record: r, mode, rejected: false };
     $("result").innerHTML = `<h2>The contract's verdict</h2><p class="hint">Asking the contract…</p>`;
 
-    const id = order.id, source = Number(order.info.source);
+    const id = order.id, source = order.info.source;
     const now = await chainNow();
-    const [st, maxAge, airnode, srec] = await Promise.all([contract.orderStatus(id), contract.maxAge(), contract.airnodeOf(source),
-      contract.supplierRecord(P.supplierKeyOf(source, order.info.supplierId))]);
-    const lastFailure = Number(srec.lastBaseFailureAt);
+    const [st, maxAge, airnode] = await Promise.all([readOrder(id), contract.maxAge(), airnodeFor(source)]);
+    const lastFailure = await lastFailureOf(st);
     let digest = null, used = null, recovered = null, recoverErr = null;
     try { digest = P.digestOf(r.requestHash, r.timestamp, r.data); used = await contract.usedDigests(digest); } catch (e) { recoverErr = e.message; }
     try { recovered = ethers.verifyMessage(ethers.getBytes(digest), r.signature); } catch (e) { recoverErr = "the signature bytes are malformed"; }
     const ts = Number(r.timestamp), age = now - ts;
     const fields = P.parseFields(r.data);
-    const failed = fields ? P.evaluate(source, fields, Number(order.info.rules)) : null;
+    const failed = fields ? P.evaluate(source, fields, order.info.rules) : null;
 
     // Off-chain checklist, in the contract's order of checks (§4.5), so the first ✗ is where the contract stops.
     const checks = [
-      { ok: Number(st.state) === 0, t: "The order is active", d: `state ${P.STATE[Number(st.state)]}` },
+      { ok: st.state === 0, t: "The order is active", d: `state ${P.STATE[st.state]}` },
       { ok: r.requestHash.toLowerCase() === order.info.requestHash.toLowerCase(), t: "Request matches the order", d: `got ${short(r.requestHash)}, order expects ${short(order.info.requestHash)}` },
       { ok: ts <= now + 60, t: "Not from the future", d: `signed ${dayClock(ts)}, chain time ${dayClock(now)}` },
       { ok: age <= Number(maxAge), t: `Fresh (at most ${maxAge} s old)`, d: `age ${age} s` },
       { ok: used === false, t: "Not used before", d: digest ? `digest ${short(digest)} ${used ? "already used" : "unused"}` : esc(recoverErr || "") },
-      { ok: ts > Number(st.lastCheck), t: "Newer than the order's last record", d: Number(st.lastCheck) ? `last record ${dayClock(st.lastCheck)}` : "no record yet" },
+      { ok: ts > st.lastCheck, t: "Newer than the order's last record", d: st.lastCheck ? `last record ${dayClock(st.lastCheck)}` : "no record yet" },
       { ok: !!recovered && recovered.toLowerCase() === airnode.toLowerCase(), t: "Signed by the trusted Airnode", d: recovered ? `recovers to ${recovered}${signerName(recovered)}; trusted ${airnode}${signerName(airnode)}` : esc(recoverErr || "") },
-      // v1.1: a clean record older than a known base failure of the supplier is refused (SupplierFailed)
-      { ok: failed !== 0 || ts > lastFailure, t: "A clean record is newer than any known failure of this supplier", d: lastFailure ? `register status failed in a record signed ${dayClock(lastFailure)}` : "no failure on record" },
     ];
+    // v1.1: a clean record older than a known base failure of the supplier is refused (SupplierFailed)
+    if (version === 2) checks.push({ ok: failed !== 0 || ts > lastFailure, t: "A clean record is newer than any known failure of this supplier", d: lastFailure ? `register status failed in a record signed ${dayClock(lastFailure)}` : "no failure on record" });
     const stop = checks.findIndex((c) => !c.ok);
 
     // The verdict: the contract itself, simulated.
@@ -321,7 +350,8 @@
       verdict = { accepted: false, err, raw: err ? null : (e.shortMessage || e.message) };
     }
 
-    const st0 = Number(st.nextMilestone) + 1;
+    lastCandidate.rejected = !verdict.accepted;
+    const st0 = st.nextMilestone + 1;
     let box;
     if (verdict.accepted && verdict.clean) {
       box = `<div class="verdict ok"><div class="big">✅ ACCEPTED: would issue a payment permit</div>
@@ -359,7 +389,8 @@
           <div class="d">${failed === null ? "the signed data is not JSON" : failed === 0 ? "every rule passes" : "fails: " + esc(P.failedLabels(source, failed).join(", "))} · signed data <span class="mono">${esc(rawShown || "")}</span></div></div></li>
       </ol>
       <details><summary>The submitted record</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>
-      <div class="row"><button type="button" id="send">${chainId === 31337 ? "Send for real (local agent key)" : "Send for real (MetaMask)"}</button><span class="msg" id="send-msg"></span></div>`;
+      <div class="row"><button type="button" id="send">${verdict.accepted ? "Send for real" : "Send anyway as a real transaction (it reverts on chain)"} ${chainId === 31337 ? "(local agent key)" : "(MetaMask)"}</button><span class="msg" id="send-msg"></span></div>
+      ${verdict.accepted ? "" : `<p class="hint">For the video (§4.7): a rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
     $("send").addEventListener("click", sendForReal);
 
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
@@ -385,11 +416,18 @@
         if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
         signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
       }
-      const c = new ethers.Contract(cfg.contract, P.ABI, signer);
-      const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature);
-      out.innerHTML = `sent ${explorer ? `<a class="mono" href="${explorer}/tx/${tx.hash}" target="_blank" rel="noopener">${short(tx.hash)}</a>` : short(tx.hash)}, waiting…`;
-      const rc = await tx.wait();
-      out.innerHTML = `${rc.status === 1 ? "included" : "failed"} in block ${rc.blockNumber} ${explorer ? `<a class="mono" href="${explorer}/tx/${tx.hash}" target="_blank" rel="noopener">${short(tx.hash)}</a>` : `<span class="mono">${short(tx.hash)}</span>`}. Now try Replay.`;
+      const c = new ethers.Contract(cfg.contract, version === 2 ? P.ABI : P.ABI_V1, signer);
+      // A rejected attempt is sent with a fixed gas limit: gas estimation would refuse it, and the video needs the
+      // failed transaction on the explorer.
+      const overrides = lastCandidate.rejected ? { gasLimit: 400000n } : {};
+      const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature, overrides);
+      const link = explorer ? `<a class="mono" href="${explorer}/tx/${tx.hash}" target="_blank" rel="noopener">${short(tx.hash)}</a>` : `<span class="mono">${short(tx.hash)}</span>`;
+      out.innerHTML = `sent ${link}, waiting…`;
+      let rc;
+      try { rc = await tx.wait(); } catch (e) { rc = e.receipt || null; if (!rc) throw e; } // ethers 6 throws on a reverted receipt
+      out.innerHTML = rc.status === 1
+        ? `included in block ${rc.blockNumber}: ${link}. Now try Replay.`
+        : `<b>reverted on chain</b> in block ${rc.blockNumber}, as the simulation said: ${link}`;
       await selectOrder(order.id);
     } catch (e) {
       const err = P.decodeRevert(iface, e);
@@ -414,15 +452,21 @@
   // ---------------------------------------------------------------- judge kit
 
   function renderKit() {
-    const s = order.info ? P.SOURCES[Number(order.info.source)] : P.SOURCES[0];
+    const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
     const id = order.info ? order.info.supplierId : "09729896";
     const net = chainId ? (P.NETWORKS[chainId] || `chain ${chainId}`) : "not connected";
+    const v1 = version === 1;
+    const v1Body = `{"operation":"getCompanyProfile","parameters":{"company_number":"${id}"},"responseProjection":{"status":"/company_status"}}`;
     $("kit").innerHTML = `
-      <li>Contract: ${cfg.contract ? `${addr(cfg.contract)} on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>` : ""}.</li>
-      <li>Get your own fresh signed response ($0.01 over x402, needs aUSD on Base Sepolia): <code>api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json</code>, then paste or upload the file.</li>
-      <li>Or call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:<br><code>${esc(s.body(id))}</code></li>
-      <li>The request hash is <code>keccak256(utf8(${esc(s.request(id))}))</code>. The contract builds it on chain from the order's source and id.</li>
-      <li>The same attacks from a terminal: <code>api3/scripts/plus-submit.sh ${order.id ?? 0} response.json [value|stale|request|key|replay] [--send]</code>.</li>
+      <li>Contract: ${cfg.contract ? `${addr(cfg.contract)} (${v1 ? "SupplierPulse v1" : "SupplierPulse+ v1.1"}) on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>` : ""}.</li>
+      <li>Get your own fresh signed response ($0.01 over x402, needs aUSD on Base Sepolia): ${v1
+        ? `<code>api3/scripts/supplier-fetch.sh ${esc(id)}</code>`
+        : `<code>api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json</code>`}, then paste or upload the file.</li>
+      <li>Or call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:<br><code>${esc(v1 ? v1Body : s.body(id))}</code></li>
+      <li>The request hash is <code>keccak256(utf8(${esc(v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id))}))</code>. The contract builds it on chain from the order's ${v1 ? "company number" : "source and id"}.</li>
+      <li>The same attacks from a terminal: ${v1
+        ? `<code>api3/scripts/pulse-submit.sh</code> (v1)`
+        : `<code>api3/scripts/plus-submit.sh ${order.id ?? 0} response.json [value|stale|request|key|replay] [--send]</code>`}.</li>
       <li>What a pass proves: the register said it, unaltered and recently. It does not prove the supplier will deliver; that stays the buyer's approval.</li>`;
   }
 
@@ -462,19 +506,42 @@
 
   async function init() {
     renderKit();
-    if (!cfg.contract || !ethers.isAddress(cfg.contract)) {
+    if (cfg.contract && !ethers.isAddress(cfg.contract)) {
       $("cfg-box").open = true;
       renderMeta([["Mode", "not connected"]]);
-      banner("sample", "Enter the SupplierPulsePlus address in Settings to get the contract's verdict.");
+      banner("error", "That contract address is not valid.");
       return;
     }
     provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
     chainId = Number((await provider.getNetwork()).chainId);
-    if ((await provider.getCode(cfg.contract)) === "0x") throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
     explorer = P.EXPLORERS[chainId] || null;
+    let found = "";
+    if (!cfg.contract) {
+      // No address given: the newest v2 by the team's deployer, else the live v1 on Sepolia (the §7 fallback)
+      renderMeta([["Mode", "looking for the contract…"]]);
+      const v2 = await P.discoverV2(provider);
+      if (v2) { cfg.contract = v2; found = "found automatically: the newest SupplierPulse+ v1.1 deployed by the team"; }
+      else if (chainId === 11155111) { cfg.contract = P.V1_SEPOLIA; found = "v1 fallback"; }
+      else {
+        $("cfg-box").open = true;
+        renderMeta([["Mode", "not connected"]]);
+        banner("sample", "No SupplierPulse+ contract found on this network. Enter its address in Settings.");
+        return;
+      }
+    }
+    if ((await provider.getCode(cfg.contract)) === "0x") throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
+    // v2 answers airnodeOf; v1 has a single airnode()
     contract = new ethers.Contract(cfg.contract, P.ABI, provider);
+    try { await contract.airnodeOf(0); version = 2; }
+    catch { version = 1; contract = new ethers.Contract(cfg.contract, P.ABI_V1, provider); iface = contract.interface; }
+    if (version === 1) banner("sample", `<b>SupplierPulse v1</b> (Companies House, status only)${found === "v1 fallback" ? ": v2 is not deployed on Sepolia yet, so this page uses the live v1 contract" : ""}. Same checks, same attacks.`);
+    else if (found) banner("", "");
     const maxAge = await contract.maxAge();
-    renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], ["Contract", addr(cfg.contract)], ["Max age", `${maxAge} s`], ["Simulated from", `<span class="mono">${short(P.DEAD)}</span>`]]);
+    renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], ["Contract", `${addr(cfg.contract)}${found && version === 2 ? " (found automatically)" : ""}`],
+      ["Version", version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1"], ["Max age", `${maxAge} s`], ["Simulated from", `<span class="mono">${short(P.DEAD)}</span>`]]);
+    const dq = new URLSearchParams({ contract: cfg.contract });
+    if (cfg.rpc !== P.DEFAULT_RPC) dq.set("rpc", cfg.rpc);
+    $("dash-link").href = (version === 2 ? "index.html?" : "v1.html?orders=0,1&") + dq;
     await loadOrders();
   }
   init().catch((e) => banner("error", `Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network.`));
