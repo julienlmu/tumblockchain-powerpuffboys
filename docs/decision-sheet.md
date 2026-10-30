@@ -43,6 +43,23 @@ Legend: **[F]** = fact, checked against a source today. **[I]** = inference or j
    - [I] The exact GLEIF pointer (likely `/data/attributes/entity/status`) still has to be checked against a live response.
 8. **[F] The API3 submission must also state "who relies on the data, what goes wrong if forged, what data you wanted but could not find".** For #3: a forged "active" status would release money to a dissolved or fake company, which is a concrete answer.
 
+## Julien's proposals (PROGRESS.md, 11:17) applied to #0
+
+Julien proposes:
+1. Pay only on execution.
+2. Name the customer: a Cardano treasury that wants an EVM action without running a bot.
+3. Watch until a deadline.
+4. State the trust assumption.
+5. De-risk the infrastructure.
+
+With 1–3, #0 gets real "payment tied to result" and becomes eligible for the API3 agent bonus (repeated cycles) [I].
+
+**Input on proposal 1 (Julien's open Masumi question):**
+- [F] The Masumi doc lists "no response before the deadline" as a valid reason for the buyer's `POST /purchase/request-refund`. The seller then has to `authorize-refund`. If it does not, the dispute escalates to the Masumi team.
+- [I] So "let the job run out" may end in an escalation rather than an instant refund. The safer demo is for our seller agent to call `POST /payment/authorize-refund` itself when the condition is not met by the deadline. Confirm with a Masumi engineer.
+
+What proposals 1–3 do **not** fix: real use case (40%) and novelty vs the Nodary starter (10%) [I].
+
 ## Comparison
 
 | # | Idea | Customer & paid job | Payment tied to result | Real vs mocked | Build risk | Cardano fit | API3 fit |

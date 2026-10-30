@@ -91,7 +91,7 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Changed: added `docs/decision-sheet.md` (ideas #0–#5 compared, facts vs inferences) and `docs/status/batu.md`. Docs only, branch `batu/decision-sheet`.
 - Next: Julien picks the idea and API3 scope. After that: README, Devfolio text, video script, pitch.
 - Notes:
-  - Masumi escrow releases after `unlockTime` unless a refund is requested, so "payment tied to result" needs our code to trigger the refund. `agent.py` currently returns a result even when `executed=false`.
+  - Re Julien's proposal 1 (refund when the seller never submits): the Masumi refunds doc lists "no response before the deadline" as grounds for the buyer's `POST /purchase/request-refund`, but the seller must then `authorize-refund`, or it escalates to the Masumi team. Safer: our agent calls `POST /payment/authorize-refund` itself when the condition fails by the deadline. Confirm with Masumi. Source: https://www.masumi.network/dev/masumi/core-concepts/refunds-and-disputes.md
   - AirnodeHub: Nodary ETH/USD is free and first-party. The CoinGecko `simplePrice` used in `fetch-eth-usd.sh` costs $0.02 aUSD (x402).
   - API3 judging: real use case 40%, signed data matters 30%, execution 20%, novelty 10% ("beyond the unchanged starter"; the starter is already a Nodary ETH/USD consumer), +10 agent bonus. Projections let a contract read string fields such as Companies House `company_status`. Details in `docs/decision-sheet.md`.
 
