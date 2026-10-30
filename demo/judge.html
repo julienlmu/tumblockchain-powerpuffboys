@@ -444,6 +444,13 @@
     return mode === "realOld" ? pool.find((s) => s.record.supplierId === id) : pool.find((s) => s.record.supplierId !== id);
   }
 
+  // An attempt that cannot start: the reason sits under the record (step 2) and in the verdict panel, where the eye goes.
+  function attemptProblem(title, msg) {
+    $("result").removeAttribute("aria-busy");
+    $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${P.icon("info")}<span>${esc(title)}</span></div>
+      <div class="why">${esc(msg)}</div><div class="why">Nothing was asked or sent. Your record in step 2 is kept: fix it there, then press the button again.</div></div>`;
+  }
+
   function noOrderVerdict() {
     $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${P.icon("info")}<span>${contract ? "This contract has no orders yet" : "No contract connected"}</span></div>
       <div class="why">${contract ? "The tamper test checks a record against an order. Run it once the buyer has created an order, or pick another contract in Settings." : "Enter the contract address in Settings."}</div></div>`;
@@ -455,7 +462,9 @@
     if (mode === "realOld" || mode === "realOther") {
       const s = realInput(mode);
       if (!s) {
-        respMsg(mode === "realOld" ? `No earlier signed record of ${esc(order.info.supplierId)} is bundled. Upload one from api3/fixtures/ and press "Submit as is".` : "No record of another company is bundled for this registry.", true);
+        const why = mode === "realOld" ? `No earlier signed record of ${order.info.supplierId} is bundled. Upload one from api3/fixtures/ and press "Submit as is".` : "No record of another company is bundled for this registry.";
+        respMsg(esc(why), true);
+        if (!suiteRunning) attemptProblem(`${MODE_NAME[mode]}: no bundled record`, why);
         return null;
       }
       const rec = P.normalizeRecord(s.record, Number(order.info.source));
@@ -464,7 +473,7 @@
         : { record: rec, what: `(c) Real, other company: an untouched record of ${s.label}.`, expect: "WrongRequest" };
     } else {
       let base;
-      try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); return null; }
+      try { base = readRecord(); } catch (e) { respMsg(esc(e.message), true); if (!suiteRunning) attemptProblem("No attempt made: the record needs fixing", e.message); return null; }
       t = await P.tamper(base, mode, version === 1 ? { requestHashFor: P.requestHashV1 } : {});
     }
     const r = t.record;
@@ -708,11 +717,21 @@
     const validOk = !!valid && valid.accepted;
     const allRejected = attacks.every((s) => !s.accepted);
     const passed = validOk && allRejected && !suiteStopped;
+    // The verdict on the contract is only "Not passed" when it accepted an attack. A valid record it refused (old, used,
+    // another order) means the run tested nothing: say so, with the way to a usable record.
+    const notTested = !passed && !suiteStopped && allRejected && !validOk;
     const replayed = suite.some((s) => s.mode === "replay" && !s.notApplicable);
+    const NOT_USABLE = { StaleResponse: "is too old", Replayed: "was already sent to the contract", NotNewer: "is not newer than the order's last record",
+      WrongRequest: "is for another order or company", FutureResponse: "is dated in the future", NotActive: "cannot be used: the order is no longer active",
+      SupplierFailed: "is older than a failed record of this supplier", WrongSigner: "is not signed by the trusted Airnode" };
+    const validGot = valid ? String(valid.got) : "";
+    const fix = chainId === 31337 && version === 2
+      ? `<div class="row"><button type="button" class="primary" id="suite-fresh" data-icon="key">Sign a fresh local record and run again</button></div>`
+      : `<div class="why">Get a fresh record of ${esc(order.info.supplierId)}, paste it in step 2, and run again: ${fetchCode()}</div>`;
     const why = suiteStopped ? `Stopped by you after ${suite.length} of ${SUITE.length} attempts. Press Run the full tamper test to run all of them.`
       : passed
       ? `The valid record is accepted and all ${attacks.length} attacks are rejected by the contract itself (eth_call of submitEvidence, no gas).`
-      : !validOk ? "The valid record was not accepted: it is old, already used, or for another order. Load a fresh record of this order's supplier."
+      : notTested ? `The valid record ${valid ? NOT_USABLE[validGot] || `was refused (${esc(validGot)})` : "is missing"}, so the attacks could not reach their own checks. Nothing failed in the contract.`
       : "The contract accepted an attack.";
     const replayStep = validOk && !replayed
       ? `<h2>Last step: Replay</h2>
@@ -725,8 +744,8 @@
     $("result").innerHTML = `
       <h2>The contract's verdict</h2>
       <p class="hint">Tamper test on order #${order.id}${suiteTx ? ", then the replay" : ""}: ${suite.length} attempts, all simulated${suiteTx ? " except the one real send" : ""}.</p>
-      <div class="verdict hero ${passed ? "ok" : suiteStopped ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : "x")}</span>
-        <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : "Not passed"}</div><div class="why">${why}</div></div></div>
+      <div class="verdict hero ${passed ? "ok" : suiteStopped || notTested ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : notTested ? "clock" : "x")}</span>
+        <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : notTested ? "Not tested" : "Not passed"}</div><div class="why">${why}</div>${notTested ? fix : ""}</div></div>
       <div class="tiles">${suite.map(tileOf).join("")}</div>
       <ul class="legend">${legendOf(suite)}<li>Press a tile for its checklist.</li></ul>
       ${txNote}${replayStep}`;
@@ -763,6 +782,13 @@
   }
 
   // ---------------------------------------------------------------- judge kit
+
+  function fetchCode() {
+    const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
+    const id = order.info ? order.info.supplierId : "09729896";
+    const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
+    return `<code>${esc(cmd)}</code>${P.copyBtn(cmd)}`;
+  }
 
   function renderKit() {
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
@@ -856,6 +882,7 @@
     else if (t.id === "send") sendForReal();
     else if (t.id === "suite-force") runSuite(true).catch(runFailed);
     else if (t.id === "suite-replay") sendThenReplay().catch(runFailed);
+    else if (t.id === "suite-fresh") freshLocal().then(() => runSuite()).catch(runFailed);
   });
 
   // Keyboard accelerators; never while typing in a field.
@@ -918,9 +945,9 @@
     await loadOrders();
   }
   init().catch((e) => {
-    const f = P.friendlyError(e, { rpc: cfg.rpc });
+    const f = P.friendlyError(e, { rpc: cfg.rpc, reading: true, contract: cfg.contract });
     $("cfg-box").open = true;
-    $("cfg").elements[f.kind === "network" ? "rpc" : "contract"].setAttribute("aria-invalid", "true");
+    P.markField($("cfg"), f.kind === "network" ? "rpc" : "contract", f.text);
     setNoOrder(true, "Connect a contract in Settings first.");
     renderMeta([["Mode", "not connected"]]);
     banner("error", `${P.icon("alert")}<span>Could not read the contract. ${esc(f.text)}${f.kind === "other" ? " Check the address, the RPC URL and the network in Settings." : ""} Then press Load contract.</span>`);

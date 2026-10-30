@@ -319,6 +319,9 @@
     if (m) return { kind: "address", text: `There is no contract at ${short(m[1])} on ${NETWORKS[m[2]] || "chain " + m[2]}. Check the address, or the RPC URL if the contract lives on another network.` };
     if (["NETWORK_ERROR", "TIMEOUT", "SERVER_ERROR"].includes(code) || /failed to fetch|fetch failed|ECONNREFUSED|network|timeout|could not detect/i.test(msg))
       return { kind: "network", text: `The RPC${ctx.rpc ? " " + ctx.rpc : ""} did not answer. Check the RPC URL in Settings, or try again in a moment.` };
+    // reading a contract that has code but not SupplierPulse+ v1.1's functions (for example the v1 contract)
+    if (ctx.reading && (code === "BAD_DATA" || (code === "CALL_EXCEPTION" && !(e.data && e.data !== "0x"))))
+      return { kind: "address", notV2: true, text: `This address answers, but not as SupplierPulse+ v1.1${ctx.contract ? ` (${short(ctx.contract)})` : ""}. If it is the v1 contract, open the v1 screen; otherwise check the address in Settings.` };
     return { kind: "other", text: msg };
   }
 
