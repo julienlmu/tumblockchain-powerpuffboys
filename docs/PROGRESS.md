@@ -73,6 +73,13 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (spec) · Emre's contract findings 1 and 2 accepted → Orhun
+- Changed (spec, **no ABI change**, header note "Amendment"):
+  1. **No-data exit after a late approval** (§2.4a, §4.5): `approveMilestone` stores `approvedAt[m]` on the first approval (internal storage). The exit and the `autoRefundAt` view count from `max(dueDates[m], approvedAt[m]) + refundGrace`. Without this, a buyer who never approved could approve and refund in the same block, and the supplier never got a chance to bring evidence. New Forge case in §6.1: late approval → `RefundNotYet(approvedAt + refundGrace)`.
+  2. **`createOrder` requires `permitTtl ≥ maxAge`** (`BadOrder`). This replaces `permitTtl > 0`, so a fresh record can no longer give an already expired permit (`PermitExpired` in `checkAndRelease`). The demo orders already use ≥ 300.
+- **Orhun:** both are small contract changes, ideally before the 22:00 C2 and the C3 deploy. The agent and Batu's dashboard need nothing: both read `autoRefundAt` from the view, and the agent does not fetch while a due milestone waits for the buyer.
+- Note 3 (admin `setAirnode`/`setMaxAge` on live orders) is for Ulaş's pitch as a trust assumption. Note 4 (one record per order) is how the agent already works.
+
 ### 2026-10-30 · Julien (agent) · C2 with Emre's real fetch-local passes; agent evidence
 - Changed:
   - **C2 with Emre's real `fetch-local.sh` passed (17:39, 8/8 in 181 s).** It ran in a local test worktree: `supplierpulse-plus` `2b6ca9c` + `emre/plus-data` `8a1bedd`, not pushed. The agent reads Emre's records as they are, and unknown ids exit 3 ("no data") as specified.

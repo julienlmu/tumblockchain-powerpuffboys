@@ -13,6 +13,8 @@
 > - real signed responses for the tamper demo (§4.7);
 > - an agent hedge on v1 tonight (§6.3).
 >
+> **Amendment (Fri ~17:55, no ABI change):** Emre's C2.5 review of the contract. The no-data exit counts from the approval when it came after the due date (§2.4a, §4.5), and `createOrder` requires `permitTtl ≥ maxAge` (§4.5).
+>
 > Code against this version.
 
 ## How to use this file
@@ -255,9 +257,9 @@ Rule-specific failures (accounts or confirmation statement overdue, LEI renewal)
 **No-data exit.** The buyer gets the remaining balance back when all three hold:
 - the buyer has approved the next milestone;
 - there is no valid permit;
-- the due date has passed by more than `refundGrace`.
+- the due date, or the approval if it came later, has passed by more than `refundGrace`.
 
-`refundRemaining` can then be called by anyone, and the money always goes to the buyer. This covers data that stays unavailable: the register or the Airnode is down, or a field is missing. Milestones already paid stay paid. Without approval there is no exit, because then it is the buyer who has not released the payment.
+`refundRemaining` can then be called by anyone, and the money always goes to the buyer. This covers data that stays unavailable: the register or the Airnode is down, or a field is missing. Milestones already paid stay paid. Without approval there is no exit, because then it is the buyer who has not released the payment. A late approval starts the grace period again, so the supplier (through the agent) always gets the full `refundGrace` to bring evidence; otherwise a buyer could approve and refund in the same block.
 
 ### 2.5 Demo scenario
 
@@ -560,7 +562,8 @@ interface ISupplierPulsePlus {
     ) external payable returns (uint256 orderId);
     function approveMilestone(uint256 orderId, uint256 milestone) external;
     /// Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the next
-    /// milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
+    /// milestone is approved, has no valid permit and is overdue by refundGrace (counted from the due date or the
+    /// later approval). The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external;
 
     // ---- anyone (agent, judges)
@@ -674,14 +677,14 @@ The library errors can also surface and must be decodable by the tools:
 1. `source ≤ 1`, otherwise `BadSource`.
 2. The id format from §4.2, otherwise `BadSupplierId`.
 3. `rules` is valid for the source (Companies House ⊆ `0x06`, GLEIF ⊆ `0x08`), otherwise `BadRules`.
-4. `supplier != 0`, `amounts.length ≥ 1`, `amounts.length == dueDates.length`, every amount > 0, due dates are non-decreasing, `permitTtl > 0`, and `msg.value == sum(amounts)`. Otherwise `BadOrder`.
+4. `supplier != 0`, `amounts.length ≥ 1`, `amounts.length == dueDates.length`, every amount > 0, due dates are non-decreasing, `permitTtl ≥ maxAge` (a record that is still fresh must give a permit that has not expired), and `msg.value == sum(amounts)`. Otherwise `BadOrder`.
 
 Effects:
 - Store `requestHash = requestHashFor(source, id)` and `supplierKey = supplierKeyOf(source, id)`.
 - `approved = new bool[](n)`.
 - Emit `OrderCreated`.
 
-**`approveMilestone`.** Only the buyer (`NotAuthorized`); the milestone must be `< n` (`BadOrder`). Sets `approved[m] = true` and emits `MilestoneApproved`.
+**`approveMilestone`.** Only the buyer (`NotAuthorized`); the milestone must be `< n` (`BadOrder`). Sets `approved[m] = true`, stores `approvedAt[m] = now` on the first approval (internal storage, not in the ABI), and emits `MilestoneApproved`.
 
 **`submitEvidence`.** The order of checks matters, because it decides which error each tamper case produces:
 1. The order exists (`BadOrder`).
@@ -737,7 +740,7 @@ It reverts only on verification failures and on `SupplierFailed`.
 - **Active (no-data exit):** with `m = paidCount`:
   - `approved[m]` (`NotApproved(m)`);
   - no valid permit for `m` (`NotRefundable`);
-  - `now ≥ dueDates[m] + refundGrace` (`RefundNotYet(dueDates[m] + refundGrace)`).
+  - `now ≥ max(dueDates[m], approvedAt[m]) + refundGrace` (`RefundNotYet` with that time).
 
   Anyone may call it. `noDataExit = true`.
 - **Closed:** `NotRefundable`.
@@ -749,7 +752,7 @@ A hold is final: there is no un-hold.
 - `orderSchedule.nextDueDate` is `dueDates[paidCount]`, or `0` when closed.
 - `autoRefundAt`:
   - `heldAt + refundGrace` when held;
-  - `dueDates[m] + refundGrace` when active, the next milestone is approved and there is no valid permit (the no-data exit);
+  - `max(dueDates[m], approvedAt[m]) + refundGrace` when active, the next milestone is approved and there is no valid permit (the no-data exit);
   - otherwise `0`.
 - `tier` is the supplier's current tier.
 - `orderStatus.permitValid` follows v1: active, permit exists for `paidCount`, and `now ≤ validUntil`.
@@ -1000,7 +1003,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
    - **Verification history** that counts only the base check and only moves forward, the supplier-wide stop (`lastBaseFailureAt`, the `SupplierFailed` checks, `applySupplierFailure`), `release` with `NotDue`, the `checkAndRelease` outcomes, `refundRemaining` with both paths (§4.5), all views, and admin.
 3. **Forge tests.** Use the same style as `SupplierPulse.t.sol` (custom `Vm`, `vm.sign`). At least these:
    - **Hashes and keys:** `requestHashFor` and `supplierKeyOf` reproduce the §4.2 vectors.
-   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x01` and `0x08` on a Companies House order, `0x02` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` of 0). `BadSource`.
+   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x01` and `0x08` on a Companies House order, `0x02` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` below `maxAge`). `BadSource`.
    - **Companies House:** a clean record issues a permit valid for exactly `permitTtl`. `0x02` and `0x04` fail alone. Status `liquidation` gives `0x80` plus whatever else is enabled. A disabled rule is ignored.
    - **GLEIF:** clean; `LAPSED` with `0x08` is held; `INACTIVE` gives `0x80`.
    - **Tamper:** an edited value (`WrongSigner`), stale, future, another request (`WrongRequest`), a wrong key (`WrongSigner`), replay (`Replayed`), not newer (`NotNewer`), a high-s signature (`InvalidSignatureS`). A Companies House response on a GLEIF order gives `WrongRequest`. A held order rejects new evidence (`NotActive`).
@@ -1022,7 +1025,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
      - a rule-only failure on B does not stop A.
    - **Refund:**
      - Held: the buyer at once; a stranger before the grace period gets `RefundNotYet`, after it the refund reaches the buyer.
-     - No-data exit: approved, no permit, overdue by the grace period, so anyone can refund to the buyer with `noDataExit = true`. It gives `NotApproved` when the milestone is not approved, `NotRefundable` with a valid permit, `RefundNotYet` before due date + grace, and `NotRefundable` on a closed order.
+     - No-data exit: approved, no permit, overdue by the grace period, so anyone can refund to the buyer with `noDataExit = true`. It gives `NotApproved` when the milestone is not approved, `NotRefundable` with a valid permit, `RefundNotYet` before due date + grace, and `NotRefundable` on a closed order. **Late approval:** approve after due date + grace, then refund in the same block → `RefundNotYet(approvedAt + refundGrace)`; after the grace the refund works (Emre's PoC).
    - **Events:** every event fires with the exact arguments.
 4. **Deploy script.** `DeploySupplierPulsePlus.s.sol` reads env `EVM_PRIVATE_KEY`, `CH_AIRNODE` (default the real one), `GLEIF_AIRNODE` (default the real one), `MAX_AGE=300`, `TIER_COUNT_GAP=300` and `REFUND_GRACE=600`.
 5. **Scripts.**
