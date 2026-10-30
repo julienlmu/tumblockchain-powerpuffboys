@@ -81,6 +81,20 @@
   /* the guide opens from the header button; its own summary is not needed */
   #guide > summary { display: none; }
   #guide .guide-body { margin-top: 0; }
+  /* the guide's own header: title and Close stay in view while it scrolls */
+  .guide-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+    margin: calc(-1 * var(--s4)) calc(-1 * var(--s4)) 0; padding: var(--s3) var(--s4); background: var(--card); border-bottom: 1px solid var(--line); border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .guide-head h2 { margin: 0; font-size: var(--t0); font-weight: 600; }
+  #guide code { overflow-wrap: anywhere; }
+  #guide .guide-body:focus { outline: none; } /* focused only to move the reading point; the sheet itself shows where */
+  @media (min-width: 900px) {
+    /* a non-modal side sheet: the attack panel stays in view while you read about it */
+    .meta-row #guide { position: absolute; margin: 0; }
+    #guide .guide-body { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; width: min(460px, 100vw); max-width: none; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
+      margin: 0; border-radius: 0; border-width: 0 0 0 1px; border-color: var(--line-strong); box-shadow: -16px 0 36px -14px rgb(0 0 0 / 0.4); animation: sheet-in 200ms var(--ease); }
+    #guide .guide-head { border-radius: 0; top: calc(-1 * var(--s4)); } /* the sheet scrolls itself: stick at its very top */
+    @keyframes sheet-in { from { transform: translateX(24px); opacity: 0; } }
+  }
   .keys-toggle { display: inline-flex; gap: var(--s2); align-items: center; color: var(--text); }
   .keys-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
   details.gloss th { width: auto; white-space: nowrap; }
@@ -169,6 +183,9 @@
   table.score td:nth-child(3) { overflow-wrap: normal; } /* attempt names break between words only */
   table.score td.v { font-family: var(--mono); font-size: 12px; overflow-wrap: normal; word-break: normal; }
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
+  a.err { color: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a.err:hover { text-decoration-style: solid; }
+  #guide tr:target > *, #guide tr.flash > * { background: var(--accent-bg); transition: background-color 600ms var(--ease); }
   .qual { color: var(--muted); font-family: var(--sans); font-size: 11.5px; }
   .res { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; white-space: nowrap; }
   .res.pass { color: var(--ok); } .res.fail { color: var(--hold); } .res.na { color: var(--muted); font-weight: 400; }
@@ -182,8 +199,13 @@
 
   /* tamper test tiles: state by icon + words, not colour alone */
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s2); }
-  .tile { font: inherit; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s2) var(--s3); min-height: 0; border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer; }
+  .tile { position: relative; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s2) var(--s3); border-radius: var(--r-md); border: 1px solid transparent; }
   .tile:hover { border-color: currentColor; }
+  /* the whole tile reopens the attempt (its button covers it); the error name sits above that and opens the glossary */
+  .tile-open { all: unset; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+  .tile-open::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-md); }
+  .tile:has(> .tile-open:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .tile a.err { position: relative; z-index: 1; }
   .tile .n { font-weight: 600; font-size: var(--t-1); display: flex; gap: 6px; align-items: flex-start; }
   .tile .n .i { margin-top: 0.1em; }
   .tile .s { font-size: 11.5px; font-weight: 600; }
@@ -247,7 +269,8 @@
     <div class="meta" id="meta"></div>
     <details class="cfg-box guide" id="guide">
       <summary>How this page works</summary>
-      <div class="guide-body">
+      <div class="guide-body" role="region" aria-labelledby="guide-title">
+        <div class="guide-head"><h2 id="guide-title">How it works</h2><button type="button" class="sm" id="guide-close" data-icon="x" aria-keyshortcuts="Escape">Close<kbd class="kb-k" aria-hidden="true">Esc</kbd></button></div>
         <ol>
           <li><b>Pick an order.</b> The contract builds the request it expects from the order's supplier and trusts one signer per registry.</li>
           <li><b>Load a signed record</b> of that supplier (the Airnode's signed response, as JSON: <code>{"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}</code>): a sample (old on purpose), your own file from <code>fetch-evidence.sh</code>, or <b>Fresh local record</b> on the local chain. It must be at most <span class="max-age">300</span> s old, or every attack stops at the freshness check.</li>
@@ -256,26 +279,25 @@
         </ol>
         <table class="kv"><thead><tr><th>Attempt</th><th>What changes</th><th>Expected answer</th></tr></thead><tbody>
           <tr><td>Submit as is</td><td>nothing</td><td>accepted</td></tr>
-          <tr><td>(a) Edit value</td><td>one value inside the signed data</td><td class="mono">WrongSigner</td></tr>
-          <tr><td>(b) Too old, Real old record</td><td>the signed time, or a genuine earlier record</td><td class="mono">StaleResponse</td></tr>
-          <tr><td>(c) Different request, Real, other company</td><td>the request, or a genuine record of another company</td><td class="mono">WrongRequest</td></tr>
-          <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono">WrongSigner</td></tr>
-          <tr><td>Replay</td><td>the same record a second time</td><td class="mono">Replayed</td></tr></tbody></table>
+          <tr><td>(a) Edit value</td><td>one value inside the signed data</td><td class="mono"><a class="err" href="#err-WrongSigner" data-err="WrongSigner">WrongSigner</a></td></tr>
+          <tr><td>(b) Too old, Real old record</td><td>the signed time, or a genuine earlier record</td><td class="mono"><a class="err" href="#err-StaleResponse" data-err="StaleResponse">StaleResponse</a></td></tr>
+          <tr><td>(c) Different request, Real, other company</td><td>the request, or a genuine record of another company</td><td class="mono"><a class="err" href="#err-WrongRequest" data-err="WrongRequest">WrongRequest</a></td></tr>
+          <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono"><a class="err" href="#err-WrongSigner" data-err="WrongSigner">WrongSigner</a></td></tr>
+          <tr><td>Replay</td><td>the same record a second time</td><td class="mono"><a class="err" href="#err-Replayed" data-err="Replayed">Replayed</a></td></tr></tbody></table>
         <p><b>Amber tile, or "Not tested":</b> the record could not test that attack, because it is too old, already sent, or for another order, so an earlier check stopped it. What to do: load a fresh record (<b>Fresh local record</b> on the local chain, <span class="mono">fetch-evidence.sh</span> elsewhere, see the Judge kit) and run again. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
         <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> run all, <kbd>1</kbd>–<kbd>8</kbd> one attempt, <kbd>S</kbd> replay step, <kbd>B</kbd> back to the summary, <kbd>Esc</kbd> stop or close this guide, <kbd>?</kbd> this guide, <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs all.</p>
         <p><label class="keys-toggle"><input type="checkbox" id="keys-on" checked> Single-key shortcuts (R, 1–8, S, B, ?) on</label></p>
         <details class="gloss"><summary>What each contract error means</summary>
           <table class="kv"><tbody>
-            <tr><th class="mono">WrongSigner</th><td>The signature recovers to another key than the Airnode the contract trusts: the signed bytes were edited, or another key signed.</td></tr>
-            <tr><th class="mono">WrongRequest</th><td>The record answers another request (company, operation or projection) than the one the order expects.</td></tr>
-            <tr><th class="mono">StaleResponse</th><td>Signed more than the maximum age (<span class="max-age">300</span> s) before the chain's time.</td></tr>
-            <tr><th class="mono">FutureResponse</th><td>Dated more than 60 s after the chain's time.</td></tr>
-            <tr><th class="mono">Replayed</th><td>This exact signed record was already used once.</td></tr>
-            <tr><th class="mono">NotNewer</th><td>The order already accepted a record signed at the same time or later.</td></tr>
-            <tr><th class="mono">NotActive</th><td>The order is held or closed, so it accepts no new evidence.</td></tr>
-            <tr><th class="mono">SupplierFailed</th><td>A clean record older than a known register failure of this supplier.</td></tr>
+            <tr id="err-WrongSigner" tabindex="-1"><th class="mono">WrongSigner</th><td>The signature recovers to another key than the Airnode the contract trusts: the signed bytes were edited, or another key signed.</td></tr>
+            <tr id="err-WrongRequest" tabindex="-1"><th class="mono">WrongRequest</th><td>The record answers another request (company, operation or projection) than the one the order expects.</td></tr>
+            <tr id="err-StaleResponse" tabindex="-1"><th class="mono">StaleResponse</th><td>Signed more than the maximum age (<span class="max-age">300</span> s) before the chain's time.</td></tr>
+            <tr id="err-FutureResponse" tabindex="-1"><th class="mono">FutureResponse</th><td>Dated more than 60 s after the chain's time.</td></tr>
+            <tr id="err-Replayed" tabindex="-1"><th class="mono">Replayed</th><td>This exact signed record was already used once.</td></tr>
+            <tr id="err-NotNewer" tabindex="-1"><th class="mono">NotNewer</th><td>The order already accepted a record signed at the same time or later.</td></tr>
+            <tr id="err-NotActive" tabindex="-1"><th class="mono">NotActive</th><td>The order is held or closed, so it accepts no new evidence.</td></tr>
+            <tr id="err-SupplierFailed" tabindex="-1"><th class="mono">SupplierFailed</th><td>A clean record older than a known register failure of this supplier.</td></tr>
           </tbody></table></details>
-        <p><button type="button" class="link" id="guide-close" data-icon="x">Close the guide</button></p>
       </div>
     </details>
     <details class="cfg-box" id="cfg-box">
@@ -386,8 +408,11 @@
   const nameOf = P.orderNamer(); // the same order names as the dashboard
   // error names break between their words (Wrong<wbr>Request), never mid-word on a phone
   const wbr = (t) => esc(t).replace(/([a-z])([A-Z])/g, "$1<wbr>$2");
+  // a contract error name opens its glossary row in the guide (10b); other words stay plain
+  const GLOSS = new Set(["WrongSigner", "WrongRequest", "StaleResponse", "FutureResponse", "Replayed", "NotNewer", "NotActive", "SupplierFailed"]);
+  const errLink = (name) => GLOSS.has(name) ? `<a class="err" href="#err-${name}" data-err="${name}" title="What ${name} means">${wbr(name)}</a>` : wbr(name);
   // "accepted: permit" reads as "accepted (permit)", so the verdict and the expected answer use the same word
-  const gotHtml = (got) => { const m = /^accepted: (\w+)$/.exec(got); return m ? `accepted <span class="qual">(${m[1]})</span>` : wbr(got); };
+  const gotHtml = (got) => { const m = /^accepted: (\w+)$/.exec(got); return m ? `accepted <span class="qual">(${m[1]})</span>` : errLink(got); };
 
   try { localStorage.setItem("pulse-view", "detailed"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
@@ -683,7 +708,7 @@
       ? `Press <b>Run the full tamper test</b>: a fresh local record is signed for you.`
       : `Fastest, no setup: press <b>(b) Real old record</b> or <b>(c) Real, other company</b>, genuine signed records bundled with the page. For the full test, load a fresh record in step 2, then press <b>Run the full tamper test</b>.`;
     if (!$("start-checks")) h.insertAdjacentHTML("afterend", `<p class="hint">The contract checks a record in this order and stops at the first check that fails, with its error:</p>
-      <ol class="checks-pre" id="start-checks">${checkNames().map(([t, err]) => `<li><span>${esc(t)}</span><span class="mono">${err}</span></li>`).join("")}</ol>`);
+      <ol class="checks-pre" id="start-checks">${checkNames().map(([t, err]) => `<li><span>${esc(t)}</span><span class="mono">${errLink(err)}</span></li>`).join("")}</ol>`);
   }
   function noOrderVerdict() {
     if (connecting) { $("result").innerHTML = `<h2>The contract's verdict</h2><p class="waiting">${P.icon("loader", "spin")}Still connecting to the contract…</p>`; return; }
@@ -781,7 +806,7 @@
         <div class="why">The record is genuine, but the supplier fails the buyer's rules, so the contract would protect the remaining balance for the buyer.</div>`;
     } else if (verdict.err) {
       const args = verdict.err.args.map((a) => (typeof a === "bigint" ? a.toString() : String(a)));
-      box = `<div class="verdict ${tone}"><div class="big">${P.icon(toneIcon)}<span>Rejected: <span class="mono">${esc(verdict.err.name)}(${esc(args.map((a) => (a.length > 20 ? short(a) : a)).join(", "))})</span></span></div>
+      box = `<div class="verdict ${tone}"><div class="big">${P.icon(toneIcon)}<span>Rejected: <span class="mono">${errLink(verdict.err.name)}(${esc(args.map((a) => (a.length > 20 ? short(a) : a)).join(", "))})</span></span></div>
         <div class="why">${esc(P.explain(verdict.err.name, verdict.err.args, { expectedSigner: airnode }))}</div>`;
     } else {
       const f = P.friendlyError({ shortMessage: verdict.raw, message: verdict.raw }, { rpc: cfg.rpc });
@@ -825,7 +850,7 @@
     const gotText = verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : gotName;
     scoreRows.push({ time, order: id, name: MODE_NAME[mode], got: gotText, expected, res: res[2] });
     row.innerHTML = `<td>${time}</td><td>#${id}</td><td><button type="button" class="link" data-attempt="${attempt}" title="Show this attempt's checks">${MODE_NAME[mode]}</button></td>
-      <td class="v"${verdict.accepted ? ` title="${verdict.clean ? "accepted: would issue a payment permit" : "accepted: would hold the order"}"` : ""}>${gotHtml(gotText)}</td><td class="v">${wbr(expected)}</td>
+      <td class="v"${verdict.accepted ? ` title="${verdict.clean ? "accepted: would issue a payment permit" : "accepted: would hold the order"}"` : ""}>${gotHtml(gotText)}</td><td class="v">${errLink(expected)}</td>
       <td><span class="res ${res[0]}">${P.icon(res[1])}${res[2]}</span></td>`;
     const empty = $("score").querySelector(".empty");
     if (empty) empty.remove();
@@ -1004,8 +1029,8 @@
       ? { pass: "Accepted", fail: "Not accepted", na: "Not tested" }[cls]
       : { pass: "Rejected as expected", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
     const note = cls === "near" ? `at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
-    return `<button type="button" class="tile ${cls}" data-attempt="${s.attempt}" title="Show this attempt's checks">
-      <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span><span class="v">${gotHtml(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
+    return `<div class="tile ${cls}"><button type="button" class="tile-open" data-attempt="${s.attempt}" title="Show this attempt's checks">
+      <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span></button><span class="v">${gotHtml(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</div>`;
   }
 
   function renderSuite() {
@@ -1343,12 +1368,34 @@
   // one filled primary at a time: when the verdict offers the next step, Run steps back
   new MutationObserver(() => $("suite").classList.toggle("primary", !$("result").querySelector("button.primary"))).observe($("result"), { childList: true, subtree: true });
   // the guide opens from the header; its button says whether it is open
-  function setGuide(open, focus = true) {
+  // At >= 900 px it is a side sheet (fixed, scrolls on its own); on phones it stays in the page. Closing it returns
+  // focus to what opened it: the header button, or an error name.
+  const sheet = matchMedia("(min-width: 900px)");
+  let guideReturn = null;
+  function setGuide(open, focus = true, from = null) {
+    if (open && !$("guide").open) guideReturn = from || $("guide-btn");
     $("guide").open = open;
     $("guide-btn").setAttribute("aria-expanded", String(open));
-    if (open && focus) { $("guide").scrollIntoView({ block: "nearest" }); $("guide").querySelector(".guide-body").focus({ preventScroll: true }); }
-    if (!open && focus) $("guide-btn").focus();
+    if (open && focus) { if (!sheet.matches) $("guide").scrollIntoView({ block: "nearest" }); $("guide").querySelector(".guide-body").focus({ preventScroll: true }); }
+    if (!open && focus) { (guideReturn && guideReturn.isConnected ? guideReturn : $("guide-btn")).focus(); guideReturn = null; }
   }
+  // An error name opens the guide at its glossary row, expanded and in view.
+  function openGloss(name, from) {
+    const row = $(`err-${name}`);
+    if (!row) return;
+    setGuide(true, false, from);
+    row.closest("details").open = true;
+    row.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    row.focus({ preventScroll: true });
+    row.classList.add("flash");
+    setTimeout(() => row.classList.remove("flash"), 1600);
+  }
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[data-err]");
+    if (!a) return;
+    e.preventDefault();
+    openGloss(a.dataset.err, a);
+  });
   $("guide").querySelector(".guide-body").tabIndex = -1;
   $("guide-btn").addEventListener("click", () => setGuide(!$("guide").open));
   $("guide-close").addEventListener("click", () => setGuide(false));
@@ -1375,7 +1422,8 @@
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !suiteRunning) { e.preventDefault(); $("suite").click(); }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable], [popover]")) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest("input, textarea, select, [contenteditable], [popover]") && !(e.key === "Escape" && e.target.closest("#guide"))) return;
     const k = e.key;
     if (!keysOn && k !== "Escape") return;
     if ((k === "r" || k === "R") && !suiteRunning) { e.preventDefault(); $("suite").click(); }
