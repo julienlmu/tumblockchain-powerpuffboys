@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SupplierPulse+ Orders</title>
 <!-- Dashboard v2 for api3/src/SupplierPulsePlus.sol (docs/SUPPLIERPULSE_PLUS.md §6.4). Read-only by default:
-     view functions and eth_getLogs. The only write is the optional "Claim now" through the buyer's MetaMask.
+     view functions and eth_getLogs. The only write is the optional "Refund to buyer (MetaMask)" through the buyer's MetaMask.
      Usage: demo/README.md. v1 (SupplierPulse.sol) is demo/v1.html. -->
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
 <script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
@@ -68,7 +68,7 @@
   .agent-head h2 { margin: 0; font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: center; }
   .agent-head .sub { color: var(--muted); font-size: var(--t-1); }
   .agent ol { list-style: none; margin: var(--s2) 0 0; padding: 0; font-size: var(--t-1); }
-  .agent li { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: var(--s3); padding: 6px 0; border-top: 1px solid var(--line); align-items: baseline; }
+  .agent li { display: grid; grid-template-columns: 148px minmax(0, 1fr) auto; gap: var(--s3); padding: 6px 0; border-top: 1px solid var(--line); align-items: baseline; }
   .agent li:first-child { border-top: none; }
   .agent .t { color: var(--muted); }
   .agent details > summary { margin-top: var(--s1); }
@@ -162,7 +162,8 @@
   details.more > dl.facts { margin-top: var(--s2); }
   details.trail { border-top: 1px solid var(--line); padding-top: var(--s2); margin-top: var(--s1); }
   ol.trail { list-style: none; margin: var(--s2) 0 0; padding: 0; font-size: var(--t-1); }
-  ol.trail li { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--line); }
+  ol.trail li { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-top: 1px solid var(--line); }
+  ol.trail .t { font-size: 12px; display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; }
   ol.trail li:first-child { border-top: none; }
   ol.trail .t { color: var(--muted); }
   ol.trail .ev-ok { color: var(--ok); font-weight: 600; }
@@ -185,8 +186,7 @@
     dl.facts { grid-template-columns: 1fr; }
     dl.facts dt { padding-bottom: 0; }
     dl.facts dd { border-top: none; padding-top: 2px; }
-    .agent li { grid-template-columns: 60px minmax(0, 1fr); }
-    .agent li .lnk { grid-column: 2; }
+    .agent li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   }
 </style>
 </head>
@@ -264,7 +264,8 @@
 <script>
 (() => {
   const P = window.PULSE;
-  const { esc, short, nowSec, clock, dayClock, ago, span, duration } = P;
+  const { esc, short, nowSec, ago, span, duration } = P;
+  const clock = P.dayClockS, dayClock = P.dayClockS; // one absolute time format on the page: "Fri 30 Oct, 21:42:40"
   const REFRESH_MS = 12000;
   const LOG_CHUNK = 9000;   // publicnode refuses eth_getLogs ranges of 20000 blocks
   const MAX_CHUNKS = 30;    // first load: at most ~270k blocks of history
@@ -419,7 +420,7 @@
     else {
       if (i === o.next) {
         cls = tintNext ? "next" : "upcoming";
-        if (permitValid(o)) parts.push(word("ok", `Payment permit valid until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`));
+        if (permitValid(o)) parts.push(word("ok", `Payment permit valid for ${cd(o.permitValidUntil, "0 s")} (until ${clock(o.permitValidUntil)})`));
         else if (o.permitValidUntil > 0) parts.push(word("wait", "Payment permit expired: needs a fresh record"));
         else parts.push("No payment permit yet");
       } else ic = "minus";
@@ -512,8 +513,8 @@
     ok: { cls: "ok", icon: "check", label: "Eligible", def: "A fresh record passed every rule." },
     rule: { cls: "hold", icon: "x", label: "Rule failed", def: "A genuine record failed a rule: payments stop." },
     nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid record since the due date." },
-    pending: { cls: "muted", icon: "clock", label: "Awaiting check", def: "No valid payment permit yet." },
-    paid: { cls: "ok", icon: "check", label: "Fully paid", def: "Every milestone was paid." },
+    pending: { cls: "muted", icon: "search", label: "Awaiting check", def: "No valid payment permit yet." },
+    paid: { cls: "ok", icon: "shield", label: "Fully paid", def: "Every milestone was paid." },
     closed: { cls: "done", icon: "refund", label: "Refunded", def: "Closed: the rest went back to the buyer." },
   };
   const totalOf = (o) => o.amounts.reduce((x, y) => x + y, 0n);
@@ -549,7 +550,7 @@
 
     const vs = STATES[stateOf(o)];
     const notHeldYet = !held && !closed && supplierStopped(o);
-    const badge = `<span class="badge ${vs.cls}">${I(held ? "lock" : vs.icon)}${vs.label}${held ? ", held" : notHeldYet ? ", not held yet" : ""}</span>`;
+    const badge = `<span class="badge ${vs.cls}">${I(vs.icon)}${vs.label}${held ? ", held" : notHeldYet ? ", not held yet" : ""}</span>`;
     const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
     const restWord = held ? "held" : refunded ? "refunded" : "remaining";
     const bar = `<div class="bar" role="img" aria-label="${tok(o.paid)} of ${tok(total)} tokens paid, ${tok(total - o.paid)} ${restWord}">
@@ -616,7 +617,7 @@
       const mine = m ? `<p><b>You refunded ${m.amount !== null ? `${tok(m.amount)} tokens` : "the remaining balance"} in ${txLink(m.hash)}.</b></p>` : "";
       box = `<div class="closed-box">${I("refund")}<div><p>${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</p>${mine}${alsoStops}</div></div>`;
     } else if (closed) {
-      box = `<div class="closed-box">${I("check")}<div><p>Fully paid: every milestone was paid against its own fresh signed record.</p>${alsoStops}</div></div>`;
+      box = `<div class="closed-box">${I("shield")}<div><p>Fully paid: every milestone was paid against its own fresh signed record.</p>${alsoStops}</div></div>`;
     }
 
     const step = box ? null : nextStep(o, ctx);
@@ -645,9 +646,9 @@
         <summary>Audit trail: ${evs.length} on-chain events, newest first</summary>
         <ol class="trail">${evs.map((e) => {
           const l = eventLine(e, o);
-          return `<li><span class="t">${e.time ? clock(e.time) : "#" + e.block}</span><div>
-            <span class="${l.cls || ""}">${l.text}</span>${txLink(e.tx) ? " " + txLink(e.tx) : ""}
-            ${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", I("agent") + "agent") : ""}${l.detail || ""}</div></li>`;
+          // first line: when, the transaction and who sent it; then what happened
+          return `<li><div class="t">${e.time ? clock(e.time) : "#" + e.block}${txLink(e.tx) ? ` · ${txLink(e.tx)}` : ""}${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", I("agent") + "agent") : ""}</div>
+            <div><span class="${l.cls || ""}">${l.text}</span>${l.detail || ""}</div></li>`;
         }).join("")}</ol></details>`
       : `<p class="small-muted">No events found${env.sample ? "" : " in the searched block range. Set the deploy block in Settings to load older events"}.</p>`;
 
@@ -826,8 +827,8 @@
     if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
     else items.push(`Mode <b>${MODE_WORDS[status.mode]}</b>`);
     if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b>`);
-    if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${P.dayClockS(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
-    else if (status.readAt) items.push(`Updated <b>${P.dayClockS(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
+    if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${dayClock(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
+    else if (status.readAt) items.push(`Updated <b>${dayClock(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
     setHTML($("meta"), items.map((x) => `<span>${x}</span>`).join(""));
   }
   renderMeta();
@@ -1053,14 +1054,14 @@
   // ---------------------------------------------------------------- the guide ("How this page works")
 
   const DO = {
-    ok: "Approve the next milestone once the work is delivered (api3/scripts/plus-approve.sh); the agent pays it when it is due.",
+    ok: `Approve the next milestone once the work is delivered (<span class="mono">api3/scripts/plus-approve.sh &lt;order&gt; &lt;milestone from 0&gt;</span>); the agent pays it when it is due.`,
     rule: "Refund the rest from the buyer's wallet now, or let anyone (the agent) do it after the grace period.",
     nodata: "Wait for the grace period; then anyone can send the rest back to you. Nothing bad is known about the supplier.",
     pending: "Nothing: the agent fetches a fresh record before the due date.",
     paid: "Nothing.",
     closed: "Nothing; the audit trail shows who triggered the refund.",
   };
-  $("guide-states").innerHTML = STATE_KEYS.map((k, i) => `<tr><td><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span> <kbd>${i + 1}</kbd></td><td>${STATES[k].def}</td><td>${DO[k]}</td></tr>`).join("");
+  $("guide-states").innerHTML = STATE_KEYS.map((k, i) => `<tr><td><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span> <kbd>${i + 1}</kbd></td><td>${STATES[k].def}</td><td>${DO[k]}${k === "ok" ? P.copyBtn("api3/scripts/plus-approve.sh") : ""}</td></tr>`).join("");
   $("g-unit").textContent = `Amounts are in tokens of test ETH: 1 token = ${UNIT.toLocaleString("en")} wei${UNIT === 10n ** 12n ? " (10¹²), so 1,000,000 tokens are 1 ETH" : `, set by the unit parameter (default 10¹²)`}.`;
   function openGuide(targetId) {
     const g = $("guide");

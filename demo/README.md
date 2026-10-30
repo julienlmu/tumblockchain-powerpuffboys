@@ -4,7 +4,7 @@ Two static pages for `api3/src/SupplierPulsePlus.sol` (spec: `docs/SUPPLIERPULSE
 
 | Page | For | What it does |
 |---|---|---|
-| `index.html` | buyers, the demo video | One card per order: protected remaining balance, milestones (paid, permit valid until, awaiting approval, not due, held, refunded), permit countdown, verification history, last check with failed rules in plain words, refund countdown and "Claim now" when held, the supplier-wide stop and the no-data exit, and the audit trail with the decoded signed data. Above the cards: the agent's autonomous transactions. |
+| `index.html` | buyers, the demo video | One card per order: protected remaining balance, milestones (paid, permit valid until, awaiting approval, not due, held, refunded), permit countdown, verification history, last check with failed rules in plain words, refund countdown and "Refund to buyer (MetaMask)" when held or open to anyone, the supplier-wide stop and the no-data exit, and the audit trail with the decoded signed data. Above the cards: the agent's autonomous transactions. |
 | `judge.html` | judges | "Try to break it": pick an order, paste or load a signed response, press **Submit as is**, **(a) Edit value**, **(b) Too old**, **(c) Different request**, **(d) Wrong key** or **Replay**, plus the real inputs **(b) Real old record** and **(c) Real, other company** (untouched signed records). The tampered response is built in the browser (same rules as `api3/x402/tamper.mjs`, §4.7). The verdict is the contract's own: an `eth_call` of `submitEvidence` from `0x…dEaD`, no wallet, no gas. A checklist shows each check in the contract's order and where it stops; a scoreboard keeps every attempt. |
 | `v1.html` | fallback | The v1 order screen for `SupplierPulse.sol` (`0x91d7…74d7` on Sepolia). |
 
@@ -79,7 +79,7 @@ On **Ethereum Sepolia** (read only):
 
 On a test chain with Sepolia's chain id (anvil `--chain-id 11155111 --block-time 2`), v1.1 deployed **from Orhun's deployer address** (impersonated) between other transactions:
 - Both pages found the contract with no address given; the dashboard decoded the order names.
-- **MetaMask flows**, with an EIP-1193 test wallet in the page that forwards to the chain (the same calls MetaMask gets: `eth_requestAccounts`, `eth_estimateGas`, `eth_sendTransaction`, receipts): judge **Send for real** included (status 1); **Replay** then **Send anyway** reverted on chain (status 0), as simulated; dashboard **Claim now** by the buyer on a held order refunded it (simulation first, then the transaction).
+- **MetaMask flows**, with an EIP-1193 test wallet in the page that forwards to the chain (the same calls MetaMask gets: `eth_requestAccounts`, `eth_estimateGas`, `eth_sendTransaction`, receipts): judge **Send for real** included (status 1); **Replay** then **Send anyway** reverted on chain (status 0), as simulated; dashboard **Refund to buyer (MetaMask)** by the buyer on a held order refunded it (simulation first, then the transaction).
 
 Local anvil chain (31337), `SupplierPulsePlus` v1.1 from `supplierpulse-plus` (`plus-local.sh`, 6 orders), records from Emre's `sign-local.mjs`:
 
