@@ -73,6 +73,37 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien · v1.0 → v1.1 checklists for Orhun and Emre
+- Changed: nothing in code. `orhun/plus-contract` and `emre/plus-data` were built on spec v1.0 (`864fe18`), before v1.1 (`3181439`, ~17:00). Great speed. These are the exact deltas so both fit the agent and each other at C2.
+- **Orhun (contract):**
+  1. `ISupplierPulsePlus.sol` = §4.4 v1.1 verbatim.
+     - New: `applySupplierFailure`, `SupplierFailed(uint256)`, `NoNewerFailure()`, `NotRefundable()` (replaces `NotHeld`), `OrderRefunded(…, bool noDataExit)`, and `supplierRecord(…)` with `uint64 lastBaseFailureAt` before `tier`.
+     - Removed: `effectivePermitTtl`. Bit `0x01` is reserved.
+  2. Companies House template with 3 fields (§4.2): `accounts_overdue` `/accounts/next_accounts/overdue`, `confirmation_overdue` `/confirmation_statement/overdue`, `status` `/company_status`. The vector for `09729896` is `0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f`. Companies House rules ⊆ `0x06`, and `0x01` gives `BadRules`.
+  3. Verification history (§2.4, §4.5):
+     - Only the base status counts.
+     - The record is updated only if `timestamp > lastCheckAt`.
+     - A base failure sets `lastBaseFailureAt`.
+     - **No permit multiplier:** `validUntil = timestamp + permitTtl`, and `Permit` gets `evidenceAt`.
+  4. Supplier-wide stop (§4.5):
+     - `submitEvidence` step 10: a clean record with `timestamp ≤ lastBaseFailureAt` reverts `SupplierFailed`.
+     - `release` requires `permit.evidenceAt > lastBaseFailureAt`.
+     - `applySupplierFailure`.
+  5. `refundRemaining`: Held, Active (the no-data exit: approved, no valid permit, `now ≥ due + refundGrace`, anyone can call), and Closed gives `NotRefundable`. The `orderSchedule.autoRefundAt` semantics change accordingly.
+  6. Tests per §6.1 v1.1: add the supplier-wide stop, the no-data exit and the forward-only history; drop the permit × tier tests.
+  7. Scripts:
+     - `plus-local.sh`: rules `0x06`, plus local orders 4 (`07654321`) and 5 (`99999999`, no data) (§4.8).
+     - `plus-lib.sh`: decode the new error names.
+     - `plus-status.sh`: LAPSED = "LEI renewal overdue".
+- **Emre (data layer):**
+  1. `requests.mjs`: the Companies House projection above (drop `insolvency`, and the rule `0x01` is reserved); the GLEIF `0x08` label is "LEI renewal overdue". In `test-requests.mjs` the vector is `0x6e84…7f0f`.
+  2. `local-registry.json`: `ch:07654321` = `{"accounts_overdue":true,"confirmation_overdue":false,"status":"liquidation"}`. `99999999` stays unknown (exit 3).
+  3. C1a:
+     - verify the new pointers live, applying the fallback in §4.2 if needed;
+     - keep two genuine tamper inputs: an old `09729896` response and a fresh `12493325` response (§4.7).
+  4. `verify.mjs` checks the 3 fields. `plus-submit.sh` decodes `SupplierFailed`, `NoNewerFailure` and `NotRefundable`; `--send` is for the video.
+- Notes: the agent (on `main`) already speaks v1.1 and is running on the live v1 contract as the bonus hedge since 17:03.
+
 ### 2026-10-30 · Julien (agent) · v1.1 and the v1 hedge
 - Changed: the agent follows spec v1.1.
   - **Priority 0:** it holds other orders of a supplier whose register status failed (`applySupplierFailure`, no new fetch).
