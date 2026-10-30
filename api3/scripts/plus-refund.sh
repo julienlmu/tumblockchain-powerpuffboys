@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Refund the remaining balance to the buyer. Held order: the buyer at once, anyone after the grace period.
 # Active order with no data (no-data exit): anyone, once the next milestone is approved, has no valid permit
-# and is overdue by the grace period. The money always goes to the buyer.
+# and the grace period has passed since its due date or its approval, whichever is later. The money always goes to the buyer.
 # Usage: scripts/plus-refund.sh <order id>
 # env: EVM_RPC_URL, BUYER_PRIVATE_KEY, PULSE_PLUS_ADDRESS
 set -euo pipefail

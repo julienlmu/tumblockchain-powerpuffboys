@@ -73,6 +73,16 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · C2.5 review fixes in `SupplierPulsePlus.sol` (Emre's findings 1 and 2)
+- Changed (storage and checks only, no ABI change):
+  - **Finding 1:** `approveMilestone` stores the time of the first approval per milestone (`approvedAt`). The no-data exit now opens at `max(dueDate, approvedAt) + refundGrace`, in `refundRemaining` and in `orderSchedule.autoRefundAt`. A buyer who approves late can no longer approve and refund in the same block; the supplier always gets the full grace. Re-approving does not move the time.
+  - **Finding 2:** `createOrder` reverts `BadOrder` when `permitTtl < maxAge`, so the oldest record the contract accepts still gives a usable permit and `checkAndRelease` cannot fail with `PermitExpired`. `plus-local.sh` (300) and `plus-demo-orders.sh` (1800) already comply.
+  - 4 new tests (late approval, refund after the full grace, re-approval, TTL bound). `forge test`: 115/115.
+- Notes:
+  - **Julien:** `fakes.py` still computes the no-data exit from the due date only. The real contract now reports the later time in `orderSchedule.autoRefundAt`, which the agent already reads.
+  - **Emre:** v2 is not deployed yet. I deploy it at C3 with the demo constants 300/300/600 and send the address.
+- Next: Orhun's OK to merge into `supplierpulse-plus`; C3 deploy.
+
 ### 2026-10-30 · Orhun · real Companies House tests (C1a done)
 - Changed: 7 new tests run Emre's v1.1 Companies House records (`4267d11`, pointers verified live) against the contract:
   - the three request hashes match;

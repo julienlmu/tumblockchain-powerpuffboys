@@ -73,6 +73,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         uint256[] amounts;
         uint64[] dueDates;
         bool[] approved;
+        uint64[] approvedAt; // first approval of each milestone; the no-data exit counts from max(due, approvedAt)
         Permit permit;
     }
 
@@ -138,6 +139,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         o.amounts = amounts;
         o.dueDates = dueDates;
         o.approved = new bool[](amounts.length);
+        o.approvedAt = new uint64[](amounts.length);
         _emitCreated(orderId, o, total);
     }
 
@@ -145,12 +147,14 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         Order storage o = _order(orderId);
         if (msg.sender != o.buyer) revert NotAuthorized();
         if (milestone >= o.amounts.length) revert BadOrder();
+        if (!o.approved[milestone]) o.approvedAt[milestone] = uint64(block.timestamp);
         o.approved[milestone] = true;
         emit MilestoneApproved(orderId, milestone);
     }
 
     /// @notice Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the
-    /// next milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
+    /// next milestone is approved, has no valid permit, and refundGrace has passed since its due date and its approval
+    /// (whichever is later), so a late approval still gives the supplier the full grace. The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external {
         Order storage o = _order(orderId);
         bool noDataExit;
@@ -161,7 +165,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
             uint256 m = o.paidCount;
             if (!o.approved[m]) revert NotApproved(m);
             if (_permitValid(o)) revert NotRefundable();
-            uint256 at = uint256(o.dueDates[m]) + refundGrace;
+            uint256 at = _noDataExitAt(o, m);
             if (block.timestamp < at) revert RefundNotYet(at);
             noDataExit = true;
         } else {
@@ -334,7 +338,7 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         if (o.state == STATE_HELD) {
             autoRefundAt = o.heldAt + refundGrace;
         } else if (o.state == STATE_ACTIVE && o.approved[o.paidCount] && !_permitValid(o)) {
-            autoRefundAt = o.dueDates[o.paidCount] + refundGrace; // the no-data exit
+            autoRefundAt = _noDataExitAt(o, o.paidCount); // the no-data exit
         }
         tier = suppliers[o.supplierKey].tier;
     }
@@ -509,14 +513,21 @@ contract SupplierPulsePlus is ISupplierPulsePlus {
         uint256[] calldata amounts,
         uint64[] calldata dueDates,
         uint64 permitTtl
-    ) internal pure returns (uint256 total) {
-        if (supplier == address(0) || amounts.length == 0 || amounts.length != dueDates.length || permitTtl == 0) {
+    ) internal view returns (uint256 total) {
+        // permitTtl >= maxAge: a permit from any record the contract accepts is still valid when it is issued
+        if (supplier == address(0) || amounts.length == 0 || amounts.length != dueDates.length || permitTtl == 0 || permitTtl < maxAge) {
             revert BadOrder();
         }
         for (uint256 i = 0; i < amounts.length; i++) {
             if (amounts[i] == 0 || (i > 0 && dueDates[i] < dueDates[i - 1])) revert BadOrder();
             total += amounts[i];
         }
+    }
+
+    function _noDataExitAt(Order storage o, uint256 m) internal view returns (uint64) {
+        uint64 due = o.dueDates[m];
+        uint64 approvedAt = o.approvedAt[m];
+        return (approvedAt > due ? approvedAt : due) + refundGrace;
     }
 
     function _emitCreated(uint256 orderId, Order storage o, uint256 total) internal {
