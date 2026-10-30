@@ -34,8 +34,9 @@
   textarea[aria-invalid="true"] { border-color: var(--hold); }
   select[aria-invalid="true"] { border-color: var(--hold); box-shadow: inset 0 0 0 1px var(--hold); }
   #order-msg .link { font-size: inherit; display: inline; }
-  /* three whole lines of JSON (rows="3"), never a line cut in half */
-  textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: auto; resize: vertical; display: block; }
+  /* three whole lines of JSON, never a line cut in half: the box is exactly three line boxes plus the top padding and
+     the border, and has no bottom padding, so the fourth line is clipped at the border */
+  textarea { font-family: var(--mono); font-size: 12px; line-height: 18px; height: calc(3 * 18px + 8px + 2px); padding-bottom: 0; resize: vertical; display: block; }
   .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
   .row select { width: auto; flex: 1 1 200px; }
   #sample .caret { display: inline-flex; margin-left: 2px; }
@@ -62,7 +63,7 @@
   .reg { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 6px; border-radius: var(--r-sm); color: var(--accent); background: var(--accent-bg); }
 
   /* attack controls */
-  button.suite { width: 100%; min-height: 42px; font-size: var(--t0); }
+  button.suite { width: 100%; min-height: 40px; font-size: var(--t0); }
   .attacks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); }
   /* two groups side by side: attempts built in the browser, and real untouched records */
   .attack-groups { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: var(--s3); }
@@ -92,13 +93,13 @@
   .cmd-line { display: flex; gap: 6px; align-items: flex-start; margin-top: 4px; }
   .cmd-line code { flex: 1 1 auto; min-width: 0; }
   .cmd-line .copy { margin-left: 0; flex: none; }
-  .attacks button { min-height: 40px; padding: 6px 8px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
+  .attacks button { min-height: 40px; padding: 5px 8px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
   .attacks button .l { display: flex; gap: 5px; align-items: flex-start; }
   .attacks button .l .i { margin-top: 0.05em; }
   .attacks button .d { color: var(--muted); font-weight: 400; font-size: 11.5px; }
   /* the key and the contract's expected answer are on the button, not only in the guide */
   .attacks button { position: relative; }
-  .attacks button .d.exp { padding-right: 20px; }
+  .attacks button .d.exp { padding-right: 14px; } /* the key badge reaches 12 px into the content box */
   .attacks button .kb { position: absolute; bottom: 5px; right: 5px; font-size: 10px; padding: 1px 4px; color: var(--muted); }
   .attacks button .d.exp .mono { font-size: 11px; color: var(--text); }
   /* neutral buttons: colour only marks the kind (green = the valid record, red marker = an attack); filled colour is kept for results */
@@ -109,10 +110,10 @@
   .attacks button.atk:hover { border-color: var(--hold); }
   .attacks button.real { border-style: dashed; }
   /* the loaded record cannot test this attempt: said on the button before it is pressed */
-  .attacks button .d.blk { color: var(--wait); font-weight: 600; }
+  .attacks button .d.blk { color: var(--wait); font-weight: 600; padding-right: 14px; } /* clear of the key badge */
   .attacks button .d.blk .i { color: var(--wait); }
   /* the expected answer's arrow is the icon set's, not a text glyph */
-  .attacks button .d .i { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 3px; }
+  .attacks button .d .i { width: 0.9em; height: 0.9em; vertical-align: -0.1em; margin-right: 2px; }
 
   /* verdict column: stays beside the buttons while the page scrolls */
   #result { position: sticky; top: var(--s4); }
@@ -160,6 +161,7 @@
   table.score th { text-align: left; color: var(--muted); font-weight: 400; padding: 6px var(--s2) 6px 0; border-bottom: 1px solid var(--line-strong); }
   table.score td { padding: 7px var(--s2) 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
   table.score td:first-child { white-space: nowrap; }
+  table.score td:nth-child(3) { overflow-wrap: normal; } /* attempt names break between words only */
   table.score td.v { font-family: var(--mono); font-size: 12px; overflow-wrap: normal; word-break: normal; }
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
   .qual { color: var(--muted); font-family: var(--sans); font-size: 11.5px; }
@@ -183,7 +185,8 @@
   .tile .x { font-size: 11.5px; color: var(--text); opacity: 0.8; }
   /* passing tiles are outlined, exceptions filled: on a pass the hero is the one focal point */
   .tile.pass { background: transparent; color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
-  .tile.pass .s { color: var(--muted); font-weight: 400; }
+  /* on a pass the hero, the legend and the scoreboard already say it: the status line is for screen readers only */
+  .tile.pass .s { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
   .tile.fail { background: var(--hold-bg); color: var(--hold); border-color: var(--hold); }
   .tile.near { background: var(--wait-bg); color: var(--wait); border-style: dashed; border-color: color-mix(in srgb, var(--wait) 55%, transparent); }
   .tile.na { background: var(--done-bg); color: var(--muted); }
@@ -195,6 +198,16 @@
   button.link:disabled { background: none; border: none; }
   @media (hover: none) { .kb-k, .attacks button .kb { display: none; } }
   body.keys-off .kb-k, body.keys-off .attacks button .kb { display: none; }
+  @media (min-width: 1100px) {
+    /* the header controls share the title row and the tagline runs under both: step 3 stays inside a 1280×720 frame */
+    header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s5); align-items: center; }
+    .meta-row { margin-top: var(--s2); }
+    .layout { margin-top: var(--s3); }
+    header > div:first-child { display: contents; }
+    header h1 { grid-column: 1; grid-row: 1; }
+    header .tagline { grid-column: 1 / -1; grid-row: 2; }
+    header .head-links { grid-column: 2; grid-row: 1; }
+  }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     #result { position: static; }
