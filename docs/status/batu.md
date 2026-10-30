@@ -2,6 +2,12 @@
 
 Newest on top.
 
+### 2026-10-30 ~13:00 · branch `batu/api3-setup`
+- Done: API3 review of the mining payout idea (`docs/BRAINSTORMING.md` on `brainstorm/mining-payout-settlement`), added as section "#6" in `docs/decision-sheet.md`.
+- Checked: AirnodeHub catalogue (no mining pool, hashrate or block reward data). Two free live calls, no aUSD spent: Nodary `latestFeeds` (DOGE, LTC, BTC, ADA in USD) and dRPC `priceSymbols` (621 symbols for `historicalPrices`, incl. DOGE, BTC, LTC, ADA). Read the request-hash rules in `/docs/from-api-to-contract`.
+- Finding: the signed price covers only the valuation. The reward amount would be unsigned or simulated, which is weak on "signed data matters" (30%). The strong mechanism is `historicalPrices` at the reward's own timestamp, with the request hash built on-chain (anti-cherry-picking), plus the agent loop.
+- Next: share with Ulaş and Orhun. Three open checks need one paid call each ($0.01 aUSD), and only with Batu's OK.
+
 ### 2026-10-30 ~12:46 · branch `batu/api3-setup`
 - Done: Base Sepolia ETH from the Coinbase CDP faucet (0.0001 ETH). Minted 10 aUSD with `mintFromFaucet(10000000)`.
 - Mint tx: `0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f`, https://sepolia.basescan.org/tx/0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f

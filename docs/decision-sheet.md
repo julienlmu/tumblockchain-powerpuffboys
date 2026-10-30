@@ -61,6 +61,69 @@ With 1–3, #0 gets real "payment tied to result" and becomes eligible for the A
 
 What proposals 1–3 do **not** fix: real use case (40%) and novelty vs the Nodary starter (10%) [I].
 
+## #6 Mining payout settlement: API3 review (30 Oct, ~13:00)
+
+Idea from `docs/BRAINSTORMING.md` on branch `brainstorm/mining-payout-settlement` (12:37, marked "exploration only"):
+- A mining reward is valued at the coin price **at the moment it is earned** and credited in USD to the user's "savings box".
+- On withdrawal, the balance is paid out, possibly via Cardano.
+
+This section only looks at the API3 side.
+
+### What AirnodeHub has for this idea
+
+Checked today: the catalogue https://airnodehub.api3.org/llms-full.txt, two free live calls, and the docs https://api3dao.github.io/airnodehub-hackathon/docs/ and `/docs/from-api-to-contract`.
+
+| Data | Listing / operation | Signed by | Price | Status |
+|---|---|---|---|---|
+| Current DOGE, LTC, BTC, ADA in USD | Nodary `latestFeeds` | first-party (`0xE70f…E4c0`) | free | **[F] live call OK**: DOGE/USD 0.07576, LTC/USD 55.375, BTC/USD 77424.16, ADA/USD 0.19356. BCH/USD and ETC/USD not served. |
+| **Price at a past moment** | dRPC `historicalPrices` (symbols + Unix ms timestamps) | third-party (`0x511A…2137`) | $0.01 | **[F]** 621 symbols incl. BTC, DOGE, LTC, BCH, ETC, RVN, ZEC, ADA (free `priceSymbols` call). The docs call it "the one reproducible Data API operation". Response shape **not seen yet** (paid call). |
+| Bitcoin wallet balance | dRPC `nonEvmWalletBalances` | third-party | $0.01 | [F] only solana, bitcoin, tron. Not tried. |
+| Mining pool shares, rewards, hashrate, block rewards, Dogecoin chain data | — | — | — | **[F] not on AirnodeHub.** The catalogue has zero matches for mining, miner, hashrate, mining pool, block reward. |
+
+### Against the API3 judging criteria
+
+1. **Real use case (40%)**: medium [I].
+   - Plausible user: a small miner or hosting customer who wants income booked in USD at the time it was earned, e.g. for accounting.
+   - Weak points: the USD credit is backed off-chain until the coins are sold, so the company carries price risk (the brainstorm doc says so itself). Pools already pay out directly. A judge will ask who pays for this and why.
+2. **Signed data matters (30%)**: **the weakest point** [I].
+   - The contract can verify the price, but the **reward amount**, the other half of the credit, comes from pool data that is not on AirnodeHub. It would be unsigned or simulated.
+   - So the agent or operator could still fake the outcome by inflating the reward. That is exactly what this criterion penalises: "With an unsigned API call, anyone could fake the outcome."
+   - Partial fix for BTC only: a signed `nonEvmWalletBalances` could show that a pool payout reached the miner's address. It is coarse (balance, not per transaction) and not checked yet.
+3. **Novelty (10%)**: a plain "latest price" credit is the starter's Nodary pattern [F: fact 6 above]. But there is a stronger mechanism [I]:
+   - Value each reward with `historicalPrices` **at the reward's own timestamp**, and let the contract **build the request hash on-chain** from (symbol, reward timestamp).
+   - Then nobody can pick a convenient moment or price. A response for any other moment fails as "different request".
+   - This anti-cherry-picking rule goes beyond the starter. It needs checking: the docs show on-chain hash building for `POST /` (operation + canonical parameters + projection) with a Nodary example, but `historicalPrices` takes **arrays** as parameters. That encoding is unverified.
+4. **Execution (20%)**: medium [I].
+   - Orhun's signer, request, freshness and replay checks carry over.
+   - New work: a ledger contract, on-chain hash building for array parameters, a check that the signed data's timestamp equals the reward timestamp ("a fresh signature can cover an old value", per the docs), and simulated pool data.
+5. **Agent bonus (+10)**: **good fit** [I]. An agent watches rewards over time, picks coin and moment, pays $0.01 per `historicalPrices` call via x402 (Nodary is free, so it would not need x402), and books on-chain with no human per cycle.
+
+### Tamper test fit
+
+All four cases map cleanly [I]:
+- (a) edited price → wrong signer
+- (b) old signature → too old
+- (c) price for another moment or another coin → different request. This is a strong demo when the hash is built from the reward timestamp.
+- (d) other key → wrong signer
+
+### Submission answer "data we wanted but could not find"
+
+[F] Mining pool share and reward data and Dogecoin chain data are not on AirnodeHub. This is an honest, concrete answer.
+
+### Verdict (Batu's view, for the team to challenge)
+
+- **Workable for API3, but weaker than #3 on "signed data matters" (30%) unless the reward amount is attested too** [I]. In #3 the signed register status *is* the decision. Here the signed price is only half of it.
+- **Stronger than #0** [I], if it uses the reward-timestamp `historicalPrices` mechanism and the agent loop. Both add novelty and the agent bonus over a plain latest-price trigger.
+- Suggested scope if chosen:
+  - one coin (DOGE or BTC)
+  - simulated pool rewards, clearly labelled
+  - contract credits `reward × signed price at reward time` once per reward id
+  - the pitch says plainly that the reward amount is a trusted pool report and the valuation is trustless
+- Open checks before deciding (each one paid call, $0.01 aUSD, Batu's OK needed):
+  1. `historicalPrices` response shape: does the signed data include the requested timestamp?
+  2. Can the request hash for array parameters be rebuilt on-chain?
+  3. Does `nonEvmWalletBalances` return a usable signed balance for a BTC address?
+
 ## Comparison
 
 | # | Idea | Customer & paid job | Payment tied to result | Real vs mocked | Build risk | Cardano fit | API3 fit |

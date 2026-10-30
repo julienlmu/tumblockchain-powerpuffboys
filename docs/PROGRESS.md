@@ -72,6 +72,14 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Next: confirm the seller payout of `c00c4fcf…` (receipt), then a paid job with the real `eth-vault` app (needs the Sepolia `EVM_*` vars in `cardano-agent/.env`).
 - Notes: our agent is not on Sokosumi's agent list (`sokosumi --preprod agents list` shows 20 curated agents). Registering on Masumi does not list it there, so ask the Masumi team on site how to get listed. Qualification does not depend on it: the paid job runs through Masumi escrow on preprod.
 
+### 2026-10-30 · Batu (13:00)
+- Changed: `docs/decision-sheet.md` has a new section "#6 Mining payout settlement: API3 review" for Ulaş's brainstorm branch. Docs only.
+- Next: Ulaş, Orhun and Batu discuss it. Three open checks (one $0.01 call each) are listed at the end of the section.
+- Notes:
+  - AirnodeHub has no mining pool or reward data, so only the price would be signed.
+  - dRPC `historicalPrices` gives a signed price at a past timestamp ($0.01) for DOGE, BTC, LTC, ADA and more.
+  - Nodary serves DOGE/USD, LTC/USD, BTC/USD and ADA/USD for free.
+
 ### 2026-10-30 · Batu (12:46)
 - Changed: nothing in code. Batu has a Base Sepolia test wallet `0xA54506DcE89ff9561534c76C043505a1a484FB4c` (encrypted Foundry keystore `batu-test`) with 10 aUSD and ~0.0001 ETH. Mint tx `0xce7765c73a861212876f59dcf5968aeed3f52344321fe4de5b56a60c9b51216f`.
 - Next: wait for Ulaş's Cardano + API3 idea branch, then the API3 contract work with Orhun.
