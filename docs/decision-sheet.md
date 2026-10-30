@@ -11,6 +11,7 @@ Legend: **[F]** = fact, checked against a source today. **[I]** = inference or j
    Source: https://www.masumi.network/dev/masumi/core-concepts/refunds-and-disputes.md
    → To make "payment tied to result" real, **our code must trigger the refund**: either the seller agent authorizes its own refund when its output fails the check, or a buyer-side verifier agent requests it.
 2. **[F] The current vault code does not do this.** In `cardano-agent/agent.py`, a result is returned even when `executed=false`, so the escrow releases either way.
+   **Outdated (30 Oct, 12:10):** Julien's commit `af864ac` on `main` makes the agent pay-on-pass. With `apps/eth-vault.json`, a result is delivered only if the vault executed, and otherwise `refunds.py` authorizes the buyer's refund. See `cardano-agent/README.md`.
 3. **[F] AirnodeHub listings (from https://airnodehub.api3.org/llms-full.txt):**
 
 | Listing | Attestation | Price per call | Relevant field |

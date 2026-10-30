@@ -2,6 +2,11 @@
 
 Newest on top.
 
+### 2026-10-30 ~12:20 · branch `batu/api3-setup`
+- Done: `git fetch origin && git rebase origin/main`, no conflicts. Main had a new commit from Julien (`af864ac`, pay-on-pass Cardano agent).
+- Done: after the rebase, moved Batu's PROGRESS entries back to the top of the log. Marked decision-sheet fact 2 as outdated, because `af864ac` now delivers a result only when the vault executed.
+- Next: push `batu/api3-setup` after Batu's OK. The branch also carries the four `batu/decision-sheet` commits, since those are not on `main` yet.
+
 ### 2026-10-30 ~12:25 · branch `batu/api3-setup`
 - Done: installed Foundry 1.8.7 (forge, anvil, cast; official `foundryup`, binaries hash-verified) into `~/.foundry/bin`, and pnpm 12.16.1 via `npm install -g pnpm`.
 - Verified: `cd api3 && forge test` passes 15/15. `./scripts/local-demo.sh` runs on anvil: tamper `value`, `stale` and `request` are rejected, the valid response executes, the replay is rejected, and `agent-run.sh` returns `executed: true`.
