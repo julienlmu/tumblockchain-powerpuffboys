@@ -102,7 +102,7 @@ See `docs/evidence.md` for every tx hash with explorer links. Examples:
 - Paid job that passed: lock `cef9996c…49370a2`, result `4d622fc4…d6e9a34`.
 - Job that failed its check and was refunded automatically: lock `457707ea…5194820`, refund withdrawn `0fefbb1b…bd89ffe2b`.
 
-`TODO`: a paid job with the SupplierPulse app (instead of `mock`).
+SupplierPulse app on Cardano (`apps/supplier-pulse.json`, branch `supplier-pulse`): tested on preprod with a simulated EVM side. A held supplier pays the agent (job `09fa4cf7…`); no data refunds the buyer (job `79293455…`). `TODO`: a paid job against the deployed contract.
 
 ## Trust assumptions and limits
 

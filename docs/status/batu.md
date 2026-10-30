@@ -2,6 +2,10 @@
 
 Newest on top.
 
+### 2026-10-30 ~14:16 · branch `batu/api3-setup`
+- Pushed `b1f87ef` (upgrades doc). Then saw Julien's `dd4bc16` on `supplier-pulse` (14:04). It already builds upgrade #1, the Cardano executor that is paid for a verified decision and refunds on no data, tested with a simulated EVM side.
+- Updated `docs/supplierpulse-upgrades.md` #1 and the README draft to say so. Still open: Orhun's `api3/scripts/supplier-agent.sh` and the Sepolia deploy.
+
 ### 2026-10-30 ~14:10 · branch `batu/api3-setup`
 - Done: `docs/supplierpulse-upgrades.md`, six upgrades ranked by value for the judges, plus judge Q&A and an order of work before the freeze.
 - Checked (free, no aUSD spent):

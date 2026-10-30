@@ -27,6 +27,16 @@ The strongest angle we are not using yet is **auditability** [I]:
 
 ### 1. Cardano: paid for a correct decision, refunded when there is no evidence
 
+**Update 14:15: already built by Julien** (`dd4bc16` on `supplier-pulse`, 14:04).
+- New files: `apps/supplier-pulse.json` and `executors/supplier_pulse.py`.
+- `Paid`, `AwaitingApproval` and `Held` pay the agent. `NoData` retries until the deadline; `Rejected` is final. Both of those refund the buyer.
+- Tested on preprod with a **simulated** EVM side (`docs/evidence.md`, on that branch):
+  - job `09fa4cf7…`: held, agent paid
+  - job `79293455…`: no data, 5 tADA refunded
+- Still missing: the real script `api3/scripts/supplier-agent.sh` (Orhun) and the Sepolia deployment.
+
+The original proposal follows.
+
 - `cardano-agent/` already runs any executor that prints `{"passed": …}` [F: `cardano-agent/README.md`, "Executor contract"].
 - New app `apps/supplier-pulse.json` + `executors/supplier_pulse.py`:
   - **`passed: true`** when the contract call `checkAndRelease` succeeded with `Paid`, `AwaitingApproval` **or `Held`**. Blocking a payment to a company in liquidation is a correct, verified decision, so the agent earns its fee.
