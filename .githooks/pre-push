@@ -1,0 +1,28 @@
+#!/bin/sh
+# Reminds you to log your push in docs/PROGRESS.md. Enable with:
+#   git config core.hooksPath .githooks
+# Skip once with: git push --no-verify
+
+remote="$1"
+zero=0000000000000000000000000000000000000000
+missing=0
+
+while read local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    range="$local_sha --not --remotes=$remote"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  if ! git log --format=%H $range -- docs/PROGRESS.md | grep -q .; then
+    missing=1
+  fi
+done
+
+if [ "$missing" = 1 ]; then
+  echo "pre-push: docs/PROGRESS.md was not updated in the commits you are pushing."
+  echo "Add a log entry, commit, then push again."
+  echo "To push anyway: git push --no-verify"
+  exit 1
+fi
+exit 0
