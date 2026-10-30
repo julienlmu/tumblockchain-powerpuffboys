@@ -44,6 +44,23 @@ def build(args):
     return cfg, chain, Executor(chain, fetcher, ledger, journal, cfg)
 
 
+def lock_state(state_dir):
+    """One running agent per state directory: a second run or once would fetch twice, and the last save
+    would lose spend. Returns the open lock file (keep it open), or None while another agent holds it."""
+    try:
+        import fcntl
+    except ImportError:  # not POSIX: no lock
+        return True
+    state_dir.mkdir(parents=True, exist_ok=True)
+    handle = open(state_dir / "agent.lock", "w")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return None
+    return handle
+
+
 def banner(cfg, chain, fake: bool) -> None:
     hosts = ", ".join(urlparse(u).netloc or u for u in cfg.rpc_urls) or "-"  # never print full URLs (may hold keys)
     target = "FAKE chain and registry" if fake else "%s contract %s" % (cfg.contract_version, cfg.contract)
@@ -86,6 +103,10 @@ def main(argv=None) -> int:
             print("nothing to do")
         return 0
 
+    lock = lock_state(cfg.state_dir)
+    if lock is None:
+        print("another agent is running on %s (plan and report work alongside it)" % cfg.state_dir, file=sys.stderr)
+        return 3
     banner(cfg, chain, args.fake)
     ticks = 1 if args.command == "once" else args.ticks
     done = 0

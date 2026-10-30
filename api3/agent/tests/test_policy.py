@@ -160,15 +160,35 @@ class PolicyTest(unittest.TestCase):
         snap = Snapshot(NOW, [o], {"k0": Supplier("k0", 0, NOW - 5, last_base_failure_at=NOW - 60)})
         self.assertEqual(plan(snap, self.ledger, cfg()).actions, [])
 
-    def test_no_data_exit_refunds_after_a_failed_last_try(self):
+    def test_no_data_exit_refunds_after_the_registry_answered_no_data(self):
         o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
         p = plan(snapshot(o), self.ledger, cfg())
         self.assertEqual(self.kinds(p), [("due_check", 0)])  # the data may be back: try once more first
-        self.assertEqual(p.actions[0].reason, "last try before the no-data refund")
-        self.ledger.record_failure(0, NOW, max_attempts=3, exhausted_wait=1800)
+        self.assertEqual(p.actions[0].reason, "check before the no-data refund")
+        self.ledger.record_failure(0, NOW, max_attempts=3, exhausted_wait=1800, kind="no_data")
         p = plan(snapshot(o), self.ledger, cfg())
         self.assertEqual(self.kinds(p), [("refund", 0)])
         self.assertEqual(p.actions[0].reason, "no verified data since the due date")
+
+    def test_a_broken_fetch_is_never_a_reason_to_refund(self):
+        # review finding: FETCH_CMD without PAYER_PRIVATE_KEY (exit 2) refunded a clean, approved order
+        o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        for kind in ("setup_error", "fetch_error", "payment_failed", "verification_failed", "chain_error", "retry",
+                     "dropped", "expected", "reverted"):
+            self.ledger.record_failure(0, NOW, max_attempts=3, exhausted_wait=1800, kind=kind)
+            self.assertNotIn("refund", [a.kind for a in plan(snapshot(o), self.ledger, cfg()).actions], kind)
+
+    def test_no_data_before_the_due_date_needs_one_more_try(self):
+        self.ledger.record_failure(0, NOW - 300, max_attempts=3, exhausted_wait=1800, kind="no_data")
+        o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        self.assertEqual(self.kinds(plan(snapshot(o), self.ledger, cfg())), [("due_check", 0)])
+
+    def test_the_first_try_after_the_due_date_skips_the_backoff_only_once(self):
+        o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
+        self.ledger.record_failure(0, NOW - 10, max_attempts=3, exhausted_wait=1800, kind="fetch_error")  # it timed out
+        p = plan(snapshot(o), self.ledger, cfg())
+        self.assertEqual(p.actions, [])  # no paid fetch every tick: the backoff applies again
+        self.assertEqual(p.skipped[0][1], "retry backoff")
 
     def test_the_last_try_ignores_a_backoff_from_before_the_due_date(self):
         self.ledger.record_failure(0, NOW - 300, max_attempts=1, exhausted_wait=1800)  # exhausted until NOW + 1500
@@ -204,7 +224,7 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual([(a.kind, r) for a, r in p.skipped], [("due_check", "retry backoff")])
 
     def test_no_monitoring_of_an_order_refunded_this_tick(self):
-        self.ledger.record_failure(0, NOW - 100, max_attempts=3, exhausted_wait=1800)  # backoff over at NOW - 70
+        self.ledger.record_failure(0, NOW - 100, max_attempts=3, exhausted_wait=1800, kind="no_data")  # backoff over
         o = order(next_due_date=NOW - 200, auto_refund_at=NOW - 1)
         p = plan(snapshot(o, last_check_at=0), self.ledger, cfg())  # a never-verified supplier is due for monitoring
         self.assertEqual(self.kinds(p), [("refund", 0)])  # no paid fetch for an order that closes this tick

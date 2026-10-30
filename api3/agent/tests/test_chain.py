@@ -17,6 +17,7 @@ REVERT_ENVELOPE = json.dumps({"schema_version": 1, "success": False, "data": Non
     {"level": "error", "code": "cast.error.context", "message":
         'server returned an error response: error code 3: execution reverted, data: '
         '"0x1d61e8ee0000000000000000000000000000000000000000000000000000000000000001"'}], "warnings": []})
+TX = "0x" + "ab" * 32
 RPC_ERROR_ENVELOPE = json.dumps({"schema_version": 1, "success": False, "data": None, "errors": [
     {"level": "error", "code": "cast.error", "message": "server returned an error response: error code -32603: Internal server error"}],
     "warnings": []})
@@ -38,14 +39,20 @@ def proc(stdout="", returncode=0, stderr=""):
 class ScriptedRunner:
     """Answers cast commands by function name, and records which RPC each call used."""
 
-    def __init__(self, answers, bad_rpcs=()):
+    def __init__(self, answers, bad_rpcs=(), receipts=(), bad_receipt_rpcs=()):
         self.answers, self.bad_rpcs, self.calls = answers, set(bad_rpcs), []
+        self.receipts, self.bad_receipt_rpcs = list(receipts), set(bad_receipt_rpcs)
 
     def __call__(self, cmd):
         url = cmd[cmd.index("--rpc-url") + 1] if "--rpc-url" in cmd else None
         self.calls.append((cmd[1], url))
         if url in self.bad_rpcs:
             return proc(RPC_ERROR_ENVELOPE, 1)
+        if cmd[1] == "rpc":  # eth_getTransactionReceipt: the next scripted receipt, None while pending
+            if url in self.bad_receipt_rpcs:
+                return proc(RPC_ERROR_ENVELOPE, 1)
+            receipt = self.receipts.pop(0) if self.receipts else None
+            return proc(json.dumps({"schema_version": 1, "success": True, "data": receipt, "errors": [], "warnings": []}))
         if cmd[1] == "block":
             return proc("1800000000\n")
         if cmd[1] == "wallet":
@@ -109,15 +116,57 @@ class ChainTest(unittest.TestCase):
         with self.assertRaises(ChainError):
             chain.call("ordersLength")
 
-    def test_send_reads_plain_and_wrapped_receipts(self):
-        ok = {"status": "0x1", "transactionHash": "0xabc"}
-        for out in (ok, {"success": True, "data": ok}):
-            chain = Chain("0xc", ["http://a"], private_key="0xk", runner=ScriptedRunner({"release": out}))
-            self.assertEqual(chain.send("release", 1), "0xabc")
-        failed = Chain("0xc", ["http://a"], private_key="0xk",
-                       runner=ScriptedRunner({"release": {"status": "0x0", "transactionHash": "0xdef"}}))
+    def test_send_broadcasts_once_and_follows_the_hash(self):
+        # cast send --async prints the bare hash (cast 1.8.7); the receipt is null while pending
+        runner = ScriptedRunner({"release": proc(TX + "\n")}, receipts=[None, {"status": "0x1", "transactionHash": TX}])
+        chain = Chain("0xc", ["http://a"], private_key="0xk", runner=runner, receipt_poll=0)
+        self.assertEqual(chain.send("release", 1), TX)
+        self.assertEqual([c for c, _ in runner.calls], ["send", "rpc", "rpc"])
+
+    def test_a_receipt_rpc_failure_never_sends_again(self):
+        # an RPC error while waiting (Tenderly -32603): the receipt comes from the next RPC, one transaction only
+        runner = ScriptedRunner({"release": proc(TX + "\n")}, receipts=[{"status": "0x1", "transactionHash": TX}],
+                                bad_receipt_rpcs={"http://a"})
+        chain = Chain("0xc", ["http://a", "http://b"], private_key="0xk", runner=runner, receipt_poll=0)
+        self.assertEqual(chain.send("release", 1), TX)
+        self.assertEqual([c for c, _ in runner.calls].count("send"), 1)
+
+    def test_a_mined_but_reverted_transaction_raises(self):
+        runner = ScriptedRunner({"release": proc(TX + "\n")}, receipts=[{"status": "0x0", "transactionHash": TX}])
         with self.assertRaises(ChainError):
-            failed.send("release", 1)
+            Chain("0xc", ["http://a"], private_key="0xk", runner=runner, receipt_poll=0).send("release", 1)
+
+    def test_a_transaction_not_mined_in_time_is_reported_not_sent_again(self):
+        runner = ScriptedRunner({"release": proc(TX + "\n")})  # the receipt stays null
+        chain = Chain("0xc", ["http://a"], private_key="0xk", runner=runner, receipt_timeout=0, receipt_poll=0)
+        with self.assertRaises(ChainError) as ctx:
+            chain.send("release", 1)
+        self.assertIn(TX, str(ctx.exception))  # the hash goes to the log, so the transaction can be found
+        self.assertEqual([c for c, _ in runner.calls].count("send"), 1)
+
+    def test_errors_carry_neither_the_key_nor_full_rpc_urls(self):
+        key, url = "0x" + "11" * 32, "https://eth-sepolia.example.com/v2/SECRETAPIKEY"
+
+        def runner(cmd):  # cast puts the full URL into connection errors
+            return proc("", 1, "error sending request for url (%s): connection refused: %s" % (url, " ".join(cmd)))
+
+        with self.assertRaises(ChainError) as ctx:
+            Chain("0xc", [url], private_key=key, runner=runner).send("release", 1)
+        text = str(ctx.exception)
+        self.assertNotIn(key[2:], text)
+        self.assertNotIn("SECRETAPIKEY", text)
+        self.assertIn("eth-sepolia.example.com", text)
+
+    def test_a_timeout_deriving_the_address_does_not_leak_the_key(self):
+        key = "0x" + "22" * 32
+
+        def runner(cmd):
+            raise subprocess.TimeoutExpired(cmd, 90)  # its message contains the command, key included
+
+        with self.assertRaises(ChainError) as ctx:
+            Chain("0xc", ["http://a"], private_key=key, runner=runner).address
+        self.assertNotIn(key[2:], repr(ctx.exception))
+        self.assertTrue(ctx.exception.__suppress_context__)  # a printed traceback does not show the command either
 
     def test_snapshot_parses_cast_json(self):
         answers = {

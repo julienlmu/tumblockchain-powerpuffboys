@@ -14,28 +14,41 @@ from model import Evidence
 
 
 class FetchFailed(Exception):
+    """Any other failure (exit 1, timeout, unreadable output). The payment may have settled first."""
+
     kind = "fetch_error"
+    maybe_paid = True  # count the price against the budget
+
+
+class SetupFailed(FetchFailed):
+    """Exit 2, or the command cannot run: usage or a missing PAYER_PRIVATE_KEY. Nothing was paid."""
+
+    kind = "setup_error"
+    maybe_paid = False
 
 
 class NoData(FetchFailed):
-    """Exit 3: the Airnode answered with an error, the supplier is unknown or a field is missing."""
+    """Exit 3: the Airnode answered with an error, the supplier is unknown or a field is missing.
+    The only failure that counts towards the no-data refund. Error answers are not charged."""
 
     kind = "no_data"
+    maybe_paid = False
 
 
 class PaymentFailed(FetchFailed):
     """Exit 4: the x402 payment did not go through (for example no aUSD left)."""
 
     kind = "payment_failed"
+    maybe_paid = False
 
 
 class VerificationFailed(FetchFailed):
-    """Exit 5: unexpected request hash or signer. Never submit such a record."""
+    """Exit 5: unexpected request hash or signer, found after paying. Never submit such a record."""
 
     kind = "verification_failed"
 
 
-EXIT_CODES = {3: NoData, 4: PaymentFailed, 5: VerificationFailed}
+EXIT_CODES = {2: SetupFailed, 3: NoData, 4: PaymentFailed, 5: VerificationFailed}
 
 
 def parse_evidence(text: str) -> Evidence:
@@ -72,9 +85,9 @@ class Fetcher:
             res = self._run(self.cmd + [source, supplier_id], capture_output=True, text=True,
                             cwd=str(self.cwd), timeout=self.timeout)
         except subprocess.TimeoutExpired:
-            raise NoData("fetch timed out after %ss" % self.timeout)
+            raise FetchFailed("fetch timed out after %ss" % self.timeout)  # not "no data": it may have paid
         except OSError as e:
-            raise FetchFailed("cannot run %s: %s" % (self.cmd[0], e))
+            raise SetupFailed("cannot run %s: %s" % (self.cmd[0], e))
         if res.returncode != 0:
             reason = ((res.stderr or "").strip().splitlines() or ["exit %d" % res.returncode])[-1][:300]
             raise EXIT_CODES.get(res.returncode, FetchFailed)(reason)

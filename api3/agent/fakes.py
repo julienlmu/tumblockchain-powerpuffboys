@@ -46,6 +46,7 @@ class FakeChain:
         self.used = set()
         self.sent: List[tuple] = []
         self.gas_gwei = 1.0
+        self.balance = 10 ** 18  # the agent wallet, in wei
         self.address = "0xagent"
 
     # ---- setup and clock
@@ -75,6 +76,9 @@ class FakeChain:
 
     def gas_price_gwei(self) -> float:
         return self.gas_gwei
+
+    def balance_wei(self) -> int:
+        return self.balance
 
     # ---- reads
     def _remaining(self, o: dict) -> int:

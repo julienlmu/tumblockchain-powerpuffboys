@@ -55,21 +55,29 @@ class Ledger:
         entry = self.data["failures"].get(str(order_id))
         return entry is None or now >= entry["next_at"]
 
-    def record_failure(self, order_id: int, now: int, max_attempts: int, exhausted_wait: int) -> Tuple[int, bool]:
+    def record_failure(self, order_id: int, now: int, max_attempts: int, exhausted_wait: int,
+                       kind: str = "fetch_error") -> Tuple[int, bool]:
         """Count a failed attempt. Returns (attempt number, exhausted). Exhausted waits for the next window."""
-        entry = self.data["failures"].get(str(order_id), {"count": 0, "next_at": 0})
+        entry = dict(self.data["failures"].get(str(order_id), {"count": 0, "next_at": 0}), at=now, kind=kind)
+        if kind == "no_data":
+            entry["no_data_at"] = now
         count = entry["count"] + 1
         if count >= max_attempts:
-            self.data["failures"][str(order_id)] = {"count": 0, "next_at": now + exhausted_wait, "at": now}
-            return count, True
-        delay = BACKOFF_SECONDS[min(count - 1, len(BACKOFF_SECONDS) - 1)]
-        self.data["failures"][str(order_id)] = {"count": count, "next_at": now + delay, "at": now}
-        return count, False
+            entry.update(count=0, next_at=now + exhausted_wait)
+        else:
+            entry.update(count=count, next_at=now + BACKOFF_SECONDS[min(count - 1, len(BACKOFF_SECONDS) - 1)])
+        self.data["failures"][str(order_id)] = entry
+        return count, count >= max_attempts
 
     def failed_since(self, order_id: int, ts: int) -> bool:
-        """The agent's last attempt for this order was at or after ts and failed (nothing succeeded since)."""
+        """An attempt for this order failed at or after ts, for any reason, and nothing succeeded since."""
         entry = self.data["failures"].get(str(order_id))
         return entry is not None and entry.get("at", 0) >= ts
+
+    def no_data_since(self, order_id: int, ts: int) -> bool:
+        """The registry answered "no data" for this order at or after ts, and nothing succeeded since."""
+        entry = self.data["failures"].get(str(order_id))
+        return entry is not None and entry.get("no_data_at", 0) >= ts
 
     def clear_failures(self, order_id: int) -> None:
         self.data["failures"].pop(str(order_id), None)

@@ -2,7 +2,8 @@
 
 Signatures come from docs/SUPPLIERPULSE_PLUS.md §4.6. Every call tries the RPCs
 in order (EVM_RPC_URLS) and moves on when one fails at the RPC level; a revert is
-the contract's answer and is raised as Reverted with its error name.
+the contract's answer and is raised as Reverted with its error name. A transaction
+is broadcast once and then followed by its hash, so a failover never sends it twice.
 """
 from __future__ import annotations
 
@@ -10,9 +11,11 @@ import json
 import re
 import shutil
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, List, Optional
+from urllib.parse import urlparse
 
 from model import CLOSED, Order, Snapshot, Supplier
 
@@ -107,6 +110,11 @@ def revert_from_text(text: str) -> Optional[Reverted]:
     return None
 
 
+def rpc_host(url: str) -> str:
+    """The host of an RPC URL: safe to log, while the path or query may hold an API key."""
+    return urlparse(url).netloc or "rpc"
+
+
 def _int(value) -> int:
     return int(str(value).split()[0])
 
@@ -124,18 +132,29 @@ class Chain:
     outcome_names = OUTCOME_NAMES
 
     def __init__(self, contract: str, rpc_urls: List[str], private_key: str = "",
-                 runner: Optional[Callable[[List[str]], subprocess.CompletedProcess]] = None, workers: int = 4):
+                 runner: Optional[Callable[[List[str]], subprocess.CompletedProcess]] = None, workers: int = 4,
+                 receipt_timeout: int = 180, receipt_poll: float = 3.0):
         self.contract = contract
         self.rpc_urls = list(rpc_urls)
         self._key = private_key
         self._run = runner or _run
         self.workers = workers
+        self.receipt_timeout, self.receipt_poll = receipt_timeout, receipt_poll
         self._static = {}  # order id -> [source, supplierId, rules, supplierKey]; never changes
         self._closed = set()  # closed orders are never read again
         self._address = None
         self._preferred = 0  # index of the RPC that answered last: tried first, so a dead one costs one miss
 
     # ---- low level
+    def redact(self, text: str) -> str:
+        """Error text without the agent key or full RPC URLs."""
+        for secret in (self._key, self._key[2:] if self._key.startswith("0x") else ""):
+            if len(secret) >= 32:
+                text = text.replace(secret, "<agent key>")
+        for url in self.rpc_urls:
+            text = text.replace(url, rpc_host(url))
+        return text
+
     def _rpc_order(self) -> List[int]:
         first = self._preferred if self._preferred < len(self.rpc_urls) else 0
         return [first] + [i for i in range(len(self.rpc_urls)) if i != first]
@@ -147,8 +166,8 @@ class Chain:
             cmd = [cast_binary()] + args + (["--json"] if json_out else []) + ["--rpc-url", url]
             try:
                 res = self._run(cmd)
-            except subprocess.TimeoutExpired:
-                last = "timeout"
+            except subprocess.TimeoutExpired:  # never log the command: a send holds the key
+                last = "timeout on %s" % rpc_host(url)
                 continue
             out = (res.stdout or "").strip()
             envelope = None
@@ -176,13 +195,16 @@ class Chain:
             if reverted:
                 self._preferred = index  # the RPC works; the contract said no
                 raise reverted  # another RPC would say the same
-            last = text[-300:]  # RPC-level problem: try the next one
+            last = self.redact(text)[-300:]  # RPC-level problem: try the next one
         raise ChainError(last)
 
     @property
     def address(self) -> str:
         if self._address is None:
-            res = self._run([cast_binary(), "wallet", "address", "--private-key", self._key])
+            try:
+                res = self._run([cast_binary(), "wallet", "address", "--private-key", self._key])
+            except subprocess.TimeoutExpired:  # its message would contain the command, key included
+                raise ChainError("timeout deriving the agent address") from None
             if res.returncode != 0:
                 raise ChainError("cannot derive the agent address from AGENT_PRIVATE_KEY")
             self._address = res.stdout.strip()
@@ -196,19 +218,35 @@ class Chain:
         return self._cast(["call", "--from", self.address, self.contract, self.signatures[name]] + [str(a) for a in args])
 
     def send(self, name: str, *args) -> str:
-        receipt = self._cast(["send", "--private-key", self._key, self.contract,
-                              input_signature(self.signatures[name])] + [str(a) for a in args])
-        if isinstance(receipt, dict) and "data" in receipt and "transactionHash" not in receipt:
-            receipt = receipt["data"]
-        if not isinstance(receipt, dict) or str(receipt.get("status")).lower() not in ("0x1", "1", "true"):
-            raise ChainError("transaction failed: %s" % (receipt.get("transactionHash") if isinstance(receipt, dict) else receipt))
-        return receipt["transactionHash"]
+        """Broadcast once (cast send --async), then poll the receipt by hash, with failover. A slow block or
+        an RPC hiccup while waiting never sends the transaction again."""
+        out = self._cast(["send", "--async", "--private-key", self._key, self.contract,
+                          input_signature(self.signatures[name])] + [str(a) for a in args])
+        tx = str(out[0] if isinstance(out, list) and out else out).strip().strip('"')
+        if not re.fullmatch(r"0x[0-9a-fA-F]{64}", tx):
+            raise ChainError("cast send printed no transaction hash: %s" % self.redact(str(out))[:200])
+        deadline = time.time() + self.receipt_timeout
+        while True:
+            try:
+                receipt = self._cast(["rpc", "eth_getTransactionReceipt", tx])  # null while pending
+            except ChainError:
+                receipt = None  # ask again; the transaction is out already
+            if isinstance(receipt, dict):
+                if str(receipt.get("status")).lower() not in ("0x1", "1", "true"):
+                    raise ChainError("transaction failed: %s" % tx)
+                return tx
+            if time.time() >= deadline:
+                raise ChainError("transaction %s not mined after %ss" % (tx, self.receipt_timeout))
+            time.sleep(self.receipt_poll)
 
     def now(self) -> int:
         return _int(self._cast(["block", "latest", "-f", "timestamp"], json_out=False))
 
     def gas_price_gwei(self) -> float:
         return _int(self._cast(["gas-price"], json_out=False)) / 1e9
+
+    def balance_wei(self) -> int:
+        return _int(self._cast(["balance", self.address], json_out=False))
 
     # ---- state
     def snapshot(self) -> Snapshot:
