@@ -18,58 +18,84 @@
 <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <style>
-  .wrap { max-width: 720px; padding-top: var(--s5); }
+  .wrap { max-width: 1180px; padding-top: var(--s5); }
   header { align-items: center; }
   .brand { font-weight: 700; font-size: var(--t0); color: var(--text); text-decoration: none; }
   .brand:hover { text-decoration: none; }
   .brand .plus { color: var(--accent); }
-  #theme-btn { width: 36px; padding: 0; }
-  main { margin-top: var(--s7); display: flex; flex-direction: column; gap: var(--s5); }
-  .intro h1 { font-size: var(--t5); letter-spacing: -0.02em; }
-  .intro p { margin: var(--s2) 0 0; color: var(--muted); font-size: var(--t1); line-height: 1.45; max-width: 52ch; text-wrap: pretty; }
+  /* one column on phones and tablets; from 1100 px the action and its results share the 1280×720 video frame */
+  main { margin-top: var(--s5); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
+  .col { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+  @media (min-width: 1100px) {
+    main { grid-template-columns: minmax(0, 470px) minmax(0, 1fr); align-items: start; }
+    #res-card { position: sticky; top: var(--s4); }
+  }
+  .intro h1 { font-size: var(--t4); letter-spacing: -0.02em; }
+  .intro p { margin: var(--s2) 0 0; color: var(--muted); font-size: var(--t0); line-height: 1.5; max-width: 58ch; text-wrap: pretty; }
   .intro .ctx { margin-top: var(--s3); font-size: var(--t-1); }
   .intro .ctx b { color: var(--text); font-weight: 500; }
 
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s5); display: flex; flex-direction: column; gap: var(--s3); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: var(--s3); }
+  #res-card { gap: var(--s2); }
   .card h2 { margin: 0; font-size: var(--t0); font-weight: 600; }
   .card-head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between; }
-  .order { display: flex; gap: var(--s2); align-items: center; font-size: var(--t-1); color: var(--muted); min-width: 0; flex: 1 1 240px; justify-content: flex-end; }
-  .order select { flex: 0 1 auto; min-width: 0; max-width: 100%; }
-  .rec-line { margin: 0; display: flex; gap: var(--s2); align-items: flex-start; font-size: var(--t0); }
+  .order { display: flex; flex-direction: column; gap: 4px; font-size: var(--t-1); color: var(--muted); }
+  .order select { width: 100%; }
+  .rec-line { margin: 0; display: flex; gap: var(--s2); align-items: flex-start; }
   .rec-line .i { margin-top: 0.2em; }
   .rec-line.ok .i { color: var(--ok); } .rec-line.warn { color: var(--wait); } .rec-line.bad { color: var(--hold); }
   .rec-line.info { color: var(--muted); }
   .rec-line .sub { color: var(--muted); }
   .rec-line.warn .sub, .rec-line.bad .sub { color: inherit; }
-  .acts { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  .rec-line a { color: var(--accent); }
+  .acts { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; }
   textarea { width: 100%; font-family: var(--mono); font-size: 12px; line-height: 1.45; resize: vertical; display: block; }
   textarea[aria-invalid="true"] { border-color: var(--hold); }
-  button.link { background: none; border: none; padding: 0; min-height: 0; color: var(--accent); font-size: var(--t-1); }
+  /* text buttons keep a 32 px touch target */
+  button.link { background: none; border: none; padding: 6px 0; min-height: 32px; color: var(--accent); font-size: var(--t-1); }
   button.link:hover { background: none; text-decoration: underline; }
-  details.how > summary { color: var(--accent); }
+  details.how > summary, details.help > summary { color: var(--accent); min-height: 32px; }
   .how-body { margin-top: var(--s2); font-size: var(--t-1); color: var(--muted); display: flex; flex-direction: column; gap: var(--s2); }
   .cmd-line { display: flex; gap: 6px; align-items: flex-start; }
   .cmd-line code { flex: 1 1 auto; min-width: 0; background: var(--bg); padding: 6px 8px; border-radius: var(--r-sm); overflow-wrap: anywhere; color: var(--text); }
   .cmd-line .copy { margin-left: 0; flex: none; }
+  /* a dragged file can land anywhere: the record card shows where it goes */
+  body.dragging #rec-card { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
 
   button.run { min-height: 52px; font-size: var(--t1); border-radius: var(--r-lg); }
+  button.run.again { min-height: 40px; font-size: var(--t0); border-radius: var(--r-md); }
+  .kb-k { font-size: 10px; padding: 1px 4px; margin-left: 8px; color: var(--muted); font-weight: 500; }
+  button.primary .kb-k { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 45%, transparent); }
+  @media (hover: none) { .kb-k { display: none; } }
 
   /* the verdict: one sentence, coloured by the outcome, with its icon and word (never colour alone) */
-  .verdict { border-radius: var(--r-md); padding: var(--s4); display: flex; gap: var(--s3); align-items: flex-start; }
-  .verdict .i { width: 28px; height: 28px; stroke-width: 2.2; }
+  #verdict:focus { outline: none; }
+  #verdict:focus-visible .verdict { outline: 2px solid var(--focus); outline-offset: 2px; }
+  #verdict { display: flex; flex-direction: column; gap: var(--s3); }
+  #verdict:empty { display: none; }
+  .verdict { border-radius: var(--r-md); padding: var(--s3) var(--s4); display: flex; gap: var(--s3); align-items: flex-start; }
+  .verdict .i { width: 26px; height: 26px; stroke-width: 2.2; }
   .verdict .big { font-size: var(--t2); font-weight: 700; line-height: 1.2; }
   .verdict .why { margin-top: 2px; color: var(--text); }
+  .verdict .why a { color: inherit; text-decoration: underline; }
   .verdict.ok { background: var(--ok-bg); color: var(--ok); }
   .verdict.warn { background: var(--wait-bg); color: var(--wait); }
   .verdict.bad { background: var(--hold-bg); color: var(--hold); }
+  .verdict.done { background: var(--done-bg); color: var(--done); }
+  .next { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; font-size: var(--t-1); color: var(--muted); }
+  .next .msg { color: var(--text); flex-basis: 100%; }
+  /* old results turn grey, not faint: every word keeps its contrast */
+  #res-card.stale .verdict { background: var(--done-bg); color: var(--done); }
+  #res-card.stale .rows li .st, #res-card.stale .rows li .out { color: var(--muted); font-weight: 400; }
+  .stale-note { margin: 0; font-size: var(--t-1); color: var(--muted); }
 
-  ol.results { list-style: none; margin: 0; padding: 0; }
-  ol.results > li { border-top: 1px solid var(--line); }
-  ol.results > li:first-child { border-top: none; }
-  .line { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: var(--s3); align-items: center; padding: var(--s3) 0; }
-  ol.results summary { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto 14px; gap: var(--s3); align-items: center; width: 100%; padding: var(--s3) 0; color: var(--text); font-size: var(--t0); border-radius: var(--r-sm); }
-  ol.results summary::before { order: 9; color: var(--muted); }
-  ol.results summary:hover { color: var(--text); }
+  .grp { margin: 2px 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .rows { list-style: none; margin: 0; padding: 0; }
+  .rows > li { border-top: 1px solid var(--line); }
+  .rows > li:first-child { border-top: none; }
+  .rows summary { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto 14px; gap: var(--s3); align-items: center; width: 100%; padding: 6px var(--s2); margin: 0 calc(-1 * var(--s2)); box-sizing: content-box; color: var(--text); font-size: var(--t0); border-radius: var(--r-sm); }
+  .rows summary::before { order: 9; color: var(--muted); }
+  .rows summary:hover { color: var(--text); background: var(--raised); }
   .nm { display: flex; flex-direction: column; min-width: 0; }
   .nm b { font-weight: 600; }
   .nm .sub { color: var(--muted); font-size: var(--t-1); }
@@ -84,20 +110,17 @@
   .more { margin: 0 0 var(--s3) calc(24px + var(--s3)); font-size: var(--t-1); color: var(--muted); display: flex; flex-direction: column; gap: var(--s1); overflow-wrap: anywhere; }
   .more p { margin: 0; }
   .more .what { color: var(--text); }
-  .replay-act { margin: 0 0 var(--s3) calc(24px + var(--s3)); display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; font-size: var(--t-1); color: var(--muted); }
-  .foot { margin: 0; font-size: var(--t-1); color: var(--muted); text-align: center; }
+  .help-body { margin-top: var(--s2); font-size: var(--t-1); color: var(--muted); display: flex; flex-direction: column; gap: var(--s2); }
+  .help-body ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+  .help-body b { color: var(--text); font-weight: 500; }
+  .help-body p { margin: 0; }
+  .foot { margin: var(--s5) 0 0; font-size: var(--t-1); color: var(--muted); text-align: center; }
 
   @media (max-width: 520px) {
-    main { margin-top: var(--s5); }
-    .intro h1 { font-size: var(--t4); }
-    .intro p { font-size: var(--t0); }
     .card { padding: var(--s4); }
-    .order { justify-content: flex-start; flex-basis: 100%; }
-    .order select { flex: 1 1 auto; }
-    ol.results summary { grid-template-columns: 24px minmax(0, 1fr) 14px; }
-    ol.results summary .out { grid-column: 2; grid-row: 2; align-items: flex-start; text-align: left; }
-    .line { grid-template-columns: 24px minmax(0, 1fr); }
-    .line .out { grid-column: 2; align-items: flex-start; text-align: left; }
+    #theme-btn .lbl { display: none; }
+    .rows summary { grid-template-columns: 24px minmax(0, 1fr) 14px; }
+    .rows summary .out { grid-column: 2; grid-row: 2; align-items: flex-start; text-align: left; }
   }
 </style>
 </head>
@@ -107,46 +130,52 @@
     <a class="brand" id="dash-link" href="index.html">SupplierPulse<span class="plus">+</span></a>
     <div class="head-links">
       <nav class="view-switch" aria-label="View"><a href="simple.html" aria-current="page">Simple</a><a id="detailed-link" href="judge.html">Detailed</a></nav>
-      <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"></button>
+      <button type="button" id="theme-btn" aria-keyshortcuts="T" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
     </div>
   </header>
 
   <main>
-    <div class="intro">
-      <h1>Try to break it</h1>
-      <p>Forge a signed register record four ways and see whether the live contract would act on any of them. Every attempt is simulated: no wallet, no gas.</p>
-      <p class="ctx" id="ctx">Connecting to the contract…</p>
+    <div class="col">
+      <div class="intro">
+        <h1>Try to break it</h1>
+        <p>Forge a register record signed by an API3 Airnode four ways and see whether the live contract would act on any of them. Every attempt is a free simulation: no wallet, no gas.</p>
+        <p class="ctx" id="ctx">Connecting to the contract…</p>
+      </div>
+
+      <section class="card" id="rec-card" aria-labelledby="rec-h">
+        <h2 id="rec-h">The signed record</h2>
+        <div class="order"><label for="order">Purchase order the record must match</label>
+          <select id="order" aria-describedby="order-hint" disabled><option>Reading the orders…</option></select>
+          <span id="order-hint"></span></div>
+        <p class="rec-line" id="rec-line"></p>
+        <p class="sr-only" id="rec-sr" role="status" aria-live="polite"></p>
+        <div class="acts" id="local-acts" hidden>
+          <button type="button" id="resign" data-icon="key">Sign a new one</button>
+          <button type="button" class="link" id="own-toggle" aria-expanded="false" aria-controls="own">Use my own record instead</button>
+        </div>
+        <div id="own" hidden>
+          <textarea id="resp" rows="4" spellcheck="false" aria-label="Signed record (JSON)" aria-keyshortcuts="Meta+Enter Control+Enter" placeholder="Paste the signed record JSON (from fetch-evidence.sh), or drop the file anywhere on the page"></textarea>
+          <div class="acts" style="margin-top: var(--s2)">
+            <button type="button" id="upload-btn" data-icon="upload">Upload file</button><input type="file" id="file" accept=".json,application/json" hidden>
+            <button type="button" class="link" id="clear-rec">Clear</button>
+            <details class="how" id="how"><summary>Get a fresh record</summary><div class="how-body" id="how-body"></div></details>
+          </div>
+        </div>
+      </section>
+
+      <button type="button" class="primary run" id="run" aria-keyshortcuts="R" disabled>Run the tamper test</button>
     </div>
 
-    <section class="card" aria-labelledby="rec-h">
-      <div class="card-head">
-        <h2 id="rec-h">The signed record</h2>
-        <label class="order">Order <select id="order" disabled><option>Reading the orders…</option></select></label>
-      </div>
-      <p class="rec-line" id="rec-line" role="status" aria-live="polite"></p>
-      <div class="acts" id="local-acts" hidden>
-        <button type="button" id="resign" data-icon="key">Sign a new one</button>
-        <button type="button" class="link" id="own-toggle" aria-expanded="false" aria-controls="own">Use my own record instead</button>
-      </div>
-      <div id="own" hidden>
-        <textarea id="resp" rows="4" spellcheck="false" aria-label="Signed record (JSON)" placeholder="Paste the signed record JSON (from fetch-evidence.sh), or drop the file here"></textarea>
-        <div class="acts" style="margin-top: var(--s2)">
-          <button type="button" id="upload-btn" data-icon="upload">Upload file</button><input type="file" id="file" accept=".json,application/json" hidden>
-          <details class="how" id="how"><summary>No record? Get a fresh one</summary><div class="how-body" id="how-body"></div></details>
-        </div>
-      </div>
+    <section class="card" id="res-card" aria-labelledby="res-h">
+      <div class="card-head"><h2 id="res-h">What the contract says</h2><button type="button" class="link" id="expand-all" aria-pressed="false">Expand all</button></div>
+      <details class="help" id="help"><summary aria-keyshortcuts="?">How the contract decides</summary><div class="help-body" id="help-body"></div></details>
+      <div id="verdict" tabindex="-1"></div>
+      <p class="sr-only" id="verdict-sr" role="status" aria-live="polite"></p>
+      <div id="rows"></div>
     </section>
-
-    <button type="button" class="primary run" id="run" data-icon="play" disabled>Run the tamper test</button>
-
-    <section class="card" aria-labelledby="res-h">
-      <h2 id="res-h">What the contract says</h2>
-      <div id="verdict" role="status" aria-live="polite"></div>
-      <ol class="results" id="results"></ol>
-    </section>
-
-    <p class="foot">The <a id="detailed-foot" href="judge.html">detailed view</a> adds attacks with genuine old records, every check the contract runs, a scoreboard and the judge kit.</p>
   </main>
+
+  <p class="foot">The <a id="detailed-foot" href="judge.html">detailed view</a> adds attacks with genuine old records, every check per attempt, a scoreboard and the judge kit.</p>
 </div>
 
 <script>
@@ -167,15 +196,30 @@
     },
     clean: [{ accounts_overdue: false, confirmation_overdue: false, status: "active" }, { entity_status: "ACTIVE", registration_status: "ISSUED" }],
   };
-  // The real record and the four tamper cases of the API3 track, then the replay.
+  // The real record, the four tamper cases of the API3 track (named as in the detailed view), then the replay.
   const ROWS = [
-    { mode: "asis", name: "The real record", sub: "untouched", expect: "accepted" },
-    { mode: "value", name: "(a) One value edited", sub: "a value in the signed data changed, signature kept", expect: "WrongSigner" },
-    { mode: "stale", name: "(b) Too old", sub: "dated one hour earlier", expect: "StaleResponse" },
-    { mode: "request", name: "(c) Another company", sub: "the request of a different company", expect: "WrongRequest" },
-    { mode: "key", name: "(d) Wrong key", sub: "re-signed by a random key", expect: "WrongSigner" },
+    { mode: "asis", name: "The real record", sub: "untouched", expect: "accepted", check: "should be accepted",
+      before: "The record as the Airnode signed it. The contract should accept it: genuine, fresh and meant for this order." },
+    { mode: "value", name: "(a) Edit value", sub: "one value in the signed data changed, signature kept", expect: "WrongSigner", check: "the signer check should stop it",
+      before: "One value in the signed data is changed (for example status \"active\" → \"liquidation\") and the signature is kept. The signature then recovers to another address, so the signer check should reject it: WrongSigner." },
+    { mode: "stale", name: "(b) Too old", sub: "signed time moved one hour back", expect: "StaleResponse", check: "the freshness check should stop it",
+      before: "The signed time is moved one hour back. The freshness check should reject it: StaleResponse." },
+    { mode: "request", name: "(c) Different request", sub: "another company's request", expect: "WrongRequest", check: "the request check should stop it",
+      before: "The request of another company is swapped in. The request check should reject it: WrongRequest." },
+    { mode: "key", name: "(d) Wrong key", sub: "re-signed by a random key", expect: "WrongSigner", check: "the signer check should stop it",
+      before: "The untouched record is re-signed with a random key. The signer check should reject it: WrongSigner." },
   ];
-  const REPLAY = { mode: "replay", name: "Replay", sub: "the real record, sent a second time", expect: "Replayed" };
+  const REPLAY = { mode: "replay", name: "Replay", sub: "the real record, a second time", expect: "Replayed", check: "the replay check should stop it",
+    before: "After a passed test the real record is sent for real (the one real transaction), then submitted once more. The replay check should reject it: Replayed." };
+  // Not tested: what helps depends on why the contract refused the real record
+  const FIX = {
+    StaleResponse: "get a fresh record and run again", NotNewer: "get a fresh record and run again", Replayed: "get a fresh record and run again",
+    FutureResponse: "check the clock of the machine that signed it, or get a fresh record",
+    NotActive: "this order is held or closed and refuses every record: pick an Active order",
+    WrongRequest: "the record is for another company: pick the order of its supplier, or load a record of this order's supplier",
+    SupplierFailed: "load a record of this supplier signed after its failed one",
+    WrongSigner: "load a record signed by the Airnode this contract trusts (fetch-evidence.sh)",
+  };
 
   try { localStorage.setItem("pulse-view", "simple"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
@@ -188,15 +232,15 @@
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
   function applyTheme() {
     if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-    $("theme-btn").innerHTML = P.icon("theme");
+    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>`;
     $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
-    $("theme-btn").dataset.tip = `Theme: ${theme}`;
   }
-  $("theme-btn").addEventListener("click", () => {
+  function nextTheme() {
     theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
     try { localStorage.setItem("pulse-theme", theme); } catch { /* storage blocked */ }
     applyTheme();
-  });
+  }
+  $("theme-btn").addEventListener("click", nextTheme);
   applyTheme();
   P.hydrateIcons();
 
@@ -207,9 +251,11 @@
   const order = { id: null, info: null, airnode: null };
   const nameOf = P.orderNamer();
   const sent = new Map(); // digest -> block of the records this tab sent for real
-  let record = null, recordErr = "", ownMode = false, busy = false, lastPass = false;
+  let record = null, recordErr = "", ownMode = false, busy = false, stopRequested = false, lastPass = null, haveResults = false, needRecord = false;
   const isLocal = () => chainId === 31337 && version === 2;
   const digestOf = (r) => P.digestOf(r.requestHash, r.timestamp, r.data).toLowerCase();
+  const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const wide = () => matchMedia("(min-width: 1100px)").matches;
 
   // One order model for v1 and v2, the same as judge.html.
   async function readOrder(id) {
@@ -228,41 +274,75 @@
   }
 
   // The other view and the dashboard keep the contract, the network and the order.
+  function detailedHref() {
+    const q = new URLSearchParams();
+    if (cfg.contract) q.set("contract", cfg.contract);
+    if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
+    if (order.id !== null) q.set("order", order.id);
+    return "judge.html" + (q.toString() ? "?" + q : "");
+  }
   function viewLinks() {
     const q = new URLSearchParams();
     if (cfg.contract) q.set("contract", cfg.contract);
     if (cfg.rpc !== P.DEFAULT_RPC) q.set("rpc", cfg.rpc);
     const dq = q.toString();
-    if (order.id !== null) q.set("order", order.id);
-    $("detailed-link").href = $("detailed-foot").href = "judge.html" + (q.toString() ? "?" + q : "");
+    $("detailed-link").href = $("detailed-foot").href = detailedHref();
     $("dash-link").href = (version === 1 ? "v1.html?orders=0,1" + (dq ? "&" + dq : "") : "index.html" + (dq ? "?" + dq : ""));
+  }
+  // Errors in plain words. This page has no Settings panel: where the shared text points there, it links the detailed
+  // view's; an unexpected answer keeps its raw text one click away.
+  function errHtml(e) {
+    const f = P.friendlyError(e, { rpc: cfg.rpc });
+    if (f.kind === "other") {
+      const raw = f.text.replace(/^Unexpected answer from the RPC or the contract: /, "");
+      return `Unexpected answer from the RPC or the contract. <details class="how"><summary>Technical details</summary><span class="mono">${esc(raw)}</span></details>`;
+    }
+    return esc(f.text).replace(/ in Settings/g, ` in the <a href="${detailedHref()}">detailed view's</a> Settings`);
   }
 
   // ---------------------------------------------------------------- the record
 
-  function recLine(kind, html) {
+  // The visible line ticks every second; screen readers hear it only when what it says changes, not each tick.
+  let lastSaid = "";
+  function recLine(kind, html, said) {
     const icon = { ok: "check", warn: "alert", bad: "x", wait: "loader", info: "info" }[kind];
     $("rec-line").className = "rec-line " + kind;
     $("rec-line").innerHTML = `${P.icon(icon, kind === "wait" ? "spin" : "")}<span>${html}</span>`;
+    const say = said || $("rec-line").textContent;
+    if (say !== lastSaid) { lastSaid = say; $("rec-sr").textContent = say; }
   }
   function describe(r) {
     const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
     return `${esc(s.name)} <span class="mono">${esc(r.supplierId || "?")}</span>`;
   }
+  const signerName = (a) => (a && P.KNOWN_SIGNERS[a.toLowerCase()]) || "an Airnode key";
+  const noSetupLink = () => `<a href="${detailedHref()}">attack two genuine old records in the detailed view</a>`;
   // Says what the loaded record is, and what is wrong with it, before Run is pressed.
   function showRecord() {
+    if (!order.info) return;
+    const who = record ? describe(record) : "";
+    if (order.info.state !== 0) {
+      recLine("warn", `Order #${order.id} is ${esc(P.STATE[order.info.state])}: the contract refuses every record for it (<span class="mono">NotActive</span>). <span class="sub">Pick an Active order.</span>`, `Order ${order.id} is ${P.STATE[order.info.state]}: pick an Active order.`);
+      return;
+    }
     if (recordErr) { recLine("bad", esc(recordErr)); return; }
-    if (!record) { recLine("info", ownMode || !isLocal() ? "No record yet. Paste one, upload the file, or get a fresh one below." : "No record yet."); return; }
+    if (!record) {
+      if (needRecord) recLine("warn", `Run needs a signed record first: paste it, upload the file, or get one below.${isLocal() ? "" : ` <span class="sub">No setup? ${noSetupLink()}.</span>`}`, "Run needs a signed record first.");
+      else if (isLocal() && !ownMode) recLine("info", "No record yet.");
+      else recLine("info", `No record yet. A fresh one is one command away: $0.01 in test aUSD, valid ${maxAge} s (below). No setup? ${noSetupLink()}.`, "No record yet.");
+      return;
+    }
     const age = nowSec() - Number(record.timestamp);
-    const who = describe(record);
-    if (order.info && record.supplierId && String(record.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
-      recLine("warn", `A record of ${who}, but this order is for <span class="mono">${esc(order.info.supplierId)}</span>. <span class="sub">Every attempt would stop at the request check: pick the matching order or load its record.</span>`);
+    if (record.supplierId && String(record.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
+      recLine("warn", `A record of ${who}, but this order is for <span class="mono">${esc(order.info.supplierId)}</span>. <span class="sub">Every attempt would stop at the request check: pick the matching order or load its record.</span>`, "The record is for another company than this order.");
     else if (sent.has(digestOf(record)))
-      recLine("warn", `This record of ${who} was sent for real in block ${sent.get(digestOf(record))}. <span class="sub">${isLocal() && !ownMode ? "Press Run: a new one is signed for you." : "Load a fresh one to test again."}</span>`);
+      recLine("info", `This record of ${who} was sent for real in block ${sent.get(digestOf(record))}. <span class="sub">${isLocal() && !ownMode ? "Press Run: a new one is signed for you." : "Load a fresh one to test again."}</span>`, "The record was sent for real.");
     else if (age > maxAge)
-      recLine("warn", `A record of ${who}, signed ${P.ago(age)}. <span class="sub">Too old: the contract accepts at most ${maxAge} s, so every forgery would stop at the freshness check.${isLocal() && !ownMode ? " Press Run: a new one is signed for you." : ""}</span>`);
+      recLine("warn", `A record of ${who}, signed ${P.ago(age)}. <span class="sub">Too old: the contract accepts at most ${maxAge} s, so every forgery would stop at the freshness check.${isLocal() && !ownMode ? " Press Run: a new one is signed for you." : " Get a fresh one below."}</span>`, "The record is too old.");
+    else if (maxAge - age < 60 && !(isLocal() && !ownMode))
+      recLine("warn", `A record of ${who}, signed ${P.ago(Math.max(0, age))}. <span class="sub">Fresh for ${P.span(maxAge - age)} more: run now, or get a new one.</span>`, "The record expires in less than a minute.");
     else
-      recLine("ok", `A fresh record of ${who}, signed ${P.ago(Math.max(0, age))}${isLocal() && !ownMode ? " in your browser with the public local test key" : ""}. <span class="sub">Fresh for ${P.span(maxAge - age)} more.</span>`);
+      recLine("ok", `A fresh record of ${who}, signed ${P.ago(Math.max(0, age))}${isLocal() && !ownMode ? " in your browser with the public local test key" : ""}. <span class="sub">Fresh for ${P.span(maxAge - age)} more.</span>`, "A fresh record is loaded.");
   }
   setInterval(() => { if (record && !recordErr) showRecord(); }, 1000);
 
@@ -270,23 +350,46 @@
     const text = $("resp").value.trim();
     record = null; recordErr = "";
     $("resp").removeAttribute("aria-invalid");
+    $("resp").removeAttribute("aria-describedby");
     if (!text) return;
     let obj;
     try { obj = JSON.parse(text); } catch { recordErr = "This is not valid JSON. Paste the whole file from fetch-evidence.sh."; }
     if (obj) { try { record = P.normalizeRecord(obj, order.info ? order.info.source : 0); } catch (e) { recordErr = `This is not a signed record: ${e.message}.`; } }
-    if (recordErr) $("resp").setAttribute("aria-invalid", "true");
+    if (recordErr) { $("resp").setAttribute("aria-invalid", "true"); $("resp").setAttribute("aria-describedby", "rec-line"); }
   }
+  function recordChanged() { needRecord = false; readBox(); showRecord(); markStale(); }
   let typing = null;
-  $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => { readBox(); showRecord(); resetResults(); }, 300); });
+  $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(recordChanged, 300); });
   async function loadFile(f) {
     if (!f) return;
+    if (!ownMode) setOwn(true, false);
     $("resp").value = await f.text();
-    readBox(); showRecord(); resetResults();
+    recordChanged();
   }
   $("upload-btn").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", async (e) => { await loadFile(e.target.files[0]); e.target.value = ""; });
-  $("resp").addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
-  $("resp").addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (!f) return; e.preventDefault(); loadFile(f); });
+  // a .json file dropped anywhere loads like an upload; the browser never navigates away to it
+  let dragDepth = 0;
+  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+  document.addEventListener("dragenter", (e) => { if (hasFiles(e)) { dragDepth++; document.body.classList.add("dragging"); } });
+  document.addEventListener("dragleave", () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove("dragging"); });
+  document.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  document.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging");
+    if (!busy) loadFile(e.dataTransfer.files[0]);
+  });
+  let clearUndo = null;
+  $("clear-rec").addEventListener("click", () => {
+    const saved = $("resp").value;
+    $("resp").value = ""; recordChanged(); $("resp").focus();
+    if (!saved.trim()) return;
+    recLine("info", `Record cleared · <button type="button" class="link" id="undo-clear">Undo</button>`, "Record cleared.");
+    clearTimeout(clearUndo);
+    clearUndo = setTimeout(() => { if (!$("resp").value) showRecord(); }, 10000);
+    $("undo-clear").addEventListener("click", () => { clearTimeout(clearUndo); $("resp").value = saved; recordChanged(); $("resp").focus(); });
+  });
+  $("resp").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runClick(); } });
 
   // Local test chain: a fresh record of the order's supplier, signed in the browser with the public test key.
   async function signFresh() {
@@ -299,17 +402,17 @@
     const w = new ethers.Wallet(LOCAL.signer[source]);
     const signature = await w.signMessage(ethers.getBytes(P.digestOf(requestHash, ts, data)));
     record = P.normalizeRecord({ source: P.SOURCES[source].key, supplierId: id, airnode: w.address, requestHash, timestamp: ts, data, raw, signature }, source);
-    recordErr = "";
+    recordErr = ""; needRecord = false;
     showRecord();
   }
-  $("resign").addEventListener("click", () => signFresh().then(resetResults).catch((e) => recLine("bad", esc(P.friendlyError(e, { rpc: cfg.rpc }).text))));
-  function setOwn(on) {
+  $("resign").addEventListener("click", () => signFresh().then(markStale).catch((e) => recLine("bad", errHtml(e))));
+  function setOwn(on, focus = true) {
     ownMode = on;
     $("own").hidden = !on;
     $("own-toggle").setAttribute("aria-expanded", String(on));
     $("own-toggle").textContent = on ? "Use a record signed in the browser instead" : "Use my own record instead";
-    if (on) { readBox(); $("resp").focus(); } else if (isLocal() && order.info) signFresh().catch(() => {});
-    showRecord(); resetResults();
+    if (on) { readBox(); if (focus) $("resp").focus(); } else if (isLocal() && order.info) signFresh().catch(() => {});
+    showRecord(); markStale();
   }
   $("own-toggle").addEventListener("click", () => setOwn(!ownMode));
 
@@ -320,36 +423,71 @@
     $("how-body").innerHTML = `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>
       <p style="margin:0">From a checkout of this repo, with Node 22 or newer and <span class="mono">PAYER_PRIVATE_KEY</span> set to a Base Sepolia
       wallet holding aUSD (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>).
-      Each record costs $0.01 and stays fresh for ${maxAge} s. Then upload <span class="mono">response.json</span> here.</p>`;
+      Each record costs $0.01 and stays fresh for ${maxAge} s. Then upload <span class="mono">response.json</span> here, or drop it on the page.</p>`;
+  }
+  function helpText() {
+    const link = explorer ? `<a href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">the contract on the explorer</a>` : "the contract";
+    $("help-body").innerHTML = `<p>The contract checks every record in this order and stops at the first check it fails:</p>
+      <ol><li>The order is active <span class="mono">NotActive</span></li>
+        <li>The request matches the order: stops <b>(c)</b> <span class="mono">WrongRequest</span></li>
+        <li>Not dated in the future <span class="mono">FutureResponse</span></li>
+        <li>Fresh, at most ${maxAge} s old: stops <b>(b)</b> <span class="mono">StaleResponse</span></li>
+        <li>Not used before: stops the <b>replay</b> <span class="mono">Replayed</span></li>
+        <li>Newer than the order's last record <span class="mono">NotNewer</span></li>
+        <li>Signed by the trusted Airnode: stops <b>(a)</b> and <b>(d)</b> <span class="mono">WrongSigner</span></li></ol>
+      <p>"Simulated" means an <span class="mono">eth_call</span> of <span class="mono">submitEvidence</span> from <span class="mono">0x…dEaD</span>: the contract's own answer, with nothing sent.
+        The replay step is the one real transaction. A purchase order pays its milestones only after a fresh signed record of its supplier passes.</p>
+      <p>Keys: <kbd>R</kbd> run · <kbd>Esc</kbd> stop · <kbd>S</kbd> send and replay · <kbd>?</kbd> this help · <kbd>T</kbd> theme · <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs.</p>
+      <p>See ${link} · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">README</a> · <a href="${detailedHref()}">detailed view</a></p>`;
   }
 
   // ---------------------------------------------------------------- results
 
   function rowHtml(row) {
-    const exp = row.expect === "accepted" ? "should be accepted" : `should be rejected`;
     return `<li data-mode="${row.mode}"><details><summary><span class="st" aria-hidden="true"><span class="dot"></span></span>
-      <span class="nm"><b>${esc(row.name)}</b><span class="sub">${esc(row.sub)}</span></span><span class="out">${exp}</span></summary>
-      <div class="more"><p>Expected answer: <span class="mono">${esc(row.expect)}</span>.</p></div></details></li>`;
-  }
-  function replayHtml() {
-    return `<li data-mode="replay"><div class="line"><span class="st" aria-hidden="true"><span class="dot"></span></span>
-      <span class="nm"><b>${REPLAY.name}</b><span class="sub">${REPLAY.sub}</span></span><span class="out">should be rejected</span></div>
-      <div class="replay-act" id="replay-act">After a passed test: send the real record for real, then submit it again.</div></li>`;
+      <span class="nm"><b>${esc(row.name)}</b><span class="sub">${esc(row.sub)}</span></span><span class="out">${esc(row.check)}</span></summary>
+      <div class="more"><p>${esc(row.before)}</p></div></details></li>`;
   }
   function resetResults() {
-    lastPass = false;
-    $("run").classList.add("primary");
+    lastPass = null; haveResults = false;
+    $("res-card").classList.remove("stale");
     $("verdict").innerHTML = "";
-    $("results").innerHTML = ROWS.map(rowHtml).join("") + replayHtml();
+    $("rows").innerHTML = `<ul class="rows">${rowHtml(ROWS[0])}</ul><h3 class="grp">The four forgeries</h3><ol class="rows">${ROWS.slice(1).map(rowHtml).join("")}</ol>
+      <h3 class="grp">After a pass</h3><ul class="rows">${rowHtml(REPLAY)}</ul>`;
+    runLabel();
+    syncExpand();
+  }
+  // Results stay after a change, dimmed, until the next run: a recorded demo never loses its evidence by accident.
+  function markStale() {
+    if (!haveResults || busy) return;
+    $("res-card").classList.add("stale");
+    const next = $("verdict").querySelector(".next");
+    if (next) next.remove();
+    if (!$("verdict").querySelector(".stale-note")) $("verdict").insertAdjacentHTML("afterbegin", `<p class="stale-note">These results are for the record or order before your change. Press Run to test again.</p>`);
+    lastPass = null;
+    runLabel();
   }
   function setRow(mode, state, out, more) {
-    const li = $("results").querySelector(`li[data-mode="${mode}"]`);
+    const li = $("rows").querySelector(`li[data-mode="${mode}"]`);
     li.className = state;
     const icon = { running: P.icon("loader", "spin"), pass: P.icon("check"), near: P.icon("alert"), fail: P.icon("x") }[state] || `<span class="dot"></span>`;
     li.querySelector(".st").innerHTML = icon;
     if (out !== undefined) li.querySelector(".out").innerHTML = out;
-    if (more !== undefined && li.querySelector(".more")) li.querySelector(".more").innerHTML = more;
+    if (more !== undefined) li.querySelector(".more").innerHTML = more;
   }
+  function syncExpand() {
+    const ds = [...$("rows").querySelectorAll("details")];
+    const all = ds.length > 0 && ds.every((d) => d.open);
+    $("expand-all").textContent = all ? "Collapse all" : "Expand all";
+    $("expand-all").setAttribute("aria-pressed", String(all));
+  }
+  $("expand-all").addEventListener("click", () => {
+    const ds = [...$("rows").querySelectorAll("details")];
+    const open = !ds.every((d) => d.open);
+    for (const d of ds) d.open = open;
+    syncExpand();
+  });
+  $("rows").addEventListener("toggle", syncExpand, true);
 
   // One attempt: the tampered record, asked of the contract as an eth_call of submitEvidence from 0x…dEaD.
   async function attempt(base, mode) {
@@ -373,7 +511,7 @@
   function outText(row, a, state) {
     if (a.accepted) return row.mode === "asis" ? `Accepted<span>${a.clean ? "would pay this milestone" : "would hold the order"}</span>` : "Accepted: not stopped";
     const name = `<span class="mono">${esc(a.err.name)}</span>`;
-    return row.mode === "asis" ? `Refused${name}` : state === "pass" ? `Rejected${name}` : `Rejected earlier${name}`;
+    return row.mode === "asis" ? `Refused${name}` : state === "pass" ? `Rejected${name}` : `Rejected by an earlier check${name}`;
   }
   function moreText(row, a, state) {
     const why = a.accepted
@@ -383,70 +521,129 @@
     return `<p class="what">${esc(a.t.what)}</p><p>${esc(why)}</p>${note}`;
   }
 
-  function verdict(kind, big, why) {
-    const icon = { ok: "shield", warn: "alert", bad: "x" }[kind];
-    $("verdict").innerHTML = `<div class="verdict ${kind}">${P.icon(icon)}<div><div class="big">${big}</div><div class="why">${why}</div></div></div>`;
+  function verdict(kind, big, why, next = "") {
+    const icon = { ok: "shield", warn: "alert", bad: "x", done: "stop" }[kind];
+    $("verdict").innerHTML = `<div class="verdict ${kind}">${P.icon(icon)}<div><div class="big">${big}</div><div class="why">${why}</div></div></div>${next}`;
+    $("verdict-sr").textContent = `${big}. ${$("verdict").querySelector(".why").textContent}`;
+    P.hydrateIcons($("verdict"));
   }
-  function setBusy(on, label) {
-    busy = on;
-    for (const b of document.querySelectorAll("#run, #resign, #order, #upload-btn, #resp, #own-toggle, #replay-btn")) b.disabled = on;
-    $("run").innerHTML = on ? `${P.icon("loader", "spin")}${label}` : `${P.icon("play")}Run the tamper test`;
-    $("results").setAttribute("aria-busy", String(on));
+  // The run button: Run, Stop while a run goes (Esc too), and a smaller "Run again" once results are in.
+  function runLabel() {
+    const b = $("run");
+    if (busy) { b.innerHTML = `${P.icon("stop")}Stop<kbd class="kb-k" aria-hidden="true">Esc</kbd>`; return; }
+    b.classList.toggle("again", haveResults);
+    b.classList.toggle("primary", !lastPass); // after a pass, the replay is the next step
+    b.innerHTML = `${P.icon("play")}${haveResults ? "Run again" : "Run the tamper test"}<kbd class="kb-k" aria-hidden="true">R</kbd>`;
+  }
+  function setBusy(on) {
+    busy = on; stopRequested = false;
+    for (const b of document.querySelectorAll("#resign, #order, #upload-btn, #resp, #own-toggle, #clear-rec, #replay-btn")) b.disabled = on;
+    $("res-card").setAttribute("aria-busy", String(on));
+    runLabel();
+  }
+  function bringResults() {
+    // one column: the results are below the button, so bring their heading into view as the run starts
+    if (wide()) return;
+    $("res-h").scrollIntoView({ block: "start", behavior: reduced() ? "auto" : "smooth" });
+  }
+  // the run button keeps focus (it is Stop, then Run again); a lost focus lands on the verdict
+  function settleFocus() {
+    if (!document.activeElement || document.activeElement === document.body) $("verdict").focus({ preventScroll: wide() });
   }
 
   async function runTest() {
     if (busy || !order.info) return;
+    if (order.info.state !== 0) { showRecord(); return; }
     if (isLocal() && !ownMode && (!record || sent.has(digestOf(record)) || nowSec() - Number(record.timestamp) > maxAge - 20)) await signFresh();
     if (ownMode) readBox();
-    if (!record) {
+    if (!record || recordErr) {
+      needRecord = !record && !recordErr;
       showRecord();
-      if (ownMode || !isLocal()) { $("resp").focus(); $("how").open = true; }
+      if (ownMode || !isLocal()) { $("how").open = true; $("resp").focus(); }
       return;
     }
     const age = (await chainNow()) - Number(record.timestamp);
     if (age > maxAge || sent.has(digestOf(record))) {
       resetResults();
-      verdict("warn", sent.has(digestOf(record)) ? "This record is already on chain" : `This record is ${P.span(age)} old`,
-        `With it, every forgery would stop ${sent.has(digestOf(record)) ? "early" : "at the freshness check"}, so the test would show nothing. Get a fresh one (below) and run again.`);
+      const used = sent.has(digestOf(record));
+      verdict("warn", used ? "This record is already on chain" : `This record is ${P.span(age)} old`,
+        `With it, every forgery would stop ${used ? "early" : "at the freshness check"}, so the test would show nothing. Get a fresh one (in the record card) and run again.`);
       $("how").open = true;
-      $("verdict").scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      bringResults(); settleFocus();
       return;
     }
     resetResults();
+    setBusy(true);
+    bringResults();
     const results = [];
-    setBusy(true, "Asking the contract…");
     try {
-      for (const [i, row] of ROWS.entries()) {
-        $("run").innerHTML = `${P.icon("loader", "spin")}Asking the contract… ${i + 1} of ${ROWS.length}`;
-        setRow(row.mode, "running");
+      for (const row of ROWS) {
+        if (stopRequested) break;
+        setRow(row.mode, "running", "asking the contract…");
         const a = await attempt(record, row.mode);
         const state = judge(row, a);
         results.push({ row, a, state });
         setRow(row.mode, state, outText(row, a, state), moreText(row, a, state));
       }
     } catch (e) {
-      for (const row of ROWS) if ($("results").querySelector(`li[data-mode="${row.mode}"]`).className === "running") setRow(row.mode, "");
-      verdict("bad", "Could not ask the contract", `${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)} Nothing was sent; press Run to try again.`);
+      for (const row of ROWS) if ($("rows").querySelector(`li[data-mode="${row.mode}"]`).className === "running") setRow(row.mode, "", "not asked");
+      setBusy(false);
+      verdict("bad", "Could not ask the contract", `${errHtml(e)} Nothing was sent; press Run to try again.`);
+      settleFocus();
       return;
-    } finally { setBusy(false); }
+    }
+    const stopped = stopRequested && results.length < ROWS.length;
+    setBusy(false);
+    haveResults = true;
+    if (stopped) {
+      for (const row of ROWS.slice(results.length)) setRow(row.mode, "", "not asked");
+      verdict("done", "Stopped", `Stopped by you after ${results.length} of ${ROWS.length} attempts. Nothing was sent; press Run to test again.`);
+      runLabel(); settleFocus();
+      return;
+    }
     const valid = results[0], attacks = results.slice(1);
     const caught = attacks.filter((x) => !x.a.accepted).length;
     if (valid.a.accepted && caught === attacks.length) {
-      lastPass = true;
-      verdict("ok", "Passed", `The contract accepted the real record and rejected all ${attacks.length} forgeries. Press a row to see why.`);
-      $("replay-act").innerHTML = `<button type="button" class="primary" id="replay-btn" data-icon="send">Send for real, then replay</button>
-        <span>${isLocal() ? "Sent with the local test chain's agent key." : "MetaMask asks first; it costs a little Sepolia gas."}</span>`;
-      P.hydrateIcons($("replay-act"));
-      $("run").classList.remove("primary");
+      lastPass = { record };
+      verdict("ok", "Passed", `Not broken: the contract accepted the real record and rejected all ${attacks.length} forgeries. Press a row to see why.`, replayAction());
     } else if (caught === attacks.length) {
-      verdict("warn", "Not tested", `The contract refused the real record itself (<span class="mono">${esc(valid.a.err.name)}</span>), so the forgeries never reached their own checks. Nothing failed in the contract: load a fresh record and run again.`);
+      const n = valid.a.err.name;
+      verdict("warn", "Not tested", `The contract refused the real record itself (<span class="mono">${esc(n)}</span>: ${esc(P.explain(n, valid.a.err.args))}), so the forgeries never reached their own checks. Nothing failed in the contract: ${esc(FIX[n] || "load a fresh record and run again")}.`);
     } else {
-      verdict("bad", "Not passed", `The contract accepted ${attacks.length - caught === 1 ? "a forgery" : `${attacks.length - caught} forgeries`}: ${attacks.filter((x) => x.a.accepted).map((x) => esc(x.row.name)).join(", ")}.`);
+      verdict("bad", "Not passed", `Broken: the contract accepted ${attacks.length - caught === 1 ? "a forgery" : `${attacks.length - caught} forgeries`}: ${attacks.filter((x) => x.a.accepted).map((x) => esc(x.row.name)).join(", ")}.`);
     }
+    runLabel();
+    settleFocus();
   }
-  $("run").addEventListener("click", () => runTest().catch((e) => { setBusy(false); verdict("bad", "Could not ask the contract", esc(P.friendlyError(e, { rpc: cfg.rpc }).text)); }));
+  function runClick() {
+    if (busy) { stopRequested = true; $("run").innerHTML = `${P.icon("loader", "spin")}Stopping after this attempt…`; return; }
+    runTest().catch((e) => { setBusy(false); verdict("bad", "Could not ask the contract", errHtml(e)); });
+  }
+  $("run").addEventListener("click", runClick);
 
-  // The replay step: the one real transaction. Local chain: the public agent key; elsewhere: MetaMask.
+  // The replay step, offered under the verdict after a pass: the one real transaction. Local chain: the public agent
+  // key, after a second press (nothing else asks); elsewhere MetaMask asks.
+  function replayAction(msg = "") {
+    return `<div class="next"><button type="button" class="primary" id="replay-btn" data-icon="send" aria-keyshortcuts="S">Send for real, then replay<kbd class="kb-k" aria-hidden="true">S</kbd></button>
+      <span>${isLocal() ? "Sent with the local test chain's agent key." : "MetaMask asks first; it costs a little Sepolia gas."}</span>${msg ? `<span class="msg" role="status">${msg}</span>` : ""}</div>`;
+  }
+  let armTimer = null;
+  function armed(btn) {
+    if (!isLocal() || btn.dataset.armed) return true;
+    btn.dataset.armed = "1";
+    btn.innerHTML = `${P.icon("send")}Confirm: send for real with the local test key`;
+    btn.insertAdjacentHTML("afterend", `<button type="button" class="link" id="replay-cancel">Cancel</button>`);
+    armTimer = setTimeout(() => disarm(btn), 8000);
+    btn.focus({ preventScroll: true });
+    return false;
+  }
+  function disarm(btn) {
+    if (!btn || !btn.dataset.armed) return;
+    clearTimeout(armTimer);
+    delete btn.dataset.armed;
+    btn.innerHTML = `${P.icon("send")}Send for real, then replay<kbd class="kb-k" aria-hidden="true">S</kbd>`;
+    const c = $("replay-cancel"); if (c) c.remove();
+  }
   async function sendForReal(r) {
     let signer;
     if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
@@ -459,34 +656,81 @@
     }
     const c = new ethers.Contract(cfg.contract, version === 2 ? P.ABI : P.ABI_V1, signer);
     const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature);
-    $("replay-act").innerHTML = `${P.icon("loader", "spin")}<span>Sent ${txLink(tx.hash)}, waiting for the block…</span>`;
+    setRow("replay", "running", `sent ${txLink(tx.hash)}, waiting for the block…`);
     let rc;
     try { rc = await tx.wait(); } catch (e) { rc = e.receipt || null; if (!rc) throw e; } // ethers 6 throws on a reverted receipt
     return { status: rc.status, hash: tx.hash, block: rc.blockNumber };
   }
   const txLink = (h) => explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}</a>` : `<span class="mono">${short(h)}</span>`;
+  function keepReplay(msg) {
+    // a failed or cancelled send keeps its button: the passed test still stands
+    const next = $("verdict").querySelector(".next");
+    if (next) next.outerHTML = replayAction(msg); else $("verdict").insertAdjacentHTML("beforeend", replayAction(msg));
+    P.hydrateIcons($("verdict"));
+    $("replay-btn").focus({ preventScroll: true });
+  }
   async function replay() {
-    if (busy || !lastPass || !record) return;
-    const r = record;
-    setBusy(true, "Sending the real record…");
-    setRow("replay", "running");
+    if (busy || !lastPass) return;
+    const r = lastPass.record;
+    setBusy(true);
+    $("run").disabled = true;
+    $("run").innerHTML = `${P.icon("loader", "spin")}Sending the real record…`;
+    setRow("replay", "running", "sending…");
+    let s;
+    try { s = await sendForReal(r); }
+    catch (e) {
+      const err = P.decodeRevert(iface, e);
+      setRow("replay", "", REPLAY.check);
+      setBusy(false); $("run").disabled = false; runLabel();
+      keepReplay(err ? `Not sent: the contract refuses it with <span class="mono">${esc(err.name)}</span>. ${esc(P.explain(err.name, err.args))}`
+        : e.message && e.message.startsWith("No browser wallet") ? esc(e.message) : errHtml(e));
+      return;
+    }
+    if (s.status !== 1) {
+      setRow("replay", "", REPLAY.check);
+      setBusy(false); $("run").disabled = false; runLabel();
+      keepReplay(`Reverted on chain in block ${s.block} (${txLink(s.hash)}): the record was most likely used or expired between the check and the send. Press Run for a fresh check.`);
+      return;
+    }
+    sent.set(digestOf(r), s.block);
+    setRow("replay", "running", "submitting it again…");
     try {
-      const s = await sendForReal(r);
-      if (s.status !== 1) { setRow("replay", "fail", "Not sent"); $("replay-act").innerHTML = `The send reverted on chain in block ${s.block}: ${txLink(s.hash)}`; return; }
-      sent.set(digestOf(r), s.block);
-      $("run").innerHTML = `${P.icon("loader", "spin")}Submitting it again…`;
       const a = await attempt(r, "replay");
       const state = a.accepted ? "fail" : a.err.name === "Replayed" ? "pass" : "near";
-      setRow("replay", state, a.accepted ? "Accepted: not stopped" : `${state === "pass" ? "Rejected" : "Rejected earlier"}<span class="mono">${esc(a.err.name)}</span>`);
-      $("replay-act").innerHTML = `<span>Sent for real in block ${s.block} (${txLink(s.hash)}). Submitted again: ${a.accepted ? "accepted" : esc(P.explain(a.err.name, a.err.args))}</span>`;
-      lastPass = false;
+      setRow("replay", state, a.accepted ? "Accepted: not stopped" : `${state === "pass" ? "Rejected" : "Rejected by an earlier check"}<span class="mono">${esc(a.err.name)}</span>`,
+        `<p class="what">Sent for real in block ${s.block} (${txLink(s.hash)}), then submitted once more.</p><p>${esc(a.accepted ? "The contract accepted it a second time." : P.explain(a.err.name, a.err.args))}</p>`);
+      if (state === "pass") verdict("ok", "Passed, replay included", `Not broken: the real record was accepted and sent once (block ${s.block}); the 4 forgeries and the replay were rejected.`);
+      else verdict("bad", "Not passed", a.accepted ? "Broken: the contract accepted the same record twice." : `The replay was rejected, but by an earlier check (<span class="mono">${esc(a.err.name)}</span>).`);
+      lastPass = null;
     } catch (e) {
-      const err = P.decodeRevert(iface, e);
-      setRow("replay", "");
-      $("replay-act").innerHTML = `<span>${err ? `Not sent: the contract refuses it with <span class="mono">${esc(err.name)}</span>. ${esc(P.explain(err.name, err.args))}` : esc(e.message && e.message.startsWith("No browser wallet") ? e.message : P.friendlyError(e, { rpc: cfg.rpc }).text)}</span>`;
-    } finally { setBusy(false); showRecord(); }
+      setRow("replay", "", "not asked");
+      verdict("warn", "Sent, replay not asked", `The record was sent for real in block ${s.block} (${txLink(s.hash)}), but the second submission could not be asked: ${errHtml(e)}`);
+    } finally {
+      setBusy(false); $("run").disabled = false; runLabel(); showRecord();
+      const sum = $("rows").querySelector('li[data-mode="replay"] summary');
+      if (sum && (!document.activeElement || document.activeElement === document.body)) sum.focus({ preventScroll: true });
+    }
   }
-  $("results").addEventListener("click", (e) => { if (e.target.closest("#replay-btn")) replay().catch(() => setBusy(false)); });
+  $("res-card").addEventListener("click", (e) => {
+    const t = e.target.closest("button");
+    if (!t || t.disabled) return;
+    if (t.id === "replay-btn") { if (armed(t)) { disarm(t); replay().catch(() => setBusy(false)); } }
+    else if (t.id === "replay-cancel") { const b = $("replay-btn"); disarm(b); if (b) b.focus(); }
+  });
+
+  // ---------------------------------------------------------------- keys: R run, Esc stop, S send and replay, ? help, T theme
+
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]")) return;
+    const k = e.key;
+    if ((k === "r" || k === "R") && !busy && !$("run").disabled) { e.preventDefault(); runClick(); }
+    else if (k === "Escape" && busy && !$("run").disabled) { e.preventDefault(); runClick(); }
+    else if (k === "Escape" && $("replay-btn") && $("replay-btn").dataset.armed) { e.preventDefault(); const b = $("replay-btn"); disarm(b); b.focus(); }
+    else if (k === "Escape" && $("help").open) { e.preventDefault(); $("help").open = false; $("help").querySelector("summary").focus(); }
+    else if ((k === "s" || k === "S") && !busy && $("replay-btn") && !$("replay-btn").disabled) { e.preventDefault(); $("replay-btn").click(); }
+    else if (k === "?") { e.preventDefault(); const h = $("help"); h.open = !h.open; h.querySelector("summary").focus(); if (h.open) h.scrollIntoView({ block: "nearest" }); }
+    else if (k === "t" || k === "T") { e.preventDefault(); nextTheme(); }
+  });
 
   // ---------------------------------------------------------------- orders and start
 
@@ -497,12 +741,13 @@
     const q = new URLSearchParams(location.search);
     q.set("order", id);
     history.replaceState(null, "", "?" + q);
-    viewLinks();
-    howToGet();
-    resetResults();
+    const s = P.SOURCES[order.info.source];
+    $("order-hint").innerHTML = `Supplier ${esc(s.name)} <span class="mono">${esc(order.info.supplierId)}</span> · trusted signer: ${esc(signerName(order.airnode))} <span class="mono">${short(order.airnode)}</span>`;
+    viewLinks(); howToGet(); helpText();
     if (isLocal() && !ownMode) await signFresh(); else { readBox(); showRecord(); }
+    markStale();
   }
-  $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => recLine("bad", esc(P.friendlyError(err, { rpc: cfg.rpc }).text))));
+  $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => recLine("bad", errHtml(err))));
 
   async function init() {
     resetResults();
@@ -514,7 +759,7 @@
       const v2 = await P.discoverV2(provider);
       if (v2) cfg.contract = v2;
       else if (chainId === 11155111) cfg.contract = P.V1_SEPOLIA;
-      else throw new Error("No SupplierPulse+ contract found on this network. Open the detailed view to enter its address in Settings.");
+      else throw new Error("No SupplierPulse+ contract found on this network.");
     }
     if ((await provider.getCode(cfg.contract)) === "0x") throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
     contract = new ethers.Contract(cfg.contract, P.ABI, provider);
@@ -526,11 +771,11 @@
     $("local-acts").hidden = !isLocal();
     $("own").hidden = isLocal();
     ownMode = !isLocal();
-    viewLinks();
+    viewLinks(); helpText();
     const count = Number(await contract.ordersLength());
     if (!count) { $("order").innerHTML = "<option>No orders yet</option>"; recLine("warn", "This contract has no orders yet: there is nothing to attack. The buyer creates one with api3/scripts/plus-create-order.sh."); return; }
     const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
-    $("order").innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">#${i}${n ? " " + esc(n) : ""} · ${P.STATE[o.state]}</option>`; }).join("");
+    $("order").innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">#${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`; }).join("");
     // a held or closed order refuses every record: start on the first active one unless the URL names an order
     const asked = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : -1;
     const want = asked >= 0 ? asked : Math.max(0, infos.findIndex((o) => o.state === 0));
@@ -542,7 +787,7 @@
   init().catch((e) => {
     const f = P.friendlyError(e, { rpc: cfg.rpc, reading: true, contract: cfg.contract });
     $("ctx").textContent = "Not connected.";
-    recLine("bad", `${esc(e.message && e.message.startsWith("No SupplierPulse+") ? e.message : f.text)} <a href="${$("detailed-link").href}">Open the detailed view</a> to change the contract or the network.`);
+    recLine("bad", `${esc(e.message && e.message.startsWith("No SupplierPulse+") ? e.message : f.text.replace(/ in Settings/g, ""))} <a href="${detailedHref()}">Open the detailed view</a> to change the contract or the network in its Settings.`);
   });
 })();
 </script>
