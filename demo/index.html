@@ -52,6 +52,10 @@
   .toolbar .sort-label { display: inline-flex; gap: 6px; align-items: center; }
   .toolbar select { min-height: 30px; padding: 4px 8px; }
   summary .key-hint { font-size: 10px; margin-left: 2px; }
+  body.keys-off .state-btn kbd, body.keys-off summary .key-hint, body.keys-off .toolbar .keys kbd { display: none; }
+  .keys-toggle { min-height: 28px; padding: 2px 10px; margin-right: var(--s2); vertical-align: middle; }
+  .keys-toggle .state { font-weight: 600; color: var(--accent); }
+  .keys-toggle[aria-checked="false"] .state { color: var(--muted); }
   /* One cue per behaviour. A term that opens its guide entry: dotted underline plus a small help mark.
      A value with a tooltip (full address, digest): dashed bottom border. A link that leaves the page: the external mark. */
   .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 0; min-height: 0; display: inline; cursor: help; position: relative;
@@ -107,7 +111,11 @@
   .jump-sel { display: flex; gap: var(--s2); align-items: center; width: 100%; font-size: var(--t-1); color: var(--muted); }
   .jump-sel select { flex: 1; min-width: 0; min-height: 36px; }
   @media (max-width: 640px) {
-    .toolbar .keys, .toolbar .tools, summary .key-hint { display: none; } /* no keyboard on a phone; "Go to order" finds an order there */
+    .toolbar .keys, summary .key-hint { display: none; } /* key hints: no hardware keyboard on most phones */
+    /* find and sort stay on phones: one full-width row, the field takes the rest of the line */
+    .toolbar .tools { display: flex; flex-wrap: nowrap; width: 100%; }
+    .toolbar input[type="search"] { flex: 1 1 auto; width: auto; min-width: 0; min-height: 36px; font-size: 16px; }
+    .toolbar select { min-height: 36px; }
     .jump:not(:empty) { display: flex; margin-top: var(--s2); }
   }
   .grid.stale { filter: grayscale(0.75); } /* colours drained, text contrast kept; the strip above says why */
@@ -330,7 +338,7 @@
         <dt id="g-unit" tabindex="-1">Tokens</dt><dd id="g-unit-text"></dd>
         <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
       </dl>
-      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide (back to what opened it), or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
+      <p id="g-keys" tabindex="-1"><button type="button" role="switch" class="keys-toggle" id="keys-toggle" aria-checked="true">Single-key shortcuts <span class="state" aria-hidden="true">on</span></button>Turn them off for speech input or if keys fire by accident (Esc and Enter keep working). Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide (back to what opened it), or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
       <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · <a href="judge.html" id="judge-link3">Try to break it</a></p>
     </div>
   </details>
@@ -401,6 +409,8 @@
 
   // ---------------------------------------------------------------- theme
 
+  let keysOn = true; // single-key shortcuts (the guide's switch)
+  try { keysOn = localStorage.getItem("pulse-keys") !== "off"; } catch { /* storage blocked */ }
   const THEMES = ["auto", "light", "dark"];
   let theme = "auto";
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
@@ -437,8 +447,11 @@
     for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
     setJudgeLinks();
   }
-  // Filter, search and sort live in Detailed: Simple parks them, and the way back to Detailed restores them.
-  let parked = null;
+  // Filter, search and sort live in Detailed: Simple parks them, and the way back to Detailed restores them. The
+  // sort is also remembered in this browser, like the view.
+  let storedSort = "contract";
+  try { storedSort = localStorage.getItem("pulse-sort") === "action" ? "action" : "contract"; } catch { /* storage blocked */ }
+  let parked = view === "simple" && storedSort === "action" ? { filter: null, query: "", sortMode: "action" } : null;
   function setView(v, remember = true) {
     if (v === "simple" && view === "detailed") parked = { filter, query, sortMode };
     if (v === "detailed" && view === "simple" && parked) { ({ filter, query, sortMode } = parked); parked = null; syncTools(); }
@@ -992,7 +1005,7 @@
   const frag = new URLSearchParams(location.hash.slice(1));
   let filter = STATES[frag.get("filter")] && view === "detailed" ? frag.get("filter") : null; // a STATES key: show only the orders in that state
   let query = view === "detailed" ? (frag.get("q") || "").trim() : "";  // find: order number, name or supplier id
-  let sortMode = view === "detailed" && frag.get("sort") === "action" ? "action" : "contract";
+  let sortMode = view === "detailed" && (frag.get("sort") === "action" || (!frag.has("sort") && storedSort === "action")) ? "action" : "contract";
   let focusOrder = /^\d+$/.test(frag.get("order") || "") ? Number(frag.get("order")) : null;
   function writeFragment() {
     const f = new URLSearchParams();
@@ -1007,7 +1020,7 @@
   function renderStates(orders) {
     const count = {};
     for (const o of orders) { const k = stateOf(o); count[k] = (count[k] || 0) + 1; }
-    const btn = (k, i) => `<button type="button" class="state-btn${count[k] ? "" : " zero"}" data-filter="${k}" aria-pressed="${filter === k}" aria-keyshortcuts="${i + 1}">
+    const btn = (k, i) => `<button type="button" class="state-btn${count[k] ? "" : " zero"}" data-filter="${k}" aria-pressed="${filter === k}"${keysOn ? ` aria-keyshortcuts="${i + 1}"` : ""}>
       <span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     setHTML($("states"), STATE_KEYS.map(btn).join(""));
   }
@@ -1339,7 +1352,11 @@
   // Find and sort (Detailed toolbar): kept in the fragment like the filter
   function syncTools() { $("find").value = query; $("sort").value = sortMode; }
   $("find").addEventListener("input", () => { query = $("find").value.trim(); if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment(); });
-  $("sort").addEventListener("change", () => { sortMode = $("sort").value === "action" ? "action" : "contract"; if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment(); });
+  $("sort").addEventListener("change", () => {
+    sortMode = storedSort = $("sort").value === "action" ? "action" : "contract";
+    try { localStorage.setItem("pulse-sort", sortMode); } catch { /* storage blocked */ }
+    if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment();
+  });
   syncTools();
   document.addEventListener("click", (e) => {
     const f = e.target.closest && e.target.closest("[data-filter]");
@@ -1496,10 +1513,27 @@
   // Keyboard accelerators, never while typing: 1–6 filter, 0 or Esc all, / find, J/K next or previous order, Enter an
   // order's details, S/D view, T theme, ? guide.
   const say = (text) => { const a = $("announce"); a.textContent = ""; setTimeout(() => { a.textContent = text; }, 50); };
-  $("theme-btn").setAttribute("aria-keyshortcuts", "T");
+  // Single-character shortcuts can be switched off (WCAG 2.1.4), remembered in this browser; Esc and Enter stay.
+  function applyKeys() {
+    document.body.classList.toggle("keys-off", !keysOn);
+    $("keys-toggle").setAttribute("aria-checked", String(keysOn));
+    $("keys-toggle").querySelector(".state").textContent = keysOn ? "on" : "off";
+    for (const [sel, key] of [["#theme-btn", "T"], ["#guide > summary", "?"], ["#find", "/"]]) {
+      if (keysOn) document.querySelector(sel).setAttribute("aria-keyshortcuts", key); else document.querySelector(sel).removeAttribute("aria-keyshortcuts");
+    }
+    rerender();
+  }
+  $("keys-toggle").addEventListener("click", () => {
+    keysOn = !keysOn;
+    try { localStorage.setItem("pulse-keys", keysOn ? "on" : "off"); } catch { /* storage blocked */ }
+    applyKeys();
+    say(`Single-key shortcuts ${keysOn ? "on" : "off"}.`);
+  });
+  applyKeys();
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest("input, textarea, select, [contenteditable]"))) return;
     const k = e.key;
+    if (!keysOn && k !== "Escape" && k !== "Enter") return;
     if (k === "Escape" && !tip.hidden) { e.preventDefault(); hideTip(); }
     else if (/^[1-6]$/.test(k)) {
       // the filters live in Detailed: from Simple, switch for this visit only (the remembered view stays)
