@@ -76,7 +76,8 @@ interface ISupplierPulsePlus {
     ) external payable returns (uint256 orderId);
     function approveMilestone(uint256 orderId, uint256 milestone) external;
     /// Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the next
-    /// milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
+    /// milestone is approved, has no valid permit, and refundGrace has passed since max(due date, first approval).
+    /// The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external;
 
     // ---- anyone (agent, judges)

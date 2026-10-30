@@ -86,6 +86,30 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - The v1 hedge was restarted on the new code at 18:09 (cycle 127). Nothing was lost: its state and cycle count continue.
 - `docs/agent.md` and §6.3 are updated (failure table, refund rule, gas limit, runner).
 - **Emre**, for later: `airnode-fetch.mjs` exits 4 for any thrown error, including an unreachable Airnode before payment, so an Airnode outage pauses both registries for 15 min. A separate exit code for "Airnode unreachable, nothing paid" would let the agent pause one source only. Not urgent.
+### 2026-10-30 · Orhun · C2.5 review fixes in `SupplierPulsePlus.sol` (Emre's findings 1 and 2)
+- Changed (storage and checks only, no ABI change):
+  - **Finding 1:** `approveMilestone` stores the time of the first approval per milestone (`approvedAt`). The no-data exit now opens at `max(dueDate, approvedAt) + refundGrace`, in `refundRemaining` and in `orderSchedule.autoRefundAt`. A buyer who approves late can no longer approve and refund in the same block; the supplier always gets the full grace. Re-approving does not move the time.
+  - **Finding 2:** `createOrder` reverts `BadOrder` when `permitTtl < maxAge`, so the oldest record the contract accepts still gives a usable permit and `checkAndRelease` cannot fail with `PermitExpired`. `plus-local.sh` (300) and `plus-demo-orders.sh` (1800) already comply.
+  - 4 new tests (late approval, refund after the full grace, re-approval, TTL bound). `forge test`: 115/115.
+- Notes:
+  - **Julien:** `fakes.py` still computes the no-data exit from the due date only. The real contract now reports the later time in `orderSchedule.autoRefundAt`, which the agent already reads.
+  - **Emre:** v2 is not deployed yet. I deploy it at C3 with the demo constants 300/300/600 and send the address.
+- Next: Orhun's OK to merge into `supplierpulse-plus`; C3 deploy.
+
+### 2026-10-30 · Batu · C2/C3 done for the screens; agent gas finding; I may be offline tonight
+- **Blocking for C3, Julien: the agent's sends run out of gas on a chain with block intervals.** With the latest `supplierpulse-plus` (`955cb15`) on anvil with interval mining (`evm_setIntervalMining 1`, like Sepolia's 12 s blocks), **18 of the agent's sends in 24 ticks reverted with `OutOfGas`** (e.g. `submitEvidence` tx limit 234369 = gasUsed 234369; `cast run` ends in `EvmError: OutOfGas`). `cast send` takes the estimate as the limit, and the estimate is exactly the gas used, so it sometimes falls short when the transaction lands in a later block. Your C2 passed because anvil's default automine executes each tx right where it was estimated. On Sepolia every failed send costs gas and another $0.01 fetch. **Fix:** `"--gas-limit", "600000"` in `Chain.send` (`api3/agent/chain.py`). With that one change the same run had 0 failed sends and reached every §7.1 state (0 and 2 paid, 1/3/4 refunded, 4 held by the supplier-wide stop without a fetch, 5 refunded by the no-data exit, two suppliers Trusted), 19 transactions. Tested in a scratch copy only; your file is unchanged. The `0x` parsing bug I hit on the way you had already fixed in parallel.
+- **Julien (repo owner): the repository is private** (`gh api repos/julienlmu/tumblockchain-powerpuffgirls` → `"visibility":"private"`), while §7.4 says it is already public. The track needs a public repo by 14:30 Sat. GitHub Pages is not enabled; the pages don't need it (they run from `python3 -m http.server`).
+- Changed (`demo/`, merged):
+  - **C3 needs nothing from me.** Without an address, both pages find the newest SupplierPulse+ v1.1 among the last 80 transactions of Orhun's deployer `0xEb3E…ce41` (by the v1.1 test vector), so after the deploy `http://localhost:8765/` and `judge.html` show v2. Until then the dashboard links to v1 and the judge page runs against the live v1 contract (§7 fallback), with the real v1 records.
+  - Judge page: **"Send anyway as a real transaction"** after a rejection, with a fixed gas limit, so the video's tamper cases show as failed transactions on Etherscan (§4.7). The agent panel now also counts `applySupplierFailure` ("supplier-wide stop, no fetch").
+  - `demo/README.md`: a launch and video checklist for whoever runs it.
+- Verified:
+  - **Ethereum Sepolia, read only:** no v2 found yet → v1 fallback; real v1 records on live v1 order 0: (b) `StaleResponse`, (c) `WrongRequest`, signer the real Companies House Airnode.
+  - **Test chain with Sepolia's chain id**, v1.1 deployed from Orhun's (impersonated) deployer between other txs: both pages found it. **MetaMask flows** with an EIP-1193 test wallet: judge Send for real (status 1), Replay + Send anyway (status 0 on chain), dashboard Claim now by the buyer (refunded).
+  - **C2 step 4:** the dashboard showed the agent's run live (19 agent transactions = the agent's report). **Judge page = `plus-submit.sh`** on the same record: accepted; (a) `WrongSigner(0xe19F…f958)` in both, the same recovered address; (b) the same timestamp; (c) the same request hash; (d) `WrongSigner`.
+- **I may be offline tonight.** `demo/` needs no action at C3. If something in `demo/` must change while I'm away, anyone may edit it; the README explains the parts. The agent wallet already has 9.96 aUSD (entry below), so §7.2 step 4 is done.
+- **Ulaş, hero frame (C1):** I agree with the spec's proposal. Concretely on the judge page: **(b) Real old record** → red `StaleResponse`, then **Send anyway** → the failed tx on Etherscan, then the dashboard's protected balance on order B. All three are one click each.
+- Note: I switched the local anvil on :8545 on my laptop to interval mining for this test; it only affects my machine.
 
 ### 2026-10-30 · Julien (spec) · Emre's contract findings 1 and 2 accepted → Orhun
 - Changed (spec, **no ABI change**, header note "Amendment"):

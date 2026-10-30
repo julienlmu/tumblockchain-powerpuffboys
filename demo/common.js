@@ -52,6 +52,50 @@
     11155111: "0xED3418aE93669a640650728E70f7aA712083253a", // Julien's agent wallet (§3.2)
     31337: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",    // anvil #3 (§4.8)
   };
+
+  // Finding the contract without configuration (§7.2 C3). Orhun's deployer deploys v2 at C3 with a plain CREATE, so
+  // its address follows from the deployer's nonce. The newest contract that answers requestHashFor with the v1.1
+  // test vector (§4.2) is SupplierPulse+ v1.1; nothing else can return that value.
+  const V2_DEPLOYER = "0xEb3EB6da882798062b30CeC11AAaDe306287ce41";
+  const V11_VECTOR = "0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f"; // requestHashFor(0, "09729896")
+  const V1_SEPOLIA = "0x91d7dbae109029b2b1245179a68ac362799674d7"; // v1, live since 30 Oct (§3.2), the fallback
+
+  /** Newest SupplierPulse+ v1.1 deployed by `deployer` among its last `depth` nonces, or null. */
+  async function discoverV2(provider, deployer = V2_DEPLOYER, depth = 80) {
+    const nonce = await provider.getTransactionCount(deployer);
+    const probe = new ethers.Contract(deployer, ["function requestHashFor(uint8 source, string supplierId) pure returns (bytes32)"], provider);
+    for (let hi = nonce - 1; hi >= Math.max(0, nonce - depth); hi -= 10) {
+      const batch = [];
+      for (let n = hi; n > hi - 10 && n >= Math.max(0, nonce - depth); n--) batch.push(ethers.getCreateAddress({ from: deployer, nonce: n }));
+      const hits = await Promise.all(batch.map(async (a) => {
+        try { return (await provider.getCode(a)) !== "0x" && (await probe.attach(a).requestHashFor(0, "09729896")) === V11_VECTOR; }
+        catch { return false; }
+      }));
+      const i = hits.indexOf(true);
+      if (i >= 0) return batch[i];
+    }
+    return null;
+  }
+
+  // v1 (api3/src/SupplierPulse.sol): same submitEvidence and the same order of checks, one signer, status only.
+  const ABI_V1 = [
+    "function airnode() view returns (address)",
+    "function maxAge() view returns (uint256)",
+    "function ordersLength() view returns (uint256)",
+    "function companyNumberOf(uint256) view returns (string)",
+    "function orderInfo(uint256) view returns (address buyer, address supplier, bytes32 companyRequest, bytes32 orderRef, uint256 permitTtl, uint256[] amounts, bool[] approved)",
+    "function orderStatus(uint256) view returns (uint8 state, uint256 paid, uint256 remaining, uint256 nextMilestone, uint256 milestones, uint256 permitValidUntil, bool permitValid, string lastStatus, uint256 lastCheck)",
+    "function usedDigests(bytes32) view returns (bool)",
+    "function submitEvidence(uint256 orderId, bytes32 requestHash, uint256 timestamp, bytes data, bytes signature) returns (bool active)",
+    "error WrongSigner(address recovered)", "error WrongRequest(bytes32 got, bytes32 expected)",
+    "error StaleResponse(uint256 timestamp, uint256 nowTs)", "error FutureResponse(uint256 timestamp, uint256 nowTs)",
+    "error Replayed(bytes32 digest)", "error NotNewer(uint256 timestamp, uint256 lastCheck)",
+    "error NotActive(uint8 state)", "error NotHeld()", "error BadOrder()", "error BadCompanyNumber()", "error NotAuthorized()",
+    "error InvalidSignatureLength()", "error InvalidSignatureS()", "error InvalidSignatureV()", "error InvalidSigner()",
+    "error KeyNotFound()", "error NoString()",
+  ];
+  const requestHashV1 = (id) => ethers.id(`["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]`);
+
   const STATE = ["Active", "Held", "Closed"];
   const OUTCOME = ["Paid", "AwaitingApproval", "NotDue", "Held"];
   const TIERS = ["Standard", "Trusted", "Premium"];
@@ -157,7 +201,7 @@
   }
 
   /** Builds a tampered copy of a normalized record. Returns { record, what, expect }. */
-  async function tamper(r, mode) {
+  async function tamper(r, mode, opts = {}) {
     const out = { ...r };
     switch (mode) {
       case "value": {
@@ -172,7 +216,7 @@
       case "request": {
         const s = SOURCES[sourceIndex(r.source)];
         const id = String(r.supplierId || "").toUpperCase() === s.otherId ? s.otherIdAlt : s.otherId;
-        out.requestHash = requestHashFor(sourceIndex(r.source), id);
+        out.requestHash = opts.requestHashFor ? opts.requestHashFor(id) : requestHashFor(sourceIndex(r.source), id);
         return { record: out, what: `(c) Different request: the request hash of ${s.name} ${id}.`, expect: "WrongRequest" };
       }
       case "key": {
@@ -218,6 +262,8 @@
         return "A field the order's rules need is missing or has the wrong type in the signed data. Without it the order can never pay (fail-safe).";
       case "SupplierFailed": return `This supplier's register status failed in a record signed at ${t(a[0])}. A clean record older than that failure cannot pay, on any order of the supplier.`;
       case "NoNewerFailure": return "This supplier has no register failure newer than the order's last record, so there is nothing to apply.";
+      case "NotHeld": return "Only a held order can be refunded.";
+      case "BadCompanyNumber": return "The company number is not 1 to 10 characters of 0-9 and A-Z.";
       case "NotRefundable": return "Nothing to refund: the order is closed, or it still has a valid permit.";
       case "RefundNotYet": return `Not yet: from ${t(a[0])} anyone can send the remaining balance back to the buyer.`;
       case "NotAuthorized": return "Only the buyer may do this.";
@@ -264,7 +310,7 @@
   }
 
   window.PULSE = {
-    ABI, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
+    ABI, ABI_V1, V2_DEPLOYER, V11_VECTOR, V1_SEPOLIA, discoverV2, requestHashV1, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,
     ruleNames, failedLabels, evaluate, requestHashFor, supplierKeyOf, digestOf, normalizeRecord, parseFields,
     tamper, decodeRevert, explain,
