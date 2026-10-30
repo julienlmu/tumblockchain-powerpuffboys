@@ -73,6 +73,12 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (agent) · Sepolia acceptance check; heads-up on C and E for the video
+- Changed: `python3 api3/agent/c3_check.py` checks the Sepolia acceptance of §6.3 against the live v2 contract and the agent's log. It is read-only and costs nothing. It finds the demo orders by supplier id, so B2 and dry-run orders don't confuse it. It prints PASS or WAIT for each point: A and D milestone 1 paid by the agent, B held then refunded, C and E held, A's tier risen, ≥ 10 cycles, no failed actions. Live now: 20 cycles, clean, the order lines wait for orders A–E.
+- **Heads-up for the video (Ulaş, Orhun, Batu):** the agent refunds *every* held order once its grace period is over (P1, §6.3), not only B. Overnight, **C and E will also be refunded** 10 minutes after they are held. On Saturday the dashboard shows them as refunded, with their failed rules.
+  - If the video needs an order that is still *held* (0:35 – 1:05, "C held: accounts overdue"), create a fresh one shortly before recording: the agent holds it at its first check, and it stays held for 10 minutes. Or use B2, which is created live.
+  - If you would rather have the agent leave C and E alone overnight, tell me; that is a small change.
+
 ### 2026-10-30 · Batu · one-click tamper test; dashboard states eligible / rule failed / no data
 - Changed, `demo/judge.html`: **▶ Run the full tamper test** runs the valid record and all six attacks ((a)–(d), real old record, real other company) as `eth_call` simulations and shows a pass/fail card with one tile per attempt (green: the attack's own error, amber: stopped by an earlier check). On the local chain it signs a fresh record first; on Sepolia a stale record gets a warning with the fetch command. **Send the valid record, then replay it** is the last step (one real tx). Local test: passed, valid + 7 rejections incl. `Replayed`.
 - Changed, `demo/index.html` (from the team's research notes on Middesk, Sablier, HubPal, SLAStream): each card's badge is now **Eligible / Rule failed / No data** (plus awaiting check, fully paid, refunded); a strip above the cards counts the three states, defines them and filters on click. New row **Agent's last decision** per order (the agent's latest transaction on it). The supplier-wide stop now names the order whose record caused it, both ways ("Stopped by #1 PO-1002" ↔ "This record also stops #5"), with a link that jumps to the card.
