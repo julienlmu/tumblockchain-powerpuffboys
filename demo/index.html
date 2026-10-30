@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SupplierPulse Orders</title>
+<!-- Read-only dashboard for api3/src/SupplierPulse.sol. Reads orderStatus/orderInfo and the contract's events.
+     Usage: demo/README.md. No wallet, no keys: it only calls view functions and eth_getLogs. -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #14171c; --muted: #5f6b7a; --line: #e3e7ec;
+    --ok: #137a3f; --ok-bg: #e5f5ec; --hold: #b4231b; --hold-bg: #fdecea;
+    --wait: #8a5a00; --wait-bg: #fff4dc; --done: #3d4a5c; --done-bg: #eceff3;
+    --accent: #2457d6; --sample: #6b3fc4; --sample-bg: #f1ebfd;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --card: #171b21; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b;
+      --ok: #4cc983; --ok-bg: #12301f; --hold: #ff7a70; --hold-bg: #3a1714;
+      --wait: #f2bd55; --wait-bg: #33270d; --done: #b5c0cd; --done-bg: #242a33;
+      --accent: #7aa2ff; --sample: #b99bff; --sample-bg: #261c3d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1216; --card: #171b21; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b;
+    --ok: #4cc983; --ok-bg: #12301f; --hold: #ff7a70; --hold-bg: #3a1714;
+    --wait: #f2bd55; --wait-bg: #33270d; --done: #b5c0cd; --done-bg: #242a33;
+    --accent: #7aa2ff; --sample: #b99bff; --sample-bg: #261c3d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+  .tagline { margin: 4px 0 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 13px; }
+  .meta b { color: var(--text); font-weight: 600; }
+  .mono { font-family: var(--mono); font-size: 0.92em; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+  .banner { margin: 18px 0 0; padding: 10px 14px; border-radius: 10px; font-size: 14px; }
+  .banner.sample { background: var(--sample-bg); color: var(--sample); }
+  .banner.error { background: var(--hold-bg); color: var(--hold); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-top: 22px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .card-head h2 { margin: 0; font-size: 18px; }
+  .card-head .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .badge { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .badge.ok { color: var(--ok); background: var(--ok-bg); }
+  .badge.hold { color: var(--hold); background: var(--hold-bg); }
+  .badge.wait { color: var(--wait); background: var(--wait-bg); }
+  .badge.done { color: var(--done); background: var(--done-bg); }
+  .hero { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; }
+  .hero .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .hero .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .hero .small { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .hero .unit { font-size: 0.55em; color: var(--muted); font-weight: 600; margin-left: 4px; }
+  .stages { display: flex; gap: 6px; }
+  .stage { flex: 1 1 0; min-width: 0; border-radius: 8px; padding: 8px 10px; border: 1px solid var(--line); font-size: 12px; }
+  .stage .s-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 6px; color: var(--muted); white-space: nowrap; }
+  .stage .s-amt { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+  .stage.paid { background: var(--ok-bg); border-color: transparent; }
+  .stage.paid .s-top { color: var(--ok); }
+  .stage.next { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .stage.held { background: var(--hold-bg); border-color: transparent; }
+  .stage.held .s-top { color: var(--hold); }
+  .stage.refunded { background: var(--done-bg); border-color: transparent; text-decoration: line-through; }
+  table.rows { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.rows th { text-align: left; font-weight: 500; color: var(--muted); padding: 7px 12px 7px 0; vertical-align: top; width: 38%; white-space: nowrap; }
+  table.rows td { padding: 7px 0; vertical-align: top; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+  table.rows tr:first-child td { border-top: none; }
+  table.rows tr th { border-top: 1px solid var(--line); }
+  table.rows tr:first-child th { border-top: none; }
+  .st-ok { color: var(--ok); font-weight: 600; }
+  .st-hold { color: var(--hold); font-weight: 600; }
+  .st-wait { color: var(--wait); font-weight: 600; }
+  .next-step { padding: 10px 12px; border-radius: 10px; font-weight: 600; }
+  .next-step.ok { background: var(--ok-bg); color: var(--ok); }
+  .next-step.hold { background: var(--hold-bg); color: var(--hold); }
+  .next-step.wait { background: var(--wait-bg); color: var(--wait); }
+  .next-step.done { background: var(--done-bg); color: var(--done); }
+  details { border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  ol.timeline { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+  ol.timeline li { display: grid; grid-template-columns: 62px 1fr; gap: 8px; padding: 5px 0; border-top: 1px dashed var(--line); }
+  ol.timeline li:first-child { border-top: none; }
+  ol.timeline .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+  form.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+  form.cfg label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  form.cfg input { font: inherit; font-size: 13px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); min-width: 0; }
+  form.cfg .btns { display: flex; gap: 8px; align-items: flex-end; }
+  button { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; max-width: 760px; }
+  @media (max-width: 420px) {
+    .grid { grid-template-columns: 1fr; }
+    .hero .big { font-size: 28px; }
+    table.rows th { white-space: normal; width: 40%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SupplierPulse</h1>
+      <p class="tagline">Every supplier payment needs a fresh, signed register record. This is the money those rules protect.</p>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+  <div id="banner"></div>
+  <details id="cfg-box">
+    <summary>Settings: contract, network, orders</summary>
+    <form class="cfg" id="cfg">
+      <label>Contract address<input name="contract" placeholder="0x…" spellcheck="false"></label>
+      <label>RPC URL<input name="rpc" spellcheck="false"></label>
+      <label>Order IDs<input name="orders" placeholder="0,1"></label>
+      <label>Company numbers (to name the request hash)<input name="companies" spellcheck="false"></label>
+      <label>Events from block (optional)<input name="from" placeholder="deploy block"></label>
+      <div class="btns"><button class="primary" type="submit">Load</button><button type="button" id="sample-btn">Sample data</button></div>
+    </form>
+  </details>
+  <div class="grid" id="orders"></div>
+  <footer>
+    A signed register record proves that the data came unaltered from Companies House through the API3 Airnode,
+    and the contract checked signer, request, freshness and replay before acting on it.
+    It does not prove that goods were delivered: each stage also needs the buyer's approval.
+  </footer>
+</div>
+
+<script>
+(() => {
+  const DEFAULT_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
+  const DEFAULT_COMPANIES = "09729896,07418033,12493325";
+  const LOG_RANGE = 9000; // blocks searched for events when no `from` block is given (~30 h on Sepolia; publicnode refuses 20000)
+  const REFRESH_MS = 12000;
+  const EXPLORERS = { 11155111: "https://sepolia.etherscan.io", 84532: "https://sepolia.basescan.org" };
+  const NETWORKS = { 11155111: "Ethereum Sepolia", 84532: "Base Sepolia", 31337: "Local (anvil)" };
+  const STATE = ["Active", "Held", "Closed"];
+
+  const ABI = [
+    "function orderStatus(uint256) view returns (uint8 state, uint256 paid, uint256 remaining, uint256 nextMilestone, uint256 milestones, uint256 permitValidUntil, bool permitValid, string lastStatus, uint256 lastCheck)",
+    "function orderInfo(uint256) view returns (address buyer, address supplier, bytes32 companyRequest, bytes32 orderRef, uint256 permitTtl, uint256[] amounts, bool[] approved)",
+    "function ordersLength() view returns (uint256)",
+    "function airnode() view returns (address)",
+    "function maxAge() view returns (uint256)",
+    "event OrderCreated(uint256 indexed orderId, address indexed buyer, address supplier, bytes32 companyRequest, bytes32 orderRef, uint256 total, uint256 milestones)",
+    "event MilestoneApproved(uint256 indexed orderId, uint256 milestone)",
+    "event EvidenceAccepted(uint256 indexed orderId, bytes status, uint256 timestamp, bytes32 digest, address submitter)",
+    "event PermitIssued(uint256 indexed orderId, uint256 milestone, uint256 amount, uint256 validUntil, bytes32 evidence)",
+    "event MilestonePaid(uint256 indexed orderId, uint256 milestone, address supplier, uint256 amount, bytes32 evidence)",
+    "event OrderHeld(uint256 indexed orderId, bytes status, uint256 remaining)",
+    "event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount)",
+  ];
+
+  const params = new URLSearchParams(location.search);
+  const cfg = {
+    contract: params.get("contract") || "",
+    rpc: params.get("rpc") || DEFAULT_RPC,
+    orders: params.get("orders") || "0,1",
+    companies: params.get("companies") || DEFAULT_COMPANIES,
+    from: params.get("from") || "",
+    sample: params.get("sample") === "1",
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const short = (h) => (h && h.length > 14 ? h.slice(0, 6) + "…" + h.slice(-4) : h);
+  const nowSec = () => Math.floor(Date.now() / 1000);
+  const clock = (ts) => new Date(ts * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dayClock = (ts) => new Date(ts * 1000).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  function ago(sec) {
+    if (sec < 0) return "in the future";
+    if (sec < 90) return `${sec}s ago`;
+    if (sec < 5400) return `${Math.round(sec / 60)} min ago`;
+    return `${(sec / 3600).toFixed(1)} h ago`;
+  }
+  function left(sec) {
+    if (sec <= 0) return "expired";
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m ? `${m} min ${String(s).padStart(2, "0")} s left` : `${s} s left`;
+  }
+  function eth(wei) {
+    const s = ethers.formatEther(wei);
+    const [i, f = ""] = s.split(".");
+    const frac = f.replace(/0+$/, "").slice(0, 6);
+    return frac ? `${Number(i).toLocaleString("en")}.${frac}` : Number(i).toLocaleString("en");
+  }
+
+  // keccak256('["getCompanyProfile",[["company_number","<n>"]],[["status","/company_status"]]]')
+  // matches the requestHash of the real responses in docs/samples/companies-house/.
+  function requestHashFor(n) {
+    return ethers.id(`["getCompanyProfile",[["company_number","${n}"]],[["status","/company_status"]]]`).toLowerCase();
+  }
+  const companyByHash = {};
+  for (const n of cfg.companies.split(",").map((x) => x.trim()).filter(Boolean)) companyByHash[requestHashFor(n)] = n;
+
+  function orderName(ref) {
+    try { return ethers.decodeBytes32String(ref); } catch { return null; }
+  }
+
+  // ---------------------------------------------------------------- view model
+
+  // One shape for live and sample data, so both render through the same code.
+  function viewModel(o) {
+    const now = nowSec();
+    const total = o.amounts.reduce((a, b) => a + b, 0n);
+    const held = o.state === 1, closed = o.state === 2;
+    const refunded = closed && o.paid < total;
+    const next = Number(o.nextMilestone);
+    const permitSet = o.permitValidUntil > 0n;
+    const permitLeft = Number(o.permitValidUntil) - now;
+    const lastStatus = o.lastStatus || "";
+
+    let badge, nextStep;
+    if (held) {
+      badge = ["hold", "Payment held"];
+      nextStep = ["hold", "Buyer review needed. The remaining balance can go back to the buyer."];
+    } else if (refunded) {
+      badge = ["done", "Refunded"];
+      nextStep = ["done", "Closed. The unpaid balance went back to the buyer."];
+    } else if (closed) {
+      badge = ["done", "Fully paid"];
+      nextStep = ["done", "Closed. Every stage was paid, each with its own fresh evidence."];
+    } else if (o.permitValid && o.approved[next]) {
+      badge = ["ok", "Ready to pay"];
+      nextStep = ["ok", `Stage ${next + 1} can be paid now: valid permit and buyer approval.`];
+    } else if (o.permitValid) {
+      badge = ["wait", "Awaiting approval"];
+      nextStep = ["wait", `Permit for stage ${next + 1} is valid. Waiting for the buyer to approve the stage.`];
+    } else if (permitSet) {
+      badge = ["wait", "Permit expired"];
+      nextStep = ["wait", `Permit expired. Stage ${next + 1} needs a fresh signed register record.`];
+    } else {
+      badge = ["ok", "Active"];
+      nextStep = ["wait", `Stage ${next + 1} needs a fresh signed register record before any payment.`];
+    }
+
+    let permit;
+    if (held) permit = ["st-hold", "revoked by the hold"];
+    else if (closed) permit = ["", "none (order closed)"];
+    else if (o.permitValid) permit = ["st-ok", `valid for stage ${next + 1} until ${clock(Number(o.permitValidUntil))} (${left(permitLeft)})`];
+    else if (permitSet) permit = ["st-wait", `expired at ${clock(Number(o.permitValidUntil))}`];
+    else permit = ["", next > 0 ? `none: the last one was used up by the stage ${next} payment` : "none yet"];
+
+    const stages = o.amounts.map((amt, i) => {
+      let cls = "", tag = o.approved[i] ? "approved" : "not approved";
+      if (i < next) { cls = "paid"; tag = "paid"; }
+      else if (held) { cls = "held"; tag = "held"; }
+      else if (refunded) { cls = "refunded"; tag = "refunded"; }
+      else if (i === next) { cls = "next"; }
+      return { cls, tag, amt, i };
+    });
+
+    return {
+      id: o.id, total, paid: o.paid, remaining: o.remaining, badge, nextStep, permit, stages,
+      title: orderName(o.orderRef) || `Order ${short(o.orderRef)}`,
+      company: companyByHash[o.companyRequest.toLowerCase()],
+      companyRequest: o.companyRequest,
+      supplier: o.supplier, buyer: o.buyer, permitTtl: Number(o.permitTtl),
+      lastStatus, lastCheck: Number(o.lastCheck), events: o.events || [],
+    };
+  }
+
+  // ---------------------------------------------------------------- rendering
+
+  function addr(a, explorer) {
+    return explorer ? `<a class="mono" href="${explorer}/address/${a}" target="_blank" rel="noopener">${short(a)}</a>` : `<span class="mono">${short(a)}</span>`;
+  }
+
+  function renderOrder(v, explorer, unit) {
+    const statusCls = !v.lastStatus ? "" : v.lastStatus === "active" ? "st-ok" : "st-hold";
+    const lastCheck = v.lastCheck
+      ? `<span class="${statusCls}">${esc(v.lastStatus)}</span> · signed ${dayClock(v.lastCheck)} (${ago(nowSec() - v.lastCheck)})`
+      : "no evidence yet";
+    const company = v.company
+      ? `Companies House <b class="mono">${esc(v.company)}</b>`
+      : `request <span class="mono">${short(v.companyRequest)}</span>`;
+    const timeline = v.events.length
+      ? `<details open><summary>On-chain history (${v.events.length})</summary><ol class="timeline">${v.events.map((e) => `
+          <li><span class="t">${e.time ? clock(e.time) : "#" + e.block}</span>
+          <span>${esc(e.text)}${e.tx && explorer ? ` · <a class="mono" href="${explorer}/tx/${e.tx}" target="_blank" rel="noopener">${short(e.tx)}</a>` : ""}</span></li>`).join("")}
+        </ol></details>`
+      : "";
+    return `
+      <article class="card">
+        <div class="card-head">
+          <div><h2>#${v.id} · ${esc(v.title)}</h2><div class="sub">${company}</div></div>
+          <span class="badge ${v.badge[0]}">${v.badge[1]}</span>
+        </div>
+        <div class="hero">
+          <div><div class="label">Protected remaining balance</div><div class="big">${eth(v.remaining)}<span class="unit">${unit}</span></div></div>
+          <div><div class="label">Paid</div><div class="small">${eth(v.paid)}<span class="unit">of ${eth(v.total)} ${unit}</span></div></div>
+        </div>
+        <div class="stages">${v.stages.map((s) => `
+          <div class="stage ${s.cls}"><div class="s-top"><span>Stage ${s.i + 1}</span><span>${s.tag}</span></div>
+          <div class="s-amt">${eth(s.amt)} ${unit}</div></div>`).join("")}
+        </div>
+        <table class="rows">
+          <tr><th>Payment permit</th><td class="${v.permit[0]}">${v.permit[1]}</td></tr>
+          <tr><th>Last register check</th><td>${lastCheck}</td></tr>
+          <tr><th>Supplier wallet (fixed)</th><td>${addr(v.supplier, explorer)}</td></tr>
+          <tr><th>Permit lifetime</th><td>${v.permitTtl >= 120 ? Math.round(v.permitTtl / 60) + " min" : v.permitTtl + " s"} per stage</td></tr>
+        </table>
+        <div class="next-step ${v.nextStep[0]}">Next step: ${v.nextStep[1]}</div>
+        ${timeline}
+      </article>`;
+  }
+
+  function renderMeta(m) {
+    $("meta").innerHTML = m.map(([k, val]) => `<span>${k} <b>${val}</b></span>`).join("");
+  }
+  function banner(kind, html) {
+    $("banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : "";
+  }
+
+  // ---------------------------------------------------------------- live data
+
+  const blockTimes = {};
+  async function loadEvents(provider, iface, latest) {
+    const fromBlock = cfg.from ? Number(cfg.from) : Math.max(0, latest - LOG_RANGE);
+    const logs = await provider.getLogs({ address: cfg.contract, fromBlock, toBlock: latest });
+    const byOrder = {};
+    for (const log of logs) {
+      let ev;
+      try { ev = iface.parseLog(log); } catch { continue; }
+      if (!ev || ev.args.orderId === undefined) continue;
+      const a = ev.args, id = String(a.orderId);
+      const text = {
+        OrderCreated: () => `Order created, ${eth(a.total)} locked in ${a.milestones} stages`,
+        MilestoneApproved: () => `Buyer approved stage ${Number(a.milestone) + 1}`,
+        EvidenceAccepted: () => `Signed register record verified: "${ethers.toUtf8String(a.status)}"`,
+        PermitIssued: () => `Permit for stage ${Number(a.milestone) + 1} issued, valid until ${clock(Number(a.validUntil))}`,
+        MilestonePaid: () => `Stage ${Number(a.milestone) + 1} paid: ${eth(a.amount)} to the supplier`,
+        OrderHeld: () => `Order held, ${eth(a.remaining)} protected`,
+        OrderRefunded: () => `${eth(a.amount)} refunded to the buyer`,
+      }[ev.name];
+      if (!text) continue;
+      (byOrder[id] ||= []).push({ block: log.blockNumber, tx: log.transactionHash, text: text() });
+    }
+    const blocks = [...new Set(logs.map((l) => l.blockNumber))].filter((b) => !(b in blockTimes)).slice(-40);
+    await Promise.all(blocks.map(async (b) => { const blk = await provider.getBlock(b); if (blk) blockTimes[b] = blk.timestamp; }));
+    for (const list of Object.values(byOrder)) for (const e of list) e.time = blockTimes[e.block];
+    return byOrder;
+  }
+
+  let provider, contract, iface, chainId, explorer, airnode, maxAge;
+  async function loadLive() {
+    if (!provider) {
+      provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
+      contract = new ethers.Contract(cfg.contract, ABI, provider);
+      iface = contract.interface;
+      chainId = Number((await provider.getNetwork()).chainId);
+      explorer = EXPLORERS[chainId];
+      [airnode, maxAge] = await Promise.all([contract.airnode(), contract.maxAge()]);
+    }
+    const latest = await provider.getBlockNumber();
+    const count = Number(await contract.ordersLength());
+    const ids = cfg.orders.split(",").map((x) => x.trim()).filter((x) => x !== "").map(Number).filter((n) => n < count);
+
+    let events = {}, eventsNote = "";
+    try { events = await loadEvents(provider, iface, latest); }
+    catch (e) { eventsNote = " · event history unavailable from this RPC"; }
+
+    const orders = await Promise.all(ids.map(async (id) => {
+      const [s, i] = await Promise.all([contract.orderStatus(id), contract.orderInfo(id)]);
+      return {
+        id, state: Number(s.state), paid: s.paid, remaining: s.remaining, nextMilestone: s.nextMilestone,
+        permitValidUntil: s.permitValidUntil, permitValid: s.permitValid, lastStatus: s.lastStatus, lastCheck: s.lastCheck,
+        buyer: i.buyer, supplier: i.supplier, companyRequest: i.companyRequest, orderRef: i.orderRef,
+        permitTtl: i.permitTtl, amounts: [...i.amounts], approved: [...i.approved], events: events[String(id)],
+      };
+    }));
+
+    renderMeta([
+      ["<span class=\"live-dot\"></span>Live on", NETWORKS[chainId] || `chain ${chainId}`],
+      ["Contract", addr(cfg.contract, explorer)],
+      ["Trusted Airnode", addr(airnode, explorer)],
+      ["Max evidence age", `${Number(maxAge)} s`],
+      ["Updated", clock(nowSec()) + eventsNote],
+    ]);
+    banner("", ids.length ? "" : `No orders ${esc(cfg.orders)} on this contract yet (it has ${count}).`);
+    lastLive = orders;
+    $("orders").innerHTML = orders.map((o) => renderOrder(viewModel(o), explorer, "ETH")).join("");
+  }
+
+  // Re-render from the last read every second, so the permit countdown moves between chain reads.
+  let lastLive = null;
+  function renderLive() {
+    if (lastLive && lastLive.some((o) => o.permitValid)) $("orders").innerHTML = lastLive.map((o) => renderOrder(viewModel(o), explorer, "ETH")).join("");
+  }
+
+  // ---------------------------------------------------------------- sample data
+
+  // Built from the real signed responses in docs/samples/companies-house/ (fetched 30 Oct 2026).
+  // Nothing here is read from a chain; the page says so in a banner.
+  const SAMPLE_T0 = nowSec(); // fixed, so the countdown and "ago" values move
+  function sampleOrders() {
+    const now = SAMPLE_T0, u = (x) => ethers.parseEther(x);
+    return [
+      {
+        id: 0, state: 0, paid: u("0.0005"), remaining: u("0.0025"), nextMilestone: 1n,
+        permitValidUntil: BigInt(now + 7 * 60), permitValid: true, lastStatus: "active", lastCheck: BigInt(now - 3 * 60),
+        supplier: "0x3c44CdDdB6a900fa2b585dd299e03d12FA4293BC", buyer: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        companyRequest: requestHashFor("09729896"), orderRef: ethers.encodeBytes32String("Motor supply"),
+        permitTtl: 600n, amounts: [u("0.0005"), u("0.001"), u("0.0015")], approved: [true, false, false],
+        events: [
+          { time: now - 900, text: "Order created, 0.003 locked in 3 stages" },
+          { time: now - 840, text: "Buyer approved stage 1" },
+          { time: now - 780, text: 'Signed register record verified: "active"' },
+          { time: now - 780, text: "Stage 1 paid: 0.0005 to the supplier" },
+          { time: now - 180, text: 'Signed register record verified: "active"' },
+          { time: now - 180, text: `Permit for stage 2 issued, valid until ${clock(now + 7 * 60)}` },
+        ],
+      },
+      {
+        id: 1, state: 1, paid: u("0.0005"), remaining: u("0.0025"), nextMilestone: 1n,
+        permitValidUntil: 0n, permitValid: false, lastStatus: "liquidation", lastCheck: BigInt(now - 120),
+        supplier: "0x90F79bf6EB2c4f870365E785982E1f101E93b906", buyer: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        companyRequest: requestHashFor("07418033"), orderRef: ethers.encodeBytes32String("Gearbox supply"),
+        permitTtl: 600n, amounts: [u("0.0005"), u("0.001"), u("0.0015")], approved: [true, true, false],
+        events: [
+          { time: now - 1200, text: "Order created, 0.003 locked in 3 stages" },
+          { time: now - 1100, text: 'Signed register record verified: "active"' },
+          { time: now - 1100, text: "Stage 1 paid: 0.0005 to the supplier" },
+          { time: now - 300, text: "Buyer approved stage 2" },
+          { time: now - 120, text: 'Signed register record verified: "liquidation"' },
+          { time: now - 120, text: "Order held, 0.0025 protected" },
+        ],
+      },
+    ];
+  }
+
+  function loadSample() {
+    renderMeta([["Mode", "sample"], ["Companies", "09729896 (active), 07418033 (liquidation)"], ["Updated", clock(nowSec())]]);
+    banner("sample", "<b>Sample data, not read from a chain.</b> Register statuses are real (signed Companies House records from 30 Oct); amounts, wallets and times are illustrative. Add <span class=\"mono\">?contract=0x…</span> to show live data.");
+    $("orders").innerHTML = sampleOrders().map((o) => renderOrder(viewModel(o), null, "ETH")).join("");
+  }
+
+  // ---------------------------------------------------------------- wiring
+
+  const form = $("cfg");
+  for (const k of ["contract", "rpc", "orders", "companies", "from"]) form.elements[k].value = cfg[k];
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const p = new URLSearchParams();
+    for (const k of ["contract", "rpc", "orders", "companies", "from"]) {
+      const val = form.elements[k].value.trim();
+      if (val && !(k === "rpc" && val === DEFAULT_RPC) && !(k === "companies" && val === DEFAULT_COMPANIES)) p.set(k, val);
+    }
+    location.search = p.toString();
+  });
+  $("sample-btn").addEventListener("click", () => { location.search = "sample=1"; });
+
+  async function tick() {
+    try { await loadLive(); }
+    catch (e) {
+      banner("error", `Could not read the contract: ${esc(e.shortMessage || e.message)}. Check the address, the RPC URL and the network.`);
+    }
+  }
+
+  if (cfg.contract && ethers.isAddress(cfg.contract)) {
+    tick();
+    setInterval(tick, REFRESH_MS);
+    setInterval(renderLive, 1000);
+  } else if (cfg.sample) {
+    loadSample();
+    setInterval(loadSample, 1000); // keeps the permit countdown moving
+  } else {
+    $("cfg-box").open = true;
+    renderMeta([["Mode", "not configured"]]);
+    banner("sample", cfg.contract ? "That contract address is not valid." : "Enter the deployed SupplierPulse address, or open the sample data.");
+  }
+})();
+</script>
+</body>
+</html>
