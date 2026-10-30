@@ -33,7 +33,7 @@
   .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
   select, textarea { width: 100%; }
   textarea[aria-invalid="true"] { border-color: var(--hold); }
-  textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: 60px; min-height: 52px; resize: vertical; display: block; }
+  textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: 52px; min-height: 52px; resize: vertical; display: block; }
   .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
   .row select { width: auto; flex: 1 1 200px; }
   .order-sum { font-size: var(--t-1); color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
@@ -51,6 +51,15 @@
   /* attack controls */
   button.suite { width: 100%; min-height: 42px; font-size: var(--t0); }
   .attacks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); }
+  /* two groups side by side: attempts built in the browser, and real untouched records */
+  .attack-groups { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: var(--s3); }
+  .attack-groups .ag { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .attacks.synth { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .attacks.real-grid { grid-template-columns: minmax(0, 1fr); }
+  .ag-head { font-size: 12px; color: var(--muted); line-height: 1.3; }
+  .cmd-line { display: flex; gap: 6px; align-items: flex-start; margin-top: 4px; }
+  .cmd-line code { flex: 1 1 auto; min-width: 0; }
+  .cmd-line .copy { margin-left: 0; flex: none; }
   .attacks button { min-height: 40px; padding: 6px 8px; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; line-height: 1.25; }
   .attacks button .l { display: flex; gap: 5px; align-items: flex-start; }
   .attacks button .l .i { margin-top: 0.05em; }
@@ -128,7 +137,8 @@
   .tile .s { font-size: 11.5px; font-weight: 600; }
   .tile .v { font-family: var(--mono); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
   .tile .x { font-size: 11.5px; color: var(--text); opacity: 0.8; }
-  .tile.pass { background: var(--ok-bg); color: var(--ok); }
+  /* passing tiles are outlined, exceptions filled: on a pass the hero is the one focal point */
+  .tile.pass { background: transparent; color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
   .tile.fail { background: var(--hold-bg); color: var(--hold); border-color: var(--hold); }
   .tile.near { background: var(--wait-bg); color: var(--wait); border-style: dashed; border-color: color-mix(in srgb, var(--wait) 55%, transparent); }
   .tile.na { background: var(--done-bg); color: var(--muted); }
@@ -143,7 +153,8 @@
     #result { position: static; }
   }
   @media (max-width: 520px) {
-    .attacks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .attacks, .attacks.synth, .attacks.real-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .attack-groups { grid-template-columns: minmax(0, 1fr); }
     .panel { padding: var(--s3); }
     .verdict.hero { flex-direction: column; align-items: flex-start; gap: var(--s2); }
     table.score th:nth-child(2), table.score td:nth-child(2) { display: none; }
@@ -221,19 +232,24 @@
         <h2><span class="step" aria-hidden="true">3</span>Attack it</h2>
         <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test</button>
         <p class="progress" id="suite-progress" role="status" aria-live="polite" hidden></p>
-        <div class="attacks" role="group" aria-label="Single attempts">
+        <p class="hint">Every attempt is a simulation (eth_call): nothing changes on chain. <span class="keys" id="keys">Keys: <kbd>R</kbd> run all · <kbd>1</kbd>–<kbd>8</kbd> one attempt · <kbd>Esc</kbd> stop · <kbd>?</kbd> help</span></p>
+        <div class="attack-groups">
+        <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
+        <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
           <button type="button" class="valid" data-mode="asis"><span class="l" data-icon="check">Submit as is</span><span class="d">untouched</span></button>
           <button type="button" class="atk" data-mode="value"><span class="l" data-icon="target">(a) Edit value</span><span class="d">one value edited</span></button>
           <button type="button" class="atk" data-mode="stale"><span class="l" data-icon="target">(b) Too old</span><span class="d">signed 1 h earlier</span></button>
           <button type="button" class="atk" data-mode="request"><span class="l" data-icon="target">(c) Different request</span><span class="d">another company</span></button>
           <button type="button" class="atk" data-mode="key"><span class="l" data-icon="target">(d) Wrong key</span><span class="d">random key signs</span></button>
           <button type="button" class="atk" data-mode="replay"><span class="l" data-icon="target">Replay</span><span class="d">same record twice</span></button>
+        </div></div>
+        <div class="ag"><div class="ag-head">Real, untouched records</div>
+        <div class="attacks real-grid" role="group" aria-label="Real inputs: untouched records genuinely signed by the Airnode">
           <button type="button" class="atk real" data-mode="realOld"><span class="l" data-icon="file">(b) Real old record</span><span class="d">genuine, signed earlier</span></button>
           <button type="button" class="atk real" data-mode="realOther"><span class="l" data-icon="file">(c) Real, other company</span><span class="d">genuine, other firm</span></button>
+        </div></div>
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
-        <p class="keys" id="keys">Keys: <kbd>R</kbd> run the full test · <kbd>1</kbd>–<kbd>8</kbd> one attempt, in button order · <kbd>Esc</kbd> stop · <kbd>?</kbd> how this page works</p>
-        <p class="hint">One click runs the valid record and every attack as simulations: nothing changes on chain. The dashed buttons use real inputs: untouched records genuinely signed by the Airnode, simulated like the others.</p>
       </div>
     </section>
 
@@ -598,7 +614,7 @@
       </ol>
       <details><summary>The submitted record</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>
       <div class="row"><button type="button" id="send">${P.icon("send")}${verdict.accepted ? "Send for real" : "Send anyway as a real transaction (it reverts on chain)"} ${chainId === 31337 ? "(local agent key)" : "(MetaMask)"}</button><span class="msg" id="send-msg" role="status"></span></div>
-      ${verdict.accepted ? (mode === "asis" ? `<p class="hint">${P.icon("info")} Attack this record before you send it: once it is on chain, (a) and (d) stop earlier, at NotNewer or Replayed.</p>` : "")
+      ${verdict.accepted ? (mode === "asis" && !(suiteRunning && runFlow === "replay") ? `<p class="hint">${P.icon("info")} Attack this record before you send it: once it is on chain, (a) and (d) stop earlier, at NotNewer or Replayed.</p>` : "")
         : `<p class="hint">A rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
     // every attempt is kept, so a tile or a scoreboard row reopens its checklist without asking the contract again
     attempts.push({ html, candidate: lastCandidate });
@@ -885,7 +901,7 @@
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
     const id = order.info ? order.info.supplierId : "09729896";
     const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
-    return `<code>${esc(cmd)}</code>${P.copyBtn(cmd)}`;
+    return `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>`;
   }
 
   function renderKit() {
@@ -894,7 +910,7 @@
     const net = chainId ? (P.NETWORKS[chainId] || `chain ${chainId}`) : "not connected";
     const v1 = version === 1;
     const v1Body = `{"operation":"getCompanyProfile","parameters":{"company_number":"${id}"},"responseProjection":{"status":"/company_status"}}`;
-    const code = (t) => `<code>${esc(t)}</code>${P.copyBtn(t)}`;
+    const code = (t) => `<div class="cmd-line"><code>${esc(t)}</code>${P.copyBtn(t)}</div>`;
     const fetchCmd = v1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
     const body = v1 ? v1Body : s.body(id);
     const reqText = v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id);
