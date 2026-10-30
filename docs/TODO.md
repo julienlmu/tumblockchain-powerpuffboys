@@ -15,8 +15,8 @@ Rule for tonight: no contract change, no new deployment, no dependency upgrade.
 ## Code fixes (small, no deployment)
 
 - [ ] **Julien (F01):** the agent reads every order in `ordersLength` (`api3/agent/chain.py`, `snapshot`) and has no buyer or order filter, so anyone's orders can use up its paid fetches. Add an allowlist (e.g. `AGENT_ORDER_IDS` or the buyer address) and skip all other orders.
-- [ ] **Julien / Emre (F07):** `api3/x402/airnode-fetch.mjs` allows up to `$0.05` per payment but records a fixed `priceUsd: '0.01'`. Set the limit to `$0.01` so both match.
-- [ ] **Batu (F10):** `demo/index.html` treats a supplier as stopped whenever `lastBaseFailureAt > 0` (also on `batu/plus-ui`), even after newer clean evidence lets the contract pay again. Show "earlier failure on record" separately from "payment blocked now".
+- [x] **Julien / Emre (F07):** `api3/x402/airnode-fetch.mjs` allows up to `$0.05` per payment but records a fixed `priceUsd: '0.01'`. Set the limit to `$0.01` so both match. Done on `orhun/final-fixes`: cap $0.01, the record stores the amount actually paid.
+- [x] **Batu (F10):** `demo/index.html` treats a supplier as stopped whenever `lastBaseFailureAt > 0` (also on `batu/plus-ui`), even after newer clean evidence lets the contract pay again. Show "earlier failure on record" separately from "payment blocked now". Done on `orhun/final-fixes` (main's dashboard) and `orhun/plus-ui-f10` (from `batu/plus-ui`).
 - [ ] **Julien:** merge `orhun/doc-tools` (document hash, verify and change report; works with the live v2). The hash script now fails on errors instead of printing an empty hash, and the language-model summary runs only with `--summary`.
 
 ## Pitch and demo (weak spots a judge will ask about)
@@ -24,8 +24,9 @@ Rule for tonight: no contract change, no new deployment, no dependency upgrade.
 - [ ] **Ulaş:** one concrete customer instead of a general story, e.g. "a mid-sized German manufacturer pays an advance to a UK supplier; if the supplier goes under, the money is gone". Add one real number, such as how many companies Companies House dissolves per year.
 - [ ] **Ulaş / team:** a ready answer on one slide for "how do you know this wallet belongs to that company?": the buyer gets the supplier's payout wallet when signing the contract with a supplier it has already vetted (KYC), the same way it gets an IBAN today. The contract does not prove this link.
 - [ ] **Team:** one story in the video and pitch: order → signed API3 registry check → payment or stop → tamper rejections. Document hash, tiers and the second registry go in the README under "More features", not in the video.
-- [ ] **Julien / Emre:** one command for judges that runs the existing `api3/x402/tamper.mjs` (one valid response pays, four tampered ones are rejected), linked from the README next to `demo/judge.html`.
+- [x] **Julien / Emre:** one command for judges that runs the existing `api3/x402/tamper.mjs` (one valid response pays, four tampered ones are rejected), linked from the README next to `demo/judge.html`. Done: `api3/scripts/judge-tamper.sh` (local, no keys) and `--live` for the v2.
 - [ ] **Team:** video recorded by Sat 13:00, submission by Sat 14:30.
+- [ ] **Team:** for the video, run `api3/scripts/plus-quick-orders.sh` on Sepolia about 5 min before recording: orders due in 2 min instead of 20 to 30 (no contract change).
 
 ## Say it correctly in the pitch (no code change)
 
