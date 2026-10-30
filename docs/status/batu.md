@@ -2,6 +2,18 @@
 
 Newest on top.
 
+### 2026-10-30 ~14:10 · branch `batu/api3-setup`
+- Done: `docs/supplierpulse-upgrades.md`, six upgrades ranked by value for the judges, plus judge Q&A and an order of work before the freeze.
+- Checked (free, no aUSD spent):
+  - The Companies House OpenAPI lists `has_insolvency_history`, `company_status_detail`, `accounts`, `registered_office_is_in_dispute`.
+  - A projection allows up to 20 fields, and a missing pointer returns HTTP 400.
+  - PublicAML wallet screening exists ($0.01, signer `0xD4F3…c47d`), but "unknown, unscored or partial results are not clean". So: v2, not the demo.
+- Main ideas:
+  - an audit trail (each payment carries its evidence digest)
+  - a Cardano executor that earns the fee for a correct decision (paid **or** held) and refunds when there is no evidence
+  - an agent loop over a payment calendar for the API3 bonus
+- Next: Batu reviews and shares with the team. Upgrade 4 needs one paid field check per test company (Batu's OK).
+
 ### 2026-10-30 ~14:05 · branch `batu/api3-setup`
 - Done (role E): drafts in `docs/drafts/`.
   - `README.md`: will replace the root README after team review.

@@ -67,6 +67,14 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Batu (14:10)
+- Changed: `docs/supplierpulse-upgrades.md`, proposals to strengthen SupplierPulse. Docs only, nothing decided.
+- Next: Orhun and Julien pick what to build before the freeze. The suggested top three:
+  1. a Cardano executor paid for a correct decision (paid or held), refunded when there is no evidence
+  2. an agent loop over a payment calendar
+  3. the company number on-chain
+- Notes: every `MilestonePaid` already carries the evidence digest, so the pitch can sell a per-payment audit trail.
+
 ### 2026-10-30 · Batu (14:05)
 - Changed: drafts for README, Devfolio text and the 2:30 video script in `docs/drafts/`. The root README is unchanged for now.
 - Next: please review, especially the "How it works" flow (does the Cardano job match what the agent will really do?). The `TODO`s need a SupplierPulse deploy address, a judge script and a SupplierPulse app in `cardano-agent/`.
