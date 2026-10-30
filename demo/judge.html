@@ -40,9 +40,8 @@
   .order-sum b { color: var(--text); font-weight: 500; }
   details.order-more > summary { width: auto; list-style: none; display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
   details.order-more > summary::-webkit-details-marker { display: none; }
-  details.order-more .more { color: var(--accent); font-size: var(--t-1); }
-  details.order-more .more::after { content: " +"; }
-  details.order-more[open] .more::after { content: " −"; }
+  details.order-more > summary::before { content: none; }
+  details.order-more .more { color: var(--accent); font-size: var(--t-1); display: inline-flex; align-items: center; gap: 4px; }
   .kv { width: 100%; border-collapse: collapse; font-size: var(--t-1); margin-top: var(--s2); }
   .kv th { text-align: left; color: var(--muted); font-weight: 400; padding: 5px var(--s3) 5px 0; vertical-align: top; width: 32%; }
   .kv td { padding: 5px 0; overflow-wrap: anywhere; vertical-align: top; }
@@ -199,7 +198,7 @@
       <div class="group">
         <h2><span class="step" aria-hidden="true">1</span>Pick an order</h2>
         <select id="order" aria-label="Order to attack"><option>Reading the orders…</option></select>
-        <details class="order-more"><summary><span class="order-sum" id="order-sum"></span> <span class="more">Details</span></summary><table class="kv" id="order-info"></table></details>
+        <details class="order-more"><summary><span class="order-sum" id="order-sum"></span> <span class="more disclosure-mark">Details</span></summary><table class="kv" id="order-info"></table></details>
       </div>
 
       <div class="group">
@@ -281,6 +280,7 @@
     realOld: "(b) Real old record", realOther: "(c) Real, other company",
   };
   const SAMPLES = window.PULSE_SAMPLE_RESPONSES || [];
+  const nameOf = P.orderNamer(); // the same order names as the dashboard
   // error names break between their words (Wrong<wbr>Request), never mid-word on a phone
   const wbr = (t) => esc(t).replace(/([a-z])([A-Z])/g, "$1<wbr>$2");
 
@@ -322,11 +322,11 @@
   async function readOrder(id) {
     if (version === 2) {
       const [info, st, sch] = await Promise.all([contract.orderInfo(id), contract.orderStatus(id), contract.orderSchedule(id)]);
-      return { source: Number(info.source), supplierId: info.supplierId, requestHash: info.requestHash, rules: Number(info.rules),
+      return { source: Number(info.source), supplierId: info.supplierId, requestHash: info.requestHash, rules: Number(info.rules), orderRef: info.orderRef,
         state: Number(st.state), lastCheck: Number(st.lastCheck), nextMilestone: Number(st.nextMilestone), lastFailedRules: Number(sch.lastFailedRules) };
     }
     const [info, st, num] = await Promise.all([contract.orderInfo(id), contract.orderStatus(id), contract.companyNumberOf(id)]);
-    return { source: 0, supplierId: num, requestHash: info.companyRequest, rules: 0, state: Number(st.state), lastCheck: Number(st.lastCheck),
+    return { source: 0, supplierId: num, requestHash: info.companyRequest, rules: 0, orderRef: info.orderRef, state: Number(st.state), lastCheck: Number(st.lastCheck),
       nextMilestone: Number(st.nextMilestone), lastFailedRules: Number(st.state) === 1 ? P.BASE_FAILED : 0 };
   }
   const airnodeFor = (source) => (version === 2 ? contract.airnodeOf(source) : contract.airnode());
@@ -420,7 +420,7 @@
     sel.disabled = false;
     setNoOrder(false);
     const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
-    sel.innerHTML = infos.map((o, i) => `<option value="${i}">#${i} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`).join("");
+    sel.innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">#${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`; }).join("");
     const want = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : 0;
     sel.value = String(want);
     await selectOrder(want);

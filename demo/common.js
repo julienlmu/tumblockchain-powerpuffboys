@@ -119,6 +119,23 @@
   ];
   const sourceIndex = (key) => SOURCES.findIndex((s) => s.key === key);
 
+  // Order names. Orders store orderRef as bytes32; the team scripts use keccak256(name), which cannot be decoded, so
+  // known names are matched by hash. LOCAL-<id> comes from api3/scripts/plus-local.sh; bytes32 strings decode directly.
+  const DEMO_NAMES = ["PO-1001 Motor supply", "PO-1002 Gearbox", "PO-1003 Sensors", "PO-1004 Cable harness (DE)", "PO-1005 Castings", "PO-1"];
+  function orderNamer(extra = []) {
+    const byHash = {};
+    for (const n of [...DEMO_NAMES, ...extra]) byHash[ethers.id(n).toLowerCase()] = n;
+    return (ref, supplierId) => {
+      if (!ref) return null;
+      if (!String(ref).startsWith("0x")) return String(ref); // sample data holds the plain name
+      const k = ref.toLowerCase();
+      if (byHash[k]) return byHash[k];
+      if (supplierId && ethers.id(`LOCAL-${supplierId}`).toLowerCase() === k) return `LOCAL-${supplierId}`;
+      try { const s = ethers.decodeBytes32String(ref); if (s && /^[\x20-\x7e]+$/.test(s)) return s; } catch { /* not a bytes32 string */ }
+      return null;
+    };
+  }
+
   const KNOWN_SIGNERS = {
     "0x392228e5cca260313e5ed337ed3561b59a1e4bff": "Companies House Airnode",
     "0x26d83124541e89ef28b9a5fb012b4b5f4097c20c": "GLEIF Airnode",
@@ -444,6 +461,6 @@
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,
     ruleNames, failedLabels, evaluate, requestHashFor, supplierKeyOf, digestOf, normalizeRecord, parseFields,
     tamper, decodeRevert, explain, friendlyError,
-    esc, short, nowSec, clock, dayClock, ago, span, duration, tokens,
+    esc, short, nowSec, clock, dayClock, ago, span, duration, tokens, orderNamer, DEMO_NAMES,
   };
 })();

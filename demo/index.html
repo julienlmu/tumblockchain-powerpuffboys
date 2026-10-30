@@ -214,7 +214,6 @@
   const REFRESH_MS = 12000;
   const LOG_CHUNK = 9000;   // publicnode refuses eth_getLogs ranges of 20000 blocks
   const MAX_CHUNKS = 30;    // first load: at most ~270k blocks of history
-  const DEMO_NAMES = ["PO-1001 Motor supply", "PO-1002 Gearbox", "PO-1003 Sensors", "PO-1004 Cable harness (DE)", "PO-1005 Castings", "PO-1"];
   const KEYS = ["contract", "rpc", "orders", "agent", "from", "unit", "names"];
 
   const params = new URLSearchParams(location.search);
@@ -253,20 +252,9 @@
 
   // ---------------------------------------------------------------- names for orderRef
 
-  // Orders store orderRef as bytes32. The team scripts use keccak256(name), which cannot be decoded,
-  // so known names are matched by hash. encodeBytes32String names decode directly.
-  const refNames = {};
-  for (const n of [...DEMO_NAMES, ...cfg.names.split(",").map((x) => x.trim()).filter(Boolean)]) refNames[ethers.id(n).toLowerCase()] = n;
-  function orderTitle(o) {
-    const ref = o.info.orderRef;
-    if (!ref.startsWith("0x")) return ref; // sample data holds the plain name
-    const k = ref.toLowerCase();
-    if (refNames[k]) return refNames[k];
-    const local = `LOCAL-${o.info.supplierId}`; // api3/scripts/plus-local.sh
-    if (ethers.id(local).toLowerCase() === k) return local;
-    try { const s = ethers.decodeBytes32String(ref); if (s && /^[\x20-\x7e]+$/.test(s)) return s; } catch { /* not a bytes32 string */ }
-    return null;
-  }
+  // Orders store orderRef as bytes32: names come from common.js (the demo names, plus the `names` parameter).
+  const nameOf = P.orderNamer(cfg.names.split(",").map((x) => x.trim()).filter(Boolean));
+  const orderTitle = (o) => nameOf(o.info.orderRef, o.info.supplierId);
 
   // ---------------------------------------------------------------- small render helpers
 

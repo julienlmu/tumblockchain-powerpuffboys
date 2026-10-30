@@ -138,8 +138,17 @@ form.cfg input::placeholder, textarea::placeholder { color: var(--muted); opacit
 form.cfg input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--hold); box-shadow: inset 0 0 0 1px var(--hold); }
 form.cfg .field-err { color: var(--hold); font-size: 12px; min-height: 0; }
 form.cfg .btns { display: flex; gap: var(--s2); align-items: flex-end; }
-summary { cursor: pointer; color: var(--muted); font-size: var(--t-1); width: fit-content; border-radius: var(--r-sm); }
+summary { cursor: pointer; color: var(--muted); font-size: var(--t-1); width: fit-content; border-radius: var(--r-sm); list-style: none; display: inline-flex; align-items: center; gap: 4px; }
+summary::-webkit-details-marker { display: none; }
 summary:hover { color: var(--text); }
+/* one disclosure marker for every <details>: the chevron of the icon set, turned when open */
+summary::before, .disclosure-mark::before {
+  content: ""; flex: none; width: 0.95em; height: 0.95em; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform var(--fast) var(--ease);
+}
+details[open] > summary::before, details[open] > summary .disclosure-mark::before { transform: rotate(90deg); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
