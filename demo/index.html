@@ -34,7 +34,8 @@
   .toolbar { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; margin-top: var(--s3); font-size: var(--t-1); color: var(--muted); }
   .toolbar b { color: var(--text); font-weight: 600; }
   .grid.stale { opacity: 0.75; }
-  .meta .warn { color: var(--wait); }
+  .meta .warn, .meta .warn b { color: var(--wait); }
+  .live-dot.warn { background: var(--wait); }
 
   /* agent panel */
   .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
@@ -265,8 +266,10 @@
     const inner = `<span class="mono">${short(a)}</span>`;
     return explorer ? `<a href="${explorer}/address/${a}" target="_blank" rel="noopener" title="${a}">${inner}</a>` : `<span title="${a}">${inner}</span>`;
   }
+  // A transaction hash: a link where the chain has an explorer, mono text otherwise (local chain).
   function txLink(h) {
-    return h && explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}</a>` : "";
+    if (!h) return "";
+    return explorer ? `<a class="mono" href="${explorer}/tx/${h}" target="_blank" rel="noopener">${short(h)}</a>` : `<span class="mono">${short(h)}</span>`;
   }
   const cdText = (ts, done) => { const l = ts - nowSec(); return l > 0 ? span(l) : done; };
   const cd = (ts, done = "now") => `<span class="cd" data-until="${ts}" data-done="${esc(done)}">${cdText(ts, done)}</span>`;
@@ -280,6 +283,46 @@
   const openTrails = new Set();
   const claimMsg = {};
   const claimState = {}; // order id -> "confirm" | "busy"
+  const myRefunds = {};  // order id -> { amount, hash }: refunds sent from this page, kept for the session
+
+  // Writes markup only when it changed. Countdown, "ago" and next-read text move every second in place, and the open
+  // state of a disclosure belongs to the user, so neither counts as a change. Live regions then speak only on real
+  // changes, and text selection, focus and a screen reader's reading position survive the 12 s refresh.
+  const stableKey = (html) => html
+    .replace(/(<span class="(?:cd|since|next-read)"[^>]*>)[^<]*(<\/span>)/g, "$1$2")
+    .replace(/(<details\b[^>]*?)\sopen(?=[\s>])/g, "$1");
+  function setHTML(el, html) {
+    const k = stableKey(html);
+    if (el._key === k) return false;
+    el._key = k;
+    el.innerHTML = html;
+    return true;
+  }
+  // The order grid: one element per card, replaced only when that card's markup changed.
+  function renderGrid(cards) {
+    const grid = $("orders");
+    if (typeof cards === "string") { grid._cards = null; setHTML(grid, cards); return; }
+    if (!grid._cards) { grid._cards = new Map(); grid._key = null; grid.innerHTML = ""; }
+    const seen = new Set();
+    let at = 0;
+    for (const { id, html } of cards) {
+      seen.add(id);
+      const key = stableKey(html);
+      let ent = grid._cards.get(id);
+      if (!ent || ent.key !== key) {
+        const t = document.createElement("template");
+        t.innerHTML = html.trim();
+        const el = t.content.firstElementChild;
+        if (ent && ent.el.parentNode === grid) ent.el.replaceWith(el);
+        ent = { key, el };
+        grid._cards.set(id, ent);
+      }
+      if (grid.children[at] !== ent.el) grid.insertBefore(ent.el, grid.children[at] || null);
+      at++;
+    }
+    for (const [id, ent] of grid._cards) if (!seen.has(id)) { ent.el.remove(); grid._cards.delete(id); }
+    while (grid.children.length > at) grid.lastElementChild.remove();
+  }
 
 
   // ---------------------------------------------------------------- view model
@@ -330,12 +373,18 @@
       <div class="line2">${parts.map((x) => `<span>${x}</span>`).join("")}</div></div></li>`;
   }
 
-  function nextStep(o, total) {
+  function nextStep(o, ctx) {
     const n = o.next + 1, due = o.dueDates[o.next];
     if (o.state === 1) return null; // the held box says it
     if (o.state === 2) return null; // the closed box says it
     if (o.autoRefundAt > 0 || supplierStopped(o)) return null; // the no-data box or the stop strip says it
-    if (permitValid(o) && o.approved[o.next] && nowSec() >= due) return ["ok", `Ready to pay milestone ${n} now: valid permit, buyer approved, due.`];
+    if (permitValid(o) && o.approved[o.next] && nowSec() >= due) {
+      // the page itself never pays: say who does, and when the agent last acted
+      const last = ctx.agentLast ? ` · agent last acted ${since(ctx.agentLast)}` : "";
+      return ["ok", agentAddr
+        ? `Ready: the agent pays milestone ${n} on its next pass${last}. Valid permit, buyer approved, due.`
+        : `Ready: milestone ${n} can be paid now (valid permit, buyer approved, due). Anyone may send the payment.`];
+    }
     if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. Its payment permit is valid.`];
     if (permitValid(o)) {
       const late = o.permitValidUntil < due;
@@ -476,13 +525,15 @@
     } else if (refunded) {
       const ev = o.events.find((e) => e.name === "OrderRefunded");
       const how = ev && ev.args.noDataExit ? "Closed by the no-data exit" : "Closed after a hold";
-      statusBox = `<div class="closed-box">${I("refund")}<span>${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</span></div>`;
+      const m = myRefunds[o.id];
+      const mine = m ? `<br><b>You refunded ${m.amount !== null ? `${tok(m.amount)} tokens` : "the remaining balance"} in ${txLink(m.hash)}.</b>` : "";
+      statusBox = `<div class="closed-box">${I("refund")}<span>${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.${mine}</span></div>`;
     }
     if (closed && !refunded) {
       statusBox = `<div class="closed-box">${I("check")}<span>Fully paid: every milestone was paid against its own fresh signed record.</span></div>`;
     }
 
-    const step = nextStep(o, total);
+    const step = nextStep(o, ctx);
     const stepIcon = { ok: "arrow-right", wait: "clock", info: "arrow-right" };
     const lastCheck = o.lastCheck
       ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span><div>${
@@ -580,7 +631,7 @@
     const more = rows.length > SHOWN
       ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - SHOWN} earlier transactions</summary><ol>${rows.slice(SHOWN, 60).map(li).join("")}</ol></details>`
       : "";
-    $("agent").innerHTML = head + (rows.length ? `<ol>${rows.slice(0, SHOWN).map(li).join("")}</ol>${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`);
+    setHTML($("agent"), head + (rows.length ?`<ol>${rows.slice(0, SHOWN).map(li).join("")}</ol>${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
   }
 
   let filter = null; // a STATES key: show only the orders in that state
@@ -591,8 +642,8 @@
       <span class="top"><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span></span>
       <span class="def">${STATES[k].def}</span></button>`;
     const rest = ["pending", "paid", "closed"].filter((k) => count[k]).map((k) => `<span>${count[k]} ${STATES[k].label.toLowerCase()}</span>`);
-    $("states").innerHTML = btn("ok") + btn("rule") + btn("nodata")
-      + `<div class="rest">${rest.join("")}${filter ? `<button type="button" class="link-order" data-filter="">Show all orders</button>` : ""}</div>`;
+    setHTML($("states"), btn("ok") + btn("rule") + btn("nodata")
+      + `<div class="rest">${rest.join("")}${filter ? `<button type="button" class="link-order" data-filter="">Show all orders</button>` : ""}</div>`);
   }
 
   let lastEnv = { sample: false };
@@ -613,19 +664,20 @@
     renderStates(orders);
     renderAgent(orders, rows);
     const shown = filter ? orders.filter((o) => stateOf(o) === filter) : orders;
-    $("shown-note").innerHTML = filter
+    setHTML($("shown-note"), filter
       ? `Showing ${shown.length} of ${orders.length} orders: <b>${STATES[filter].label}</b> · <button type="button" class="link-order" data-filter="">Show all</button>`
-      : orders.length ? `Showing all ${orders.length} orders` : "";
-    $("orders").innerHTML = !orders.length
+      : orders.length ? `Showing all ${orders.length} orders` : "");
+    const agentLast = rows[0] && rows[0].time;
+    renderGrid(!orders.length
       ? `<div class="empty-state">${I("file")}<b>No orders on this contract yet</b><span>A buyer creates one with <span class="mono">api3/scripts/plus-create-order.sh</span>; it appears here within 12 s.</span></div>`
       : !shown.length
       ? `<div class="empty-state">${I(STATES[filter].icon)}<b>No orders are ${STATES[filter].label.toLowerCase()} right now</b><span>${STATES[filter].def}</span><button type="button" data-filter="">Show all ${orders.length} orders</button></div>`
       : shown.map((o) => {
         const cause = causeOf(o, orders);
         const stops = orders.filter((x) => x.id !== o.id && supplierStopped(x) && causeOf(x, orders) === o);
-        return renderOrder(o, env, { cause, stops, agent: rows.find((g) => g.order === o.id) || null });
-      }).join("");
-    if (keep) { const el = document.querySelector(keep); if (el) el.focus({ preventScroll: true }); }
+        return { id: o.id, html: renderOrder(o, env, { cause, stops, agent: rows.find((g) => g.order === o.id) || null, agentLast }) };
+      }));
+    if (keep) { const el = document.querySelector(keep); if (el && el !== document.activeElement) el.focus({ preventScroll: true }); }
   }
 
   // The contract's constants, each with what it means for the buyer.
@@ -639,11 +691,29 @@
       row("Refund grace", duration(d.refundGrace), `after a hold, or an approved milestone overdue without data, the refund opens to anyone after ${duration(d.refundGrace)}`),
     ].join("");
   }
-  let nextReadAt = 0;
-  const nextRead = () => `<span class="next-read" style="font-weight:400;color:var(--muted)"> · next read in ${Math.max(0, nextReadAt - nowSec())} s</span>`;
-  function renderMeta(m) { $("meta").innerHTML = m.map(([k, val]) => `<span>${k} <b>${val}</b></span>`).join(""); }
-  renderMeta([["Mode", cfg.sample ? "sample" : "reading the contract…"]]);
-  function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""; }
+  // ---------------------------------------------------------------- read status (the meta line)
+
+  let nextReadAt = 0, busy = false;
+  // Where the data comes from, the protected total, when it was read, and when the next read happens.
+  const status = { mode: cfg.sample ? "sample" : "start", network: "", protectedTotal: null, readAt: 0, note: "", failed: false };
+  const MODE_WORDS = { sample: "sample", start: "reading the contract…", discover: "looking for SupplierPulse+ v2…", none: "not configured" };
+  const rpcHost = () => { try { return new URL(cfg.rpc).host; } catch { return "the RPC"; } };
+  function nextReadText() {
+    if (busy) return "reading now…";
+    const s = Math.max(0, nextReadAt - nowSec());
+    return status.failed ? `retrying in ${s} s` : `next read in ${s} s`;
+  }
+  function renderMeta() {
+    const items = [];
+    if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${status.failed ? "Reconnecting to" : "Live on"} <b>${esc(status.network || rpcHost())}</b>`);
+    else items.push(`Mode <b>${MODE_WORDS[status.mode]}</b>`);
+    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} tokens</b>`);
+    if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${P.dayClockS(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
+    else if (status.readAt) items.push(`Updated <b>${P.dayClockS(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
+    setHTML($("meta"), items.map((x) => `<span>${x}</span>`).join(""));
+  }
+  renderMeta();
+  function banner(kind, html) { setHTML($("banner"), html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""); }
 
   // ---------------------------------------------------------------- live data
 
@@ -708,6 +778,7 @@
       contract = new ethers.Contract(cfg.contract, P.ABI, provider);
       iface = contract.interface;
       chainId = Number((await provider.getNetwork()).chainId);
+      status.network = P.NETWORKS[chainId] || `chain ${chainId}`;
       if ((await provider.getCode(cfg.contract)) === "0x") throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
       explorer = P.EXPLORERS[chainId] || null;
       agentAddr = cfg.agent || P.DEFAULT_AGENT[chainId] || "";
@@ -731,13 +802,10 @@
       return norm({ id, info, milestones, status, schedule, supplier, events: evBy[id] || [] });
     }));
 
-    const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
-    renderMeta([
-      [`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`],
-      ["Protected now", `${tok(protectedTotal)} tokens`],
-      ["Updated", clock(nowSec()) + eventsNote + nextRead()],
-    ]);
-    lastGood = nowSec();
+    Object.assign(status, {
+      mode: "live", failed: false, readAt: nowSec(), note: eventsNote,
+      protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n),
+    });
     $("orders").classList.remove("stale");
     renderDetails({ contract: cfg.contract, airnodes: consts.airnodes, maxAge: consts.maxAge, tierCountGap: consts.tierCountGap, refundGrace: consts.refundGrace });
     banner(missing.length ? "info" : "", missing.length ? `${I("info")}<span>${missing.length === 1 ? `Order ${missing[0]} is` : `Orders ${missing.join(", ")} are`} not on this contract: it has ${count} ${count === 1 ? "order" : "orders"}${count ? ` (#0 to #${count - 1})` : ""}. Change the order IDs in Settings, or leave them empty for all.</span>` : ""); // no orders: the empty state in the grid says it
@@ -751,9 +819,9 @@
     const data = window.PULSE_SAMPLE(SAMPLE_T0);
     agentAddr = cfg.agent || data.agent;
     const orders = data.orders.map(norm);
-    const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
     nextReadAt = nowSec() + REFRESH_MS / 1000;
-    renderMeta([["Mode", "sample"], ["Protected now", `${tok(protectedTotal)} tokens`], ["Updated", clock(nowSec()) + nextRead()]]);
+    Object.assign(status, { mode: "sample", readAt: nowSec(), protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n) });
+    renderMeta();
     renderDetails({ maxAge: data.maxAge, tierCountGap: data.tierCountGap, refundGrace: data.refundGrace });
     banner("sample", I("info") + "<span><b>Sample data, not read from a chain:</b> the demo scenario with illustrative amounts, wallets, ids and times. Add <span class=\"mono\">?contract=0x…</span> for live data.</span>");
     lastOrders = orders;
@@ -779,10 +847,12 @@
       const c = new ethers.Contract(cfg.contract, P.ABI, signer);
       try { await c.refundRemaining.staticCall(id); }
       catch (e) { const r = P.decodeRevert(iface, e); say(r ? `Not sent: the contract would refuse it with <b>${esc(r.name)}</b>. ${esc(P.explain(r.name, r.args))}` : `Not sent. ${esc(P.friendlyError(e, { rpc: cfg.rpc }).text)}`); return; }
+      const before = lastOrders && lastOrders.find((x) => x.id === id);
       const tx = await c.refundRemaining(id);
-      say(`Sent ${txLink(tx.hash) || esc(tx.hash)}, waiting for the block…`);
+      say(`Sent ${txLink(tx.hash)}, waiting for the block…`);
       await tx.wait();
-      say(`Refunded in ${txLink(tx.hash) || esc(tx.hash)}.`);
+      myRefunds[id] = { amount: before ? before.remaining : null, hash: tx.hash }; // shown in the closed box for the session
+      say(`Refunded in ${txLink(tx.hash)}.`);
       tick();
     } catch (e) {
       say(esc(P.friendlyError(e, { rpc: cfg.rpc }).text));
@@ -847,32 +917,30 @@
   if (cfg.rpc !== P.DEFAULT_RPC) judgeQs.set("rpc", cfg.rpc);
   for (const id of ["judge-link", "judge-link2"]) $(id).href = "judge.html" + (judgeQs.toString() ? "?" + judgeQs : "");
 
-  // Countdowns and "ago" values move every second without a re-render.
-  setInterval(() => {
-    for (const el of document.querySelectorAll(".next-read")) el.textContent = ` · next read in ${Math.max(0, nextReadAt - nowSec())} s`;
+  // Countdowns, "ago" values and the next-read note move every second without a re-render.
+  const moveClocks = () => {
+    for (const el of document.querySelectorAll(".next-read")) el.textContent = nextReadText();
     for (const el of document.querySelectorAll(".cd")) el.textContent = cdText(Number(el.dataset.until), el.dataset.done);
     for (const el of document.querySelectorAll(".since")) el.textContent = ago(nowSec() - Number(el.dataset.since));
-  }, 1000);
+  };
+  setInterval(moveClocks, 1000);
 
-  let busy = false, lastGood = 0;
   async function tick() {
     if (busy) return;
     busy = true;
     nextReadAt = nowSec() + REFRESH_MS / 1000;
+    moveClocks(); // "reading now…" while the read is in flight
     try { await loadLive(); }
     catch (e) {
       // --- H9: plain words, the culprit field marked in Settings, the user's values kept
+      status.failed = true; // the dot turns amber; the meta says when the last good read was and when the next try is
       const f = P.friendlyError(e, { rpc: cfg.rpc });
       if (f.kind === "network" || f.kind === "address") { P.markField(form, f.kind === "network" ? "rpc" : "contract", f.text); if (!lastOrders) $("cfg-box").open = true; }
       banner("error", `${I("alert")}<span>Could not read the contract. ${esc(f.text)}${f.kind === "other" ? " Check the address, the RPC URL and the network in Settings." : ""} The page retries every 12 s${lastOrders ? "; the cards show the last good read" : ""}.</span>`);
-      if (!lastOrders) $("orders").innerHTML = "";
-      else {
-        $("orders").classList.add("stale");
-        const upd = [...$("meta").children].find((x) => x.textContent.startsWith("Updated"));
-        if (upd) upd.innerHTML = `Updated <b class="warn">last good read ${clock(lastGood)}, retrying${nextRead()}</b>`;
-      }
+      if (!lastOrders) renderGrid("");
+      else $("orders").classList.add("stale");
     }
-    finally { busy = false; }
+    finally { busy = false; renderMeta(); moveClocks(); }
   }
 
   function startLive() {
@@ -881,15 +949,17 @@
   }
   function notConfigured(html) {
     $("cfg-box").open = true;
-    $("orders").innerHTML = "";
+    renderGrid("");
     html = `${I("info")}<span>${html}</span>`;
-    renderMeta([["Mode", "not configured"]]);
+    status.mode = "none";
+    renderMeta();
     $("agent").hidden = true;
     banner("sample", html);
   }
   // No address given: find the newest v2 deployed by the team (§7.2 C3), so the page needs no edit after launch.
   async function discover() {
-    renderMeta([["Mode", "looking for SupplierPulse+ v2…"]]);
+    status.mode = "discover";
+    renderMeta();
     const probe = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
     const [net, addrFound] = await Promise.all([probe.getNetwork(), P.discoverV2(probe)]);
     if (addrFound) {
