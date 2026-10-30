@@ -1,0 +1,28 @@
+{
+  "name": "mock",
+  "description": "Test app for the pay-on-pass flow. The executor passes, fails, or fails once and then passes, as the buyer asks.",
+  "executor": ["{python}", "executors/mock.py"],
+  "timeout_s": 30,
+  "retry": {"interval_s": 10, "max_wait_s": 60},
+  "submit_margin_s": 120,
+  "input_schema": {
+    "input_data": [
+      {
+        "id": "task",
+        "type": "string",
+        "name": "Task",
+        "data": {"description": "Any text. It is echoed in the result."}
+      },
+      {
+        "id": "outcome",
+        "type": "option",
+        "name": "Outcome",
+        "data": {
+          "description": "pass, fail, or retry (fails once, then passes)",
+          "values": ["pass", "fail", "retry"]
+        },
+        "validations": [{"validation": "min", "value": "1"}, {"validation": "max", "value": "1"}]
+      }
+    ]
+  }
+}

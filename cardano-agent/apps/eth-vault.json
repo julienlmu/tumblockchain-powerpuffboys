@@ -1,0 +1,19 @@
+{
+  "name": "eth-vault",
+  "description": "Executes a vault order on an EVM testnet if signed ETH/USD from API3 AirnodeHub is below the threshold. Pay only if it executed.",
+  "executor": ["{python}", "executors/api3_vault.py"],
+  "timeout_s": 300,
+  "retry": {"interval_s": 60, "max_wait_s": 0},
+  "submit_margin_s": 600,
+  "input_schema": {
+    "input_data": [
+      {
+        "id": "threshold_usd",
+        "type": "number",
+        "name": "ETH/USD threshold",
+        "data": {"description": "Execute the vault action if ETH/USD is below this value"},
+        "validations": [{"validation": "min", "value": "1"}]
+      }
+    ]
+  }
+}
