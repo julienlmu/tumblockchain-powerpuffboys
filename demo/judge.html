@@ -36,6 +36,8 @@
   textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: auto; resize: vertical; display: block; }
   .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
   .row select { width: auto; flex: 1 1 200px; }
+  #order-msg { margin: 0; }
+  #order-msg:empty { display: none; }
   .order-sum { font-size: var(--t-1); color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
   .order-sum b { color: var(--text); font-weight: 500; }
   details.order-more > summary { width: auto; list-style: none; display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
@@ -257,6 +259,7 @@
       <div class="group">
         <h2><span class="step" aria-hidden="true">1</span>Pick an order</h2>
         <select id="order" aria-label="Order to attack"><option>Reading the orders…</option></select>
+        <p class="msg" id="order-msg" role="status"></p>
         <details class="order-more"><summary><span class="order-sum" id="order-sum"></span> <span class="more disclosure-mark">Details</span></summary><table class="kv" id="order-info"></table></details>
       </div>
 
@@ -466,23 +469,35 @@
     }
     markAttacks();
   }, 1000);
-  // Before any press: the attempts the loaded record cannot test, with the check that would stop them.
-  // In the contract's order of checks: the request is checked before freshness, freshness before reuse.
+  // Before any press: the attempts the loaded record (or the order) cannot test, with the check that would stop them.
+  // In the contract's order of checks: the order's state first, then the request, freshness, reuse. A missing record
+  // comes before all of them: those attempts would not even ask. The two real records need no record from step 2.
+  const SYNTH = ["asis", "value", "stale", "request", "key", "replay"];
+  const all = (modes, t) => Object.fromEntries(modes.map((m) => [m, t]));
   const BLOCKED = {
+    empty: all(SYNTH, "needs a record (step 2)"),
+    invalid: all(SYNTH, "record needs fixing (step 2)"),
+    held: all([...SYNTH, "realOld", "realOther"], 'order not active: answers <span class="mono">NotActive</span>'),
     other: { asis: "stops at Request", value: "stops at Request", stale: "stops at Request", key: "stops at Request", replay: "stops at Request" },
     stale: { asis: "stops at Fresh", value: "stops at Fresh", key: "stops at Fresh", replay: "stops at Fresh" },
     used: { asis: "gets Replayed", value: "stops at Newer", key: "stops at Not used" },
   };
   let marked = null;
   function markAttacks() {
-    const why = recordTs === null ? null : recordOther ? "other" : recordUsed !== null ? "used" : isStale() ? "stale" : null;
-    if (why === marked) return;
-    marked = why;
-    for (const b of document.querySelectorAll(".attacks.synth [data-mode]")) {
+    const box = $("resp");
+    const reasons = noOrder ? [] : [
+      !box.value.trim() && "empty", box.getAttribute("aria-invalid") === "true" && "invalid",
+      order.info && order.info.state !== 0 && "held",
+      recordTs !== null && recordOther && "other", recordTs !== null && recordUsed !== null && "used", isStale() && "stale",
+    ].filter(Boolean);
+    const key = reasons.join();
+    if (key === marked) return;
+    marked = key;
+    for (const b of document.querySelectorAll(".attacks [data-mode]")) {
       const old = b.querySelector(".d.blk");
       if (old) old.remove();
-      const t = why && BLOCKED[why][b.dataset.mode];
-      if (t) b.querySelector(".d.exp").insertAdjacentHTML("afterend", `<span class="d blk">${P.icon("alert")} ${t}</span>`);
+      const why = reasons.find((r) => BLOCKED[r][b.dataset.mode]);
+      if (why) b.querySelector(".d.exp").insertAdjacentHTML("afterend", `<span class="d blk">${P.icon("alert")} ${BLOCKED[why][b.dataset.mode]}</span>`);
     }
   }
   // Checks the record while it is typed or loaded, before any button is pressed: JSON, fields, age and supplier.
@@ -490,7 +505,7 @@
     const text = $("resp").value.trim();
     if (!text) { recordTs = null; recordUsed = null; recordOther = false; markAttacks(); respMsg(note); return; }
     let r;
-    try { r = readRecord(); } catch (e) { $("resp").setAttribute("aria-invalid", "true"); respMsg(esc(e.message), true); return; }
+    try { r = readRecord(); } catch (e) { $("resp").setAttribute("aria-invalid", "true"); respMsg(esc(e.message), true); markAttacks(); return; }
     $("resp").removeAttribute("aria-invalid");
     const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
     const age = nowSec() - Number(r.timestamp);
@@ -504,7 +519,7 @@
     if (recordUsed !== null) parts.push(`<span class="warn">Already sent in this tab (block ${recordUsed}): attacks on it stop early. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Load a fresh record"} to test each check.</span>`);
     else if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Get a fresh one (Judge kit, below)"} to test each check.</span>`);
     if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
-      parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>: attempts stop at "Request matches the order".</span>`);
+      parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>${order.info.state === 0 ? `: attempts stop at "Request matches the order"` : ""}.</span>`);
     $("resp-msg").innerHTML = (note ? `<span>${note}</span> ` : "") + parts.join(" ");
   }
 
@@ -556,6 +571,10 @@
       <tr><th>Rules</th><td>${version === 2 ? P.ruleNames(source, info.rules).map(esc).join(", ") : "status active (v1)"}</td></tr>
       <tr><th>Expected request</th><td class="mono" title="${info.requestHash}">${short(info.requestHash)}</td></tr>
       <tr><th>Trusted signer</th><td>${addr(airnode)}${signerName(airnode)}</td></tr>`;
+    // a held or closed order stops every attempt at its first check: said here, before any press
+    $("order-msg").innerHTML = info.state !== 0
+      ? `<span class="warn">${P.icon("alert")} Order #${id} is ${P.STATE[info.state].toLowerCase()}, so every attempt stops at <span class="mono">NotActive</span>. Pick an active order to test the checks.</span>` : "";
+    markAttacks();
     $("fresh").hidden = chainId !== 31337 || version !== 2;
     simpleLink();
     // on the local chain the Fresh button says it all (its tooltip names the key); elsewhere, where fresh records come from
