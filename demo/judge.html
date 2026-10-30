@@ -59,6 +59,11 @@
   .ag-head { font-size: 12px; color: var(--muted); line-height: 1.3; }
   .h-note { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
   .panel h2:has(.h-note) { flex-wrap: wrap; }
+  details.prereq { margin-top: 4px; font-size: var(--t-1); }
+  details.prereq > summary { color: var(--accent); }
+  details.prereq .hint { margin-top: 4px; }
+  #cfg-note { grid-column: 1 / -1; }
+  #cfg-note:empty { display: none; }
   .cmd-line { display: flex; gap: 6px; align-items: flex-start; margin-top: 4px; }
   .cmd-line code { flex: 1 1 auto; min-width: 0; }
   .cmd-line .copy { margin-left: 0; flex: none; }
@@ -146,6 +151,7 @@
   .tile .x { font-size: 11.5px; color: var(--text); opacity: 0.8; }
   /* passing tiles are outlined, exceptions filled: on a pass the hero is the one focal point */
   .tile.pass { background: transparent; color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+  .tile.pass .s { color: var(--muted); font-weight: 400; }
   .tile.fail { background: var(--hold-bg); color: var(--hold); border-color: var(--hold); }
   .tile.near { background: var(--wait-bg); color: var(--wait); border-style: dashed; border-color: color-mix(in srgb, var(--wait) 55%, transparent); }
   .tile.na { background: var(--done-bg); color: var(--muted); }
@@ -173,9 +179,7 @@
   <header>
     <div>
       <h1>Try to break it</h1>
-      <p class="tagline">Tamper with a signed register record and see whether the live SupplierPulse+ contract would act on it.
-        Every verdict is the contract's own: an <span class="mono">eth_call</span> of <span class="mono">submitEvidence</span>
-        from <span class="mono">0x…dEaD</span>. No wallet, no gas.</p>
+      <p class="tagline">Tamper with a signed register record and see whether the live contract would act on it. No wallet, no gas.</p>
     </div>
     <div class="head-links">
       <a class="btn" id="dash-link" href="index.html" data-icon="arrow-left">Dashboard</a>
@@ -190,7 +194,7 @@
         <ol>
           <li><b>Pick an order.</b> The contract builds the request it expects from the order's supplier and trusts one signer per registry.</li>
           <li><b>Load a signed record</b> of that supplier: a sample (old on purpose), your own file from <code>fetch-evidence.sh</code>, or <b>Fresh local record</b> on the local chain. It must be at most <span class="max-age">300</span> s old, or every attack stops at the freshness check.</li>
-          <li><b>Run the full tamper test.</b> Each attempt is an <span class="mono">eth_call</span> simulation, so nothing changes on chain. It passes when the valid record is accepted and every attack is rejected.</li>
+          <li><b>Run the full tamper test.</b> Each attempt is the contract's own verdict: an <span class="mono">eth_call</span> of <span class="mono">submitEvidence</span> from <span class="mono">0x…dEaD</span>, so nothing changes on chain. It passes when the valid record is accepted and every attack is rejected.</li>
           <li><b>Replay last.</b> Send the valid record for real, then replay it: the contract answers <span class="mono">Replayed</span>.</li>
         </ol>
         <table class="kv"><thead><tr><th>Attempt</th><th>What changes</th><th>Expected answer</th></tr></thead><tbody>
@@ -210,6 +214,7 @@
         <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
         <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
         <div class="btns"><button class="primary" type="submit">Load contract</button></div>
+        <p class="hint" id="cfg-note"></p>
       </form>
     </details>
   </div>
@@ -239,7 +244,7 @@
         <h2><span class="step" aria-hidden="true">3</span>Attack it</h2>
         <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test</button>
         <p class="progress" id="suite-progress" role="status" aria-live="polite" hidden></p>
-        <p class="hint">Every attempt is a simulation (eth_call): nothing changes on chain. <span class="keys" id="keys">Keys: <kbd>R</kbd> all · <kbd>1</kbd>–<kbd>8</kbd> one · <kbd>S</kbd> replay · <kbd>B</kbd> summary · <kbd>Esc</kbd> stop · <kbd>?</kbd> help</span></p>
+        <p class="hint">Every attempt is a simulation: nothing changes on chain. <span class="keys" id="keys"><kbd>?</kbd> keyboard shortcuts</span></p>
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
@@ -271,7 +276,7 @@
   <div class="stack">
     <section class="panel">
       <div class="panel-head"><h2>Scoreboard</h2><span class="row"><span class="msg" id="score-undo" role="status"></span><button type="button" class="link" id="copy-score" data-icon="copy" disabled>Copy as Markdown</button><button type="button" class="link" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></span></div>
-      <p class="hint">Every attempt in this browser tab. The tamper test passes when the valid record is accepted and every attack is rejected. Press an attempt's name to see its checks again.</p>
+      <p class="hint">Every attempt in this browser tab. Press an attempt's name to see its checks again.</p>
       <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
     </section>
@@ -477,8 +482,8 @@
       <tr><th>Expected request</th><td class="mono" title="${info.requestHash}">${short(info.requestHash)}</td></tr>
       <tr><th>Trusted signer</th><td>${addr(airnode)}${signerName(airnode)}</td></tr>`;
     $("fresh").hidden = chainId !== 31337 || version !== 2;
-    $("fresh-note").textContent = $("fresh").hidden ? "Fresh local record: local test chain only. Here, fetch one (Judge kit)."
-      : "Fresh local record: signed now with the public local test key";
+    // on the local chain the Fresh button says it all (its tooltip names the key); elsewhere, where fresh records come from
+    $("fresh-note").textContent = $("fresh").hidden ? "Fresh records: Judge kit, below" : "";
     renderKit();
     checkRecordInput();
   }
@@ -798,7 +803,7 @@
     const icon = { pass: "check", fail: "x", near: "alert", na: "minus" }[cls];
     const status = s.mode === "asis"
       ? { pass: "Accepted", fail: "Not accepted", na: "Not tested" }[cls]
-      : { pass: "Rejected by its target check", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
+      : { pass: "Rejected as expected", fail: "Not rejected", near: "Rejected earlier", na: "Not tested" }[cls];
     const note = cls === "near" ? `at “${esc(s.stopAt || "another check")}”` : cls === "fail" && s.mode !== "asis" ? "the contract accepted it" : "";
     return `<button type="button" class="tile ${cls}" data-attempt="${s.attempt}" title="Show this attempt's checks">
       <span class="n">${P.icon(icon)}${MODE_NAME[s.mode]}</span><span class="s">${status}</span><span class="v">${esc(s.got)}</span>${note ? `<span class="x">${note}</span>` : ""}</button>`;
@@ -824,16 +829,15 @@
       : `<div class="why">Get a fresh record of ${esc(order.info.supplierId)}, paste it in step 2, and run again: ${fetchCode()}</div>`;
     const why = suiteStopped ? `Stopped by you after ${suite.length} of ${SUITE.length} attempts. Press Run the full tamper test to run all of them.`
       : passed
-      ? `The valid record is accepted and all ${attacks.length} attacks are rejected by the contract itself (eth_call of submitEvidence, no gas).`
+      ? `The valid record is accepted and all ${attacks.length} attacks are rejected by the contract itself.`
       : notTested ? `The valid record ${valid ? NOT_USABLE[validGot] || `was refused (${esc(validGot)})` : "is missing"}, so the attacks could not reach their own checks. Nothing failed in the contract.`
       : "The contract accepted an attack.";
     const replayStep = validOk && !replayed && !suiteStopped && suiteTx
       ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay-only" data-icon="refund">Replay the sent record</button>
           <span class="hint">The valid record is on chain; this submits it once more, as a simulation.</span></div>`
       : validOk && !replayed && !suiteStopped
-      ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay" data-icon="send">Send the valid record, then replay it</button>
-          <span class="hint">Last step. A replay is only a replay once the original is on chain: this sends the valid record for real
-          (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then simulates it again.</span><span class="msg" id="send-msg" role="status"></span></div>`
+      ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay" data-icon="send" title="A replay is only a replay once the original is on chain">Send the valid record, then replay it</button>
+          <span class="hint">Last step: sends it for real (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then submits it again.</span><span class="msg" id="send-msg" role="status"></span></div>`
       : "";
     const skippedNote = skipped.length ? `<p class="hint">${P.icon("minus")} Not run: ${skipped.map((s) => `${MODE_NAME[s.mode]} (${esc(s.reason)})`).join("; ")}.</p>` : "";
     const txNote = suiteTx ? `<p class="hint">Valid record on chain: ${explorer ? `<a class="mono" href="${explorer}/tx/${suiteTx.hash}" target="_blank" rel="noopener">${short(suiteTx.hash)}</a>` : `<span class="mono">${short(suiteTx.hash)}</span>`} (block ${suiteTx.block}).</p>` : "";
@@ -914,10 +918,10 @@
 
   // ---------------------------------------------------------------- judge kit
 
-  // What a judge needs before fetch-evidence.sh works: shown next to the command wherever it appears.
-  const PREREQ = `<p class="hint">Needs a checkout of this repo, Node 22 or newer, and <span class="mono">PAYER_PRIVATE_KEY</span>: a Base Sepolia wallet
+  // What a judge needs before fetch-evidence.sh works: one click from the command wherever it appears.
+  const PREREQ = `<details class="prereq"><summary>What you need</summary><p class="hint">A checkout of this repo, Node 22 or newer, and <span class="mono">PAYER_PRIVATE_KEY</span>: a Base Sepolia wallet
     holding aUSD (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>).
-    Each record costs $0.01. Steps: <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">README</a>.</p>`;
+    Each record costs $0.01. Steps: <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">README</a>.</p></details>`;
   function fetchCode() {
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
     const id = order.info ? order.info.supplierId : "09729896";
@@ -1117,8 +1121,10 @@
     maxAgeVal = Number(maxAge);
     for (const el of document.querySelectorAll(".max-age")) el.textContent = maxAgeVal;
     renderKit();
-    renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], ["Contract", `${addr(cfg.contract)}${found && version === 2 ? " (found automatically)" : ""}`],
-      ["Version", version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1"], ["Max age", `${maxAge} s`], ["Simulated from", `<span class="mono">${short(P.DEAD)}</span>`]]);
+    // how the contract was found and the simulated sender sit in Settings, one click away, not in the meta row
+    const vName = version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1";
+    renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], [vName, addr(cfg.contract)], ["Max age", `${maxAge} s`]]);
+    $("cfg-note").innerHTML = `${found && version === 2 ? "Contract found automatically: the newest SupplierPulse+ v1.1 deployed by the team. " : ""}Every attempt is simulated from <span class="mono">${short(P.DEAD)}</span>.`;
     const dq = new URLSearchParams({ contract: cfg.contract });
     if (cfg.rpc !== P.DEFAULT_RPC) dq.set("rpc", cfg.rpc);
     $("dash-link").href = (version === 2 ? "index.html?" : "v1.html?orders=0,1&") + dq;
