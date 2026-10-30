@@ -309,6 +309,9 @@
   const order = { id: null, info: null };
   let noOrder = false, maxAgeVal = null;
   const ORDER_CONTROLS = "[data-mode], #suite, #fresh, #sample, #upload-btn, #clear-rec, #resp";
+  // Everything that could change the record or the order while a run uses them; the run button stays the way out.
+  const RUN_LOCKED = "[data-mode], #suite, #fresh, #result button, #resp, #sample, #upload-btn, #clear-rec, #order";
+  const sentDigests = new Set(); // records this tab sent for real: attacking them again tests nothing
   let lastCandidate = null;
 
   // One order model for v1 and v2: { source, supplierId, requestHash, rules, state, lastCheck, nextMilestone, lastFailedRules }
@@ -591,6 +594,8 @@
     if (!a) return;
     lastCandidate = a.candidate;
     $("result").innerHTML = (suite.length && !suiteRunning ? `<button type="button" class="link" data-summary>${P.icon("arrow-left")} Tamper test summary</button>` : "") + a.html;
+    // a send button drawn during a run is part of the run's lock
+    if (suiteRunning) for (const b of $("result").querySelectorAll("button")) b.disabled = true;
   }
 
   async function sendForReal() {
@@ -616,6 +621,7 @@
       out.innerHTML = `sent ${link}, waiting…`;
       let rc;
       try { rc = await tx.wait(); } catch (e) { rc = e.receipt || null; if (!rc) throw e; } // ethers 6 throws on a reverted receipt
+      if (rc.status === 1) sentDigests.add(P.digestOf(r.requestHash, r.timestamp, r.data).toLowerCase());
       out.innerHTML = rc.status === 1
         ? `included in block ${rc.blockNumber}: ${link}. Now try Replay.`
         : `<b>reverted on chain</b> in block ${rc.blockNumber}, as the simulation said: ${link}`;
@@ -648,7 +654,7 @@
   function lockButtons(on) {
     suiteRunning = on;
     stopRequested = false;
-    for (const b of document.querySelectorAll("[data-mode], #suite, #fresh, #result button")) b.disabled = (on && b.id !== "suite") || (noOrder && b.matches(ORDER_CONTROLS));
+    for (const b of document.querySelectorAll(RUN_LOCKED)) b.disabled = (on && b.id !== "suite") || (noOrder && (b.matches(ORDER_CONTROLS) || b.id === "order"));
     const sb = $("suite");
     sb.setAttribute("aria-busy", String(on));
     sb.innerHTML = on ? `${P.icon("stop")}Stop after this attempt` : `${P.icon("play")}Run the full tamper test`;
@@ -673,6 +679,19 @@
             so the attacks would not show their own errors. Get a fresh signed record ($0.01 over x402), paste it, and press the button again:</div>
           <div class="why"><code>${version === 1 ? `api3/scripts/supplier-fetch.sh ${esc(id)}` : `api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json`}</code></div></div>
         <div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>`;
+      return;
+    }
+    // A record this tab already sent is used: Submit as is would get Replayed and (a), (d) stop early.
+    const used = rec && sentDigests.has(P.digestOf(rec.requestHash, rec.timestamp, rec.data).toLowerCase());
+    if (used && !force) {
+      const local = chainId === 31337 && version === 2;
+      $("result").innerHTML = `<h2>The contract's verdict</h2>
+        <div class="verdict warn"><div class="big">${P.icon("info")}<span>This record is already on chain</span></div>
+          <div class="why">You sent it for real in this tab. Submitted again, the valid attempt gets <span class="mono">Replayed</span> and (a) and (d) stop at an
+            earlier check, so the run would test nothing. ${local ? "Sign a fresh record instead:" : "Get a fresh record of this supplier, paste it in step 2, and press the button again:"}</div>
+          ${local ? "" : `<div class="why">${fetchCode()}</div>`}</div>
+        <div class="row">${local ? `<button type="button" class="primary" id="suite-fresh" data-icon="key">Sign a fresh local record and run</button>` : ""}<button type="button" id="suite-force">Run it anyway with this record</button></div>`;
+      P.hydrateIcons($("result"));
       return;
     }
     suite = []; suiteTx = null; suiteStopped = false;
@@ -817,6 +836,7 @@
 
   const form = $("cfg");
   for (const k of KEYS) form.elements[k].value = cfg[k];
+  P.wireSettings(form);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const p = new URLSearchParams();
@@ -833,6 +853,7 @@
     const s = (window.PULSE_SAMPLE_RESPONSES || [])[Number(e.target.value)];
     if (s) setRecord(s.record, "Sample loaded, old on purpose.");
     e.target.value = "";
+    if (s) $("suite").focus();
   });
   $("upload-btn").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", async (e) => {
