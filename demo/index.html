@@ -19,18 +19,19 @@
 <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <style>
-  .define { margin: var(--s1) 0 0; color: var(--muted); font-size: var(--t-1); max-width: 96ch; text-wrap: pretty; }
-  .define dfn { font-style: normal; font-weight: 600; color: var(--text); }
+  .tagline { max-width: 78ch; }
+  .tagline dfn { font-style: normal; font-weight: 600; color: var(--text); }
 
   /* the three verification states, also a filter */
-  .states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--s3); margin-top: var(--s4); align-items: stretch; }
-  .state-btn { font: inherit; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s2) var(--s3); min-height: 0; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .states { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); align-items: center; }
+  .state-btn { font: inherit; display: inline-flex; align-items: center; gap: var(--s2); padding: 4px 12px 4px 4px; min-height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
   .state-btn:hover { border-color: var(--line-strong); background: var(--card); }
   .state-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  .state-btn .top { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
-  .state-btn .count { font-size: var(--t2); font-weight: 700; line-height: 1; }
-  .state-btn .def { color: var(--muted); font-size: var(--t-1); line-height: 1.4; font-weight: 400; text-wrap: pretty; }
-  .states .rest { color: var(--muted); font-size: var(--t-1); align-self: center; display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+  .state-btn .count { font-size: var(--t0); font-weight: 700; line-height: 1; }
+  /* a state no order is in: muted, still a working filter */
+  .state-btn.zero .badge { color: var(--muted); background: var(--done-bg); }
+  .state-btn.zero .count { color: var(--muted); font-weight: 600; }
+  .states .rest { color: var(--muted); font-size: var(--t-1); display: flex; flex-wrap: wrap; gap: 2px var(--s3); margin-left: var(--s2); }
   .link-order { font: inherit; background: none; border: none; padding: 0; min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline; }
   .link-order:hover { background: none; color: var(--text); }
 
@@ -54,11 +55,12 @@
   .flow .i { width: 0.95em; height: 0.95em; color: var(--muted); margin: 0 3px; }
 
   /* order cards */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: start; }
+  /* cards in a row share one height, so the grid has no ragged voids */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: stretch; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; scroll-margin-top: var(--s4); }
-  .card.is-held { border-color: color-mix(in srgb, var(--hold) 70%, transparent); }
   .card.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
   .card-head { display: flex; justify-content: space-between; gap: var(--s3); align-items: flex-start; }
+  .agent .wallet { margin: var(--s1) 0 0; }
   .card-head h2 { margin: 0; font-size: var(--t1); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
   .card-head h2 .id { color: var(--muted); font-weight: 500; margin-right: 6px; }
   .card-head .sub { color: var(--muted); font-size: var(--t-1); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px var(--s2); align-items: center; }
@@ -82,40 +84,41 @@
   .hero .unit { font-size: var(--t0); color: var(--muted); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
   .bar { height: 6px; border-radius: 999px; background: var(--done-bg); overflow: hidden; display: flex; margin-top: calc(-1 * var(--s1)); }
   .bar span { display: block; height: 100%; }
-  .bar .p { background: var(--ok); } .bar .r { background: var(--accent); opacity: 0.35; } .bar .h { background: var(--hold); opacity: 0.55; } .bar .x { background: var(--done); opacity: 0.4; }
+  .bar .p { background: var(--ok); } .bar .r { background: var(--accent); opacity: 0.35; } .bar .x { background: var(--done); opacity: 0.4; }
 
-  .next-step { padding: var(--s2) var(--s3); border-radius: var(--r-md); font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; }
+  /* the next step: a line of text, not a box (the next milestone row carries the one tint) */
+  .card .next-step { margin: 0; padding: 0; background: none; font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; text-wrap: pretty; }
   .next-step .i { margin-top: 0.15em; }
 
-  /* supplier-wide stop: one strip, same look on the order that caused it and on the orders it stops */
-  .stop-strip { border: 1px solid color-mix(in srgb, var(--hold) 55%, transparent); border-radius: var(--r-md); padding: var(--s2) var(--s3); display: flex; flex-direction: column; gap: var(--s1); font-size: var(--t-1); }
-  .stop-strip .head { display: flex; gap: 6px; align-items: center; color: var(--hold); font-weight: 600; font-size: var(--t0); }
-  .stop-strip .orders { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); align-items: center; }
-  .order-chip { font: 600 var(--t-1)/1.2 var(--sans); min-height: 30px; padding: 4px 10px; border-radius: 999px; color: var(--hold); background: var(--hold-bg); border: 1px solid color-mix(in srgb, var(--hold) 40%, transparent); }
-  .order-chip:hover { border-color: var(--hold); background: var(--hold-bg); }
-  .stop-strip .note { color: var(--muted); }
-
+  /* one status box per card: held or supplier-wide stop (red), no data (amber), closed (neutral) */
   .held-box { border-radius: var(--r-md); padding: var(--s3); background: var(--hold-bg); color: var(--hold); display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t-1); }
   .held-box.nodata { background: var(--wait-bg); color: var(--wait); }
   .held-box .title { font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: flex-start; }
   .held-box .title .i { margin-top: 0.2em; }
   .held-box p { margin: 0; color: var(--text); }
-  .held-box .row, .stop-strip .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
-  .held-box .cmd, .stop-strip .cmd { font-family: var(--mono); font-size: 12px; background: var(--card); color: var(--text); padding: 4px 8px; border-radius: var(--r-sm); overflow-wrap: anywhere; }
-  .held-box .why-off, .stop-strip .why-off { color: var(--muted); font-size: 12px; }
+  .held-box .note { color: var(--text); }
+  .held-box .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  .held-box .why-off { color: var(--text); font-size: 12px; }
+  .order-chip { font: 600 var(--t-1)/1.3 var(--sans); min-height: 0; padding: 2px 0; border: none; border-radius: var(--r-sm); background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; gap: 4px; align-items: center; }
+  .order-chip:hover { background: none; color: var(--text); text-decoration-thickness: 2px; }
+  details.ways > summary { color: var(--text); }
+  .ways-body { margin-top: var(--s1); color: var(--text); line-height: 1.6; }
+  .ways-body .cmd { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
   .msg { font-size: var(--t-1); color: var(--text); }
   .confirm { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--card); color: var(--text); border: 1px solid var(--line-strong); }
   .closed-box { border-radius: var(--r-md); padding: var(--s2) var(--s3); background: var(--done-bg); color: var(--done); font-weight: 500; font-size: var(--t-1); display: flex; gap: var(--s2); align-items: flex-start; }
   .closed-box .i { margin-top: 0.15em; }
+  .closed-box p { margin: 0; }
+  .closed-box .orders { margin-top: var(--s1); }
 
-  ol.ms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s1); }
-  ol.ms li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s2); align-items: start; padding: 6px var(--s2); border-radius: var(--r-md); border: 1px solid var(--line); }
-  ol.ms li.next { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  ol.ms li.paid { background: var(--ok-bg); border-color: transparent; }
-  ol.ms li.held { background: var(--hold-bg); border-color: transparent; }
-  ol.ms li.refunded { background: var(--done-bg); border-color: transparent; }
+  /* milestones: a ruled list, icon plus coloured word; only the next milestone has a background */
+  ol.ms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  ol.ms li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s2); align-items: start; padding: 6px var(--s2); border-top: 1px solid var(--line); }
+  ol.ms li:first-child, ol.ms li.next, ol.ms li.next + li { border-top-color: transparent; }
+  ol.ms li.next { background: var(--accent-bg); border-radius: var(--r-md); }
   .ms .st { padding-top: 1px; color: var(--muted); }
-  .ms li.paid .st { color: var(--ok); } .ms li.held .st { color: var(--hold); } .ms li.next .st { color: var(--accent); }
+  .ms li.paid .st { color: var(--ok); } .ms li.next .st { color: var(--accent); }
+  .ms .held-w { color: var(--text); font-weight: 600; }
   .ms .line1 { display: flex; flex-wrap: wrap; gap: 0 var(--s2); align-items: baseline; font-size: var(--t-1); }
   .ms .n { font-weight: 600; color: var(--muted); }
   .ms .amt { font-weight: 600; color: var(--text); }
@@ -133,10 +136,10 @@
   .tier.t2 { color: var(--gold); background: var(--gold-bg); }
   .small-muted { color: var(--muted); font-size: 12px; }
   .good { color: var(--ok); font-weight: 600; } .bad { color: var(--hold); font-weight: 600; } .late { color: var(--wait); font-weight: 600; }
-  details.inline > summary { display: inline; font-size: 12px; }
-  details.inline[open] > summary { margin-bottom: 2px; }
-
-  details.trail { border-top: 1px solid var(--line); padding-top: var(--s2); }
+  /* the facts and the audit trail: one disclosure, open by default from 1000 px, closed on phones */
+  details.more { border-top: 1px solid var(--line); padding-top: var(--s2); }
+  details.more > dl.facts { margin-top: var(--s2); }
+  details.trail { border-top: 1px solid var(--line); padding-top: var(--s2); margin-top: var(--s1); }
   ol.trail { list-style: none; margin: var(--s2) 0 0; padding: 0; font-size: var(--t-1); }
   ol.trail li { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--line); }
   ol.trail li:first-child { border-top: none; }
@@ -150,12 +153,12 @@
   .skeleton { height: 420px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); }
 
   footer { margin-top: var(--s6); color: var(--muted); font-size: var(--t-1); max-width: 72ch; text-wrap: pretty; }
-  @media (max-width: 1000px) {
-    .states { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .states .rest { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; gap: var(--s1) var(--s3); }
-  }
   @media (max-width: 640px) {
-    .states { grid-template-columns: 1fr; }
+    .states { margin-top: var(--s3); gap: 6px; }
+    .state-btn { min-height: 32px; padding: 2px 10px 2px 2px; gap: 6px; }
+    .state-btn .badge { padding: 2px 8px; }
+    .banner { font-size: var(--t-1); padding: var(--s2) var(--s3); margin-top: var(--s3); }
+    .agent { padding: var(--s2) var(--s3); }
     .hero .big { font-size: var(--t3); }
     .card { padding: var(--s3); }
     dl.facts { grid-template-columns: 1fr; }
@@ -171,8 +174,7 @@
   <header>
     <div>
       <h1>SupplierPulse<span class="plus">+</span></h1>
-      <p class="tagline">Your supplier was approved last month. That should not approve today's payment. Every milestone below pays only with a fresh, signed register record the contract checked first.</p>
-      <p class="define"><dfn>Payment permit</dfn>: the contract's go-ahead to pay one milestone. A record that passes every rule gives one, valid only for a short time from the record's signed time.</p>
+      <p class="tagline">Your supplier was approved last month. That should not approve today's payment. Every milestone below pays only with a <dfn>payment permit</dfn>: the contract's short-lived go-ahead, given after it checked a fresh, signed register record.</p>
     </div>
     <div class="head-links">
       <a class="btn" id="judge-link" href="judge.html" data-icon="target">Try to break it</a>
@@ -200,14 +202,15 @@
   </details>
   </div>
   <div id="banner" role="status" aria-live="polite"></div>
-  <div class="states" id="states" role="group" aria-label="Filter orders by verification state"></div>
   <section class="agent" id="agent" aria-label="Agent activity"></section>
+  <div class="states" id="states" role="group" aria-label="Filter orders by verification state"></div>
   <div class="toolbar" id="toolbar"><span id="shown-note" role="status" aria-live="polite"></span></div>
   <div class="grid" id="orders" aria-live="off"><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
   <footer>
     A signature proves the register said it, not that the supplier will deliver. Delivery stays the buyer's approval:
     each milestone needs both a valid permit from a fresh signed record and the buyer's approval.
     Signed records come from API3 AirnodeHub (Companies House, GLEIF); the contract checks signer, request, freshness and replay before acting.
+    The verification history (Standard, Trusted, Premium) counts register checks; it is not a credit score.
     <br>v1 screen: <a href="v1.html">v1.html</a>. Judges: <a href="judge.html" id="judge-link2">try to break it</a>.
   </footer>
 </div>
@@ -283,8 +286,11 @@
   const arrow = `<span class="flow">${I("arrow-right")}</span>`; // "leads to", in agent and history lines
   const tierBadge = (t) => `<span class="tier t${t}">${P.TIERS[t] || "?"}</span>`;
 
-  // UI state that must survive re-renders: open audit trails and claim messages.
-  const openTrails = new Set();
+  // UI state that must survive re-renders: disclosures the user opened or closed, and claim messages.
+  const userOpen = new Map(); // data-key -> open, set only by the user (or "Expand all")
+  const isOpen = (key, dflt) => (userOpen.has(key) ? userOpen.get(key) : dflt);
+  const narrow = matchMedia("(max-width: 640px)"); // phones: the agent's transactions folded, so the first order shows first
+  const wide = matchMedia("(min-width: 1000px)");  // card details open by default
   const claimMsg = {};
   const claimState = {}; // order id -> "confirm" | "busy"
   const myRefunds = {};  // order id -> { amount, hash }: refunds sent from this page, kept for the session
@@ -355,16 +361,16 @@
   // The read value goes stale between refreshes; expire it locally so the countdown and the state agree.
   const permitValid = (o) => o.permitValidRead && nowSec() <= o.permitValidUntil;
 
-  function milestoneView(o, i) {
+  function milestoneView(o, i, tintNext) {
     const now = nowSec(), due = o.dueDates[i];
     let cls = "", ic = "clock", parts = [];
     const word = (c, t) => `<span class="${c}">${t}</span>`;
     if (i < o.next) { cls = "paid"; ic = "check"; parts.push(word("ok", "Paid")); }
-    else if (o.state === 1) { cls = "held"; ic = "lock"; parts.push(word("hold", "Held")); }
+    else if (o.state === 1) { cls = "held"; ic = "lock"; parts.push(word("held-w", "Held")); }
     else if (o.state === 2) { cls = "refunded"; ic = "refund"; parts.push(word("done", "Refunded to the buyer")); }
     else {
       if (i === o.next) {
-        cls = "next";
+        cls = tintNext ? "next" : "upcoming";
         if (permitValid(o)) parts.push(word("ok", `Payment permit valid until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`));
         else if (o.permitValidUntil > 0) parts.push(word("wait", "Payment permit expired: needs a fresh record"));
         else parts.push("No payment permit yet");
@@ -484,7 +490,9 @@
   const orderName = (o) => `#${o.id} ${esc(orderTitle(o) || "Order " + short(o.info.orderRef))}`;
   const orderLink = (o) => `<button type="button" class="order-chip" data-goto="${o.id}" aria-label="Go to order ${orderName(o)}">${I("link")}${orderName(o)}</button>`;
 
-  // Card order, top to bottom: state, protected balance, supplier-wide stop, next step or hold, milestones, facts, audit trail.
+  // Card order, top to bottom: title and state, protected balance, one status box (or the next step), milestones, and
+  // one "Details" disclosure with the facts and the audit trail (open from 1000 px, closed on phones). Each fact is
+  // stated once per card; long secondary text (the refund script) is folded away.
   function renderOrder(o, env, ctx) {
     const s = P.SOURCES[o.info.source] || { badge: "?", name: "unknown", registerUrl: () => "#" };
     const total = o.amounts.reduce((x, y) => x + y, 0n);
@@ -496,104 +504,105 @@
     const badge = `<span class="badge ${vs.cls}">${I(held ? "lock" : vs.icon)}${vs.label}${held ? ", held" : notHeldYet ? ", not held yet" : ""}</span>`;
     const pct = (x) => (total > 0n ? Number((x * 10000n) / total) / 100 : 0);
     const restWord = held ? "held" : refunded ? "refunded" : "remaining";
-    const bar = `<div class="bar" role="img" aria-label="${tok(o.paid)} of ${tok(total)} tokens paid, ${tok(total - o.paid)} ${restWord}" title="paid / ${restWord}">
-      <span class="p" style="width:${pct(o.paid)}%"></span><span class="${held ? "h" : refunded ? "x" : "r"}" style="width:${pct(total - o.paid)}%"></span></div>`;
+    const bar = `<div class="bar" role="img" aria-label="${tok(o.paid)} of ${tok(total)} tokens paid, ${tok(total - o.paid)} ${restWord}">
+      <span class="p" style="width:${pct(o.paid)}%"></span><span class="${held || refunded ? "x" : "r"}" style="width:${pct(total - o.paid)}%"></span></div>`;
 
-    // §2.4a: a failed base check on any order stops payments on every order of the supplier. One strip, shown on
-    // the order whose record caused it ("also stops") and on every order it stops ("stopped by").
-    const cause = ctx.cause, byOther = cause && cause.id !== o.id;
-    const claimRow = (label, enabled) => {
-      const off = env.sample ? "Sample data: nothing to send." : !enabled ? "Opens when the grace period ends." : "";
+    // The refund button. Its reason, when it is off, is the sentence above it (aria-describedby).
+    const whoId = `who-${o.id}`;
+    const claimRow = (enabled) => {
       const msg = claimMsg[o.id] ? `<div class="msg" role="status">${claimMsg[o.id]}</div>` : "";
       if (claimState[o.id] === "confirm") return `<div class="confirm" role="group" aria-label="Confirm the refund">
           <span>Refund <b>${tok(o.remaining)} tokens</b> of order #${o.id} to the buyer ${addr(o.info.buyer)}? Your wallet asks once more before anything is sent.</span>
           <div class="row"><button type="button" class="primary" data-claim-go="${o.id}">${I("send")}Continue in MetaMask</button><button type="button" data-claim-cancel="${o.id}">Cancel</button></div></div>${msg}`;
       const busyNow = claimState[o.id] === "busy";
-      return `<div class="row"><button type="button" class="primary" data-claim="${o.id}"${off || busyNow ? " disabled" : ""}${busyNow ? ' aria-busy="true"' : ""}>${busyNow ? I("loader", "spin") + "Waiting for MetaMask…" : I("refund") + label}</button>
-          <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span>${off ? `<span class="why-off">${off}</span>` : ""}</div>${msg}`;
+      const off = env.sample || !enabled || busyNow;
+      const waysKey = `ways-${o.id}`;
+      return `<div class="row"><button type="button" class="primary" data-claim="${o.id}"${off ? " disabled" : ""}${busyNow ? ' aria-busy="true"' : ""} aria-describedby="${whoId}${env.sample ? " sample-note" : ""}">${busyNow ? I("loader", "spin") + "Waiting for MetaMask…" : I("refund") + "Refund to buyer (MetaMask)"}</button></div>${msg}
+        <details class="ways" data-key="${waysKey}"${isOpen(waysKey, false) ? " open" : ""}><summary>Other ways to refund</summary>
+          <p class="ways-body">Without a browser wallet: <code class="cmd">api3/scripts/plus-refund.sh ${o.id}</code> (signs with the buyer key in <span class="mono">api3/.env</span>).</p></details>`;
     };
-    let stopStrip = "";
-    if (supplierStopped(o) || ctx.stops.length) {
-      const when = o.rec.lastBaseFailureAt ? dayClock(o.rec.lastBaseFailureAt) : "";
-      // the signed status word of the failing record, when its event is loaded ("liquidation")
-      const failRec = [o, cause].filter(Boolean).flatMap((x) => x.events)
-        .find((e) => e.name === "EvidenceAccepted" && Number(e.args.timestamp) === o.rec.lastBaseFailureAt);
-      const word = failRec && P.BASE[o.info.source] ? fieldOf(rawOf(failRec.args), P.BASE[o.info.source].field) : null;
-      const statusWord = word ? ` (<b>${esc(word)}</b>)` : "";
-      const lines = [];
-      if (supplierStopped(o) && byOther) {
-        lines.push(`<div class="orders">Stopped by ${orderLink(cause)}</div>
-          <div>A signed record of the same supplier (<span class="mono">${esc(o.info.supplierId)}</span>) failed the register status${statusWord} on ${when}. Payments to this supplier are stopped on every order.</div>`);
-      } else if (supplierStopped(o)) {
-        lines.push(`<div>Register status failed${statusWord} on ${when}: payments to this supplier are stopped on every order.</div>`);
-      }
-      if (ctx.stops.length) lines.push(`<div class="orders">This record also stops the same supplier's ${ctx.stops.map(orderLink).join("")}</div>`);
-      if (notHeldYet && o.autoRefundAt > 0) {
-        const open = nowSec() >= o.autoRefundAt;
-        lines.push(`<div>No verified data since the due date of milestone ${o.next + 1} either: the remaining ${tok(o.remaining)} tokens can go back to the buyer ${open ? "<b>now</b>" : `from ${dayClock(o.autoRefundAt)} (<b>${cd(o.autoRefundAt, "now")}</b>)`}.</div>${claimRow("Refund to buyer (MetaMask)", open)}`);
-      }
-      if (supplierStopped(o) && !held && !closed) lines.push(`<div class="note" title="contract call: applySupplierFailure">This order is not held yet. The agent can hold it right away, without paying for a new check, and no permit from before the failure can pay.</div>`);
-      stopStrip = `<div class="stop-strip"><div class="head">${I("stop")}Supplier-wide stop</div>${lines.join("")}</div>`;
-    }
+    // when the refund opens, in one phrase
+    const opens = (at) => (nowSec() >= at ? "<b>now</b>" : `from ${dayClock(at)} (<b>${cd(at, "now")}</b>)`);
 
-    let statusBox = "";
+    // §2.4a: a failed base check on any order stops payments on every order of the supplier. Said once, in the
+    // status box: on the order whose record caused it ("also stops") and on every order it stops ("stopped by").
+    const cause = ctx.cause, byOther = cause && cause.id !== o.id && supplierStopped(o);
+    const when = o.rec.lastBaseFailureAt ? dayClock(o.rec.lastBaseFailureAt) : "";
+    const failRec = [o, cause].filter(Boolean).flatMap((x) => x.events)
+      .find((e) => e.name === "EvidenceAccepted" && Number(e.args.timestamp) === o.rec.lastBaseFailureAt);
+    const word = failRec && P.BASE[o.info.source] ? fieldOf(rawOf(failRec.args), P.BASE[o.info.source].field) : null;
+    const statusWord = word ? ` (${esc(word)})` : ""; // the signed status of the failing record ("liquidation")
+    const alsoStops = ctx.stops.length ? `<p class="orders">Also stops ${ctx.stops.map(orderLink).join(" ")}</p>` : "";
+    const stopLine = `<p>${byOther ? "The same supplier's" : "The supplier's"} register status failed${statusWord} on ${when}: no permit from before that can pay, on any of its orders.</p>`;
+
+    let box = "";
     if (held) {
-      const labels = failedOf(o);
-      const open = nowSec() >= o.autoRefundAt;
-      statusBox = `<div class="held-box">
-        <div class="title">${I("lock")}<span>Payment held: ${esc(labels.join(", ") || "failed register check")}</span></div>
-        <p>${tok(o.remaining)} tokens are protected and can only go back to the buyer. The buyer can refund them now;
-          ${open ? "<b>anyone (the agent) can trigger the refund now.</b>" : `anyone (the agent) can trigger the refund in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</p>
-        ${claimRow("Refund to buyer (MetaMask)", true)}
+      const ownStop = byOther && o.lastFailedRules === P.BASE_FAILED;
+      box = `<div class="held-box">
+        <div class="title">${I("lock")}<span>Payment held: ${esc(ownStop ? "supplier-wide stop" : failedOf(o).join(", ") || "failed register check")}</span></div>
+        ${ownStop ? `<p class="orders">Stopped by ${orderLink(cause)}</p>` : alsoStops}
+        <p id="${whoId}">The ${tok(o.remaining)} tokens can only go back to the buyer: the buyer can refund now, anyone ${opens(o.autoRefundAt)}.</p>
+        ${claimRow(true)}
       </div>`;
-    } else if (!closed && o.autoRefundAt > 0 && !notHeldYet) {
+    } else if (notHeldYet) {
+      const nd = o.autoRefundAt > 0;
+      box = `<div class="held-box stop">
+        <div class="title">${I("stop")}<span>Supplier-wide stop</span></div>
+        ${byOther ? `<p class="orders">Stopped by ${orderLink(cause)}</p>` : ""}${alsoStops}${stopLine}
+        <p class="note"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent can hold it without paying for a new check.</p>
+        ${nd ? `<p id="${whoId}">No verified data since M${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
+      </div>`;
+    } else if (!closed && o.autoRefundAt > 0) {
       // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
-      const open = nowSec() >= o.autoRefundAt;
-      statusBox = `<div class="held-box nodata">
-        <div class="title">${I("clock")}<span>No verified data since the due date of M${o.next + 1}</span></div>
-        <p>No signed register record has allowed this payment. That says nothing bad about the supplier, only that there is no proof.
-          The remaining ${tok(o.remaining)} tokens can go back to the buyer ${open ? "<b>now</b>; anyone can trigger it." : `from ${dayClock(o.autoRefundAt)} (<b>${cd(o.autoRefundAt, "now")}</b>); anyone can trigger it then.`}</p>
-        ${claimRow("Refund to buyer (MetaMask)", open)}
+      box = `<div class="held-box nodata">
+        <div class="title">${I("clock")}<span>No verified data since M${o.next + 1} was due</span></div>
+        <p id="${whoId}">Nothing bad is known about the supplier, only no proof. Anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}.</p>
+        ${claimRow(nowSec() >= o.autoRefundAt)}
       </div>`;
     } else if (refunded) {
       const ev = o.events.find((e) => e.name === "OrderRefunded");
       const how = ev && ev.args.noDataExit ? "Closed by the no-data exit" : "Closed after a hold";
       const m = myRefunds[o.id];
-      const mine = m ? `<br><b>You refunded ${m.amount !== null ? `${tok(m.amount)} tokens` : "the remaining balance"} in ${txLink(m.hash)}.</b>` : "";
-      statusBox = `<div class="closed-box">${I("refund")}<span>${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.${mine}</span></div>`;
-    }
-    if (closed && !refunded) {
-      statusBox = `<div class="closed-box">${I("check")}<span>Fully paid: every milestone was paid against its own fresh signed record.</span></div>`;
+      const mine = m ? `<p><b>You refunded ${m.amount !== null ? `${tok(m.amount)} tokens` : "the remaining balance"} in ${txLink(m.hash)}.</b></p>` : "";
+      box = `<div class="closed-box">${I("refund")}<div><p>${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</p>${mine}${alsoStops}</div></div>`;
+    } else if (closed) {
+      box = `<div class="closed-box">${I("check")}<div><p>Fully paid: every milestone was paid against its own fresh signed record.</p>${alsoStops}</div></div>`;
     }
 
-    const step = nextStep(o, ctx);
+    const step = box ? null : nextStep(o, ctx);
     const stepIcon = { ok: "arrow-right", wait: "clock", info: "arrow-right" };
+
+    // Details: each fact once; where the status box or a milestone row already says it, the fact points there
+    const rec = lastRecord(o);
+    const recFailed = rec ? !rec.args.clean : o.lastFailedRules !== 0;
+    const shownInBox = held && !(byOther && o.lastFailedRules === P.BASE_FAILED);
     const lastCheck = o.lastCheck
-      ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span><div>${
-          o.lastFailedRules === 0 ? `<span class="good">${I("check")} clean</span>` : `<span class="bad">${I("x")} ${esc(failedOf(o).join(", "))}</span>`}</div>`
+      ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span> · ${!recFailed ? `<span class="good">${I("check")} clean</span>`
+        : shownInBox ? `<span class="bad">${I("x")} failed</span> <span class="small-muted">(see the hold)</span>`
+        : `<span class="bad">${I("x")} ${esc((rec ? failedWords(o.info.source, rec.args.failedRules, rawOf(rec.args)) : failedOf(o)).join(", "))}</span>`}`
       : `<span class="small-muted">no signed record yet</span>`;
     let permitRow;
     if (held) permitRow = `<span class="small-muted">cleared by the hold</span>`;
     else if (closed) permitRow = `<span class="small-muted">none (order closed)</span>`;
-    else if (permitValid(o)) permitRow = `<span class="good">valid</span> for M${o.next + 1} until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`;
+    else if (permitValid(o)) permitRow = `<span class="good">valid</span> for M${o.next + 1} <span class="small-muted">(see its row)</span>`;
     else if (o.permitValidUntil > 0) permitRow = `<span class="late">expired</span> at ${clock(o.permitValidUntil)}`;
     else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid M${o.next}` : "none yet"}</span>`;
-    if (!held && !closed) permitRow += `<div class="small-muted">each permit lasts ${duration(o.info.permitTtl)} from the signed time</div>`;
+    if (!held && !closed) permitRow += ` <span class="small-muted">· each lasts ${duration(o.info.permitTtl)} from the record's signed time</span>`;
 
     const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
-    const trailKey = `trail-${o.id}`, histKey = `hist-${o.id}`;
-    const trail = evs.length ? `<details class="trail" data-key="${trailKey}"${openTrails.has(trailKey) ? " open" : ""}>
-        <summary>Audit trail (${evs.length} on-chain events, newest first)</summary>
+    const trailKey = `trail-${o.id}`, moreKey = `more-${o.id}`;
+    const trail = evs.length ? `<details class="trail" data-key="${trailKey}"${isOpen(trailKey, false) ? " open" : ""}>
+        <summary>Audit trail: ${evs.length} on-chain events, newest first</summary>
         <ol class="trail">${evs.map((e) => {
           const l = eventLine(e, o);
           return `<li><span class="t">${e.time ? clock(e.time) : "#" + e.block}</span><div>
             <span class="${l.cls || ""}">${l.text}</span>${txLink(e.tx) ? " " + txLink(e.tx) : ""}
             ${isAgent(e.from) && e.name !== "EvidenceAccepted" ? chip("agent", I("agent") + "agent") : ""}${l.detail || ""}</div></li>`;
         }).join("")}</ol></details>`
-      : `<div class="small-muted">No events found${env.sample ? "" : " in the searched block range. Set the deploy block in Settings to load older events"}.</div>`;
+      : `<p class="small-muted">No events found${env.sample ? "" : " in the searched block range. Set the deploy block in Settings to load older events"}.</p>`;
 
     return `
-      <article class="card${held ? " is-held" : ""}" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
+      <article class="card" id="order-${o.id}" tabindex="-1" aria-labelledby="order-${o.id}-t">
         <div class="card-head">
           <div><h2 id="order-${o.id}-t"><span class="id">#${o.id}</span>${esc(title || "Order " + short(o.info.orderRef))}</h2>
             <div class="sub"><span class="reg">${esc(s.name)}</span>
@@ -606,18 +615,20 @@
           <div class="paid">Paid <b>${tok(o.paid)}</b> of ${tok(total)}</div>
         </div>
         ${bar}
-        ${stopStrip}
-        ${step ? `<div class="next-step ${step[0]}">${I(stepIcon[step[0]] || "arrow-right")}<span>${step[1]}</span></div>` : ""}
-        ${statusBox}
-        <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i)).join("")}</ol>
-        <dl class="facts">
-          <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
-          <dt>Payment permit</dt><dd>${permitRow}</dd>
-          <dt>Last signed record</dt><dd>${lastCheck}</dd>
-          ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o, ctx.cause)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
-          <dt>Verification history</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed · register checks, not a credit score</span></dd>
-        </dl>
-        ${trail}
+        ${step ? `<p class="next-step ${step[0]}">${I(stepIcon[step[0]] || "arrow-right")}<span>${step[1]}</span></p>` : ""}
+        ${box}
+        <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i, !box)).join("")}</ol>
+        <details class="more" data-key="${moreKey}"${isOpen(moreKey, wide.matches) ? " open" : ""}>
+          <summary>Details</summary>
+          <dl class="facts">
+            <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
+            <dt>Payment permit</dt><dd>${permitRow}</dd>
+            <dt>Last signed record</dt><dd>${lastCheck}</dd>
+            ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o, ctx.cause, shownInBox)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
+            <dt>Verification history</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed</span></dd>
+          </dl>
+          ${trail}
+        </details>
       </article>`;
   }
 
@@ -635,10 +646,10 @@
     return [...groups.values()].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0));
   }
   // One short sentence per event, in the buyer's words.
-  function agentWord(e, o) {
+  function agentWord(e, o, brief) {
     const a = e.args;
     switch (e.name) {
-      case "EvidenceAccepted": return a.clean ? "Register check passed" : `Register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
+      case "EvidenceAccepted": return a.clean ? "Register check passed" : brief ? "Register check failed" : `Register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
       case "PermitIssued": return `payment permit for M${Number(a.milestone) + 1}`;
       case "MilestonePaid": return `<b>paid M${Number(a.milestone) + 1}</b>: ${tok(a.amount)} tokens to the supplier`;
       case "OrderHeld": return "<b>payment held</b>";
@@ -650,34 +661,34 @@
   // A hold without a record in the same transaction is the supplier-wide stop (applySupplierFailure): the failure is
   // already verified on chain, so the agent holds without paying for a new check.
   const isSupplierStop = (g) => !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
-  const agentWords = (g, o, cause) => isSupplierStop(g)
+  const agentWords = (g, o, cause, brief = false) => isSupplierStop(g)
     ? `<b>Payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderName(cause)}` : ""} (no new paid check needed)`
-    : g.evs.map((e) => agentWord(e, o)).join(arrow);
+    : g.evs.map((e) => agentWord(e, o, brief)).join(arrow);
 
   function renderAgent(orders, rows) {
     const byId = Object.fromEntries(orders.map((o) => [o.id, o]));
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
-      <span class="sub">${agentAddr ? `agent wallet ${addr(agentAddr)} · ${rows.length} transactions sent on its own${rows[0] && rows[0].time ? ` · last acted ${since(rows[0].time)}` : ""}` : "set an agent address in Settings to highlight its transactions"}</span></div>`;
+      <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : "set an agent address in Settings to highlight its transactions"}</span></div>`;
     const li = (g) => {
       const o = byId[g.order];
       const name = o ? esc(orderTitle(o) || `order ${g.order}`) : `order ${g.order}`;
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
         <span>#${g.order} ${name}: ${o ? agentWords(g, o, causeOf(o, orders)) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
-    const SHOWN = 3;
+    const SHOWN = narrow.matches ? 0 : 3; // the latest three; the rest, and the agent's wallet, one click away
     const more = rows.length > SHOWN
-      ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - SHOWN} earlier transactions</summary><ol>${rows.slice(SHOWN, 60).map(li).join("")}</ol></details>`
+      ? `<details data-key="agent-more"${isOpen("agent-more", false) ? " open" : ""}><summary>${SHOWN ? `${rows.length - SHOWN} earlier transactions` : `${rows.length} transactions`}, all sent by the agent on its own</summary>
+          <p class="small-muted wallet">Agent wallet ${addr(agentAddr)}</p><ol>${rows.slice(SHOWN, 60).map(li).join("")}</ol></details>`
       : "";
-    setHTML($("agent"), head + (rows.length ?`<ol>${rows.slice(0, SHOWN).map(li).join("")}</ol>${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
+    setHTML($("agent"), head + (rows.length ? `${SHOWN ? `<ol>${rows.slice(0, SHOWN).map(li).join("")}</ol>` : ""}${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`));
   }
 
   let filter = null; // a STATES key: show only the orders in that state
   function renderStates(orders) {
     const count = {};
     for (const o of orders) { const k = stateOf(o); count[k] = (count[k] || 0) + 1; }
-    const btn = (k) => `<button type="button" class="state-btn" data-filter="${k}" aria-pressed="${filter === k}" title="${filter === k ? "Show all orders" : "Show only these orders"}">
-      <span class="top"><span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span></span>
-      <span class="def">${STATES[k].def}</span></button>`;
+    const btn = (k) => `<button type="button" class="state-btn${count[k] ? "" : " zero"}" data-filter="${k}" aria-pressed="${filter === k}" title="${filter === k ? "Show all orders" : "Show only these orders"}">
+      <span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span></button>`;
     const rest = ["pending", "paid", "closed"].filter((k) => count[k]).map((k) => `<span>${count[k]} ${STATES[k].label.toLowerCase()}</span>`);
     setHTML($("states"), btn("ok") + btn("rule") + btn("nodata")
       + `<div class="rest">${rest.join("")}${filter ? `<button type="button" class="link-order" data-filter="">Show all orders</button>` : ""}</div>`);
@@ -702,7 +713,7 @@
     renderAgent(orders, rows);
     const shown = filter ? orders.filter((o) => stateOf(o) === filter) : orders;
     setHTML($("shown-note"), filter
-      ? `Showing ${shown.length} of ${orders.length} orders: <b>${STATES[filter].label}</b> · <button type="button" class="link-order" data-filter="">Show all</button>`
+      ? `Showing ${shown.length} of ${orders.length} orders: <b>${STATES[filter].label}</b>${STATES[filter].def ? ` (${STATES[filter].def.replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase())})` : ""} · <button type="button" class="link-order" data-filter="">Show all</button>`
       : orders.length ? `Showing all ${orders.length} orders` : "");
     const agentLast = rows[0] && rows[0].time;
     renderGrid(!orders.length
@@ -860,7 +871,7 @@
     Object.assign(status, { mode: "sample", readAt: nowSec(), protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n) });
     renderMeta();
     renderDetails({ maxAge: data.maxAge, tierCountGap: data.tierCountGap, refundGrace: data.refundGrace });
-    banner("sample", I("info") + "<span><b>Sample data, not read from a chain:</b> the demo scenario with illustrative amounts, wallets, ids and times. Add <span class=\"mono\">?contract=0x…</span> for live data.</span>");
+    banner("sample", I("info") + "<span><b>Sample data, not read from a chain:</b> the demo scenario with illustrative amounts, wallets, ids and times; <span id=\"sample-note\">nothing can be sent from it</span>. Add <span class=\"mono\">?contract=0x…</span> for live data.</span>");
     lastOrders = orders;
     renderAll(orders, { sample: true });
   }
@@ -871,7 +882,7 @@
   const rerender = () => { if (lastOrders) renderAll(lastOrders, lastEnv); };
   async function claim(id) {
     const say = (html) => { claimMsg[id] = html; rerender(); };
-    if (!window.ethereum) { delete claimState[id]; say("No browser wallet found. Install MetaMask, or run the command shown next to the button (it uses the buyer key from api3/.env)."); return; }
+    if (!window.ethereum) { delete claimState[id]; say("No browser wallet found. Install MetaMask, or use the script under “Other ways to refund”."); return; }
     claimState[id] = "busy";
     claimMsg[id] = "";
     rerender();
@@ -927,12 +938,15 @@
     filter = b.dataset.filter && filter !== b.dataset.filter ? b.dataset.filter : null;
     renderAll(lastOrders, lastEnv);
   });
-  const rememberToggle = (e) => {
-    const k = e.target.dataset && e.target.dataset.key;
-    if (k) e.target.open ? openTrails.add(k) : openTrails.delete(k);
-  };
-  $("orders").addEventListener("toggle", rememberToggle, true);
-  $("agent").addEventListener("toggle", rememberToggle, true);
+  narrow.addEventListener("change", rerender);
+  wide.addEventListener("change", () => {
+    for (const d of document.querySelectorAll("details.more[data-key]")) if (!userOpen.has(d.dataset.key)) d.open = wide.matches;
+  });
+  // A disclosure's state is the user's once they toggle it; until then it follows its default.
+  document.addEventListener("click", (e) => {
+    const sum = e.target.closest && e.target.closest("details[data-key] > summary");
+    if (sum) setTimeout(() => userOpen.set(sum.parentElement.dataset.key, sum.parentElement.open));
+  });
 
   // ---------------------------------------------------------------- wiring
 
