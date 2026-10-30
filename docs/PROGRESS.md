@@ -205,6 +205,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Emre has merged `emre/plus-data` into `supplierpulse-plus` (`fef17a5`), so `plus-local.sh`'s `FETCH_CMD` resolves on the integration branch and C2 needs no stand-in anywhere.
 - Next: C3, the agent on the v2 contract on Sepolia once Orhun deploys it (demo profile, next to the v1 hedge).
 
+### 2026-10-30 · Emre · `plus-submit.sh --send`: gas limit 2,000,000
+- Changed: `--send` used a fixed 500,000 gas limit. A clean real record needs ~683k on v2 (Julien's finding), so a valid record sent in the video would have failed with out-of-gas instead of being accepted. The limit is now 2,000,000, like the agent's; unused gas is refunded. Tested locally: a valid `--send` gives `ACCEPTED clean`, tx status success.
+- Notes: Emre's wallet now has Sepolia ETH for the video's real tamper txs (Coinbase faucet).
+
 ### 2026-10-30 · Emre · C3: real records and the judge CLI against live v2
 - Changed: verified v2 `0xf25A…3DfC` on chain: config 300/300/600, both signers, and `requestHashFor` equals `requests.mjs` for all five demo suppliers. Fresh real records for A, D and B ($0.03), then `plus-submit.sh` against the live orders: A and D `ACCEPTED clean`; (a) `WrongSigner`, (b) `StaleResponse` (mutated **and** the genuine 17:14 A record), (c) `WrongRequest` (mutated **and** a genuine fresh B record on A), (d) `WrongSigner`; B (closed) `NotActive(2)`. Table, payments and judge commands are in `docs/evidence.md` ("Judge CLI against live v2").
 - Next: real `--send` tamper transactions for the video on Saturday (needs Sepolia ETH in Emre's wallet; the faucet hasn't delivered yet).
