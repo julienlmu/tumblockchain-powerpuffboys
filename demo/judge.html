@@ -38,6 +38,15 @@
   textarea { font-family: var(--mono); font-size: 12px; line-height: 1.45; height: auto; resize: vertical; display: block; }
   .row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
   .row select { width: auto; flex: 1 1 200px; }
+  #sample .caret { display: inline-flex; margin-left: 2px; }
+  #sample .caret::before { transform: rotate(90deg); }
+  #sample:has(+ :popover-open) .caret::before { transform: rotate(-90deg); }
+  .menu { inset: auto; margin: 0; padding: var(--s1); width: max-content; max-width: min(520px, calc(100vw - 16px)); overflow: auto; overscroll-behavior: contain;
+    border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--card); color: var(--text); box-shadow: 0 10px 28px -8px rgb(0 0 0 / 0.35); }
+  .menu .menu-note { margin: 0; padding: 6px 10px 4px; font-size: 12px; color: var(--muted); }
+  .menu button { display: flex; width: 100%; justify-content: flex-start; text-align: left; border: none; border-radius: var(--r-sm); background: none; min-height: 32px; padding: 6px 10px; font-weight: 400; line-height: 1.35; }
+  .menu button:hover, .menu button:focus-visible { background: var(--raised); }
+  .menu button:focus-visible { outline-offset: -2px; }
   #order-msg { margin: 0; }
   #order-msg:empty { display: none; }
   .order-sum { font-size: var(--t-1); color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px var(--s3); align-items: center; }
@@ -64,7 +73,9 @@
   .h-note { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
   .panel h2:has(.h-note) { flex-wrap: wrap; }
   details.prereq { margin-top: 4px; font-size: var(--t-1); }
-  details.prereq > summary { color: var(--accent); }
+  details.prereq > summary, .kit details > summary { color: var(--accent); }
+  .kit li:has(> details:first-child) { list-style: none; }
+  .kit li:has(> details:first-child) > details > summary { margin-left: calc(-0.95em - 4px); } /* the chevron sits where the bullet is */
   details.prereq .hint { margin-top: 4px; }
   /* the guide opens from the header button; its own summary is not needed */
   #guide > summary { display: none; }
@@ -91,14 +102,17 @@
   .attacks button .kb { position: absolute; bottom: 5px; right: 5px; font-size: 10px; padding: 1px 4px; color: var(--muted); }
   .attacks button .d.exp .mono { font-size: 11px; color: var(--text); }
   /* neutral buttons: colour only marks the kind (green = the valid record, red marker = an attack); filled colour is kept for results */
-  .attacks button .i { color: var(--hold); }
+  .attacks button .l .i { color: var(--hold); }
   .attacks button.valid { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
-  .attacks button.valid .i { color: var(--ok); }
+  .attacks button.valid .l .i { color: var(--ok); }
   .attacks button.valid:hover { border-color: var(--ok); }
   .attacks button.atk:hover { border-color: var(--hold); }
   .attacks button.real { border-style: dashed; }
   /* the loaded record cannot test this attempt: said on the button before it is pressed */
   .attacks button .d.blk { color: var(--wait); font-weight: 600; }
+  .attacks button .d.blk .i { color: var(--wait); }
+  /* the expected answer's arrow is the icon set's, not a text glyph */
+  .attacks button .d .i { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 3px; }
 
   /* verdict column: stays beside the buttons while the page scrolls */
   #result { position: sticky; top: var(--s4); }
@@ -269,7 +283,8 @@
       <div class="group">
         <h2><span class="step" aria-hidden="true">2</span>Load a signed record<span class="h-note" id="fresh-note"></span></h2>
         <div class="row">
-          <select id="sample" aria-label="Load a sample record"><option value="">Load sample (old on purpose)…</option></select>
+          <button type="button" id="sample" popovertarget="sample-menu" data-icon="file">Load sample<span class="disclosure-mark caret" aria-hidden="true"></span></button>
+          <div id="sample-menu" class="menu" popover role="group" aria-label="Sample records"><p class="menu-note">Signed records, old on purpose.</p></div>
           <button type="button" id="upload-btn" data-icon="upload">Upload file</button>
           <button type="button" id="clear-rec" data-icon="x">Clear</button><input type="file" id="file" accept=".json,application/json" hidden>
           <button type="button" id="fresh" hidden data-icon="key" title="Signs a fresh record in the browser with the public local test key (anvil). Local chain only.">Fresh local record</button>
@@ -285,17 +300,17 @@
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
-          <button type="button" class="valid" data-mode="asis" title="Untouched; the contract should answer accepted" aria-description="untouched; expected answer: accepted"><kbd class="kb" aria-hidden="true">1</kbd><span class="l" data-icon="check">Submit as is</span><span class="d exp">→ <span class="mono">accepted</span></span></button>
-          <button type="button" class="atk" data-mode="value" title="One value edited; the contract should answer WrongSigner" aria-description="one value edited; expected answer: WrongSigner"><kbd class="kb" aria-hidden="true">2</kbd><span class="l" data-icon="target">(a) Edit value</span><span class="d exp">→ <span class="mono">WrongSigner</span></span></button>
-          <button type="button" class="atk" data-mode="stale" title="Signed 1 h earlier; the contract should answer StaleResponse" aria-description="signed 1 h earlier; expected answer: StaleResponse"><kbd class="kb" aria-hidden="true">3</kbd><span class="l" data-icon="target">(b) Too old</span><span class="d exp">→ <span class="mono">StaleResponse</span></span></button>
-          <button type="button" class="atk" data-mode="request" title="Another company; the contract should answer WrongRequest" aria-description="another company; expected answer: WrongRequest"><kbd class="kb" aria-hidden="true">4</kbd><span class="l" data-icon="target">(c) Different request</span><span class="d exp">→ <span class="mono">WrongRequest</span></span></button>
-          <button type="button" class="atk" data-mode="key" title="Random key signs; the contract should answer WrongSigner" aria-description="random key signs; expected answer: WrongSigner"><kbd class="kb" aria-hidden="true">5</kbd><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp">→ <span class="mono">WrongSigner</span></span></button>
-          <button type="button" class="atk" data-mode="replay" title="Same record twice; the contract should answer Replayed" aria-description="same record twice; expected answer: Replayed"><kbd class="kb" aria-hidden="true">6</kbd><span class="l" data-icon="target">Replay</span><span class="d exp">→ <span class="mono">Replayed</span></span></button>
+          <button type="button" class="valid" data-mode="asis" title="Untouched; the contract should answer accepted" aria-description="untouched; expected answer: accepted"><kbd class="kb" aria-hidden="true">1</kbd><span class="l" data-icon="check">Submit as is</span><span class="d exp" data-icon="arrow-right"><span class="mono">accepted</span></span></button>
+          <button type="button" class="atk" data-mode="value" title="One value edited; the contract should answer WrongSigner" aria-description="one value edited; expected answer: WrongSigner"><kbd class="kb" aria-hidden="true">2</kbd><span class="l" data-icon="target">(a) Edit value</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
+          <button type="button" class="atk" data-mode="stale" title="Signed 1 h earlier; the contract should answer StaleResponse" aria-description="signed 1 h earlier; expected answer: StaleResponse"><kbd class="kb" aria-hidden="true">3</kbd><span class="l" data-icon="target">(b) Too old</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
+          <button type="button" class="atk" data-mode="request" title="Another company; the contract should answer WrongRequest" aria-description="another company; expected answer: WrongRequest"><kbd class="kb" aria-hidden="true">4</kbd><span class="l" data-icon="target">(c) Different request</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
+          <button type="button" class="atk" data-mode="key" title="Random key signs; the contract should answer WrongSigner" aria-description="random key signs; expected answer: WrongSigner"><kbd class="kb" aria-hidden="true">5</kbd><span class="l" data-icon="target">(d) Wrong key</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongSigner</span></span></button>
+          <button type="button" class="atk" data-mode="replay" title="Same record twice; the contract should answer Replayed" aria-description="same record twice; expected answer: Replayed"><kbd class="kb" aria-hidden="true">6</kbd><span class="l" data-icon="target">Replay</span><span class="d exp" data-icon="arrow-right"><span class="mono">Replayed</span></span></button>
         </div></div>
         <div class="ag"><div class="ag-head">Real, untouched records</div>
         <div class="attacks real-grid" role="group" aria-label="Real inputs: untouched records genuinely signed by the Airnode">
-          <button type="button" class="atk real" data-mode="realOld" title="Genuine, signed earlier; the contract should answer StaleResponse" aria-description="genuine, signed earlier; expected answer: StaleResponse"><kbd class="kb" aria-hidden="true">7</kbd><span class="l" data-icon="file">(b) Real old record</span><span class="d exp">→ <span class="mono">StaleResponse</span></span></button>
-          <button type="button" class="atk real" data-mode="realOther" title="Genuine, other firm; the contract should answer WrongRequest" aria-description="genuine, other firm; expected answer: WrongRequest"><kbd class="kb" aria-hidden="true">8</kbd><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp">→ <span class="mono">WrongRequest</span></span></button>
+          <button type="button" class="atk real" data-mode="realOld" title="Genuine, signed earlier; the contract should answer StaleResponse" aria-description="genuine, signed earlier; expected answer: StaleResponse"><kbd class="kb" aria-hidden="true">7</kbd><span class="l" data-icon="file">(b) Real old record</span><span class="d exp" data-icon="arrow-right"><span class="mono">StaleResponse</span></span></button>
+          <button type="button" class="atk real" data-mode="realOther" title="Genuine, other firm; the contract should answer WrongRequest" aria-description="genuine, other firm; expected answer: WrongRequest"><kbd class="kb" aria-hidden="true">8</kbd><span class="l" data-icon="file">(c) Real, other company</span><span class="d exp" data-icon="arrow-right"><span class="mono">WrongRequest</span></span></button>
         </div></div>
         </div>
         <p class="note" id="attack-note" role="status" hidden></p>
@@ -780,7 +795,7 @@
     // "–" where the attempt did not test what it is named for: an old/used "valid" record, or a replay of an unused digest
     const notApplicable = (mode === "asis" && !verdict.accepted) || (mode === "replay" && used === false);
     const row = document.createElement("tr");
-    const res = notApplicable ? ["na", "minus", "n/a"] : match ? ["pass", "check", "Pass"] : ["fail", "x", "Fail"];
+    const res = notApplicable ? ["na", "minus", "Not tested"] : match ? ["pass", "check", "Pass"] : ["fail", "x", "Fail"];
     const time = new Date().toLocaleTimeString("en-GB");
     const gotText = verdict.accepted ? (verdict.clean ? "accepted: permit" : "accepted: hold") : gotName;
     scoreRows.push({ time, order: id, name: MODE_NAME[mode], got: gotText, expected, res: res[2] });
@@ -1136,12 +1151,35 @@
   }
   simpleLink();
 
-  $("sample").innerHTML += (window.PULSE_SAMPLE_RESPONSES || []).map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join("");
-  $("sample").addEventListener("change", (e) => {
-    const s = (window.PULSE_SAMPLE_RESPONSES || [])[Number(e.target.value)];
-    if (s) setRecord(s.record, "Sample loaded, old on purpose.");
-    e.target.value = "";
-    if (s) $("suite").focus();
+  // the sample menu: a popover under its button, first item focused, arrow keys between items, Esc closes
+  const menu = $("sample-menu");
+  menu.insertAdjacentHTML("beforeend", (window.PULSE_SAMPLE_RESPONSES || []).map((s, i) => `<button type="button" data-sample="${i}">${esc(s.label)}</button>`).join(""));
+  function placeMenu() {
+    const r = $("sample").getBoundingClientRect();
+    menu.style.top = `${Math.round(r.bottom + 4)}px`;
+    menu.style.left = `${Math.round(Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)))}px`;
+    menu.style.maxHeight = `${Math.max(160, innerHeight - r.bottom - 12)}px`;
+  }
+  menu.addEventListener("toggle", (e) => {
+    if (e.newState === "open") { placeMenu(); menu.querySelector("[data-sample]").focus(); }
+    else if (!document.activeElement || document.activeElement === document.body || menu.contains(document.activeElement)) $("sample").focus();
+  });
+  addEventListener("scroll", () => { if (menu.matches(":popover-open")) placeMenu(); }, { passive: true });
+  addEventListener("resize", () => { if (menu.matches(":popover-open")) menu.hidePopover(); });
+  menu.addEventListener("keydown", (e) => {
+    const items = [...menu.querySelectorAll("[data-sample]")], i = items.indexOf(document.activeElement);
+    const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    items[(to + items.length) % items.length].focus();
+  });
+  menu.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sample]");
+    const s = b && (window.PULSE_SAMPLE_RESPONSES || [])[Number(b.dataset.sample)];
+    if (!s) return;
+    menu.hidePopover();
+    setRecord(s.record, "Sample loaded, old on purpose.");
+    $("suite").focus();
   });
   async function loadFile(f) {
     if (!f) return;
@@ -1312,7 +1350,7 @@
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !suiteRunning) { e.preventDefault(); $("suite").click(); }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]")) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable], [popover]")) return;
     const k = e.key;
     if (!keysOn && k !== "Escape") return;
     if ((k === "r" || k === "R") && !suiteRunning) { e.preventDefault(); $("suite").click(); }
