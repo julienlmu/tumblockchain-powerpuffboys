@@ -139,8 +139,8 @@
   const KNOWN_SIGNERS = {
     "0x392228e5cca260313e5ed337ed3561b59a1e4bff": "Companies House Airnode",
     "0x26d83124541e89ef28b9a5fb012b4b5f4097c20c": "GLEIF Airnode",
-    "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": "local Companies House key (anvil #1)",
-    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "local GLEIF key (anvil #2)",
+    "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": "local Companies House key, anvil #1",
+    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "local GLEIF key, anvil #2",
   };
 
   // §4.3. Base checks are always on; bit 0x80 in failedRules means the base check failed. 0x01 is reserved since v1.1.
@@ -153,7 +153,7 @@
     { bit: 0x02, source: 0, field: "accounts_overdue", clean: (v) => v === false, label: "accounts overdue", rule: "accounts filed" },
     { bit: 0x04, source: 0, field: "confirmation_overdue", clean: (v) => v === false, label: "confirmation statement overdue", rule: "confirmation statement filed" },
     // LAPSED means the LEI was not renewed on time, not that the entity is inactive (§4.3)
-    { bit: 0x08, source: 1, field: "registration_status", clean: (v) => v === "ISSUED", label: "LEI renewal overdue (e.g. LAPSED)", rule: "LEI registration issued" },
+    { bit: 0x08, source: 1, field: "registration_status", clean: (v) => v === "ISSUED", label: "LEI renewal overdue", rule: "LEI registration issued" },
   ];
 
   /** Rule chips for an order: the base check plus each enabled bit. */
@@ -263,11 +263,11 @@
   /** One plain sentence per contract error, for judges. */
   function explain(name, args, ctx = {}) {
     const a = args || [];
-    const t = (x) => new Date(Number(x) * 1000).toLocaleString("en-GB");
+    const t = (x) => dayClockS(x);
     switch (name) {
       case "WrongSigner": return `The signature recovers to ${a[0]}, not the Airnode this contract trusts for this registry${ctx.expectedSigner ? ` (${ctx.expectedSigner})` : ""}. Any edit of the signed bytes, or a different key, changes the recovered address.`;
       case "WrongRequest": return "The response answers a different request (another company, operation or projection) than the one this order was built for.";
-      case "StaleResponse": return `The response was signed at ${t(a[0])}, more than maxAge before the chain's time ${t(a[1])}. Old evidence cannot pay today's milestone.`;
+      case "StaleResponse": return `The response was signed at ${t(a[0])}, more than the contract's maximum age (maxAge) before the chain's time ${t(a[1])}. Old evidence cannot pay today's milestone.`;
       case "FutureResponse": return `The timestamp ${t(a[0])} lies more than 60 s in the future of the chain's time ${t(a[1])}.`;
       case "Replayed": return "This exact signed response was already used once. Each record can move the order only once.";
       case "NotNewer": return "The order already accepted a record signed at the same time or later. Older evidence cannot overwrite newer evidence.";
@@ -283,7 +283,15 @@
       case "BadCompanyNumber": return "The company number is not 1 to 10 characters of 0-9 and A-Z.";
       case "NotRefundable": return "Nothing to refund: the order is closed, or it still has a valid permit.";
       case "RefundNotYet": return `Not yet: from ${t(a[0])} anyone can send the remaining balance back to the buyer.`;
-      case "NotAuthorized": return "Only the buyer may do this.";
+      case "NotAuthorized": return "Only the buyer may do this now; anyone may once the grace period ends.";
+      case "NotApproved": return "The buyer has not approved this milestone yet.";
+      case "NotDue": return "This milestone is not due yet.";
+      case "NoValidPermit": return "There is no valid payment permit for this milestone: it needs a fresh signed record first.";
+      case "PermitExpired": return "The payment permit has expired: it needs a fresh signed record first.";
+      case "TransferFailed": return "The contract could not send the money: the receiving wallet refused the transfer. Nothing changed.";
+      case "BadSource": return "The registry of this order is unknown to the contract.";
+      case "BadSupplierId": return "The supplier id has the wrong format for its registry.";
+      case "BadRules": return "These rules do not exist for this registry.";
       default: return "";
     }
   }
@@ -295,6 +303,7 @@
   const nowSec = () => Math.floor(Date.now() / 1000);
   const clock = (ts) => new Date(Number(ts) * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const dayClock = (ts) => new Date(Number(ts) * 1000).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const dayClockS = (ts) => new Date(Number(ts) * 1000).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   function ago(sec) {
     if (sec < 0) return "in the future";
@@ -306,7 +315,7 @@
   function span(sec) {
     sec = Math.max(0, Math.round(sec));
     if (sec < 120) return `${sec} s`;
-    if (sec < 7200) return `${Math.floor(sec / 60)} min ${String(sec % 60).padStart(2, "0")} s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)} min ${String(sec % 60).padStart(2, "0")} s`;
     if (sec < 172800) return `${Math.floor(sec / 3600)} h ${String(Math.floor((sec % 3600) / 60)).padStart(2, "0")} min`;
     return `${Math.round(sec / 86400)} days`;
   }
@@ -461,6 +470,6 @@
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,
     ruleNames, failedLabels, evaluate, requestHashFor, supplierKeyOf, digestOf, normalizeRecord, parseFields,
     tamper, decodeRevert, explain, friendlyError,
-    esc, short, nowSec, clock, dayClock, ago, span, duration, tokens, orderNamer, DEMO_NAMES,
+    esc, short, nowSec, clock, dayClock, dayClockS, ago, span, duration, tokens, orderNamer, DEMO_NAMES,
   };
 })();
