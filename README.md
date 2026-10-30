@@ -22,6 +22,19 @@ nvm use
 
 Run commands and on-chain evidence: [docs/evidence.md](docs/evidence.md).
 
+## Future work
+
+### Privacy of order documents
+
+Today the contract stores the order reference as a hash (`orderRef`), so the order itself is never written on chain. A production version would extend this to the full set of order documents: the contract text, PO line items and delivery terms stay off chain with the buyer and supplier, and only a salted hash of each document is anchored on chain. The salt matters, because short or predictable documents could otherwise be guessed and checked against the hash. Either party can later prove what was agreed by revealing the document and its salt.
+
+Some data stays public by design:
+- **Amounts:** the contract locks and pays the money itself, so the escrowed and released amounts are visible on chain.
+- **Supplier payout wallet:** payments go to it, so it is visible.
+- **Registry ID:** the Companies House number or LEI comes from a public register, so hiding it adds nothing.
+
+Stronger privacy, such as hiding amounts and counterparties, would need zero-knowledge proofs or a private settlement layer. That is out of scope for this prototype.
+
 ## License
 
 MIT

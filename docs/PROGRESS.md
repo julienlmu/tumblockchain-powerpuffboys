@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · README: privacy of order documents (future work)
+- Changed: appended a "Privacy of order documents" subsection to the README (salted document hashes on chain; amounts, payout wallet and registry ID stay public by design; ZK as future work). No code or ABI change.
+- Next: Ulaş, feel free to reword it in the README's voice.
+
 ### 2026-10-30 · Orhun · C2.5 review of `tamper.mjs`, `verify.mjs`, `requests.mjs`, `plus-submit.sh` → Emre
 - Changed: nothing in Emre's files. Reviewed against §4.7 and the contract's check order (§4.5).
 - **No blocking findings.** The four tamper modes produce exactly the contract errors (value/key → `WrongSigner`, stale → `StaleResponse`, request → `WrongRequest`, replay → `Replayed`). `verify.mjs` uses the same freshness rule as the contract (`maxAge`, 60 s future skew). `plus-submit.sh` reuses `plus-lib.sh` (`plus_send`, `plus_error`, `plus_num`) correctly.
