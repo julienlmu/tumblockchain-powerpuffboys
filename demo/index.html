@@ -147,6 +147,9 @@
   body.view-simple #details-box, body.view-simple #cfg-box, body.view-simple .filters, body.view-simple #toolbar, body.view-simple #jump,
   body.view-simple .card .sub, body.view-simple .card .ms, body.view-simple .card details.more, body.view-simple .card details.ways,
   body.view-simple .held-box > p:not(.keep), body.view-simple .closed-box .orders, body.view-simple footer { display: none; }
+  /* less text in Simple: a status line per card, the newest agent row, network and update time; the rest in Detailed */
+  body.view-simple .d-only, body.view-simple .hero .paid, body.view-simple .agent details, body.view-simple #guide:not([open]),
+  body.view-simple .meta .d-only { display: none; }
   /* kept in Simple: the sentence that says who may refund, and from when (a disabled refund button never shows without
      its reason), and which order caused a supplier-wide stop, and when */
   body.view-simple .held-box > p[id^="who-"] { display: block; }
@@ -346,7 +349,7 @@
   <header>
     <div>
       <h1>SupplierPulse<span class="plus">+</span></h1>
-      <p class="tagline">Every milestone pays only with a <span class="nobr"><button type="button" class="term" data-guide="g-permit" aria-haspopup="dialog">payment <span class="tl">permit</span></button>:</span> the contract's short-lived go-ahead after a fresh, signed register check.</p>
+      <p class="tagline">Each milestone pays only after a fresh, signed register check.</p>
     </div>
     <div class="head-links">
       <div class="view-switch" role="group" aria-label="View"><button type="button" data-view="simple" aria-pressed="false">Simple</button><button type="button" data-view="detailed" aria-pressed="false">Detailed</button></div>
@@ -411,10 +414,7 @@
   <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
   <div class="grid" id="orders" aria-live="off" aria-busy="true"><div class="skeleton"><p class="skeleton-label" id="loading-label">Reading the contract…</p></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
   <footer>
-    A signature proves the register said it, not that the supplier will deliver. Delivery stays the buyer's approval:
-    each milestone needs both a valid permit from a fresh signed record and the buyer's approval.
-    Signed records come from API3 AirnodeHub (Companies House, GLEIF); the contract checks signer, request, freshness and replay before acting.
-    The verification history (Standard, Trusted, Premium) counts register checks; it is not a credit score.
+    A signature proves the register said it, not that the supplier will deliver: each milestone also needs the buyer's approval.
     <br>v1 screen: <a href="v1.html">v1.html</a>. Judges: <a href="judge.html" id="judge-link2">try to break it</a>.
   </footer>
 </div>
@@ -537,8 +537,11 @@
   const I = P.icon;
   const arrow = `<span class="flow">${I("arrow-right")}</span>`; // "leads to", in agent and history lines
   // A term that opens its guide entry; the last word carries the help mark, so the mark never wraps alone.
-  const term = (label, id, cls = "", attrs = "") => { const k = label.lastIndexOf(" ") + 1;
-    return `<button type="button" class="term${cls ? " " + cls : ""}" data-guide="${id}" aria-haspopup="dialog"${attrs}>${label.slice(0, k)}<span class="tl">${label.slice(k)}</span></button>`; };
+  // Terms are plain words: the Guide and "How this page works" explain them, so no inline help marks.
+  const term = (label) => label;
+  // a short time for status lines: "00:28", or "Sat 00:28" on another day
+  const hm = (ts) => { const d = new Date(Number(ts) * 1000), t = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString("en-GB", { weekday: "short" })} ${t}`; };
   const tierBadge = (t) => `<span class="tier t${t}">${P.TIERS[t] || "?"}</span>`;
 
   // UI state that must survive re-renders: disclosures the user opened or closed, and claim messages.
@@ -620,14 +623,14 @@
   const permitValid = (o) => o.permitValidRead && nowSec() <= o.permitValidUntil;
 
   // Sample mode: a script command next to illustrative data says what it would act on.
-  const sampleCmdNote = (o) => `<p class="sample-cmd">${I("info")}<span>Sample data: order #${o.id} here is illustrative; this script acts on the real contract in <span class="mono">api3/.env</span>.</span></p>`;
+  const sampleCmdNote = (o) => `<p class="sample-cmd">${I("info")}<span>Sample order #${o.id}: this script acts on the real contract in <span class="mono">api3/.env</span>.</span></p>`;
   // The buyer approves with a script (the page sends no approval). The script counts milestones from 0, so each
   // milestone awaiting approval carries its own command with both numbers filled in: nothing to translate.
   function approveWays(o, i, env) {
     const key = `approve-${o.id}-${i}`, cmd = `api3/scripts/plus-approve.sh ${o.id} ${i}`;
     return `<details class="ways approve" data-key="${key}"${isOpen(key, false) ? " open" : ""}><summary>Approve milestone ${i + 1} (script)</summary>
       <div class="ways-body">${env.sample ? sampleCmdNote(o) : ""}<p><code class="cmd">${cmd}</code>${P.copyBtn(cmd)}</p>
-        <p class="small-muted">Run it once the work for milestone ${i + 1} is delivered; it signs with the buyer key in <span class="mono">api3/.env</span>. The script counts from 0, so milestone ${i + 1} is ${i} here. An approval cannot be taken back.</p></div></details>`;
+        <p class="small-muted">Run it once the work is delivered (buyer key in <span class="mono">api3/.env</span>; the script counts from 0). It cannot be undone.</p></div></details>`;
   }
 
   function milestoneView(o, i, tintNext, env, approveInStep) {
@@ -640,12 +643,12 @@
     else {
       if (i === o.next) {
         cls = tintNext ? "next" : "upcoming";
-        if (permitValid(o)) parts.push(word("ok", `Payment permit valid for ${cd(o.permitValidUntil, "0 s")} (until ${clock(o.permitValidUntil)})`));
-        else if (o.permitValidUntil > 0) parts.push(word("wait", "Payment permit expired: needs a fresh record"));
-        else parts.push("No payment permit yet");
+        if (permitValid(o)) parts.push(word("ok", `Permit valid ${cd(o.permitValidUntil, "0 s")} more`));
+        else if (o.permitValidUntil > 0) parts.push(word("wait", "Permit expired"));
+        else parts.push("No permit yet");
       } else ic = "minus";
-      parts.push(o.approved[i] ? "approved by buyer" : word("wait", "awaiting approval"));
-      parts.push(due > now ? `not due yet, in ${cd(due)}` : "due");
+      parts.push(o.approved[i] ? "approved" : word("wait", "awaiting approval"));
+      parts.push(due > now ? `in ${cd(due)}` : "due");
       if (!o.approved[i] && !(approveInStep && i === o.next)) approve = approveWays(o, i, env);
     }
     return `<li class="${cls}"><span class="st">${I(ic)}</span><div>
@@ -653,31 +656,17 @@
       <div class="line2">${parts.map((x) => `<span>${x}</span>`).join(`<span aria-hidden="true">&nbsp;· </span>`)}</div>${approve}</div></li>`;
   }
 
-  function nextStep(o, ctx) {
-    const n = o.next + 1, due = o.dueDates[o.next];
-    if (o.state === 1) return null; // the held box says it
-    if (o.state === 2) return null; // the closed box says it
-    if (o.autoRefundAt > 0 || supplierStopped(o)) return null; // the no-data box or the stop strip says it
-    if (permitValid(o) && o.approved[o.next] && nowSec() >= due) {
-      // the page itself never pays: say who does, and when the agent last acted
-      const last = ctx.agentLast ? ` (it last acted ${since(ctx.agentLast)})` : ""; // permit, approval and due date: in the milestone row
-      return ["ok", agentAddr
-        ? `Ready: the agent pays milestone ${n} on its next pass${last}.`
-        : `Ready: milestone ${n} can be paid now (valid permit, buyer approved, due). Anyone may send the payment.`];
-    }
-    // each line says when: the due date with its countdown, and how long the permit lasts
-    const dueWhen = nowSec() < due ? `due ${at(due)}` : `due since ${dayClock(due)}`;
-    const Due = dueWhen.replace(/^d/, "D");
-    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Next: the buyer approves milestone ${n}. ${Due}; its payment permit is valid ${cd(o.permitValidUntil, "0 s")} more.`, "approve"];
-    if (permitValid(o)) {
-      const late = o.permitValidUntil < due;
-      return ["info", late
-        ? `Next: milestone ${n} is ${dueWhen}. Its permit ends earlier (${cd(o.permitValidUntil, "now", "in ")}), so the agent re-checks before then.`
-        : `Next: milestone ${n} pays at its due date, ${at(due)}; its permit lasts until then.`];
-    }
-    return o.approved[o.next]
-      ? ["wait", `Next: milestone ${n} needs a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`]
-      : ["wait", `Next: milestone ${n} needs the buyer's approval and a ${term("fresh signed register record", "g-record")} before it can pay. ${Due}.`, "approve"];
+  function nextStep(o) {
+    const n = o.next + 1, due = o.dueDates[o.next], now = nowSec();
+    if (o.state !== 0 || o.autoRefundAt > 0 || supplierStopped(o)) return null; // a status box says it
+    const dueIn = `due ${cd(due, "now", "in ")}`;
+    if (permitValid(o) && o.approved[o.next] && now >= due) // the page never pays: say who does
+      return ["ok", agentAddr ? `Milestone ${n} pays on the agent's next pass` : `Milestone ${n} can be paid now`];
+    if (permitValid(o) && !o.approved[o.next]) return ["wait", `Milestone ${n} awaits the buyer's approval<span class="d-only"> · ${dueIn}</span>`];
+    if (permitValid(o)) return o.permitValidUntil < due
+      ? ["info", `Milestone ${n} ${dueIn}<span class="d-only">; the agent re-checks first</span>`]
+      : ["info", `Milestone ${n} pays ${cd(due, "now", "in ")}`];
+    return ["wait", `Milestone ${n} ${o.approved[o.next] ? "waits for a register check" : "needs approval and a check"}<span class="d-only"> · ${dueIn}</span>`];
   }
 
   // ---------------------------------------------------------------- events → words
@@ -800,7 +789,7 @@
     const claimRow = (enabled) => {
       const msg = claimMsg[o.id] ? `<div class="msg" role="status">${claimMsg[o.id]}</div>` : "";
       if (claimState[o.id] === "confirm") return `<div class="confirm" role="group" aria-label="Confirm the refund">
-          <span>Refund <b>${tok(o.remaining)} tokens</b> of order #${o.id} to the buyer ${addr(o.info.buyer)}? This closes the order for good: the supplier can no longer be paid on it. Your wallet asks once more before anything is sent.</span>
+          <span>Refund <b>${tok(o.remaining)} tokens</b> to the buyer ${addr(o.info.buyer)}? This closes order #${o.id} for good; your wallet asks once more.</span>
           <div class="row"><button type="button" class="primary" data-claim-go="${o.id}">${I("send")}Continue in MetaMask</button><button type="button" data-claim-cancel="${o.id}">Cancel</button></div></div>${msg}`;
       const busyNow = claimState[o.id] === "busy";
       const off = env.sample || !enabled || busyNow;
@@ -809,86 +798,83 @@
         <details class="ways${claimMsg[o.id] ? " keep" : ""}" data-key="${waysKey}"${isOpen(waysKey, false) ? " open" : ""}><summary>Other ways to refund</summary>
           <div class="ways-body">${env.sample ? sampleCmdNote(o) : ""}<p>Without a browser wallet: <code class="cmd">api3/scripts/plus-refund.sh ${o.id}</code>${P.copyBtn(`api3/scripts/plus-refund.sh ${o.id}`)} (signs with the buyer key in <span class="mono">api3/.env</span>).</p></div></details>`;
     };
-    // when the refund opens, in one phrase
-    const opens = (t) => (nowSec() >= t ? "<b>now</b>" : `from ${dayClock(t)} (<b>${cd(t, "now")}</b>)`);
-    // in sample mode the sentence that explains the disabled button says why it is off
-    const offNote = env.sample ? ". Sample data: the button is off" : "";
-
-    // The supplier-wide stop is said once, in the status box: on the order whose record caused it ("also stops")
-    // and on every order it stops ("stopped by").
+    // who may refund, and from when, in one short line (Detailed adds the countdown and the sample note)
+    const refundLine = (t, buyerToo) => {
+      const now = nowSec() >= t;
+      const who = buyerToo ? (now ? "Buyer or anyone can refund now" : `Buyer can refund now, anyone from ${hm(t)}`)
+        : (now ? "Anyone can refund now" : `Anyone can refund from ${hm(t)}`);
+      return `${who}${now ? "" : `<span class="d-only"> (${cd(t, "now", "in ")})</span>`}.${env.sample ? `<span class="d-only"> Sample data: the button is off.</span>` : ""}`;
+    };
+    // The supplier-wide stop: the stopped order names its cause in the box title; the cause names what it stops
     const when = o.rec.lastBaseFailureAt ? dayClock(o.rec.lastBaseFailureAt) : "";
     const failRec = [o, cause].filter(Boolean).flatMap((x) => x.events)
       .find((e) => e.name === "EvidenceAccepted" && Number(e.args.timestamp) === o.rec.lastBaseFailureAt);
     const word = failRec && P.BASE[o.info.source] ? fieldOf(rawOf(failRec.args), P.BASE[o.info.source].field) : null;
     const statusWord = word ? ` (${esc(word)})` : ""; // the signed status of the failing record ("liquidation")
-    // Simple keeps the paragraphs marked "keep": which order caused the stop and when, and who may refund
-    const alsoStops = ctx.stops.length ? `<p class="orders keep">Also stops ${ctx.stops.map(orderLink).join(" ")}</p>` : "";
-    const stoppedBy = byOther ? `<p class="orders keep">Stopped by ${orderLink(cause)}, whose register status failed${statusWord} on ${when}.</p>` : "";
-    const stopLine = byOther ? `<p>No permit from before then can pay, on any of this supplier's orders.</p>`
-      : `<p class="keep">The supplier's register status failed${statusWord} on ${when}: no permit from before then can pay, on any of its orders.</p>`;
+    const alsoStops = ctx.stops.length ? `<p class="orders">Also stops ${ctx.stops.map(orderLink).join(" ")}</p>` : "";
+    const failedAt = `<p>Register status failed${statusWord} on ${when}.</p>`;
 
     let box = "";
     if (held) {
       const ownStop = byOther && o.lastFailedRules === P.BASE_FAILED;
       const failed = failedOf(o);
       box = `<div class="held-box">
-        <div class="title">${I("lock")}<span>${ownStop ? `${term("Payments stopped", "g-stop")}, supplier-wide` : `Payments stopped: ${esc(failed[0] || "failed register check")}`}</span></div>
+        <div class="title">${I("lock")}<span>${ownStop ? `Held: stopped by ${orderLink(cause)}` : `Held: ${esc(failed[0] || "failed register check")}`}</span></div>
         ${!ownStop && failed.length > 1 ? `<p class="also-failed">Also failed: ${esc(failed.slice(1).join(", "))}.</p>` : ""}
-        ${ownStop ? stoppedBy : alsoStops}
-        <p id="${whoId}">Held: the ${tok(o.remaining)} tokens can only go back to the buyer. ${nowSec() >= o.autoRefundAt ? `The buyer or ${term("anyone", "g-grace")} can refund <b>now</b>` : `The buyer can refund now, ${term("anyone", "g-grace")} ${opens(o.autoRefundAt)}`}${offNote}.</p>
+        ${ownStop ? failedAt : alsoStops}
+        <p id="${whoId}">${refundLine(o.autoRefundAt, true)}</p>
         ${claimRow(true)}
       </div>`;
     } else if (notHeldYet) {
       const nd = o.autoRefundAt > 0;
       box = `<div class="held-box stop">
-        <div class="title">${I("stop")}<span>${term("Payments stopped", "g-stop")}, supplier-wide</span></div>
-        ${stoppedBy}${alsoStops}${stopLine}
-        <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent holds it on its next pass, without paying for a new check.</p>
-        ${nd ? `<p id="${whoId}">${term("No verified data", "g-grace")} since milestone ${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
+        <div class="title">${I("stop")}<span>${byOther ? `Stopped by ${orderLink(cause)}` : "Payments stopped, supplier-wide"}</span></div>
+        ${failedAt}${alsoStops}
+        <p class="note"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent holds it on its next pass.</p>
+        ${nd ? `<p id="${whoId}">No data either. ${refundLine(o.autoRefundAt, false)}</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
     } else if (!closed && o.autoRefundAt > 0) {
-      // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
+      // no-data exit: approved, overdue, no valid permit (§2.4a). Never a negative fact about the supplier.
       box = `<div class="held-box nodata">
-        <div class="title">${I("clock")}<span>${term("No verified data", "g-grace")} since milestone ${o.next + 1} was due</span></div>
-        <p id="${whoId}">Nothing bad is known about the supplier, only no proof. Anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>
+        <div class="title">${I("clock")}<span>No data since milestone ${o.next + 1} was due</span></div>
+        <p id="${whoId}">${refundLine(o.autoRefundAt, false)}</p>
         ${claimRow(nowSec() >= o.autoRefundAt)}
       </div>`;
     } else if (refunded) {
       const ev = o.events.find((e) => e.name === "OrderRefunded");
-      const how = ev && ev.args.noDataExit ? "Closed by the no-data exit" : "Closed after a hold";
+      const how = ev && ev.args.noDataExit ? "No-data exit" : "After a hold";
       const m = myRefunds[o.id];
       const mine = m ? `<p><b>You refunded ${m.amount !== null ? `${tok(m.amount)} tokens` : "the remaining balance"} in ${txLink(m.hash)}.</b></p>` : "";
-      box = `<div class="closed-box">${I("refund")}<div><p>${how}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</p>${mine}${alsoStops}</div></div>`;
+      box = `<div class="closed-box">${I("refund")}<div><p><span class="d-only">${how}: </span>${ev ? tok(ev.args.amount) : "The remaining"} tokens back to the buyer${ev ? `<span class="d-only">${isAgent(ev.args.triggeredBy) ? ", by the agent" : ""}</span> ${since(ev.time)}` : ""}.</p>${mine}${alsoStops}</div></div>`;
     } else if (closed) {
-      box = `<div class="closed-box">${I("shield")}<div><p>Fully paid: every milestone was paid against its own fresh signed record.</p>${alsoStops}</div></div>`;
+      box = `<div class="closed-box">${I("shield")}<div><p>Every milestone paid<span class="d-only">, each on its own fresh signed record</span>.</p>${alsoStops}</div></div>`;
     }
 
-    const step = box ? null : nextStep(o, ctx);
+    const step = box ? null : nextStep(o);
     const stepIcon = { ok: "arrow-right", wait: "clock", info: "arrow-right" };
-    // Simple: a step that waits for the buyer's approval carries its means, the approve script, right under it
-    const approveInStep = !!step && step[2] === "approve" && view === "simple";
+    const approveInStep = false; // the approve script lives in the milestone row (Detailed); the Guide says so
 
     // Details: each fact once; where the status box or a milestone row already says it, the fact points there
     const rec = lastRecord(o);
     const recFailed = rec ? !rec.args.clean : o.lastFailedRules !== 0;
     const shownInBox = held && !(byOther && o.lastFailedRules === P.BASE_FAILED);
     const lastCheck = o.lastCheck
-      ? `${since(o.lastCheck)} <span class="small-muted">(signed ${dayClock(o.lastCheck)})</span> · ${!recFailed ? `<span class="good">${I("check")} clean</span>`
+      ? `${since(o.lastCheck)} · ${!recFailed ? `<span class="good">${I("check")} clean</span>`
         : shownInBox ? `<span class="bad">${I("x")} failed</span> <span class="small-muted">(see the hold)</span>`
         : `<span class="bad">${I("x")} ${esc((rec ? failedWords(o.info.source, rec.args.failedRules, rawOf(rec.args)) : failedOf(o)).join(", "))}</span>`}`
       : `<span class="small-muted">no signed record yet</span>`;
     let permitRow;
     if (held) permitRow = `<span class="small-muted">cleared by the hold</span>`;
     else if (closed) permitRow = `<span class="small-muted">none (order closed)</span>`;
-    else if (permitValid(o)) permitRow = `<span class="good">valid</span> for milestone ${o.next + 1} <span class="small-muted">(see its row)</span>`;
+    else if (permitValid(o)) permitRow = `<span class="good">valid</span> for milestone ${o.next + 1}`;
     else if (o.permitValidUntil > 0) permitRow = `<span class="late">expired</span> at ${clock(o.permitValidUntil)}`;
     else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid milestone ${o.next}` : "none yet"}</span>`;
-    if (!held && !closed) permitRow += ` <span class="small-muted">· each lasts ${duration(o.info.permitTtl)} from the record's signed time</span>`;
+    if (!held && !closed) permitRow += ` <span class="small-muted">· ${duration(o.info.permitTtl)} per record</span>`;
 
     const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
     const trailKey = `trail-${o.id}`, moreKey = `more-${o.id}`;
     const trail = evs.length ? `<details class="trail" data-key="${trailKey}"${isOpen(trailKey, false) ? " open" : ""}>
-        <summary>Audit trail: ${evs.length} on-chain events, newest first</summary>
+        <summary>Audit trail (${evs.length} events)</summary>
         <ol class="trail">${evs.map((e) => {
           const l = eventLine(e, o);
           // first line: when, the transaction and who sent it; then what happened
@@ -909,7 +895,7 @@
               <span>supplier wallet ${addr(o.info.supplier)}</span></div>
         </div>
         <div class="hero">
-          <div><div class="label">Protected remaining balance</div><div class="big">${tok(o.remaining)}${term("tokens", "g-unit", "unit", ` data-tip="${tok(o.remaining)} tokens = ${ethers.formatEther(o.remaining)} test ETH" aria-describedby="tip"`)}</div></div>
+          <div><div class="label">Protected</div><div class="big">${tok(o.remaining)}<span class="unit">tokens</span></div></div>
           <div class="paid">Paid <b>${tok(o.paid)}</b> of ${tok(total)}</div>
         </div>
         ${bar}
@@ -949,11 +935,11 @@
     const a = e.args;
     switch (e.name) {
       case "EvidenceAccepted": return a.clean ? "register check passed" : brief ? "register check failed" : `register check failed: ${esc(failedWords(o.info.source, a.failedRules, rawOf(a)).join(", "))}`;
-      case "PermitIssued": return `payment permit for milestone ${Number(a.milestone) + 1}`;
-      case "MilestonePaid": return `<b>paid milestone ${Number(a.milestone) + 1}</b>: ${tok(a.amount)} tokens to the supplier`;
-      case "OrderHeld": return "<b>payment held</b>";
+      case "PermitIssued": return `permit for milestone ${Number(a.milestone) + 1}`;
+      case "MilestonePaid": return `<b>paid milestone ${Number(a.milestone) + 1}</b> (${tok(a.amount)} tokens)`;
+      case "OrderHeld": return "<b>held</b>";
       case "OrderRefunded": return `<b>refunded ${tok(a.amount)} tokens</b> to the buyer${a.noDataExit ? " (no-data exit)" : ""}`;
-      case "TierChanged": return `verification history ${Number(a.newTier) > Number(a.oldTier) ? "raised" : "lowered"} to ${P.TIERS[Number(a.newTier)]}`;
+      case "TierChanged": return `tier now ${P.TIERS[Number(a.newTier)]}`;
       default: return e.name;
     }
   }
@@ -963,7 +949,7 @@
   // already verified on chain, so the agent holds without paying for a new check.
   const isSupplierStop = (g) => !g.evs.some((e) => e.name === "EvidenceAccepted") && g.evs.some((e) => e.name === "OrderHeld");
   const agentWords = (g, o, cause, brief = false) => isSupplierStop(g)
-    ? `<b>payment held</b> after the supplier failed${cause && cause.id !== o.id ? ` on ${orderNameHTML(cause)}` : ""} (no new paid check needed)`
+    ? `<b>held</b>: the supplier failed${cause && cause.id !== o.id ? ` on ${orderNameHTML(cause)}` : ""}`
     : g.evs.map((e) => agentWord(e, o, brief)).join(arrow);
 
   // Rows that arrived after the first render carry a "new" chip for 30 s.
@@ -979,14 +965,14 @@
     const head = `<div class="agent-head"><h2>${I("agent")}Agent activity</h2>
       <span class="sub">${agentAddr ? (rows[0] && rows[0].time ? `last acted ${since(rows[0].time)}` : "") : `to highlight its transactions, <button type="button" class="link-order" data-fix="agent">Open Settings</button> and set its address`}</span></div>`;
     // phones: a failed check in short ("register check failed"); the card's status box names the rules
-    const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders), narrow.matches) : ""; };
+    const words = (g) => { const o = byId[g.order]; return o ? agentWords(g, o, causeOf(o, orders), narrow.matches || view === "simple") : ""; };
     // run: the newest transaction of a run of identical ones (same order, same sentence), with how many and since when
     const li = (g, run = [g]) => {
       const o = byId[g.order];
       const name = o ? nobr(esc(orderTitle(o) || `order ${g.order}`)) : `order ${g.order}`;
       const first = run[run.length - 1];
       const rep = run.length > 1 ? ` <span class="rep">×${run.length}${first.time ? ` since ${clock(first.time)}` : ""}</span>` : "";
-      return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
+      return `<li><span class="t">${g.time ? (view === "simple" ? P.clock(g.time) : clock(g.time)) : "#" + g.block}</span>
         <span>${isNew(g) ? `<span class="chip new">new</span> ` : ""}#${g.order} ${name}: ${cap(words(g))}${rep}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
     // Repeats fold: consecutive transactions with the same order and the same sentence show as one row, "×3 since
@@ -1150,7 +1136,7 @@
   // Where the data comes from, the protected total, when it was read, and when the next read happens.
   const status = { mode: cfg.sample ? "sample" : "start", network: "", protectedTotal: null, readAt: 0, note: "", failed: false };
   // the meta line speaks in short sentences, not "Mode x"
-  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract address in Settings" };
+  const MODE_WORDS = { sample: "<b>Sample data</b>", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract address in Settings" };
   const rpcHost = () => { try { return new URL(cfg.rpc).host; } catch { return "the RPC"; } };
   const netGuess = () => (cfg.rpc === P.DEFAULT_RPC ? "Ethereum Sepolia" : rpcHost());
   $("loading-label").innerHTML = `${I("loader", "spin")}<span>${cfg.contract ? `Reading orders from ${esc(netGuess())}…` : cfg.sample ? "Loading the sample data…" : `Looking for SupplierPulse+ v2 on ${esc(netGuess())}…`}</span>`;
@@ -1164,20 +1150,20 @@
     if (status.mode === "live" || (status.mode === "start" && status.failed)) items.push(`<span class="live-dot${status.failed ? " warn" : ""}" aria-hidden="true"></span>${!status.failed ? "Live on" : readCulprit === "rpc" ? "Reconnecting to" : "Cannot read the contract on"} <b>${esc(status.network || rpcHost())}</b>`);
     else items.push(MODE_WORDS[status.mode]);
     // the unit's help mark lives here, once for the page; each card's "tokens" keeps its tooltip
-    if (status.protectedTotal !== null) items.push(`Protected now <b>${tok(status.protectedTotal)} ${term("tokens", "g-unit", "", ' id="meta-unit"')}</b> (${ethers.formatEther(status.protectedTotal)} test ETH)`);
+    if (status.protectedTotal !== null) items.push(`<span class="d-only">Protected now <b>${tok(status.protectedTotal)} tokens</b> (${ethers.formatEther(status.protectedTotal)} test ETH)</span>`);
     if (cfg.unit) items.push(UNIT === BigInt(/^[1-9]\d*$/.test(cfg.unit) ? cfg.unit : 0)
       ? `<span class="warn">Custom unit: <b>1 token = ${UNIT.toLocaleString("en")} wei</b></span>`
       : `<span class="warn">Unit “${esc(cfg.unit)}” ignored: <b>1 token = 10¹² wei</b></span>`);
-    if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${dayClock(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
-    else if (status.readAt) items.push(`Updated <b>${dayClock(status.readAt)}</b>${status.note} · <span class="next-read">${nextReadText()}</span>`);
+    if (status.failed) items.push(`<span class="warn">${status.readAt ? `Last good read <b>${P.clock(status.readAt)}</b>` : "No good read yet"} · <span class="next-read">${nextReadText()}</span></span>`);
+    else if (status.readAt) items.push(`Updated <b>${P.clock(status.readAt)}</b><span class="d-only">${status.note} · <span class="next-read">${nextReadText()}</span></span>`);
     // one element per item, each written only when it changed: the 12 s "Updated" never replaces the unit's button
     const meta = $("meta");
     while (meta.children.length < items.length) meta.append(document.createElement("span"));
-    [...meta.children].forEach((el, i) => { el.hidden = i >= items.length; setHTML(el, items[i] || ""); });
+    [...meta.children].forEach((el, i) => { el.hidden = i >= items.length; setHTML(el, items[i] || ""); el.classList.toggle("d-only", /^<span class="d-only">[\s\S]*<\/span>$/.test(items[i] || "")); });
     // while reads fail after a good one, the cards say so where the reader is: a slim strip that stays in view
     const stale = status.failed && status.readAt > 0;
     $("stale").hidden = !stale;
-    if (stale) setHTML($("stale"), `${I("alert")}<span>These cards are the last good read, <b>${dayClock(status.readAt)}</b> · <span class="next-read">${nextReadText()}</span></span><button type="button" data-retry>${I("refund")}Retry now</button>`);
+    if (stale) setHTML($("stale"), `${I("alert")}<span>Last good read <b>${P.clock(status.readAt)}</b> · <span class="next-read">${nextReadText()}</span></span><button type="button" data-retry>${I("refund")}Retry now</button>`);
   }
   renderMeta();
   function banner(kind, html) { setHTML($("banner"), html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""); }
@@ -1292,7 +1278,7 @@
     Object.assign(status, { mode: "sample", readAt: nowSec(), protectedTotal: orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n) });
     renderMeta();
     renderDetails({ maxAge: data.maxAge, tierCountGap: data.tierCountGap, refundGrace: data.refundGrace });
-    banner("sample", `${I("info")}<span><b>Sample data</b>: illustrative amounts, wallets, ids and times; <span id="sample-note">nothing can be sent</span>.</span><button type="button" class="banner-btn" data-live>Use live data</button>`);
+    banner("sample", `${I("info")}<span><b>Sample data</b>, not from a chain: <span id="sample-note">nothing can be sent</span>.</span><button type="button" class="banner-btn" data-live>Use live data</button>`);
     lastOrders = orders;
     renderAll(orders, { sample: true });
   }
@@ -1516,7 +1502,7 @@
   }
   function closeGuide() {
     $("guide").open = false;
-    if (!returnFromGuide()) $("guide").querySelector("summary").focus();
+    if (!returnFromGuide()) { const sum = $("guide").querySelector("summary"); (sum.offsetParent ? sum : $("guide-btn")).focus(); }
   }
   // closed by its summary: back to the opener too
   $("guide").addEventListener("toggle", () => { if (!$("guide").open && guideFrom) returnFromGuide(); });
