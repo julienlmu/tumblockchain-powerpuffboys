@@ -57,6 +57,8 @@
   .attacks.synth { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .attacks.real-grid { grid-template-columns: minmax(0, 1fr); }
   .ag-head { font-size: 12px; color: var(--muted); line-height: 1.3; }
+  .h-note { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
+  .panel h2:has(.h-note) { flex-wrap: wrap; }
   .cmd-line { display: flex; gap: 6px; align-items: flex-start; margin-top: 4px; }
   .cmd-line code { flex: 1 1 auto; min-width: 0; }
   .cmd-line .copy { margin-left: 0; flex: none; }
@@ -198,7 +200,7 @@
           <tr><td>(c) Different request, Real, other company</td><td>the request, or a genuine record of another company</td><td class="mono">WrongRequest</td></tr>
           <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono">WrongSigner</td></tr>
           <tr><td>Replay</td><td>the same record a second time</td><td class="mono">Replayed</td></tr></tbody></table>
-        <p>Amber tile: rejected, but by an earlier check than the one the attack targets. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
+        <p><b>Amber tile, or "Not tested":</b> the record could not test that attack, because it is too old, already sent, or for another order, so an earlier check stopped it. What to do: load a fresh record (<b>Fresh local record</b> on the local chain, <span class="mono">fetch-evidence.sh</span> elsewhere, see the Judge kit) and run again. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
         <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> run all, <kbd>1</kbd>–<kbd>8</kbd> one attempt, <kbd>S</kbd> replay step, <kbd>B</kbd> back to the summary, <kbd>Esc</kbd> stop or close this guide, <kbd>?</kbd> this guide, <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs all.</p>
       </div>
     </details>
@@ -222,7 +224,7 @@
       </div>
 
       <div class="group">
-        <h2><span class="step" aria-hidden="true">2</span>Load a signed record</h2>
+        <h2><span class="step" aria-hidden="true">2</span>Load a signed record<span class="h-note" id="fresh-note"></span></h2>
         <div class="row">
           <select id="sample" aria-label="Load a sample record"><option value="">Load sample (old on purpose)…</option></select>
           <button type="button" id="upload-btn" data-icon="upload">Upload file</button>
@@ -475,6 +477,8 @@
       <tr><th>Expected request</th><td class="mono" title="${info.requestHash}">${short(info.requestHash)}</td></tr>
       <tr><th>Trusted signer</th><td>${addr(airnode)}${signerName(airnode)}</td></tr>`;
     $("fresh").hidden = chainId !== 31337 || version !== 2;
+    $("fresh-note").textContent = $("fresh").hidden ? "Fresh local record: local test chain only. Here, fetch one (Judge kit)."
+      : "Fresh local record: signed now with the public local test key";
     renderKit();
     checkRecordInput();
   }
@@ -738,7 +742,7 @@
         <div class="verdict warn"><div class="big">${P.icon("clock")}<span>${rec ? `This record is ${P.span(age)} old` : "No record loaded"}</span></div>
           <div class="why">The contract accepts records at most ${maxAge} s old. With ${rec ? "this record" : "no record"}, every attempt stops at the freshness check,
             so the attacks would not show their own errors. Get a fresh signed record ($0.01 over x402), paste it, and press the button again:</div>
-          <div class="why"><code>${version === 1 ? `api3/scripts/supplier-fetch.sh ${esc(id)}` : `api3/scripts/fetch-evidence.sh ${s.key} ${esc(id)} response.json`}</code></div></div>
+          <div class="why">${fetchCode()}</div></div>
         <div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>`;
       return;
     }
@@ -902,11 +906,15 @@
 
   // ---------------------------------------------------------------- judge kit
 
+  // What a judge needs before fetch-evidence.sh works: shown next to the command wherever it appears.
+  const PREREQ = `<p class="hint">Needs a checkout of this repo, Node 22 or newer, and <span class="mono">PAYER_PRIVATE_KEY</span>: a Base Sepolia wallet
+    holding aUSD (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>).
+    Each record costs $0.01. Steps: <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">README</a>.</p>`;
   function fetchCode() {
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
     const id = order.info ? order.info.supplierId : "09729896";
     const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
-    return `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>`;
+    return `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>${version === 1 ? "" : PREREQ}`;
   }
 
   function renderKit() {
@@ -921,7 +929,7 @@
     const reqText = v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id);
     $("kit").innerHTML = `
       <li>Contract: ${cfg.contract ? `${addr(cfg.contract)}${P.copyBtn(cfg.contract)} (${v1 ? "SupplierPulse v1" : "SupplierPulse+ v1.1"}) on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>${P.copyBtn(order.info.requestHash)}` : ""}.</li>
-      <li>Get your own fresh signed response ($0.01 over x402, needs aUSD on Base Sepolia): ${code(fetchCmd)} then paste or upload the file.</li>
+      <li>Get your own fresh signed response ($0.01 over x402), then paste or upload the file: ${code(fetchCmd)}${v1 ? "" : PREREQ}</li>
       <li><details><summary>Build the request yourself (AirnodeHub body and request hash)</summary>
         <p class="hint">Call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:</p>${code(body)}
         <p class="hint">The request hash is <code>keccak256(utf8(…))</code> of this string; the contract builds it on chain from the order's ${v1 ? "company number" : "source and id"}:</p>${code(reqText)}</details></li>
