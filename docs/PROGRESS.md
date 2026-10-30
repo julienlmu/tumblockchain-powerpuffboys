@@ -145,6 +145,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - The agent wallet `0xED34…253a` needs at least 2 aUSD by C3.
   - `.claude/skills/grillme/SKILL-2.md` is renamed to `SKILL.md`, so Claude Code loads it.
 
+### 2026-10-30 · Ulaş · SupplierPulse+ story
+- Changed: prepared the judge-facing README, sourced research notes, 90-second pitch and Q&A, Devfolio draft, and 2:30 video storyboard on branch `ulas/plus-story`.
+- Next: replace submission placeholders with verified v2 deployment, dashboard, agent-run, and video evidence after integration.
+- Notes: the requested 2025/26 company-level liquidation timeline remains unverified; the research notes do not present the 2022 A K Motor Services record as a recent example.
+
 ### 2026-10-30 · Julien · SupplierPulse+ build spec
 - Changed: `docs/SUPPLIERPULSE_PLUS.md` is the complete build spec for SupplierPulse+ (API3 track only, decided ~16:00). It contains:
   - frozen interfaces: contract ABI, request templates with test vectors, signed fields and rules, CLI tools, a local test chain;
