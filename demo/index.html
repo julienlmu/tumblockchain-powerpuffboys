@@ -44,6 +44,14 @@
   .toolbar b { color: var(--text); font-weight: 600; }
   .toolbar .keys { margin-left: auto; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
   .toolbar .keys kbd { font-size: 10.5px; }
+  .toolbar .tools { display: inline-flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  .toolbar input[type="search"] { font: 400 var(--t-1)/1.3 var(--sans); width: 15rem; max-width: 100%; min-height: 30px; padding: 4px 10px; border-radius: var(--r-sm);
+    border: 1px solid var(--field); background: var(--card); color: var(--text); }
+  .toolbar input[type="search"]::placeholder { color: var(--muted); opacity: 1; }
+  .toolbar input[type="search"]:hover { border-color: var(--muted); }
+  .toolbar .sort-label { display: inline-flex; gap: 6px; align-items: center; }
+  .toolbar select { min-height: 30px; padding: 4px 8px; }
+  summary .key-hint { font-size: 10px; margin-left: 2px; }
   /* One cue per behaviour. A term that opens its guide entry: dotted underline plus a small help mark.
      A value with a tooltip (full address, digest): dashed bottom border. A link that leaves the page: the external mark. */
   .term { font: inherit; font-weight: 600; color: var(--text); background: none; border: none; padding: 0; min-height: 0; display: inline; cursor: help; position: relative;
@@ -86,7 +94,7 @@
   .jump-sel { display: flex; gap: var(--s2); align-items: center; width: 100%; font-size: var(--t-1); color: var(--muted); }
   .jump-sel select { flex: 1; min-width: 0; min-height: 36px; }
   @media (max-width: 640px) {
-    .toolbar .keys { display: none; } /* no keyboard on a phone */
+    .toolbar .keys, .toolbar .tools, summary .key-hint { display: none; } /* no keyboard on a phone; "Go to order" finds an order there */
     .jump:not(:empty) { display: flex; margin-top: var(--s2); }
   }
   .grid.stale { opacity: 0.75; }
@@ -265,7 +273,7 @@
   <div class="meta-row">
   <div class="meta" id="meta"></div>
   <details class="cfg-box guide" id="guide">
-    <summary aria-keyshortcuts="?">How this page works</summary>
+    <summary aria-keyshortcuts="?">How this page works <kbd class="key-hint" aria-hidden="true">?</kbd></summary>
     <div class="guide-body">
       <p>Your supplier was approved last month. That should not approve today's payment. Each card is one purchase order: its money stays
         locked in the contract and a milestone pays only when the buyer approved it, it is due, and a fresh signed register record passed the
@@ -282,7 +290,7 @@
         <dt id="g-unit" tabindex="-1">Tokens</dt><dd id="g-unit-text"></dd>
         <dt>Digest, LEI</dt><dd>A digest is the hash of a signed record (request, time, data); each is accepted once. An LEI is the Legal Entity Identifier that GLEIF registers.</dd>
       </dl>
-      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order · <kbd>0</kbd> all orders · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide, or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back.</p>
+      <p id="g-keys" tabindex="-1">Keys: <kbd>1</kbd>–<kbd>6</kbd> filter by state, in button order (from Simple: Detailed for this visit) · <kbd>0</kbd> all orders · <kbd>/</kbd> find an order · <kbd>J</kbd> / <kbd>K</kbd> next / previous order · <kbd>Enter</kbd> on an order opens or closes its details · <kbd>S</kbd> / <kbd>D</kbd> Simple / Detailed view · <kbd>T</kbd> theme · <kbd>?</kbd> this guide · <kbd>Esc</kbd> cancels a refund confirm, closes this guide, or shows all orders. After a jump to another order, its card (or the browser's Back) takes you back. A link keeps the view, filter, search, sort and order (<span class="mono">#view=detailed&amp;filter=rule</span>).</p>
       <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · <a href="judge.html" id="judge-link3">Try to break it</a></p>
     </div>
   </details>
@@ -309,6 +317,8 @@
   <div class="filters"><span class="filter-label" id="filter-label">Filter by state</span><div class="states" id="states" role="group" aria-labelledby="filter-label"></div></div>
   <div class="toolbar" id="toolbar"><span id="shown-note" role="status" aria-live="polite"></span>
     <button type="button" class="link-order" id="expand-all" hidden>Expand all details</button>
+    <span class="tools"><label class="sr-only" for="find">Find an order</label><input type="search" id="find" placeholder="Find order or supplier id" autocomplete="off" spellcheck="false" aria-keyshortcuts="/">
+      <label class="sort-label">Sort <select id="sort"><option value="contract">contract order</option><option value="action">needs action first</option></select></label></span>
     <button type="button" class="link-order keys" data-guide="g-keys"><kbd>?</kbd> keyboard shortcuts</button></div>
   <nav class="jump" id="jump" aria-label="Go to order"></nav>
   <p class="sr-only" id="announce" role="status" aria-live="polite"></p>
@@ -366,9 +376,16 @@
   });
   applyTheme();
 
-  // Simple or detailed: one choice for the dashboard and "Try to break it", remembered in this browser.
-  let view = "simple";
-  try { view = localStorage.getItem("pulse-view") === "detailed" ? "detailed" : "simple"; } catch { /* storage blocked */ }
+  // Simple or detailed: one choice for the dashboard and "Try to break it", remembered in this browser. A link can ask
+  // for a view (#view=detailed), and a shared filter, search or sort (#filter=rule) opens Detailed, both for that
+  // visit only: the remembered choice changes only when the viewer picks a view (the switch, or S / D).
+  const FILTER_KEYS = new Set(["ok", "rule", "nodata", "pending", "paid", "closed"]); // the STATES keys (defined further down)
+  let stored = "simple";
+  try { stored = localStorage.getItem("pulse-view") === "detailed" ? "detailed" : "simple"; } catch { /* storage blocked */ }
+  const FRAG_VIEWS = ["simple", "detailed"];
+  const viewFromFragment = (f) => (FRAG_VIEWS.includes(f.get("view")) ? f.get("view")
+    : FILTER_KEYS.has(f.get("filter")) || f.get("q") || f.get("sort") === "action" ? "detailed" : stored);
+  let view = viewFromFragment(new URLSearchParams(location.hash.slice(1)));
   let judgeQuery = "";
   function setJudgeLinks(q) {
     if (q !== undefined) judgeQuery = q;
@@ -379,12 +396,13 @@
     for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
     setJudgeLinks();
   }
-  function setView(v) {
+  function setView(v, remember = true) {
     view = v;
-    try { localStorage.setItem("pulse-view", view); } catch { /* storage blocked */ }
-    if (view === "simple" && filter) setFilter(null); // the filters live in the detailed view
+    if (remember) { stored = v; try { localStorage.setItem("pulse-view", view); } catch { /* storage blocked */ } }
+    if (view === "simple") { filter = null; query = ""; sortMode = "contract"; syncTools(); } // these live in Detailed
     applyView();
-    rerender(); // the agent panel shows a different number of rows per view on phones
+    rerender(); // the agent panel shows a different number of rows per view
+    writeFragment();
   }
   for (const b of document.querySelectorAll("[data-view]")) b.addEventListener("click", () => setView(b.dataset.view));
   applyView();
@@ -902,13 +920,19 @@
   }
 
   const STATE_KEYS = Object.keys(STATES);
-  // UI state kept in the fragment (#filter=rule&order=3), so a view can be reloaded and shared; the query is untouched
+  // UI state kept in the fragment (#view=detailed&filter=rule&q=gear&sort=action&order=3), so a view can be reloaded
+  // and shared; the query is untouched. Filter, search and sort live in the Detailed view.
   const frag = new URLSearchParams(location.hash.slice(1));
   let filter = STATES[frag.get("filter")] && view === "detailed" ? frag.get("filter") : null; // a STATES key: show only the orders in that state
+  let query = view === "detailed" ? (frag.get("q") || "").trim() : "";  // find: order number, name or supplier id
+  let sortMode = view === "detailed" && frag.get("sort") === "action" ? "action" : "contract";
   let focusOrder = /^\d+$/.test(frag.get("order") || "") ? Number(frag.get("order")) : null;
   function writeFragment() {
     const f = new URLSearchParams();
+    if (view === "detailed") f.set("view", "detailed");
     if (filter) f.set("filter", filter);
+    if (query) f.set("q", query);
+    if (sortMode === "action") f.set("sort", "action");
     if (focusOrder !== null) f.set("order", focusOrder);
     const h = f.toString();
     if (location.hash.slice(1) !== h) history.replaceState(history.state, "", location.pathname + location.search + (h ? "#" + h : ""));
@@ -919,6 +943,18 @@
     const btn = (k, i) => `<button type="button" class="state-btn${count[k] ? "" : " zero"}" data-filter="${k}" aria-pressed="${filter === k}" aria-keyshortcuts="${i + 1}">
       <span class="badge ${STATES[k].cls}">${I(STATES[k].icon)}${STATES[k].label}</span><span class="count">${count[k] || 0}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     setHTML($("states"), STATE_KEYS.map(btn).join(""));
+  }
+
+  // "Needs action first": [group, time]. Held, or refundable now; then refunds about to open, stops not held yet and
+  // milestones that wait for the buyer's approval; then the agent's turn, soonest due first; closed orders last.
+  function actionRank(o) {
+    const now = nowSec(), due = o.dueDates[o.next] || Infinity;
+    if (o.state === 2) return [4, 0];
+    if (o.state === 1) return [0, o.autoRefundAt];
+    if (o.autoRefundAt > 0) return [now >= o.autoRefundAt ? 0 : 1, o.autoRefundAt];
+    if (supplierStopped(o)) return [1, o.rec.lastBaseFailureAt];
+    if (!o.approved[o.next]) return [2, due];
+    return [3, due];
   }
 
   let lastEnv = { sample: false };
@@ -939,16 +975,21 @@
     const rows = agentGroups(orders);
     renderStates(orders);
     renderAgent(orders, rows);
-    const shown = filter ? orders.filter((o) => stateOf(o) === filter) : orders;
-    setHTML($("shown-note"), filter
-      ? `Showing only <b>${STATES[filter].label}</b>: ${shown.length} of ${orders.length} orders${STATES[filter].def ? ` (${STATES[filter].def.replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase())})` : ""} · <button type="button" class="link-order" data-filter="">Show all</button>`
-      : orders.length ? `Showing all ${orders.length} orders` : "");
+    const q = query.toLowerCase();
+    let shown = orders.filter((o) => (!filter || stateOf(o) === filter) && (!q || `#${o.id} ${orderTitle(o) || ""} ${o.info.supplierId}`.toLowerCase().includes(q)));
+    if (sortMode === "action") shown = shown.map((o, i) => ({ o, i, r: actionRank(o) })).sort((x, y) => x.r[0] - y.r[0] || x.r[1] - y.r[1] || x.i - y.i).map((x) => x.o);
+    const narrowed = filter || q ? `${filter ? `only <b>${STATES[filter].label}</b>` : "orders"}${q ? ` matching “${esc(query)}”` : ""}` : "";
+    setHTML($("shown-note"), narrowed
+      ? `Showing ${narrowed}: ${shown.length} of ${orders.length} orders${filter && !q ? ` (${STATES[filter].def.replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase())})` : ""} · <button type="button" class="link-order" data-filter="">Show all</button>`
+      : orders.length ? `Showing all ${orders.length} orders${sortMode === "action" ? ", needs action first" : ""}` : "");
     const agentLast = rows[0] && rows[0].time;
     // phones: one "Go to order" list with each order's name and state, instead of bare numbers
     setHTML($("jump"), shown.length > 1 ? `<label class="jump-sel"><span>Go to order</span><select id="jump-select"><option value="">Choose an order…</option>${shown.map((o) => `<option value="${o.id}">${orderName(o)} · ${STATES[stateOf(o)].label}</option>`).join("")}</select></label>` : "");
     $("expand-all").hidden = !shown.length;
     renderGrid(!orders.length
       ? `<div class="empty-state">${I("file")}<b>No orders on this contract yet</b><span>A buyer creates one with <span class="mono">api3/scripts/plus-create-order.sh</span>${P.copyBtn("api3/scripts/plus-create-order.sh")}; it appears here within 12 s.</span></div>`
+      : !shown.length && q
+      ? `<div class="empty-state">${I("search")}<b>No orders match “${esc(query)}”${filter ? ` in “${STATES[filter].label}”` : ""}</b><span>Find looks at the order number, the order name and the supplier id.</span><button type="button" data-filter="">Show all ${orders.length} orders</button></div>`
       : !shown.length
       ? `<div class="empty-state">${I(STATES[filter].icon)}<b>No orders in “${STATES[filter].label}” right now</b><span>${STATES[filter].def}</span><button type="button" data-filter="">Show all ${orders.length} orders</button></div>`
       : shown.map((o) => {
@@ -1171,7 +1212,7 @@
   let backTo = null; // { target, from }: after a jump, the target card offers the way back
   function goTo(id, { flash = true, from = null } = {}) {
     // the order may be filtered out: show all, then go to it
-    if (filter && lastOrders && !$(`order-${id}`)) { filter = null; renderAll(lastOrders, lastEnv); }
+    if ((filter || query) && lastOrders && !$(`order-${id}`)) { filter = null; query = ""; syncTools(); renderAll(lastOrders, lastEnv); }
     const card = $(`order-${id}`);
     if (!card) return null;
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1204,9 +1245,20 @@
     renderAll(lastOrders, lastEnv);
     writeFragment();
   }
+  // "Show all", 0 and Esc: no state filter and no search
+  function showAll() {
+    filter = null; query = ""; syncTools();
+    if (lastOrders) renderAll(lastOrders, lastEnv);
+    writeFragment();
+  }
+  // Find and sort (Detailed toolbar): kept in the fragment like the filter
+  function syncTools() { $("find").value = query; $("sort").value = sortMode; }
+  $("find").addEventListener("input", () => { query = $("find").value.trim(); if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment(); });
+  $("sort").addEventListener("change", () => { sortMode = $("sort").value === "action" ? "action" : "contract"; if (lastOrders) renderAll(lastOrders, lastEnv); writeFragment(); });
+  syncTools();
   document.addEventListener("click", (e) => {
     const f = e.target.closest && e.target.closest("[data-filter]");
-    if (f) { setFilter(f.dataset.filter); if (!f.isConnected) { const t = document.querySelector(`#states [data-filter="${filter || f.dataset.filter}"]`) || $("states").querySelector("button"); if (t) t.focus(); } }
+    if (f) { if (f.dataset.filter === "") showAll(); else setFilter(f.dataset.filter); if (!f.isConnected) { const t = document.querySelector(`#states [data-filter="${filter || f.dataset.filter}"]`) || $("states").querySelector("button"); if (t) t.focus(); } }
     const g = e.target.closest && e.target.closest("[data-goto]");
     if (g) { const c = g.closest("article.card"); jump(Number(g.dataset.goto), c ? Number(c.id.slice(6)) : null); }
     if (e.target.closest && e.target.closest("[data-back]")) jumpBack();
@@ -1226,7 +1278,11 @@
   });
   window.addEventListener("hashchange", () => {
     const f = new URLSearchParams(location.hash.slice(1));
+    view = viewFromFragment(f); applyView();
     filter = STATES[f.get("filter")] && view === "detailed" ? f.get("filter") : null;
+    query = view === "detailed" ? (f.get("q") || "").trim() : "";
+    sortMode = view === "detailed" && f.get("sort") === "action" ? "action" : "contract";
+    syncTools();
     const order = /^\d+$/.test(f.get("order") || "") ? Number(f.get("order")) : null;
     if (backTo && order === backTo.from) backTo = null; // came back
     rerender();
@@ -1297,13 +1353,31 @@
   });
   $("orders").addEventListener("toggle", syncExpandLabel, true);
 
-  // Keyboard accelerators, never while typing: 1–6 filter, 0 or Esc all, J/K next or previous order, T theme, ? guide.
+  // Keyboard accelerators, never while typing: 1–6 filter, 0 or Esc all, / find, J/K next or previous order, Enter an
+  // order's details, S/D view, T theme, ? guide.
+  const say = (text) => { const a = $("announce"); a.textContent = ""; setTimeout(() => { a.textContent = text; }, 50); };
   $("theme-btn").setAttribute("aria-keyshortcuts", "T");
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest("input, textarea, select, [contenteditable]"))) return;
     const k = e.key;
     if (k === "Escape" && !tip.hidden) { e.preventDefault(); hideTip(); }
-    else if (/^[1-6]$/.test(k)) { e.preventDefault(); if (view === "simple") setView("detailed"); setFilter(STATE_KEYS[Number(k) - 1]); }
+    else if (/^[1-6]$/.test(k)) {
+      // the filters live in Detailed: from Simple, switch for this visit only (the remembered view stays)
+      e.preventDefault();
+      const fromSimple = view === "simple";
+      if (fromSimple) setView("detailed", false);
+      setFilter(STATE_KEYS[Number(k) - 1]);
+      say(`${fromSimple ? "Detailed view for this visit. " : ""}${filter ? `Showing only ${STATES[filter].label}` : "Showing all orders"}.${fromSimple ? " Press S for Simple." : ""}`);
+    }
+    else if (k === "/") { e.preventDefault(); if (view === "simple") setView("detailed", false); $("find").focus(); $("find").select(); }
+    else if (k === "s" || k === "S" || k === "d" || k === "D") {
+      e.preventDefault(); setView(k.toLowerCase() === "s" ? "simple" : "detailed"); say(`${view === "simple" ? "Simple" : "Detailed"} view.`);
+    }
+    else if (k === "Enter" && document.activeElement && document.activeElement.matches("article.card") && view === "detailed") {
+      e.preventDefault(); // an order's Details open or close
+      const d = document.activeElement.querySelector("details.more");
+      if (d) { d.open = !d.open; userOpen.set(d.dataset.key, d.open); }
+    }
     else if (k === "?") { e.preventDefault(); if ($("guide").open) closeGuide(); else openGuide(); }
     else if (k === "Escape" && Object.values(claimState).includes("confirm")) {
       e.preventDefault(); // cancel the refund confirm; focus back on its refund button
@@ -1313,7 +1387,7 @@
       const b = document.querySelector(`[data-claim="${id}"]`); if (b) b.focus();
     }
     else if (k === "Escape" && $("guide").open) { e.preventDefault(); closeGuide(); }
-    else if (k === "0" || (k === "Escape" && filter)) { e.preventDefault(); setFilter(null); }
+    else if (k === "0" || (k === "Escape" && (filter || query))) { e.preventDefault(); showAll(); }
     else if (k === "j" || k === "J" || k === "k" || k === "K") {
       const cards = [...document.querySelectorAll("#orders article.card")];
       if (!cards.length) return;
