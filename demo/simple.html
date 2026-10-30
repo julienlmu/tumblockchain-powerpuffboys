@@ -55,6 +55,8 @@
   button.link { background: none; border: none; padding: 6px 0; min-height: 32px; color: var(--accent); font-size: var(--t-1); }
   button.link:hover { background: none; text-decoration: underline; }
   details.how > summary, details.help > summary { color: var(--accent); min-height: 32px; }
+  /* every disclosure marker on the right, as on the result rows */
+  details.how > summary::before, details.help > summary::before { order: 9; }
   .how-body { margin-top: var(--s2); font-size: var(--t-1); color: var(--muted); display: flex; flex-direction: column; gap: var(--s2); }
   .cmd-line { display: flex; gap: 6px; align-items: flex-start; }
   .cmd-line code { flex: 1 1 auto; min-width: 0; background: var(--bg); padding: 6px 8px; border-radius: var(--r-sm); overflow-wrap: anywhere; color: var(--text); }
@@ -63,14 +65,17 @@
   body.dragging #rec-card { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
 
   button.run { min-height: 52px; font-size: var(--t1); border-radius: var(--r-lg); }
-  button.run.again { min-height: 40px; font-size: var(--t0); border-radius: var(--r-md); }
+  /* from 1100 px the button stays in view while the record card grows (one size in every state; only the fill changes) */
+  @media (min-width: 1100px) { #run { position: sticky; bottom: var(--s4); z-index: 1; } }
   .kb-k { font-size: 10px; padding: 1px 4px; margin-left: 8px; color: var(--muted); font-weight: 500; }
   button.primary .kb-k { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 45%, transparent); }
   @media (hover: none) { .kb-k { display: none; } }
 
   /* the verdict: one sentence, coloured by the outcome, with its icon and word (never colour alone) */
   #verdict:focus { outline: none; }
-  #verdict:focus-visible .verdict { outline: 2px solid var(--focus); outline-offset: 2px; }
+  /* focus moved here by the page (not by Tab): a quiet ring in the verdict's own colour, so the video shows no selection */
+  #verdict:focus-visible .verdict { outline: 1px solid currentColor; outline-offset: 2px; }
+  .verdict-tools { display: flex; justify-content: flex-end; margin-top: calc(-1 * var(--s1)); }
   #verdict { display: flex; flex-direction: column; gap: var(--s3); }
   #verdict:empty { display: none; }
   .verdict { border-radius: var(--r-md); padding: var(--s3) var(--s4); display: flex; gap: var(--s3); align-items: flex-start; }
@@ -84,6 +89,7 @@
   .verdict.done { background: var(--done-bg); color: var(--done); }
   .next { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; font-size: var(--t-1); color: var(--muted); }
   .next .msg { color: var(--text); flex-basis: 100%; }
+  .next .fresh.warn { color: var(--wait); font-weight: 600; }
   /* old results turn grey, not faint: every word keeps its contrast */
   #res-card.stale .verdict { background: var(--done-bg); color: var(--done); }
   #res-card.stale .rows li .st, #res-card.stale .rows li .out { color: var(--muted); font-weight: 400; }
@@ -114,6 +120,8 @@
   .help-body ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
   .help-body b { color: var(--text); font-weight: 500; }
   .help-body p { margin: 0; }
+  .keys-toggle { display: inline-flex; gap: var(--s2); align-items: center; color: var(--text); margin-left: var(--s2); }
+  .keys-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
   .foot { margin: var(--s5) 0 0; font-size: var(--t-1); color: var(--muted); text-align: center; }
 
   @media (max-width: 520px) {
@@ -130,7 +138,7 @@
     <a class="brand" id="dash-link" href="index.html">SupplierPulse<span class="plus">+</span></a>
     <div class="head-links">
       <nav class="view-switch" aria-label="View"><a href="simple.html" aria-current="page">Simple</a><a id="detailed-link" href="judge.html">Detailed</a></nav>
-      <button type="button" id="theme-btn" aria-keyshortcuts="T" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
+      <button type="button" id="theme-btn" aria-keyshortcuts="T" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span><kbd class="kb-k" aria-hidden="true">T</kbd></button>
     </div>
   </header>
 
@@ -138,7 +146,7 @@
     <div class="col">
       <div class="intro">
         <h1>Try to break it</h1>
-        <p>Forge a register record signed by an API3 Airnode four ways and see whether the live contract would act on any of them. Every attempt is a free simulation: no wallet, no gas.</p>
+        <p>The contract pays a supplier only on a fresh company-register record (Companies House or GLEIF) signed by API3's Airnode. Forge one four ways and see whether the live contract would pay on any of them. Every attempt is a free simulation: no wallet, no gas.</p>
         <p class="ctx" id="ctx">Connecting to the contract…</p>
       </div>
 
@@ -154,10 +162,10 @@
           <button type="button" class="link" id="own-toggle" aria-expanded="false" aria-controls="own">Use my own record instead</button>
         </div>
         <div id="own" hidden>
-          <textarea id="resp" rows="4" spellcheck="false" aria-label="Signed record (JSON)" aria-keyshortcuts="Meta+Enter Control+Enter" placeholder="Paste the signed record JSON (from fetch-evidence.sh), or drop the file anywhere on the page"></textarea>
+          <textarea id="resp" rows="4" spellcheck="false" aria-label="Signed record (JSON)" aria-keyshortcuts="Meta+Enter Control+Enter" placeholder="Paste the signed record JSON (from fetch-evidence.sh), or drop the file anywhere on the page · ⌘/Ctrl+Enter runs"></textarea>
           <div class="acts" style="margin-top: var(--s2)">
             <button type="button" id="upload-btn" data-icon="upload">Upload file</button><input type="file" id="file" accept=".json,application/json" hidden>
-            <button type="button" class="link" id="clear-rec">Clear</button>
+            <button type="button" class="link" id="clear-rec" disabled>Clear</button>
             <details class="how" id="how"><summary>Get a fresh record</summary><div class="how-body" id="how-body"></div></details>
           </div>
         </div>
@@ -168,11 +176,11 @@
 
     <section class="card" id="res-card" aria-labelledby="res-h">
       <div class="card-head"><h2 id="res-h">What the contract says</h2><button type="button" class="link" id="expand-all" aria-pressed="false">Expand all</button></div>
-      <details class="help" id="help"><summary aria-keyshortcuts="?">How the contract decides</summary><div class="help-body" id="help-body"></div></details>
       <div id="verdict" tabindex="-1"></div>
-      <p class="sr-only" id="verdict-sr" role="status" aria-live="polite"></p>
       <div id="rows"></div>
+      <details class="help" id="help"><summary aria-keyshortcuts="?">How the contract decides<kbd class="kb-k" aria-hidden="true">?</kbd></summary><div class="help-body" id="help-body"></div></details>
     </section>
+    <p class="sr-only" id="verdict-sr" role="status" aria-live="polite"></p>
   </main>
 
   <p class="foot">The <a id="detailed-foot" href="judge.html">detailed view</a> adds attacks with genuine old records, every check per attempt, a scoreboard and the judge kit.</p>
@@ -211,6 +219,11 @@
   ];
   const REPLAY = { mode: "replay", name: "Replay", sub: "the real record, a second time", expect: "Replayed", check: "the replay check should stop it",
     before: "After a passed test the real record is sent for real (the one real transaction), then submitted once more. The replay check should reject it: Replayed." };
+  // The plain name of the check behind each contract answer (the help lists them in the contract's order)
+  const CHECK = { NotActive: "the order check", WrongRequest: "the request check", FutureResponse: "the date check", StaleResponse: "the freshness check",
+    Replayed: "the replay check", NotNewer: "the newer-record check", WrongSigner: "the signer check", SupplierFailed: "the supplier-failure check" };
+  // durations in one style: "5 min", "4 min 58 s"
+  const dur = (sec) => (sec >= 60 && sec % 60 === 0 ? `${sec / 60} min` : P.span(sec));
   // Not tested: what helps depends on why the contract refused the real record
   const FIX = {
     StaleResponse: "get a fresh record and run again", NotNewer: "get a fresh record and run again", Replayed: "get a fresh record and run again",
@@ -227,12 +240,14 @@
 
   // ---------------------------------------------------------------- theme (shared with the other pages)
 
+  // single-key shortcuts can be switched off (WCAG 2.1.4); one setting for both views of "Try to break it"
+  const keysOn = () => { try { return localStorage.getItem("pulse-judge-keys") !== "off"; } catch { return true; } };
   const THEMES = ["auto", "light", "dark"];
   let theme = "auto";
   try { theme = localStorage.getItem("pulse-theme") || "auto"; } catch { /* storage blocked */ }
   function applyTheme() {
     if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>`;
+    $("theme-btn").innerHTML = `${P.icon("theme")}<span class="lbl">Theme: ${theme}</span>${keysOn() ? `<kbd class="kb-k" aria-hidden="true">T</kbd>` : ""}`;
     $("theme-btn").setAttribute("aria-label", `Colour theme: ${theme}. Switch theme`);
   }
   function nextTheme() {
@@ -252,6 +267,12 @@
   const nameOf = P.orderNamer();
   const sent = new Map(); // digest -> block of the records this tab sent for real
   let record = null, recordErr = "", ownMode = false, busy = false, stopRequested = false, lastPass = null, haveResults = false, needRecord = false;
+  let allOrders = [], loadingOrder = false;
+  // the record box's text survives a switch to the detailed view and a reload (this tab only); a real send clears it
+  const DRAFT = "pulse-record";
+  const saveDraft = (text) => { try { sessionStorage.setItem(DRAFT, JSON.stringify({ text, at: Date.now() })); } catch { /* storage blocked */ } };
+  const loadDraft = () => { try { return (JSON.parse(sessionStorage.getItem(DRAFT) || "null") || {}).text || ""; } catch { return ""; } };
+  const dropDraft = () => { try { sessionStorage.removeItem(DRAFT); } catch { /* storage blocked */ } };
   const isLocal = () => chainId === 31337 && version === 2;
   const digestOf = (r) => P.digestOf(r.requestHash, r.timestamp, r.data).toLowerCase();
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -315,7 +336,14 @@
     const s = P.SOURCES[P.sourceIndex(r.source)] || P.SOURCES[0];
     return `${esc(s.name)} <span class="mono">${esc(r.supplierId || "?")}</span>`;
   }
-  const signerName = (a) => (a && P.KNOWN_SIGNERS[a.toLowerCase()]) || "an Airnode key";
+  // "local Companies House key, anvil #1" -> "local Companies House test key"; the address and index live in the help
+  const signerName = (a) => ((a && P.KNOWN_SIGNERS[a.toLowerCase()]) || "an Airnode key").replace(/^local (.*) key, anvil #\d+$/, "local $1 test key");
+  // the signed values, in plain words: "status active · accounts overdue no"
+  function signedValues(r) {
+    const f = P.parseFields(r.data);
+    if (!f || typeof f !== "object") return "";
+    return Object.entries(f).map(([k, v]) => `${esc(k.replace(/_/g, " "))} <b>${esc(v === true ? "yes" : v === false ? "no" : String(v))}</b>`).join(" · ");
+  }
   const noSetupLink = () => `<a href="${detailedHref()}">attack two genuine old records in the detailed view</a>`;
   // Says what the loaded record is, and what is wrong with it, before Run is pressed.
   function showRecord() {
@@ -329,22 +357,32 @@
     if (!record) {
       if (needRecord) recLine("warn", `Run needs a signed record first: paste it, upload the file, or get one below.${isLocal() ? "" : ` <span class="sub">No setup? ${noSetupLink()}.</span>`}`, "Run needs a signed record first.");
       else if (isLocal() && !ownMode) recLine("info", "No record yet.");
-      else recLine("info", `No record yet. A fresh one is one command away: $0.01 in test aUSD, valid ${maxAge} s (below). No setup? ${noSetupLink()}.`, "No record yet.");
+      else recLine("info", `No record yet. A fresh one is one command away: $0.01 in test aUSD, valid ${dur(maxAge)} (below). No setup? ${noSetupLink()}.`, "No record yet.");
       return;
     }
     const age = nowSec() - Number(record.timestamp);
-    if (record.supplierId && String(record.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
-      recLine("warn", `A record of ${who}, but this order is for <span class="mono">${esc(order.info.supplierId)}</span>. <span class="sub">Every attempt would stop at the request check: pick the matching order or load its record.</span>`, "The record is for another company than this order.");
+    if (record.supplierId && String(record.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase()) {
+      const k = allOrders.findIndex((o) => o.state === 0 && String(o.supplierId).toUpperCase() === String(record.supplierId).toUpperCase());
+      recLine("warn", `A record of ${who}, but this order is for <span class="mono">${esc(order.info.supplierId)}</span>. <span class="sub">Every attempt would stop at the request check.</span>
+        ${k >= 0 ? `<button type="button" class="link" data-switch="${k}">Switch to order #${k} (${esc(P.SOURCES[allOrders[k].source].name)} ${esc(allOrders[k].supplierId)})</button>` : `<span class="sub">No active order is for this company: load a record of ${esc(order.info.supplierId)}.</span>`}`,
+        "The record is for another company than this order.");
+    }
     else if (sent.has(digestOf(record)))
       recLine("info", `This record of ${who} was sent for real in block ${sent.get(digestOf(record))}. <span class="sub">${isLocal() && !ownMode ? "Press Run: a new one is signed for you." : "Load a fresh one to test again."}</span>`, "The record was sent for real.");
     else if (age > maxAge)
-      recLine("warn", `A record of ${who}, signed ${P.ago(age)}. <span class="sub">Too old: the contract accepts at most ${maxAge} s, so every forgery would stop at the freshness check.${isLocal() && !ownMode ? " Press Run: a new one is signed for you." : " Get a fresh one below."}</span>`, "The record is too old.");
+      recLine("warn", `A record of ${who}, signed ${P.ago(age)}. <span class="sub">Too old: the contract accepts at most ${dur(maxAge)}, so every forgery would stop at the freshness check.${isLocal() && !ownMode ? " Press Run: a new one is signed for you." : " Get a fresh one below."}</span>`, "The record is too old.");
     else if (maxAge - age < 60 && !(isLocal() && !ownMode))
       recLine("warn", `A record of ${who}, signed ${P.ago(Math.max(0, age))}. <span class="sub">Fresh for ${P.span(maxAge - age)} more: run now, or get a new one.</span>`, "The record expires in less than a minute.");
     else
-      recLine("ok", `A fresh record of ${who}, signed ${P.ago(Math.max(0, age))}${isLocal() && !ownMode ? " in your browser with the public local test key" : ""}. <span class="sub">Fresh for ${P.span(maxAge - age)} more.</span>`, "A fresh record is loaded.");
+      recLine("ok", `A fresh record of ${who}: ${signedValues(record)}. <span class="sub">Signed ${P.ago(Math.max(0, age))}${isLocal() && !ownMode ? " in your browser with the public local test key" : ""}, fresh for ${P.span(maxAge - age)} more.</span>`, "A fresh record is loaded.");
   }
-  setInterval(() => { if (record && !recordErr) showRecord(); }, 1000);
+  setInterval(() => { if (record && !recordErr) showRecord(); replayFresh(); }, 1000);
+  $("rec-line").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-switch]");
+    if (!b || busy) return;
+    $("order").value = b.dataset.switch;
+    selectOrder(Number(b.dataset.switch)).catch((err) => recLine("bad", errHtml(err)));
+  });
 
   function readBox() {
     const text = $("resp").value.trim();
@@ -357,7 +395,12 @@
     if (obj) { try { record = P.normalizeRecord(obj, order.info ? order.info.source : 0); } catch (e) { recordErr = `This is not a signed record: ${e.message}.`; } }
     if (recordErr) { $("resp").setAttribute("aria-invalid", "true"); $("resp").setAttribute("aria-describedby", "rec-line"); }
   }
-  function recordChanged() { needRecord = false; readBox(); showRecord(); markStale(); }
+  function recordChanged() {
+    needRecord = false; readBox(); showRecord(); markStale();
+    $("clear-rec").disabled = !$("resp").value.trim();
+    saveDraft($("resp").value);
+    runLabel();
+  }
   let typing = null;
   $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(recordChanged, 300); });
   async function loadFile(f) {
@@ -383,7 +426,6 @@
   $("clear-rec").addEventListener("click", () => {
     const saved = $("resp").value;
     $("resp").value = ""; recordChanged(); $("resp").focus();
-    if (!saved.trim()) return;
     recLine("info", `Record cleared · <button type="button" class="link" id="undo-clear">Undo</button>`, "Record cleared.");
     clearTimeout(clearUndo);
     clearUndo = setTimeout(() => { if (!$("resp").value) showRecord(); }, 10000);
@@ -423,7 +465,7 @@
     $("how-body").innerHTML = `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>
       <p style="margin:0">From a checkout of this repo, with Node 22 or newer and <span class="mono">PAYER_PRIVATE_KEY</span> set to a Base Sepolia
       wallet holding aUSD (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>).
-      Each record costs $0.01 and stays fresh for ${maxAge} s. Then upload <span class="mono">response.json</span> here, or drop it on the page.</p>`;
+      Each record costs $0.01 and stays fresh for ${dur(maxAge)}. Then upload <span class="mono">response.json</span> here, or drop it on the page.</p>`;
   }
   function helpText() {
     const link = explorer ? `<a href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">the contract on the explorer</a>` : "the contract";
@@ -431,13 +473,15 @@
       <ol><li>The order is active <span class="mono">NotActive</span></li>
         <li>The request matches the order: stops <b>(c)</b> <span class="mono">WrongRequest</span></li>
         <li>Not dated in the future <span class="mono">FutureResponse</span></li>
-        <li>Fresh, at most ${maxAge} s old: stops <b>(b)</b> <span class="mono">StaleResponse</span></li>
+        <li>Fresh, at most ${dur(maxAge)} old: stops <b>(b)</b> <span class="mono">StaleResponse</span></li>
         <li>Not used before: stops the <b>replay</b> <span class="mono">Replayed</span></li>
         <li>Newer than the order's last record <span class="mono">NotNewer</span></li>
         <li>Signed by the trusted Airnode: stops <b>(a)</b> and <b>(d)</b> <span class="mono">WrongSigner</span></li></ol>
       <p>"Simulated" means an <span class="mono">eth_call</span> of <span class="mono">submitEvidence</span> from <span class="mono">0x…dEaD</span>: the contract's own answer, with nothing sent.
         The replay step is the one real transaction. A purchase order pays its milestones only after a fresh signed record of its supplier passes.</p>
-      <p>Keys: <kbd>R</kbd> run · <kbd>Esc</kbd> stop · <kbd>S</kbd> send and replay · <kbd>?</kbd> this help · <kbd>T</kbd> theme · <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs.</p>
+      <p>Trusted signer of this order: ${esc((order.airnode && P.KNOWN_SIGNERS[order.airnode.toLowerCase()]) || "unknown")} <span class="mono">${order.airnode ? esc(order.airnode) : ""}</span>.</p>
+      <p>Keys: <kbd>R</kbd> run · <kbd>Esc</kbd> stop · <kbd>S</kbd> send and replay · <kbd>O</kbd> order · <kbd>1</kbd>–<kbd>6</kbd> open a row · <kbd>?</kbd> this help · <kbd>T</kbd> theme · <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs.
+        <label class="keys-toggle"><input type="checkbox" id="keys-on"${keysOn() ? " checked" : ""}> Single-key shortcuts on</label></p>
       <p>See ${link} · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">README</a> · <a href="${detailedHref()}">detailed view</a></p>`;
   }
 
@@ -491,7 +535,9 @@
 
   // One attempt: the tampered record, asked of the contract as an eth_call of submitEvidence from 0x…dEaD.
   async function attempt(base, mode) {
-    const t = await P.tamper(base, mode, version === 1 ? { requestHashFor: P.requestHashV1 } : {});
+    let t;
+    try { t = await P.tamper(base, mode, version === 1 ? { requestHashFor: P.requestHashV1 } : {}); }
+    catch (e) { const err = new Error(`This record cannot be forged this way (${e.message}). Load a Companies House or GLEIF record from fetch-evidence.sh.`); err.record = true; throw err; }
     const r = t.record;
     try {
       const ret = await provider.call({ to: cfg.contract, from: P.DEAD, data: iface.encodeFunctionData("submitEvidence", [order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature]) });
@@ -508,10 +554,12 @@
     if (a.accepted) return "fail";
     return a.err.name === row.expect ? "pass" : "near";
   }
+  // the plain check stays next to the contract's own error name after the run
   function outText(row, a, state) {
-    if (a.accepted) return row.mode === "asis" ? `Accepted<span>${a.clean ? "would pay this milestone" : "would hold the order"}</span>` : "Accepted: not stopped";
+    if (a.accepted) return row.mode === "asis" ? `Accepted<span>${a.clean ? "would release the next milestone payment" : "would hold the order"}</span>` : "Accepted: not stopped";
     const name = `<span class="mono">${esc(a.err.name)}</span>`;
-    return row.mode === "asis" ? `Refused${name}` : state === "pass" ? `Rejected${name}` : `Rejected by an earlier check${name}`;
+    const check = CHECK[a.err.name] || "a check";
+    return row.mode === "asis" ? `Refused by ${check}${name}` : state === "pass" ? `Rejected by ${check}${name}` : `Stopped earlier, by ${check}${name}`;
   }
   function moreText(row, a, state) {
     const why = a.accepted
@@ -523,17 +571,20 @@
 
   function verdict(kind, big, why, next = "") {
     const icon = { ok: "shield", warn: "alert", bad: "x", done: "stop" }[kind];
-    $("verdict").innerHTML = `<div class="verdict ${kind}">${P.icon(icon)}<div><div class="big">${big}</div><div class="why">${why}</div></div></div>${next}`;
+    const copy = haveResults ? `<div class="verdict-tools"><button type="button" class="link" id="copy-result" data-icon="copy">Copy result</button></div>` : "";
+    $("verdict").innerHTML = `<div class="verdict ${kind}">${P.icon(icon)}<div><div class="big">${big}</div><div class="why">${why}</div></div></div>${next}${copy}`;
     $("verdict-sr").textContent = `${big}. ${$("verdict").querySelector(".why").textContent}`;
     P.hydrateIcons($("verdict"));
   }
   // The run button: Run, Stop while a run goes (Esc too), and a smaller "Run again" once results are in.
   function runLabel() {
     const b = $("run");
-    if (busy) { b.innerHTML = `${P.icon("stop")}Stop<kbd class="kb-k" aria-hidden="true">Esc</kbd>`; return; }
-    b.classList.toggle("again", haveResults);
+    const kb = (k) => (keysOn() ? `<kbd class="kb-k" aria-hidden="true">${k}</kbd>` : "");
+    if (busy) { b.innerHTML = `${P.icon("stop")}Stop${kb("Esc")}`; return; }
     b.classList.toggle("primary", !lastPass); // after a pass, the replay is the next step
-    b.innerHTML = `${P.icon("play")}${haveResults ? "Run again" : "Run the tamper test"}<kbd class="kb-k" aria-hidden="true">R</kbd>`;
+    // without a usable record (off the local chain) the button says what it will do: open the way to a record
+    if (order.info && ownMode && !record) { b.innerHTML = `${P.icon("upload")}Load a signed record to run`; return; }
+    b.innerHTML = `${P.icon("play")}${haveResults ? "Run again" : "Run the tamper test"}${kb("R")}`;
   }
   function setBusy(on) {
     busy = on; stopRequested = false;
@@ -588,7 +639,8 @@
     } catch (e) {
       for (const row of ROWS) if ($("rows").querySelector(`li[data-mode="${row.mode}"]`).className === "running") setRow(row.mode, "", "not asked");
       setBusy(false);
-      verdict("bad", "Could not ask the contract", `${errHtml(e)} Nothing was sent; press Run to try again.`);
+      if (e.record) verdict("bad", "Could not build the forgeries", `${esc(e.message)} Nothing was sent.`);
+      else verdict("bad", "Could not ask the contract", `${errHtml(e)} Nothing was sent; press Run to try again.`);
       settleFocus();
       return;
     }
@@ -605,50 +657,63 @@
     const caught = attacks.filter((x) => !x.a.accepted).length;
     if (valid.a.accepted && caught === attacks.length) {
       lastPass = { record };
-      verdict("ok", "Passed", `Not broken: the contract accepted the real record and rejected all ${attacks.length} forgeries. Press a row to see why.`, replayAction());
+      verdict("ok", "Passed", `Not broken: the contract accepted the real record and rejected all four forgeries. Press a row to see why.`, replayAction());
     } else if (caught === attacks.length) {
       const n = valid.a.err.name;
       verdict("warn", "Not tested", `The contract refused the real record itself (<span class="mono">${esc(n)}</span>: ${esc(P.explain(n, valid.a.err.args))}), so the forgeries never reached their own checks. Nothing failed in the contract: ${esc(FIX[n] || "load a fresh record and run again")}.`);
     } else {
-      verdict("bad", "Not passed", `Broken: the contract accepted ${attacks.length - caught === 1 ? "a forgery" : `${attacks.length - caught} forgeries`}: ${attacks.filter((x) => x.a.accepted).map((x) => esc(x.row.name)).join(", ")}.`);
+      verdict("bad", "Not passed", `Broken: the contract accepted ${attacks.length - caught === 1 ? "a forgery" : `${attacks.length - caught} forgeries`}: ${attacks.filter((x) => x.a.accepted).map((x) => esc(x.row.name)).join(", ")}. Open the accepted row to see what the contract returned; the <a href="${detailedHref()}">detailed view</a> shows every check.`);
     }
     runLabel();
     settleFocus();
   }
   function runClick() {
     if (busy) { stopRequested = true; $("run").innerHTML = `${P.icon("loader", "spin")}Stopping after this attempt…`; return; }
-    runTest().catch((e) => { setBusy(false); verdict("bad", "Could not ask the contract", errHtml(e)); });
+    runTest().catch((e) => { setBusy(false); verdict("bad", "Could not ask the contract", `${errHtml(e)} Nothing was sent; press Run to try again.`); });
   }
   $("run").addEventListener("click", runClick);
 
   // The replay step, offered under the verdict after a pass: the one real transaction. Local chain: the public agent
   // key, after a second press (nothing else asks); elsewhere MetaMask asks.
+  const sendLabel = () => `${P.icon("send")}Send for real, then replay${keysOn() ? `<kbd class="kb-k" aria-hidden="true">S</kbd>` : ""}`;
   function replayAction(msg = "") {
-    return `<div class="next"><button type="button" class="primary" id="replay-btn" data-icon="send" aria-keyshortcuts="S">Send for real, then replay<kbd class="kb-k" aria-hidden="true">S</kbd></button>
-      <span>${isLocal() ? "Sent with the local test chain's agent key." : "MetaMask asks first; it costs a little Sepolia gas."}</span>${msg ? `<span class="msg" role="status">${msg}</span>` : ""}</div>`;
+    return `<div class="next"><button type="button" class="primary" id="replay-btn" aria-keyshortcuts="S">${sendLabel()}</button>
+      <span>${isLocal() ? "Sent with the local test chain's agent key." : "MetaMask asks first; it costs a little Sepolia gas."} <span class="fresh" id="replay-fresh"></span></span>${msg ? `<span class="msg" role="status">${msg}</span>` : ""}</div>`;
   }
+  // the record behind the replay button keeps ageing: say how long it can still be sent, and stop it once it cannot
+  function replayFresh() {
+    const b = $("replay-btn"), f = $("replay-fresh");
+    if (!b || !f || !lastPass || busy) return;
+    const left = maxAge - (nowSec() - Number(lastPass.record.timestamp));
+    f.className = "fresh" + (left < 60 ? " warn" : "");
+    if (left > 0) f.textContent = `Record fresh for ${P.span(left)} more.`;
+    else { f.textContent = "Record expired: run again with a fresh one."; b.disabled = true; }
+  }
+  // armed: the second press (or S) sends; Cancel, Esc or the visible 8 s countdown put it back
   let armTimer = null;
   function armed(btn) {
     if (!isLocal() || btn.dataset.armed) return true;
+    let left = 8;
     btn.dataset.armed = "1";
-    btn.innerHTML = `${P.icon("send")}Confirm: send for real with the local test key`;
-    btn.insertAdjacentHTML("afterend", `<button type="button" class="link" id="replay-cancel">Cancel</button>`);
-    armTimer = setTimeout(() => disarm(btn), 8000);
+    const label = () => { btn.innerHTML = `${P.icon("send")}Confirm: send for real (${left} s)${keysOn() ? `<kbd class="kb-k" aria-hidden="true">S</kbd>` : ""}`; };
+    label();
+    btn.insertAdjacentHTML("afterend", `<button type="button" class="link" id="replay-cancel">Cancel${keysOn() ? `<kbd class="kb-k" aria-hidden="true">Esc</kbd>` : ""}</button>`);
+    armTimer = setInterval(() => { left -= 1; if (left <= 0) disarm(btn); else label(); }, 1000);
     btn.focus({ preventScroll: true });
     return false;
   }
   function disarm(btn) {
     if (!btn || !btn.dataset.armed) return;
-    clearTimeout(armTimer);
+    clearInterval(armTimer);
     delete btn.dataset.armed;
-    btn.innerHTML = `${P.icon("send")}Send for real, then replay<kbd class="kb-k" aria-hidden="true">S</kbd>`;
+    btn.innerHTML = sendLabel();
     const c = $("replay-cancel"); if (c) c.remove();
   }
   async function sendForReal(r) {
     let signer;
     if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
     else {
-      if (!window.ethereum) throw new Error("No browser wallet found. Install MetaMask, or send it from a terminal: api3/scripts/plus-submit.sh <order> response.json --send");
+      if (!window.ethereum) throw new Error(`No browser wallet found. Install MetaMask, or send it from a terminal: api3/scripts/plus-submit.sh ${order.id} response.json --send`);
       const bp = new ethers.BrowserProvider(window.ethereum);
       await bp.send("eth_requestAccounts", []);
       if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
@@ -693,27 +758,40 @@
       return;
     }
     sent.set(digestOf(r), s.block);
+    dropDraft(); // the record is used now
     setRow("replay", "running", "submitting it again…");
     try {
       const a = await attempt(r, "replay");
       const state = a.accepted ? "fail" : a.err.name === "Replayed" ? "pass" : "near";
       setRow("replay", state, a.accepted ? "Accepted: not stopped" : `${state === "pass" ? "Rejected" : "Rejected by an earlier check"}<span class="mono">${esc(a.err.name)}</span>`,
         `<p class="what">Sent for real in block ${s.block} (${txLink(s.hash)}), then submitted once more.</p><p>${esc(a.accepted ? "The contract accepted it a second time." : P.explain(a.err.name, a.err.args))}</p>`);
-      if (state === "pass") verdict("ok", "Passed, replay included", `Not broken: the real record was accepted and sent once (block ${s.block}); the 4 forgeries and the replay were rejected.`);
-      else verdict("bad", "Not passed", a.accepted ? "Broken: the contract accepted the same record twice." : `The replay was rejected, but by an earlier check (<span class="mono">${esc(a.err.name)}</span>).`);
       lastPass = null;
+      setBusy(false); $("run").disabled = false; // the verdict is announced outside a busy region
+      if (state === "pass") verdict("ok", "Passed, replay included", `Not broken: the real record was accepted and sent once (block ${s.block}, ${txLink(s.hash)}); the four forgeries and the replay were rejected.`);
+      else verdict("bad", "Not passed", a.accepted ? "Broken: the contract accepted the same record twice." : `The replay was rejected, but by an earlier check (<span class="mono">${esc(a.err.name)}</span>).`);
     } catch (e) {
       setRow("replay", "", "not asked");
-      verdict("warn", "Sent, replay not asked", `The record was sent for real in block ${s.block} (${txLink(s.hash)}), but the second submission could not be asked: ${errHtml(e)}`);
+      setBusy(false); $("run").disabled = false;
+      verdict("warn", "Sent, replay not asked", `The record was sent for real in block ${s.block} (${txLink(s.hash)}), but the second submission could not be asked: ${errHtml(e)} Press Run to test a fresh record.`);
     } finally {
       setBusy(false); $("run").disabled = false; runLabel(); showRecord();
-      const sum = $("rows").querySelector('li[data-mode="replay"] summary');
-      if (sum && (!document.activeElement || document.activeElement === document.body)) sum.focus({ preventScroll: true });
+      if (!document.activeElement || document.activeElement === document.body) $("verdict").focus({ preventScroll: true });
     }
+  }
+  // the result as plain text, for the evidence log: network, contract, order, verdict, each row, the replay's transaction
+  async function copyResult(btn) {
+    const lines = [`Tamper test, ${P.NETWORKS[chainId] || "chain " + chainId}, contract ${cfg.contract}, order #${order.id}`,
+      $("verdict").querySelector(".verdict").innerText.replace(/\s*\n\s*/g, ": ")];
+    for (const li of $("rows").querySelectorAll("li")) lines.push(`- ${li.querySelector(".nm b").innerText}: ${li.querySelector(".out").innerText.replace(/\s*\n\s*/g, " ")}`);
+    const tx = $("verdict").querySelector('a[href*="/tx/"]') || $("rows").querySelector('a[href*="/tx/"]');
+    if (tx) lines.push(`Replay transaction: ${tx.href}`);
+    const ok = await P.copyText(lines.join("\n"));
+    P.flashLabel(btn, ok ? "Copied" : "Copy failed: select the text instead");
   }
   $("res-card").addEventListener("click", (e) => {
     const t = e.target.closest("button");
     if (!t || t.disabled) return;
+    if (t.id === "copy-result") { copyResult(t); return; }
     if (t.id === "replay-btn") { if (armed(t)) { disarm(t); replay().catch(() => setBusy(false)); } }
     else if (t.id === "replay-cancel") { const b = $("replay-btn"); disarm(b); if (b) b.focus(); }
   });
@@ -723,7 +801,10 @@
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]")) return;
     const k = e.key;
+    if (!keysOn() && k !== "Escape") return;
     if ((k === "r" || k === "R") && !busy && !$("run").disabled) { e.preventDefault(); runClick(); }
+    else if ((k === "o" || k === "O") && !$("order").disabled) { e.preventDefault(); $("order").focus(); }
+    else if (/^[1-6]$/.test(k)) { const d = $("rows").querySelectorAll("details")[Number(k) - 1]; if (d) { e.preventDefault(); d.open = !d.open; d.querySelector("summary").focus(); } }
     else if (k === "Escape" && busy && !$("run").disabled) { e.preventDefault(); runClick(); }
     else if (k === "Escape" && $("replay-btn") && $("replay-btn").dataset.armed) { e.preventDefault(); const b = $("replay-btn"); disarm(b); b.focus(); }
     else if (k === "Escape" && $("help").open) { e.preventDefault(); $("help").open = false; $("help").querySelector("summary").focus(); }
@@ -735,27 +816,39 @@
   // ---------------------------------------------------------------- orders and start
 
   async function selectOrder(id) {
-    order.id = id;
-    order.info = await readOrder(id);
-    order.airnode = await airnodeFor(order.info.source);
+    // while the new order is read, nothing runs against a half-switched order
+    loadingOrder = true;
+    $("run").disabled = $("order").disabled = true;
+    recLine("wait", `Reading order #${id}…`);
+    let info, airnode;
+    try { info = await readOrder(id); airnode = await airnodeFor(info.source); }
+    finally { loadingOrder = false; $("order").disabled = false; $("run").disabled = false; }
+    order.id = id; order.info = info; order.airnode = airnode;
     const q = new URLSearchParams(location.search);
     q.set("order", id);
     history.replaceState(null, "", "?" + q);
     const s = P.SOURCES[order.info.source];
-    $("order-hint").innerHTML = `Supplier ${esc(s.name)} <span class="mono">${esc(order.info.supplierId)}</span> · trusted signer: ${esc(signerName(order.airnode))} <span class="mono">${short(order.airnode)}</span>`;
+    $("order-hint").innerHTML = `${esc(s.name)} <span class="mono">${esc(order.info.supplierId)}</span> · signer: ${esc(signerName(order.airnode))}`;
     viewLinks(); howToGet(); helpText();
     if (isLocal() && !ownMode) await signFresh(); else { readBox(); showRecord(); }
     markStale();
+    runLabel();
   }
   $("order").addEventListener("change", (e) => selectOrder(Number(e.target.value)).catch((err) => recLine("bad", errHtml(err))));
+  $("help-body").addEventListener("change", (e) => {
+    if (e.target.id !== "keys-on") return;
+    try { localStorage.setItem("pulse-judge-keys", e.target.checked ? "on" : "off"); } catch { /* storage blocked */ }
+    applyTheme(); runLabel(); const b = $("replay-btn"); if (b && !b.dataset.armed) b.innerHTML = sendLabel();
+  });
 
   async function init() {
     resetResults();
-    recLine("wait", "Connecting to the contract…");
+    recLine("wait", "Connecting to the network…");
     provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
     chainId = Number((await provider.getNetwork()).chainId);
     explorer = P.EXPLORERS[chainId] || null;
     if (!cfg.contract) {
+      recLine("wait", "Looking for the newest SupplierPulse+ contract…");
       const v2 = await P.discoverV2(provider);
       if (v2) cfg.contract = v2;
       else if (chainId === 11155111) cfg.contract = P.V1_SEPOLIA;
@@ -774,8 +867,12 @@
     viewLinks(); helpText();
     const count = Number(await contract.ordersLength());
     if (!count) { $("order").innerHTML = "<option>No orders yet</option>"; recLine("warn", "This contract has no orders yet: there is nothing to attack. The buyer creates one with api3/scripts/plus-create-order.sh."); return; }
+    recLine("wait", `Reading ${count} order${count === 1 ? "" : "s"}…`);
     const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
-    $("order").innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">#${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`; }).join("");
+    allOrders = infos;
+    // the state first: it decides whether the contract accepts any record for the order
+    $("order").innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">${P.STATE[o.state]} · #${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)}</option>`; }).join("");
+    if (!isLocal() && !$("resp").value) { const d = loadDraft(); if (d) { $("resp").value = d; $("clear-rec").disabled = false; } }
     // a held or closed order refuses every record: start on the first active one unless the URL names an order
     const asked = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : -1;
     const want = asked >= 0 ? asked : Math.max(0, infos.findIndex((o) => o.state === 0));
@@ -784,11 +881,15 @@
     await selectOrder(want);
     $("run").disabled = false;
   }
-  init().catch((e) => {
-    const f = P.friendlyError(e, { rpc: cfg.rpc, reading: true, contract: cfg.contract });
-    $("ctx").textContent = "Not connected.";
-    recLine("bad", `${esc(e.message && e.message.startsWith("No SupplierPulse+") ? e.message : f.text.replace(/ in Settings/g, ""))} <a href="${detailedHref()}">Open the detailed view</a> to change the contract or the network in its Settings.`);
-  });
+  function start() {
+    init().catch((e) => {
+      const f = P.friendlyError(e, { rpc: cfg.rpc, reading: true, contract: cfg.contract });
+      $("ctx").textContent = "Not connected.";
+      recLine("bad", `${esc(e.message && e.message.startsWith("No SupplierPulse+") ? e.message : f.text.replace(/ in Settings/g, ""))} <button type="button" class="link" id="retry">Try again</button> · <a href="${detailedHref()}">open the detailed view</a> to change the contract or the network in its Settings.`);
+      $("retry").addEventListener("click", start);
+    });
+  }
+  start();
 })();
 </script>
 </body>
