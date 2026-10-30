@@ -73,6 +73,16 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · C2.5 review fixes in `SupplierPulsePlus.sol` (Emre's findings 1 and 2)
+- Changed (storage and checks only, no ABI change):
+  - **Finding 1:** `approveMilestone` stores the time of the first approval per milestone (`approvedAt`). The no-data exit now opens at `max(dueDate, approvedAt) + refundGrace`, in `refundRemaining` and in `orderSchedule.autoRefundAt`. A buyer who approves late can no longer approve and refund in the same block; the supplier always gets the full grace. Re-approving does not move the time.
+  - **Finding 2:** `createOrder` reverts `BadOrder` when `permitTtl < maxAge`, so the oldest record the contract accepts still gives a usable permit and `checkAndRelease` cannot fail with `PermitExpired`. `plus-local.sh` (300) and `plus-demo-orders.sh` (1800) already comply.
+  - 4 new tests (late approval, refund after the full grace, re-approval, TTL bound). `forge test`: 115/115.
+- Notes:
+  - **Julien:** `fakes.py` still computes the no-data exit from the due date only. The real contract now reports the later time in `orderSchedule.autoRefundAt`, which the agent already reads.
+  - **Emre:** v2 is not deployed yet. I deploy it at C3 with the demo constants 300/300/600 and send the address.
+- Next: Orhun's OK to merge into `supplierpulse-plus`; C3 deploy.
+
 ### 2026-10-30 · Batu · C2/C3 done for the screens; agent gas finding; I may be offline tonight
 - **Blocking for C3, Julien: the agent's sends run out of gas on a chain with block intervals.** With the latest `supplierpulse-plus` (`955cb15`) on anvil with interval mining (`evm_setIntervalMining 1`, like Sepolia's 12 s blocks), **18 of the agent's sends in 24 ticks reverted with `OutOfGas`** (e.g. `submitEvidence` tx limit 234369 = gasUsed 234369; `cast run` ends in `EvmError: OutOfGas`). `cast send` takes the estimate as the limit, and the estimate is exactly the gas used, so it sometimes falls short when the transaction lands in a later block. Your C2 passed because anvil's default automine executes each tx right where it was estimated. On Sepolia every failed send costs gas and another $0.01 fetch. **Fix:** `"--gas-limit", "600000"` in `Chain.send` (`api3/agent/chain.py`). With that one change the same run had 0 failed sends and reached every §7.1 state (0 and 2 paid, 1/3/4 refunded, 4 held by the supplier-wide stop without a fetch, 5 refunded by the no-data exit, two suppliers Trusted), 19 transactions. Tested in a scratch copy only; your file is unchanged. The `0x` parsing bug I hit on the way you had already fixed in parallel.
 - **Julien (repo owner): the repository is private** (`gh api repos/julienlmu/tumblockchain-powerpuffgirls` → `"visibility":"private"`), while §7.4 says it is already public. The track needs a public repo by 14:30 Sat. GitHub Pages is not enabled; the pages don't need it (they run from `python3 -m http.server`).

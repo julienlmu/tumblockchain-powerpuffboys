@@ -794,6 +794,54 @@ contract SupplierPulsePlusTest is TestBase {
         pulse.refundRemaining(id);
     }
 
+    // C2.5 finding 1: a buyer who approves late cannot approve and refund in the same block
+    function test_noDataExitCountsFromLateApproval() public {
+        uint256 id = pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x06);
+        vm.warp(NOW + GRACE); // due + grace has passed, nothing approved yet
+        pulse.approveMilestone(id, 0);
+        (,,,, uint64 autoAt,) = pulse.orderSchedule(id);
+        assertEq(autoAt, NOW + 2 * GRACE, "grace counts from the approval");
+        vm.expectRevert(abi.encodeWithSelector(ISupplierPulsePlus.RefundNotYet.selector, NOW + 2 * GRACE));
+        pulse.refundRemaining(id);
+
+        // the supplier still gets paid with a fresh record inside the new grace
+        vm.warp(NOW + 2 * GRACE - 1);
+        assertEq(_check(id, _chClean(), NOW + 2 * GRACE - 1), 0, "paid");
+        assertEq(supplier.balance, 1 ether, "supplier paid");
+    }
+
+    function test_noDataExitAfterLateApprovalAndGrace() public {
+        uint256 id = pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), TTL, 0x06);
+        vm.warp(NOW + 500);
+        pulse.approveMilestone(id, 0);
+        vm.warp(NOW + 500 + GRACE);
+        uint256 before = address(this).balance;
+        vm.prank(stranger);
+        pulse.refundRemaining(id);
+        assertEq(address(this).balance - before, 1 ether, "refunded after the full grace");
+    }
+
+    function test_reapprovingDoesNotMoveTheExit() public {
+        uint256 id = _noDataOrder();
+        pulse.approveMilestone(id, 1); // at NOW + 100, before the due date NOW + 200
+        vm.warp(NOW + 250);
+        pulse.approveMilestone(id, 1); // already approved: the first approval time stays
+        (,,,, uint64 autoAt,) = pulse.orderSchedule(id);
+        assertEq(autoAt, NOW + 200 + GRACE, "due date + grace");
+    }
+
+    // C2.5 finding 2: permitTtl >= maxAge, so the oldest accepted record still yields a usable permit
+    function test_createOrderRequiresTtlAtLeastMaxAge() public {
+        vm.expectRevert(ISupplierPulsePlus.BadOrder.selector);
+        pulse.createOrder{value: 1 ether}(0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), uint64(MAX_AGE - 1), 0x06);
+        uint256 id = pulse.createOrder{value: 1 ether}(
+            0, CH_ID, supplier, 0, _amounts(1), _dues(1, NOW, 0), uint64(MAX_AGE), 0x06
+        );
+        pulse.approveMilestone(id, 0);
+        assertEq(_check(id, _chClean(), NOW - MAX_AGE), 0, "oldest accepted record pays");
+        assertEq(supplier.balance, 1 ether, "supplier paid");
+    }
+
     function test_noDataExitBlockedByValidPermit() public {
         uint256 id = _noDataOrder();
         pulse.approveMilestone(id, 1);
