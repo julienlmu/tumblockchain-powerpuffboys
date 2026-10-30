@@ -193,6 +193,8 @@
   .asking { display: flex; flex-direction: column; gap: var(--s2); }
   .replay-row { align-items: center; }
   .rec-age.warn { color: var(--wait); font-weight: 600; }
+  .live-dot.down { background: var(--wait); }
+  #meta-live b { color: var(--text); font-weight: 500; }
 
   ol.checks-pre { list-style: none; margin: 0; padding: 0; counter-reset: chk; font-size: var(--t-1); }
   ol.checks-pre li { counter-increment: chk; display: flex; gap: var(--s2); align-items: baseline; padding: 4px 0; border-top: 1px solid var(--line); }
@@ -218,6 +220,9 @@
   table.score td:nth-child(3) { overflow-wrap: normal; } /* attempt names break between words only */
   table.score td.v { font-family: var(--mono); font-size: 12px; overflow-wrap: normal; word-break: normal; }
   table.score .empty td { color: var(--muted); padding: var(--s3) 0; border-bottom: none; white-space: normal; }
+  table.score td { transition: background-color 600ms var(--ease); }
+  table.score tr.flash > td { background: var(--accent-bg); }
+  .added .i.down { transform: rotate(90deg); }
   table.score tr.sep td { color: var(--muted); padding: var(--s3) 0 4px; white-space: normal; }
   .cd { color: var(--muted); font-weight: 400; } /* time left on an Undo or an armed send */
   /* a definition link: a light dotted line in running text; in tiles, tables and the check list (where every error name
@@ -560,6 +565,21 @@
     : `recovers to ${esc(signerLabel(got))} (<span class="mono" title="${got}">${short(got)}</span>), but the contract trusts ${esc(signerLabel(want))} (<span class="mono" title="${want}">${short(want)}</span>)`;
   function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""; }
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join(""); }
+  // The "Live" dot follows the last answer of the RPC: amber with the time of the last answer once a call fails,
+  // green again with the next answer. Every call of the page goes through the provider, so it sees them all.
+  let rpcUp = true, rpcLastAt = null;
+  function liveMeta() {
+    const net = esc(P.NETWORKS[chainId] || `chain ${chainId}`);
+    return rpcUp ? `<span class="live-dot"></span>Live on <b>${net}</b>`
+      : `<span class="live-dot down"></span>RPC not answering${rpcLastAt ? ` · last answer ${rpcLastAt.toLocaleTimeString("en-GB")}` : ""} · <b>${net}</b>`;
+  }
+  function rpcSeen(up) {
+    if (up) rpcLastAt = new Date();
+    if (up === rpcUp) return;
+    rpcUp = up;
+    const el = $("meta-live");
+    if (el) el.innerHTML = liveMeta();
+  }
   // tone: true = an error (red), "warn" = nothing to test with (amber, as in the verdict and on the buttons)
   function respMsg(html, tone) { $("resp-msg").innerHTML = html ? `<span style="color:var(${tone === "warn" ? "--wait" : tone ? "--hold" : "--muted"})">${html}</span>` : ""; }
   function markBox(state) { // null, "missing" or "invalid"
@@ -1004,6 +1024,14 @@
     scoreRows.push({ time, order: id, name: label, got: gotText, expected, res, attempt });
     renderScore();
     saveBoard();
+    const newRow = $("score").querySelector("tr");
+    newRow.classList.add("flash");
+    setTimeout(() => newRow.classList.remove("flash"), 1600);
+    // a single attempt: when the scoreboard is out of sight, say where the row went
+    if (!suiteRunning && $("score").getBoundingClientRect().top > innerHeight) {
+      const v = $("result").querySelector(".verdict");
+      if (v) v.insertAdjacentHTML("afterend", `<button type="button" class="link added" data-to-score>${P.icon("arrow-right", "down")}Added to the scoreboard</button>`);
+    }
     return { mode, attempt, accepted: verdict.accepted, got: gotText, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
   }
 
@@ -1524,19 +1552,19 @@
   }
   for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => single(b.dataset.mode, b).catch(failed(() => single(b.dataset.mode, b))));
   // On the local chain nothing else asks before a real send (MetaMask does on Sepolia): the first press arms the
-  // button, the second sends. Cancel, or 8 s without a press, puts it back.
+  // button, the second sends. Cancel, or 8 s without a press, puts it back; Cancel shows the time left ("· 7 s").
   function armed(btn) {
     if (chainId !== 31337 || btn.dataset.armed) return true;
     btn.dataset.armed = btn.innerHTML;
     btn.innerHTML = `${P.icon("send")}Confirm: send for real with the local agent key`;
     btn.insertAdjacentHTML("afterend", `<button type="button" class="link" data-disarm>Cancel</button>`);
-    btn._disarm = setTimeout(() => disarm(btn), 8000);
+    btn._disarm = countdown(btn.nextElementSibling, 8, () => disarm(btn));
     btn.focus({ preventScroll: true });
     return false;
   }
   function disarm(btn) {
     if (!btn.dataset.armed) return;
-    clearTimeout(btn._disarm);
+    if (btn._disarm) btn._disarm();
     btn.innerHTML = btn.dataset.armed; delete btn.dataset.armed;
     const c = btn.parentElement && btn.parentElement.querySelector("[data-disarm]");
     if (c) c.remove();
@@ -1561,6 +1589,14 @@
     else if (t.matches("[data-retry]") && retryRun) { const again = retryRun; Promise.resolve(again()).catch(failed(again)); }
     else if (t.dataset.retryMode) single(t.dataset.retryMode).catch(failed(() => single(t.dataset.retryMode)));
     else if (t.matches("[data-settings]")) openSettings();
+    else if (t.matches("[data-to-score]")) {
+      const row = $("score").querySelector("tr");
+      row.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      const b = row.querySelector("[data-attempt]");
+      if (b) b.focus({ preventScroll: true });
+      row.classList.add("flash");
+      setTimeout(() => row.classList.remove("flash"), 1600);
+    }
   });
   // one filled primary at a time: when the verdict offers the next step, Run steps back
   new MutationObserver(() => $("suite").classList.toggle("primary", !$("result").querySelector("button.primary"))).observe($("result"), { childList: true, subtree: true });
@@ -1743,6 +1779,7 @@
       return;
     }
     provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
+    provider.on("debug", (ev) => { if (ev.action === "receiveRpcResult") rpcSeen(true); else if (ev.action === "receiveRpcError") rpcSeen(false); });
     chainId = Number((await provider.getNetwork()).chainId);
     explorer = P.EXPLORERS[chainId] || null;
     let found = "";
@@ -1773,7 +1810,8 @@
     renderKit();
     // how the contract was found and the simulated sender sit in Settings, one click away, not in the meta row
     const vName = version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1";
-    renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], [vName, addr(cfg.contract)], ["Max age", `${maxAge} s`]]);
+    renderMeta([[vName, addr(cfg.contract)], ["Max age", `${maxAge} s`]]);
+    $("meta").insertAdjacentHTML("afterbegin", `<span id="meta-live" aria-live="polite">${liveMeta()}</span>`);
     $("cfg-note").innerHTML = `${found && version === 2 ? "Contract found automatically: the newest SupplierPulse+ v1.1 deployed by the team. " : ""}Every attempt is simulated from <span class="mono">${short(P.DEAD)}</span>.`;
     const dq = new URLSearchParams({ contract: cfg.contract });
     if (cfg.rpc !== P.DEFAULT_RPC) dq.set("rpc", cfg.rpc);
