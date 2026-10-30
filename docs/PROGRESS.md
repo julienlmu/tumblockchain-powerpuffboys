@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · document tools: review fixes (orhun/doc-tools)
+- Changed: `plus_doc_hash` (`plus-lib.sh`) fails with a non-zero exit instead of printing an empty hash, streams the file through `openssl dgst -keccak-256` (any size; fallback to `cast keccak` up to about 1 MiB) and checks the result is 32 bytes; `plus-doc-hash.sh` computes the hash in its own step so a failure stops the script; `plus-create-order.sh` refuses an `ORDER_DOC_HASH` that is set but not a 32-byte hash (no silent `ORDER_REF` fallback); `plus-doc-diff.sh` is local by default, the language-model summary needs `--summary` and says when the diff was cut at 20,000 bytes; `plus-verify-doc.sh` runs the local diff only. README updated.
+- Notes: same hashes as before (checked against the old method, empty file, 60 KB and 2 MiB files). Anvil run: MATCH, MISMATCH with local change report (no network call even with a key set), empty `ORDER_DOC_HASH` rejected. Contract unchanged, no deploy.
+- Next: Julien merges `orhun/doc-tools`.
+
 ### 2026-10-30 · Orhun · order document tools on main-compatible branch (orhun/doc-tools)
 - Changed: `api3/scripts/plus-doc-hash.sh` (salted document hash + new salt), `plus-verify-doc.sh` (reads `orderRef` via `orderInfo`, MATCH/MISMATCH, optional change report), `plus-doc-diff.sh` (line diff + optional short language-model summary, informational only), `plus_doc_hash`/`plus_new_salt` in `plus-lib.sh`, `ORDER_DOC_HASH` in `plus-create-order.sh`, test `test_saltedDocHashAsOrderRef`. README: "Order documents" section (privacy, two levels of document integrity, change report). `api3/.env.example`: optional `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for the summary.
 - Notes: contract source unchanged (`api3/src` identical to main); the live v2 already supports this via `orderRef`. `forge test`: 116 passed (main 115 + 1). Anvil smoke test: MATCH for the agreed PO, MISMATCH plus change report for an edited copy. Amendable mode stays on `orhun/doc-hash`, not deployed.

@@ -9,10 +9,17 @@ set -euo pipefail
 source "$(dirname "$0")/plus-lib.sh"
 : "${EVM_RPC_URL:?}" "${BUYER_PRIVATE_KEY:?}" "${PULSE_PLUS_ADDRESS:?}"
 [[ $# -ge 5 ]] || { sed -n '3,8p' "$0" >&2; exit 2; }
+# a set ORDER_DOC_HASH must be a real hash: an empty one (failed plus-doc-hash.sh) never falls back to ORDER_REF
+if [[ -n "${ORDER_DOC_HASH+set}" ]]; then
+  [[ "$ORDER_DOC_HASH" =~ ^0x[0-9a-fA-F]{64}$ ]] \
+    || { echo "ORDER_DOC_HASH is set but not a 32-byte hash ('$ORDER_DOC_HASH'): run plus-doc-hash.sh again, or unset it to use ORDER_REF" >&2; exit 2; }
+  ref="$ORDER_DOC_HASH"
+else
+  ref="$(cast keccak "${ORDER_REF:-PO-1}")"
+fi
 source_id="$(plus_source "$1")"; id="$2"; supplier="$3"
 amounts="$(plus_amounts_wei "$4")"; total="$(plus_total_wei "$4")"; dues="$(plus_dues "$5")"
 rules="${6:-$([[ "$source_id" == 0 ]] && echo 0x06 || echo 0x08)}"; ttl="${7:-3600}"
-ref="${ORDER_DOC_HASH:-$(cast keccak "${ORDER_REF:-PO-1}")}"
 if ! rc="$(plus_send "$BUYER_PRIVATE_KEY" --value "$total" "$PULSE_PLUS_ADDRESS" \
   "createOrder(uint8,string,address,bytes32,uint256[],uint64[],uint64,uint8)" \
   "$source_id" "$id" "$supplier" "$ref" "$amounts" "$dues" "$ttl" "$rules" 2>&1)" \

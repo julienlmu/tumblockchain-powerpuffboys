@@ -24,10 +24,23 @@ plus_request_hash() {
 
 # Salted document hash: keccak256(salt ++ file bytes), salt = 32 random bytes (0x + 64 hex).
 # Used as the order's orderRef, so the order documents stay off chain and only this hash is public.
+# Fails (non-zero, nothing on stdout) instead of printing an empty or partial hash.
 plus_doc_hash() {
-  [[ -f "$1" ]] || { echo "no such file: $1" >&2; return 2; }
+  [[ -f "$1" && -r "$1" ]] || { echo "no such file: $1" >&2; return 2; }
   [[ "$2" =~ ^0x[0-9a-fA-F]{64}$ ]] || { echo "salt must be 0x + 64 hex characters" >&2; return 2; }
-  cast keccak "$2$(od -An -v -tx1 "$1" | tr -d ' \n')"
+  local h hex
+  if printf '' | openssl dgst -keccak-256 >/dev/null 2>&1; then
+    # OpenSSL >= 3.2 streams the file, so any size works
+    h="$({ printf '%s' "${2#0x}" | xxd -r -p && cat "$1"; } | openssl dgst -keccak-256 -r)" || return 1
+    h="0x${h%% *}"
+  else
+    # fallback (e.g. macOS LibreSSL): the file goes through one argument, so about 1 MiB at most
+    hex="$(od -An -v -tx1 "$1" | tr -d ' \n')" || return 1
+    h="$(cast keccak "$2$hex")" || { echo "could not hash $1 (too large without OpenSSL 3.2+?)" >&2; return 1; }
+  fi
+  h="$(echo "$h" | tr A-F a-f)"
+  [[ "$h" =~ ^0x[0-9a-f]{64}$ ]] || { echo "could not hash $1" >&2; return 1; }
+  echo "$h"
 }
 
 plus_new_salt() { echo "0x$(openssl rand -hex 32)"; }

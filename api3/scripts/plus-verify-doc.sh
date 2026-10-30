@@ -2,7 +2,7 @@
 # Prove what was agreed: checks that <file> with <salt> hashes to the order's document hash (orderRef) on chain.
 # Usage: scripts/plus-verify-doc.sh <order id> <file> <salt> [agreed file]   Exit 0 on a match, 1 otherwise.
 # With [agreed file] (your copy of the version that matches the chain), a mismatch also prints a change report
-# (scripts/plus-doc-diff.sh): what differs between the agreed version and <file>.
+# (scripts/plus-doc-diff.sh, local diff only): what differs between the agreed version and <file>.
 # env: EVM_RPC_URL, PULSE_PLUS_ADDRESS
 set -euo pipefail
 source "$(dirname "$0")/plus-lib.sh"

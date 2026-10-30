@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # Change report for two versions of an order document: what changed between the agreed version and the one presented.
-# Prints a line diff, then a short plain-language summary from a language model when ANTHROPIC_API_KEY or
-# OPENAI_API_KEY is set (env or api3/.env); without a key it prints the diff only. The report is informational for
-# the reviewer: payments are decided by the contract and the signed registry records, never by this summary.
-# Usage: scripts/plus-doc-diff.sh <agreed file> <presented file>
+# Prints a line diff, computed locally; nothing leaves this machine by default.
+# With --summary it also sends the diff (which can contain prices, parties and delivery terms) to a language model
+# for a short plain-language summary, using ANTHROPIC_API_KEY or OPENAI_API_KEY (env or api3/.env). Only the first
+# 20,000 bytes of the diff are sent. The report is informational for the reviewer: payments are decided by the
+# contract and the signed registry records, never by this summary.
+# Usage: scripts/plus-doc-diff.sh [--summary] <agreed file> <presented file>
 # env: [ANTHROPIC_API_KEY | OPENAI_API_KEY] [DOC_SUMMARY_MODEL] [DOC_SUMMARY_URL]
 #      defaults: claude-haiku-5-5 at api.anthropic.com, or gpt-5.4-mini at api.openai.com
 set -euo pipefail
-[[ $# -eq 2 ]] || { sed -n '2,8p' "$0" >&2; exit 2; }
+send_summary=no
+[[ "${1:-}" == --summary ]] && { send_summary=yes; shift; }
+[[ $# -eq 2 ]] || { sed -n '2,10p' "$0" >&2; exit 2; }
 for f in "$1" "$2"; do [[ -f "$f" ]] || { echo "no such file: $f" >&2; exit 2; }; done
 
 # PDFs are compared as text when pdftotext is installed; other binary files cannot be diffed line by line
@@ -23,6 +27,9 @@ if [[ ! -s "$tmp/diff" ]]; then echo "No text differences (the files differ only
 
 echo "=== Changes (agreed -> presented; informational only, does not affect payments) ==="
 cat "$tmp/diff"
+if [[ "$send_summary" == no ]]; then
+  echo; echo "(local diff only; add --summary to send this diff to a language model for a short summary)"; exit 0
+fi
 
 envfile="$(dirname "$0")/../.env"
 # a key from the environment wins over api3/.env; a missing line in .env just means no key
@@ -60,4 +67,5 @@ if [[ -z "$summary" ]]; then
 fi
 echo
 echo "=== Summary (informational only, does not affect payments) ==="
+[[ "$(wc -c < "$tmp/diff")" -gt 20000 ]] && echo "(partial: the diff is longer than 20,000 bytes, only its start was summarized; the diff above is complete)"
 echo "$summary"
