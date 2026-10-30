@@ -68,6 +68,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 ```
 
 ### 2026-10-30 · Orhun
+- Changed: `api3/src/SupplierPulse.sol`: milestone payments to a supplier. Each payment needs a permit from fresh signed registry evidence (status `active`), bound to one order, supplier wallet, stage and amount, expiring after `permitTtl` and used up by the payment. Any other status holds the rest; the buyer can take it back. 14 tests (pay, hold + refund, expiry, approval, edited status, stale, other company, wrong key, replay). `PriceParser.parseString` added.
+- Next: Companies House listing details on AirnodeHub, scripts (fetch, agent, judge), deploy to Ethereum Sepolia.
+
+### 2026-10-30 · Orhun
 - Changed: API3 idea chosen: SupplierPulse (#3 extended). Milestone payments to a supplier, each one needs fresh signed Companies House evidence and a permit that expires. Plan in `docs/SUPPLIERPULSE.md`. Branch `supplier-pulse`.
 - Next: contract + tests on `supplier-pulse`; find the Companies House listing details on AirnodeHub; new Cardano app that is paid for a correct decision (paid or held).
 - Notes: the ETH vault on Ethereum Sepolia stays as the fallback.

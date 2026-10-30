@@ -6,6 +6,7 @@ pragma solidity ^0.8.24;
 library PriceParser {
     error KeyNotFound();
     error NoNumber();
+    error NoString();
 
     /// @param data      the signed response body
     /// @param key       bytes that come right before the number, e.g. `"usd":`
@@ -46,6 +47,23 @@ library PriceParser {
     /// @notice Integer part of the number after `key`, e.g. `"updatedAt":1792403240691` gives 1792403240691
     function parseUint(bytes memory data, bytes memory key) internal pure returns (uint256) {
         return parse(data, key, 0) / 1e18;
+    }
+
+    /// @notice JSON string after `key`, e.g. `"status":"active"` with key `"status":` gives `active`
+    function parseString(bytes memory data, bytes memory key) internal pure returns (bytes memory out) {
+        uint256 i = _find(data, key);
+        while (i < data.length && data[i] == " ") i++;
+        if (i >= data.length || data[i] != '"') revert NoString();
+        uint256 start = ++i;
+        while (i < data.length && data[i] != '"') {
+            if (data[i] == "\\") revert NoString(); // registry statuses never need escapes
+            i++;
+        }
+        if (i >= data.length) revert NoString();
+        out = new bytes(i - start);
+        for (uint256 j = 0; j < out.length; j++) {
+            out[j] = data[start + j];
+        }
     }
 
     function _find(bytes memory data, bytes memory key) private pure returns (uint256) {

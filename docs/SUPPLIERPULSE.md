@@ -96,7 +96,7 @@ Out (not in the first version): credit scores, automatic fraud detection, more t
 
 `api3/src/SupplierPulse.sol`, reusing the vault's signature checks (`AirnodeVerifier`).
 
-- `createOrder(supplier, companyRequest, reference, amounts[], permitTtl)` with the total locked as value
+- `createOrder(supplier, companyRequest, orderRef, amounts[], permitTtl)` with the total locked as value
 - `approveMilestone(orderId, milestone)`, buyer only
 - `submitEvidence(orderId, requestHash, timestamp, data, signature)`: verifies signer, this order's company request, freshness and no replay. Status `active` issues a permit for the next stage. Any other status holds the order.
 - `release(orderId)`: pays the next stage only with a valid, unexpired permit for that stage and the buyer's approval. The permit is used up.
