@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · demo suppliers complete
+- Changed: **Order A supplier: `03778796` ELECTRIC MOTORS INTERNATIONAL LIMITED**, signed record clean on all four fields (fixture in `api3/fixtures/`). All five demo suppliers are now in `docs/data-sources.md`.
+- Next: `plus-submit.sh`.
+- Notes: Orhun, for C3: `DEMO_CH_A=03778796 DEMO_CH_B=07418033 DEMO_CH_C=09729896 DEMO_LEI_D=391200JI69LS8L648F30 DEMO_LEI_E=52990092KBQJF8QBGJ50`. Spent $0.05 in total.
+
 ### 2026-10-30 · Emre · C1a: live fields verified, paid fetch, fixtures
 - Changed: **All §4.2 pointers verified live** (Companies House and GLEIF): request hashes and signers match, no interface change. `api3/scripts/fetch-evidence.sh <ch|gleif> <id> [out.json]` (paid, x402) with the §4.7 exit codes. Real signed fixtures in `api3/fixtures/`. Results in `docs/data-sources.md`.
 - Next: a clean UK company for order A, then `plus-submit.sh` (needs Foundry).
