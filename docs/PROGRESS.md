@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · v2 source verified on Etherscan
+- Changed: Etherscan exact match for `0xf25Aae1772326C95294D1923399D55c658493DfC` (built from `c668c51`); `docs/evidence.md` updated.
+- Notes: for the video, fresh held orders are opened right before filming, because the agent's 10-minute monitoring holds and refunds a new order within minutes.
+
 ### 2026-10-30 · Orhun · README: privacy of order documents (future work)
 - Changed: appended a "Privacy of order documents" subsection to the README (salted document hashes on chain; amounts, payout wallet and registry ID stay public by design; ZK as future work). No code or ABI change.
 - Next: Ulaş, feel free to reword it in the README's voice.

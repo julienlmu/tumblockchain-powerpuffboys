@@ -180,7 +180,7 @@ Read back on chain at 20:26 CET (`orderStatus`, `orderSchedule`, `cast logs` fro
 - **D (3) paid:** MilestonePaid m0, 500 tokens to `0x535d7e4d7f6c3B13F34da2aC98afE379912bed4a` at 20:16:48 (due 20:16:12), block 12028703, [`0x7af6c9…37ef`](https://sepolia.etherscan.io/tx/0x7af6c99da9dd1bc3ef0479f3bae07342875e37f86d1d69de97667e61f45137ef). It used the evidence from the 20:13:00 record. Afterwards `orderStatus(3)` = active, paid 500, remaining 1,000, next milestone 1 of 2; `orderSchedule(3)` = next due 31 Oct 12:00, approved, tier 1.
 - **E (4):** held with `0x08` at 19:48:12 [`0x0dbce4…9e3e`](https://sepolia.etherscan.io/tx/0x0dbce43cb2a1fdfc0ff20db3bb7a58eac80470cf651bd7095df0c5c7b8989e3e); refunded 1,000 tokens at 19:58:36 [`0xb617b1…2800`](https://sepolia.etherscan.io/tx/0xb617b152bd209fcf7f7cae7db112b2eac65994f580f31e7cc1cd8afa7f9f2800).
 - The agent wallet `0xED3418aE93669a640650728E70f7aA712083253a` sent all evidence, payment and refund transactions. Refunds went to the buyer `0xEb3EB6da882798062b30CeC11AAaDe306287ce41`. No OrderRefunded or OrderHeld events since block 12028630.
-- Source verification: Sourcify exact match (job https://sourcify.dev/server/verify-ui/jobs/4d49235a-c987-4166-8975-4ba46fa8926f), source `c668c51`. Etherscan verification is waiting for an API key.
+- Source verification: Etherscan exact match (https://sepolia.etherscan.io/address/0xf25aae1772326c95294d1923399d55c658493dfc#code) and Sourcify exact match (https://sourcify.dev/server/verify-ui/jobs/4d49235a-c987-4166-8975-4ba46fa8926f), both from commit c668c51.
 
 ### Judge CLI against live v2 (Emre, 30 Oct 20:10 CET)
 
