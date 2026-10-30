@@ -73,6 +73,13 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Emre · C2 passes with the real v1.1 `fetch-local.sh`
+- Changed: merged the latest `supplierpulse-plus` into `emre/plus-data` and re-ran everything on it.
+  - `python3 api3/agent/c2_check.py` with **Emre's real `fetch-local.sh`** (no stand-in signer): **8/8 PASS in 244 s**. Orders 0 and 2 paid; 1 held with `0x82` and refunded; 3 held with `0x08` and refunded; 4 held by the supplier-wide stop without a fetch and refunded; 5 refunded through the no-data exit; `01234567` reached Trusted; no quarantine, no errors.
+  - `forge test` 111/111; `test-requests.mjs` 11/11.
+  - `plus-submit.sh` on the fresh local deploy: order 0 `ACCEPTED clean`, 1 `ACCEPTED held: registry status not active, accounts overdue`, 2 clean, 3 `ACCEPTED held: LEI renewal overdue`; value/stale/request/key → `WrongSigner`/`StaleResponse`/`WrongRequest`/`WrongSigner`; `--send` success; replay → `Replayed`. The real A record on order 1 → `WrongRequest`.
+- Next: merge `emre/plus-data` into `supplierpulse-plus` (C1). Julien's C2 then no longer needs a stand-in signer. C3: real fetches + the judge CLI on Sepolia.
+
 ### 2026-10-30 · Emre · C2.5 review of `SupplierPulsePlus.sol` (early) → Orhun, Julien
 - Changed: nothing in Orhun's files. I reviewed `supplierpulse-plus` at `a1cd45e` against §2.4, §2.4a and §4.5 v1.1. `forge test`: 104/104 pass. The two findings were proven with throwaway Forge tests (not committed).
 - **Finding 1 (medium, design, Orhun + Julien): the buyer can bypass "without approval there is no exit".** After `due + refundGrace`, a buyer who never approved can call `approveMilestone(m)` and `refundRemaining()` in the same block. The agent skips unapproved milestones (P3), so there is never a permit at that moment, and the supplier gets no chance to bring evidence. PoC: an order due `NOW`, warp to `NOW + GRACE`, approve then refund → the buyer gets the full amount back, supplier balance 0. **Fix (storage only, no ABI change):** store `approvedAt[m]` and count the no-data exit from `max(dueDates[m], approvedAt[m]) + refundGrace`, in `refundRemaining` and in the `orderSchedule.autoRefundAt` view. The agent then always has the full grace period to fetch after an approval.
