@@ -28,6 +28,7 @@
   .panel h2 .step { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); font-size: var(--t-1); font-weight: 700; flex: none; }
   .panel .group { display: flex; flex-direction: column; gap: var(--s2); }
   .panel .group + .group { border-top: 1px solid var(--line); padding-top: var(--s3); }
+  .panel-head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between; }
   .hint { color: var(--muted); font-size: var(--t-1); margin: 0; text-wrap: pretty; }
   select, textarea { width: 100%; }
   textarea[aria-invalid="true"] { border-color: var(--hold); }
@@ -76,6 +77,9 @@
   .verdict.hero .big { font-size: var(--t4); line-height: 1.1; letter-spacing: -0.015em; }
   .verdict.hero .why { font-size: var(--t0); margin-top: 2px; }
   .what { font-size: var(--t-1); padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--accent-bg); color: var(--accent); overflow-wrap: anywhere; }
+  .progress { margin: 0; display: flex; gap: var(--s3); align-items: center; font-size: var(--t-1); color: var(--muted); }
+  .progress .track { flex: 1; height: 4px; border-radius: 999px; background: var(--done-bg); overflow: hidden; }
+  .progress .track span { display: block; height: 100%; background: var(--accent); transition: width 200ms var(--ease); }
   .waiting { display: flex; gap: var(--s2); align-items: center; color: var(--muted); font-size: var(--t-1); }
 
   ol.checks { list-style: none; margin: 0; padding: 0; font-size: var(--t-1); }
@@ -123,6 +127,7 @@
   .legend .pass { color: var(--ok); } .legend .near { color: var(--wait); }
   button.link { background: none; border: none; padding: 0; min-height: 0; color: var(--accent); font-size: var(--t-1); align-self: flex-start; }
   button.link:hover { background: none; text-decoration: underline; }
+  button.link:disabled { background: none; border: none; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     #result { position: static; }
@@ -172,7 +177,8 @@
         <h2><span class="step" aria-hidden="true">2</span>Load a signed record</h2>
         <div class="row">
           <select id="sample" aria-label="Load a sample record"><option value="">Load sample (old on purpose)…</option></select>
-          <button type="button" id="upload-btn" data-icon="upload">Upload file</button><input type="file" id="file" accept=".json,application/json" hidden>
+          <button type="button" id="upload-btn" data-icon="upload">Upload file</button>
+          <button type="button" id="clear-rec" class="link" data-icon="x">Clear</button><input type="file" id="file" accept=".json,application/json" hidden>
           <button type="button" id="fresh" hidden data-icon="key" title="Signs a fresh record in the browser with the public local test key (anvil). Local chain only.">Fresh local record</button>
         </div>
         <textarea id="resp" spellcheck="false" aria-label="Signed record (§4.1 JSON: from fetch-evidence.sh, AirnodeHub or the samples)" placeholder='Paste a §4.1 record: {"source":"ch","supplierId":"09729896","requestHash":"0x…","timestamp":"…","data":"0x…","signature":"0x…"}'></textarea>
@@ -182,6 +188,7 @@
       <div class="group">
         <h2><span class="step" aria-hidden="true">3</span>Attack it</h2>
         <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test</button>
+        <p class="progress" id="suite-progress" role="status" aria-live="polite" hidden></p>
         <div class="attacks" role="group" aria-label="Single attempts">
           <button type="button" class="valid" data-mode="asis" data-icon="check">Submit as is</button>
           <button type="button" class="atk" data-mode="value" data-icon="target">(a) Edit value</button>
@@ -197,7 +204,7 @@
       </div>
     </section>
 
-    <section class="panel" id="result" aria-live="polite" aria-label="The contract's verdict">
+    <section class="panel" id="result" aria-live="polite" aria-label="The contract's verdict" tabindex="-1">
       <h2>The contract's verdict</h2>
       <p class="hint">Pick an order, load a signed record and press <b>Run the full tamper test</b>, or one attack.</p>
     </section>
@@ -206,7 +213,7 @@
 
   <div class="stack">
     <section class="panel">
-      <h2>Scoreboard</h2>
+      <div class="panel-head"><h2>Scoreboard</h2><button type="button" class="link" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></div>
       <p class="hint">Every attempt in this browser tab. The tamper test passes when the valid record is accepted and every attack is rejected.</p>
       <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
@@ -274,7 +281,7 @@
   let iface = new ethers.Interface(P.ABI);
   const order = { id: null, info: null };
   let noOrder = false, maxAgeVal = null;
-  const ORDER_CONTROLS = "[data-mode], #suite, #fresh, #sample, #upload-btn, #resp";
+  const ORDER_CONTROLS = "[data-mode], #suite, #fresh, #sample, #upload-btn, #clear-rec, #resp";
   let lastCandidate = null;
 
   // One order model for v1 and v2: { source, supplierId, requestHash, rules, state, lastCheck, nextMilestone, lastFailedRules }
@@ -528,6 +535,7 @@
     const empty = $("score").querySelector(".empty");
     if (empty) empty.remove();
     $("score").prepend(row);
+    $("clear-score").disabled = false;
     return { mode, accepted: verdict.accepted, got: row.children[3].textContent, expected, match, notApplicable, stopAt: stop >= 0 ? checks[stop].t : null };
   }
 
@@ -571,14 +579,26 @@
   // The valid record first, then every attack, as eth_call simulations. Replay needs the valid record on chain,
   // so it is a second, explicit step that sends a real transaction.
   const SUITE = ["asis", "value", "stale", "request", "key", "realOld", "realOther"];
-  let suite = [], suiteRunning = false, suiteTx = null;
+  let suite = [], suiteRunning = false, suiteTx = null, suiteStopped = false;
+  // One column (phones): the verdict is below the attack panel, so bring it into view and give it focus.
+  function reveal() {
+    if (!matchMedia("(max-width: 900px)").matches) return;
+    const r = $("result").getBoundingClientRect();
+    if (r.top >= 0 && r.top < innerHeight * 0.6) return;
+    $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    $("result").focus({ preventScroll: true });
+  }
   const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  let stopRequested = false;
+  // While the test runs, the run button is the way out: it stops after the current attempt.
   function lockButtons(on) {
     suiteRunning = on;
-    for (const b of document.querySelectorAll("[data-mode], #suite, #fresh, #result button")) b.disabled = on || (noOrder && b.matches(ORDER_CONTROLS));
+    stopRequested = false;
+    for (const b of document.querySelectorAll("[data-mode], #suite, #fresh, #result button")) b.disabled = (on && b.id !== "suite") || (noOrder && b.matches(ORDER_CONTROLS));
     const sb = $("suite");
     sb.setAttribute("aria-busy", String(on));
-    sb.innerHTML = on ? `${P.icon("loader", "spin")}Running the tamper test…` : `${P.icon("play")}Run the full tamper test`;
+    sb.innerHTML = on ? `${P.icon("stop")}Stop after this attempt` : `${P.icon("play")}Run the full tamper test`;
+    if (!on) $("suite-progress").hidden = true;
     // a disabled button drops keyboard focus to <body>; give it back so the keyboard path continues from here
     if (!on && (!document.activeElement || document.activeElement === document.body)) sb.focus({ preventScroll: true });
   }
@@ -601,16 +621,21 @@
         <div class="row"><button type="button" id="suite-force">Run it anyway with this record</button></div>`;
       return;
     }
-    suite = []; suiteTx = null;
+    suite = []; suiteTx = null; suiteStopped = false;
     lockButtons(true);
     try {
-      for (const m of SUITE) {
+      for (const [i, m] of SUITE.entries()) {
+        if (stopRequested) { suiteStopped = true; break; }
+        const pr = $("suite-progress");
+        pr.hidden = false;
+        pr.innerHTML = `<span>Attempt ${i + 1} of ${SUITE.length}: ${MODE_NAME[m]}</span><span class="track" aria-hidden="true"><span style="width:${Math.round((i + 1) / SUITE.length * 100)}%"></span></span>`;
         const r = await run(m);
         if (r) suite.push(r);
         await pause(350); // long enough to see each verdict go by in the video
       }
     } finally { lockButtons(false); }
     renderSuite();
+    reveal();
   }
 
   function tileOf(s) {
@@ -630,9 +655,10 @@
     const attacks = suite.filter((s) => s.mode !== "asis" && !s.notApplicable);
     const validOk = !!valid && valid.accepted;
     const allRejected = attacks.every((s) => !s.accepted);
-    const passed = validOk && allRejected;
+    const passed = validOk && allRejected && !suiteStopped;
     const replayed = suite.some((s) => s.mode === "replay" && !s.notApplicable);
-    const why = passed
+    const why = suiteStopped ? `Stopped by you after ${suite.length} of ${SUITE.length} attempts. Press Run the full tamper test to run all of them.`
+      : passed
       ? `The valid record is accepted and all ${attacks.length} attacks are rejected by the contract itself (eth_call of submitEvidence, no gas).`
       : !validOk ? "The valid record was not accepted: it is old, already used, or for another order. Load a fresh record of this order's supplier."
       : "The contract accepted an attack.";
@@ -646,8 +672,8 @@
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
       <h2>Tamper test, order #${order.id}</h2>
-      <div class="verdict hero ${passed ? "ok" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : "x")}</span>
-        <div><div class="big">${passed ? "Passed" : "Not passed"}</div><div class="why">${why}</div></div></div>
+      <div class="verdict hero ${passed ? "ok" : suiteStopped ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : "x")}</span>
+        <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : "Not passed"}</div><div class="why">${why}</div></div></div>
       <div class="tiles">${suite.map(tileOf).join("")}</div>
       <ul class="legend"><li class="pass">${P.icon("check")}Rejected with the attack's own error</li><li class="near">${P.icon("alert")}Rejected, but by an earlier check</li><li>Press a tile for its checklist.</li></ul>
       ${txNote}${replayStep}`;
@@ -734,6 +760,9 @@
     catch { respMsg(`${esc(f.name)} is not valid JSON. Upload the .json record written by fetch-evidence.sh.`, true); }
     e.target.value = "";
   });
+  const EMPTY_SCORE = $("score").innerHTML;
+  $("clear-score").addEventListener("click", () => { $("score").innerHTML = EMPTY_SCORE; $("clear-score").disabled = true; $("suite").focus(); });
+  $("clear-rec").addEventListener("click", () => { $("resp").value = ""; $("resp").removeAttribute("aria-invalid"); respMsg(""); $("resp").focus(); });
   let typing = null;
   $("resp").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(() => checkRecordInput(), 300); });
   $("fresh").addEventListener("click", () => freshLocal().catch((e) => respMsg(esc(e.message), true)));
@@ -745,8 +774,11 @@
     const fix = f.kind === "network" ? "" : " Nothing was sent. Your record is kept in step 2: check it there, then press the button again.";
     $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(f.text)}${fix}</div></div>`;
   };
-  for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => run(b.dataset.mode).catch(runFailed));
-  $("suite").addEventListener("click", () => runSuite().catch(runFailed));
+  for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => run(b.dataset.mode).then(reveal).catch(runFailed));
+  $("suite").addEventListener("click", () => {
+    if (suiteRunning) { stopRequested = true; $("suite").innerHTML = `${P.icon("loader", "spin")}Stopping after this attempt…`; return; }
+    runSuite().catch(runFailed);
+  });
   $("result").addEventListener("click", (e) => {
     const t = e.target.closest("button");
     if (!t || t.disabled) return;
