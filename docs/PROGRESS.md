@@ -73,6 +73,18 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · SupplierPulse+ contract (§6.1, Phase A)
+- Changed: branch `orhun/plus-contract`.
+  - `api3/src/ISupplierPulsePlus.sol` (§4.4 verbatim), `SupplierPulsePlus.sol`, `JsonFields.sol` (`parseBool`).
+  - `api3/test/SupplierPulsePlus.t.sol`: 55 tests. They cover the §4.2 vectors, every bad-input error, each Companies House and GLEIF rule, every tamper case (edited value, stale, future, other request, CH response on a GLEIF order, wrong key, replay, not newer, high-s), permits × tier, `NotDue`, all four `checkAndRelease` outcomes, tiers (gap, reset, shared record, `TierChanged`), refund grace and event arguments. `forge test`: 91 passed, including v1's 36. v1 files are unchanged.
+  - `api3/script/DeploySupplierPulsePlus.s.sol`, the `api3/scripts/plus-{lib,local,create-order,approve,refund,status,demo-orders}.sh` scripts, and the new lines in `api3/.env.example`.
+  - `plus-local.sh` was tested on anvil: deploy, the four §4.8 orders, a cast-signed clean record paid M1, a liquidation record held order 1 with labels, buyer refund, `NotHeld` on a second refund, and `BadSupplierId` decoded.
+- Next: C1a, tests with Emre's real fixtures. C2, `plus-local.sh` for the integration. C3, Sepolia deploy and `plus-demo-orders.sh`.
+- Notes:
+  - The local orders use `permitTtl` 300. The demo orders use `PERMIT_TTL` (default 1800).
+  - Demo due dates are fixed for Saturday CET: A M2 11:45, A M3 15:30, the others 12:00.
+  - `submitEvidence` reverts with `KeyNotFound` or `NoBool` if a field of an enabled rule is missing. That never pays, so it fails safe.
+
 ### 2026-10-30 · Julien · SupplierPulse+ build spec
 - Changed: `docs/SUPPLIERPULSE_PLUS.md` is the complete build spec for SupplierPulse+ (API3 track only, decided ~16:00). It contains:
   - frozen interfaces: contract ABI, request templates with test vectors, signed fields and rules, CLI tools, a local test chain;
