@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · salted document hash as orderRef (branch orhun/doc-hash)
+- Changed: `plus-doc-hash.sh` (keccak256(salt ++ document), random 32-byte salt), `plus-verify-doc.sh` (checks a document + salt against an order's `orderRef` on chain), `ORDER_DOC_HASH` option in `plus-create-order.sh`, Forge test cross-checking the script's hash (116 tests), README usage. No contract or ABI change, no redeploy; the live v2 and orders A–E are untouched.
+- Notes: on its own branch, not merged into `supplierpulse-plus`; the dashboard shows such orders as "Order 0x…" because their names can't be matched.
+
 ### 2026-10-30 · Orhun · v2 source verified on Etherscan
 - Changed: Etherscan exact match for `0xf25Aae1772326C95294D1923399D55c658493DfC` (built from `c668c51`); `docs/evidence.md` updated.
 - Notes: for the video, fresh held orders are opened right before filming, because the agent's 10-minute monitoring holds and refunds a new order within minutes.
