@@ -67,6 +67,8 @@ If the CDN is unreachable, both pages load the bundled copy in `vendor/ethers.um
 4. For each rejection that should show on Etherscan, press **Send anyway as a real transaction** (MetaMask on Sepolia), and keep the tx links for `docs/evidence.md`.
 5. **Send for real** the valid record, then **Replay**: `Replayed`.
 
+**Keep that order (Emre's note).** Attack a fresh record *before* it is sent for real. Once it is accepted, (a) reuses its timestamp and gets `NotNewer`, and (d) reuses its digest and gets `Replayed`, instead of `WrongSigner`. That is correct, but not what the video should show. The same happens if **the agent** submits a newer record for A between your fetch and your attacks (it re-checks A on its own). So run steps 3 and 4 right after the fetch, which also stays inside the 300 s `maxAge`. If (a) shows `NotNewer`, fetch a new record and repeat. The checklist on the page marks where the contract stopped.
+
 **If something looks wrong.** The page shows the RPC error in a red banner. publicnode is the default RPC; `?rpc=https://sepolia.gateway.tenderly.co` is the alternative (it refuses bursts). With no network at all, use `?sample=1` and say in the video that it is sample data.
 
 ## Checked (30 Oct 2026, ~17:40, spec v1.1)
