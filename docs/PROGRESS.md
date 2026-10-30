@@ -73,6 +73,18 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien · SupplierPulse+ build spec
+- Changed: `docs/SUPPLIERPULSE_PLUS.md` is the complete build spec for SupplierPulse+ (API3 track only, decided ~16:00). It contains:
+  - frozen interfaces: contract ABI, request templates with test vectors, signed fields and rules, CLI tools, a local test chain;
+  - five workstreams that don't block each other: Orhun the contract, Emre the data layer and judge CLI, Julien the agent, Batu the dashboard and judge page, Ulaş the story and submission;
+  - checkpoints C0 to C7, the Sepolia launch runbook, the submission checklist and the risks.
+
+  It supersedes the scope of `docs/SUPPLIER_PULSE_SPEC.md`; that file's demo ideas are included. Process ideas from Batu's subcontractor-agent design are adopted: the hero frame, a cross-review, pre-run proofs, claim limits. **New integration branch: `supplierpulse-plus`.** Also adds a grill-me skill under `.claude/skills/grillme/`.
+- Next: everyone reads §0 to §5 and their own §6 section, then creates a personal branch from `supplierpulse-plus` (C0).
+- Notes: two open points.
+  - The Companies House and GLEIF field paths in §4.2 are not yet verified live. Emre checks them by C1a (18:30).
+  - The agent wallet `0xED34…253a` needs at least 2 aUSD by C3.
+
 ### 2026-10-30 · Orhun
 - Changed: docs/SUPPLIER_PULSE_SPEC.md: next-iteration spec (3-milestone demo, permit fields, dashboard, hack simulator, 48h refund, gap to the current contract). Ideas only, no code change.
 - Next: decide which spec items to build before feature freeze.
