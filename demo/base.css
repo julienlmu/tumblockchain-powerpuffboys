@@ -114,6 +114,11 @@ kbd { font: 500 11px/1 var(--mono); padding: 2px 5px; border-radius: 4px; border
 .guide-body th { text-align: left; color: var(--muted); font-weight: 400; padding: 4px var(--s3) 4px 0; border-bottom: 1px solid var(--line-strong); }
 .guide-body td { padding: 4px var(--s3) 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .small { font-size: var(--t-1); }
+dl.defs { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px var(--s4); }
+dl.defs dt { color: var(--muted); }
+dl.defs dd { margin: 0; overflow-wrap: anywhere; }
+dl.defs dd b { font-weight: 500; }
+@media (max-width: 640px) { dl.defs { grid-template-columns: 1fr; gap: 0; } dl.defs dd { margin-bottom: var(--s2); } }
 
 /* settings */
 details.cfg-box { margin-top: var(--s3); }

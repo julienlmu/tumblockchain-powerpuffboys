@@ -20,19 +20,19 @@
 <meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <style>
   /* the three verification states, also a filter */
-  .states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--s3); margin-top: var(--s5); align-items: stretch; }
-  .state-btn { font: inherit; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: var(--s1); padding: var(--s3) var(--s4); min-height: 0; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--s3); margin-top: var(--s4); align-items: stretch; }
+  .state-btn { font: inherit; text-align: left; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s2) var(--s3); min-height: 0; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
   .state-btn:hover { border-color: var(--line-strong); background: var(--card); }
   .state-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .state-btn .top { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
-  .state-btn .count { font-size: var(--t3); font-weight: 700; line-height: 1; }
+  .state-btn .count { font-size: var(--t2); font-weight: 700; line-height: 1; }
   .state-btn .def { color: var(--muted); font-size: var(--t-1); line-height: 1.4; font-weight: 400; text-wrap: pretty; }
   .states .rest { color: var(--muted); font-size: var(--t-1); align-self: center; display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
   .link-order { font: inherit; background: none; border: none; padding: 0; min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; display: inline; }
   .link-order:hover { background: none; color: var(--text); }
 
   /* agent panel */
-  .agent { margin-top: var(--s4); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); }
+  .agent { margin-top: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3) var(--s4) var(--s2); }
   .agent-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; justify-content: space-between; }
   .agent-head h2 { margin: 0; font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: center; }
   .agent-head .sub { color: var(--muted); font-size: var(--t-1); }
@@ -45,7 +45,7 @@
   .flow .i { width: 0.95em; height: 0.95em; color: var(--muted); margin: 0 3px; }
 
   /* order cards */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s4); align-items: start; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--s4); margin-top: var(--s3); align-items: start; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; scroll-margin-top: var(--s4); }
   .card.is-held { border-color: color-mix(in srgb, var(--hold) 70%, transparent); }
   .card.flash { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -168,10 +168,14 @@
       <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme"><span class="lbl">Theme: auto</span></button>
     </div>
   </header>
+  <div class="meta-row">
   <div class="meta" id="meta"></div>
-  <div id="banner" role="status" aria-live="polite"></div>
+  <details class="cfg-box" id="details-box">
+    <summary>Contract details</summary>
+    <div class="guide-body"><dl class="defs" id="details"></dl></div>
+  </details>
   <details class="cfg-box" id="cfg-box">
-    <summary>Settings: contract, network, orders, agent</summary>
+    <summary>Settings</summary>
     <form class="cfg" id="cfg">
       <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
       <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
@@ -183,6 +187,8 @@
       <div class="btns"><button class="primary" type="submit">Load contract</button><button type="button" id="sample-btn">Show sample data</button></div>
     </form>
   </details>
+  </div>
+  <div id="banner" role="status" aria-live="polite"></div>
   <div class="states" id="states" role="group" aria-label="Filter orders by verification state"></div>
   <section class="agent" id="agent" aria-label="Agent activity"></section>
   <div class="grid" id="orders" aria-live="off"><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
@@ -331,6 +337,7 @@
     const n = o.next + 1, due = o.dueDates[o.next];
     if (o.state === 1) return null; // the held box says it
     if (o.state === 2) return null; // the closed box says it
+    if (o.autoRefundAt > 0 || supplierStopped(o)) return null; // the no-data box or the stop strip says it
     if (permitValid(o) && o.approved[o.next] && nowSec() >= due) return ["ok", `Ready: release() pays milestone ${n} now (valid permit, buyer approval, due).`];
     if (permitValid(o) && !o.approved[o.next]) return ["wait", `Permit for milestone ${n} is valid. Waiting for the buyer's approval.`];
     if (permitValid(o)) {
@@ -374,9 +381,9 @@
 
   // The three states the buyer reads first: eligible, rule failed, no data. The rest are waiting or closed.
   const STATES = {
-    ok: { cls: "ok", icon: "check", label: "Eligible", def: "A fresh signed record passed every rule. The payment permit is valid." },
-    rule: { cls: "hold", icon: "x", label: "Rule failed", def: "A genuine record failed the buyer's rules, on this order or another order of the same supplier. Payments stop; the balance stays protected for the buyer." },
-    nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid signed record since the due date. Says nothing bad about the supplier. The buyer gets the money back after the grace period." },
+    ok: { cls: "ok", icon: "check", label: "Eligible", def: "A fresh record passed every rule." },
+    rule: { cls: "hold", icon: "x", label: "Rule failed", def: "A genuine record failed a rule: payments stop." },
+    nodata: { cls: "wait", icon: "clock", label: "No data", def: "No valid record since the due date." },
     pending: { cls: "muted", icon: "clock", label: "Awaiting check" },
     paid: { cls: "ok", icon: "check", label: "Fully paid" },
     closed: { cls: "done", icon: "refund", label: "Refunded" },
@@ -480,7 +487,7 @@
     else if (permitValid(o)) permitRow = `<span class="good">valid</span> for M${o.next + 1} until ${clock(o.permitValidUntil)}, ${cd(o.permitValidUntil, "expired")} left`;
     else if (o.permitValidUntil > 0) permitRow = `<span class="late">expired</span> at ${clock(o.permitValidUntil)}`;
     else permitRow = `<span class="small-muted">${o.next > 0 ? `none: the last one paid M${o.next}` : "none yet"}</span>`;
-    permitRow += `<div class="small-muted">each permit lasts ${duration(o.info.permitTtl)} from the signed time</div>`;
+    if (!held && !closed) permitRow += `<div class="small-muted">each permit lasts ${duration(o.info.permitTtl)} from the signed time</div>`;
 
     const evs = [...o.events].sort((x, y) => (y.time || 0) - (x.time || 0) || (y.block || 0) - (x.block || 0) || (y.logIndex || 0) - (x.logIndex || 0));
     const trailKey = `trail-${o.id}`, histKey = `hist-${o.id}`;
@@ -516,12 +523,8 @@
           <dt>Rules</dt><dd>${P.ruleNames(o.info.source, o.info.rules).map(esc).join(", ")}</dd>
           <dt>Payment permit</dt><dd>${permitRow}</dd>
           <dt>Last signed record</dt><dd>${lastCheck}</dd>
-          <dt>Agent's last decision</dt><dd>${ctx.agent
-            ? `${agentWords(ctx.agent, o)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}`
-            : `<span class="small-muted">no agent transaction on this order yet</span>`}</dd>
-          <dt>Verification history</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed</span>
-            <details class="inline" data-key="${histKey}"${openTrails.has(histKey) ? " open" : ""}><summary>Register checks, not a credit score</summary>
-            <div class="small-muted">Register checks of this supplier across all orders, not a credit score. A longer clean history only means fewer paid re-checks.</div></details></dd>
+          ${ctx.agent ? `<dt>Agent's last decision</dt><dd>${agentWords(ctx.agent, o)} <span class="small-muted">${ctx.agent.time ? since(ctx.agent.time) : "#" + ctx.agent.block}</span> ${txLink(ctx.agent.tx)}</dd>` : ""}
+          <dt>Verification history</dt><dd>${tierBadge(o.rec.tier)} <span class="small-muted">clean streak ${o.rec.cleanStreak}, ${o.rec.checks} ${o.rec.checks === 1 ? "check" : "checks"}, ${o.rec.failures} failed · register checks, not a credit score</span></dd>
         </dl>
         ${trail}
       </article>`;
@@ -566,10 +569,11 @@
       return `<li><span class="t">${g.time ? clock(g.time) : "#" + g.block}</span>
         <span>#${g.order} ${name}: ${o ? agentWords(g, o) : ""}</span><span class="lnk">${txLink(g.tx)}</span></li>`;
     };
-    const more = rows.length > 5
-      ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - 5} earlier transactions</summary><ol>${rows.slice(5, 60).map(li).join("")}</ol></details>`
+    const SHOWN = 3;
+    const more = rows.length > SHOWN
+      ? `<details data-key="agent-more"${openTrails.has("agent-more") ? " open" : ""}><summary>${rows.length - SHOWN} earlier transactions</summary><ol>${rows.slice(SHOWN, 60).map(li).join("")}</ol></details>`
       : "";
-    $("agent").innerHTML = head + (rows.length ? `<ol>${rows.slice(0, 5).map(li).join("")}</ol>${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`);
+    $("agent").innerHTML = head + (rows.length ? `<ol>${rows.slice(0, SHOWN).map(li).join("")}</ol>${more}` : `<p class="small-muted" style="margin:8px 0 0">No agent transactions in the loaded history yet. They appear here as soon as the agent submits a record, pays a milestone or triggers a refund.</p>`);
   }
 
   let filter = null; // a STATES key: show only the orders in that state
@@ -612,6 +616,17 @@
     if (keep) { const el = document.querySelector(keep); if (el) el.focus({ preventScroll: true }); }
   }
 
+  // The contract's constants, each with what it means for the buyer.
+  function renderDetails(d) {
+    const row = (k, v, what) => `<dt>${k}</dt><dd><b>${v}</b> <span class="small-muted">${what}</span></dd>`;
+    $("details").innerHTML = [
+      d.contract ? row("Contract", `${addr(d.contract)}${P.copyBtn(d.contract)}`, "SupplierPulse+ v1.1") : "",
+      d.airnodes ? row("Trusted signers", `CH ${addr(d.airnodes[0])} · GLEIF ${addr(d.airnodes[1])}`, "the Airnodes whose signatures the contract accepts, one per register") : "",
+      row("Max age", `${d.maxAge} s`, `a signed record is accepted only if it is at most ${duration(d.maxAge)} old`),
+      row("Tier gap", duration(d.tierCountGap), `the verification history counts at most one clean check per ${duration(d.tierCountGap)}`),
+      row("Refund grace", duration(d.refundGrace), `after a hold, or an approved milestone overdue without data, the refund opens to anyone after ${duration(d.refundGrace)}`),
+    ].join("");
+  }
   function renderMeta(m) { $("meta").innerHTML = m.map(([k, val]) => `<span>${k} <b>${val}</b></span>`).join(""); }
   renderMeta([["Mode", cfg.sample ? "sample" : "reading the contract…"]]);
   function banner(kind, html) { $("banner").innerHTML = html ? `<div class="banner ${kind}">${html.startsWith("<svg") ? html : `<span>${html}</span>`}</div>` : ""; }
@@ -705,14 +720,10 @@
     const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
     renderMeta([
       [`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`],
-      ["Contract", addr(cfg.contract)],
-      ["Airnodes", `CH ${addr(consts.airnodes[0])} · GLEIF ${addr(consts.airnodes[1])}`],
-      ["Max age", `${consts.maxAge} s`],
-      ["Tier gap", duration(consts.tierCountGap)],
-      ["Refund grace", duration(consts.refundGrace)],
       ["Protected now", `${tok(protectedTotal)} tokens`],
       ["Updated", clock(nowSec()) + eventsNote],
     ]);
+    renderDetails({ contract: cfg.contract, airnodes: consts.airnodes, maxAge: consts.maxAge, tierCountGap: consts.tierCountGap, refundGrace: consts.refundGrace });
     banner("", ""); // no orders: the empty state in the grid says it
     lastOrders = orders;
     renderAll(orders, { sample: false });
@@ -725,9 +736,9 @@
     agentAddr = cfg.agent || data.agent;
     const orders = data.orders.map(norm);
     const protectedTotal = orders.filter((o) => o.state !== 2).reduce((x, o) => x + o.remaining, 0n);
-    renderMeta([["Mode", "sample"], ["Max age", `${data.maxAge} s`], ["Tier gap", duration(data.tierCountGap)], ["Refund grace", duration(data.refundGrace)],
-      ["Protected now", `${tok(protectedTotal)} tokens`], ["Updated", clock(nowSec())]]);
-    banner("sample", I("info") + "<span><b>Sample data, not read from a chain.</b> Orders follow the demo scenario (§2.5) with illustrative amounts, wallets, ids and times. Add <span class=\"mono\">?contract=0x…</span> for live data.</span>");
+    renderMeta([["Mode", "sample"], ["Protected now", `${tok(protectedTotal)} tokens`], ["Updated", clock(nowSec())]]);
+    renderDetails({ maxAge: data.maxAge, tierCountGap: data.tierCountGap, refundGrace: data.refundGrace });
+    banner("sample", I("info") + "<span><b>Sample data, not read from a chain:</b> the demo scenario with illustrative amounts, wallets, ids and times. Add <span class=\"mono\">?contract=0x…</span> for live data.</span>");
     lastOrders = orders;
     renderAll(orders, { sample: true });
   }
