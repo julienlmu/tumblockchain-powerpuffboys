@@ -40,12 +40,13 @@ class ScriptedRunner:
     """Answers cast commands by function name, and records which RPC each call used."""
 
     def __init__(self, answers, bad_rpcs=(), receipts=(), bad_receipt_rpcs=()):
-        self.answers, self.bad_rpcs, self.calls = answers, set(bad_rpcs), []
+        self.answers, self.bad_rpcs, self.calls, self.cmds = answers, set(bad_rpcs), [], []
         self.receipts, self.bad_receipt_rpcs = list(receipts), set(bad_receipt_rpcs)
 
     def __call__(self, cmd):
         url = cmd[cmd.index("--rpc-url") + 1] if "--rpc-url" in cmd else None
         self.calls.append((cmd[1], url))
+        self.cmds.append(cmd)
         if url in self.bad_rpcs:
             return proc(RPC_ERROR_ENVELOPE, 1)
         if cmd[1] == "rpc":  # eth_getTransactionReceipt: the next scripted receipt, None while pending
@@ -122,6 +123,10 @@ class ChainTest(unittest.TestCase):
         chain = Chain("0xc", ["http://a"], private_key="0xk", runner=runner, receipt_poll=0)
         self.assertEqual(chain.send("release", 1), TX)
         self.assertEqual([c for c, _ in runner.calls], ["send", "rpc", "rpc"])
+        send = runner.cmds[0]
+        self.assertIn("--async", send)
+        # Batu's finding: the exact estimate ran out of gas when the transaction landed a block later
+        self.assertEqual(send[send.index("--gas-limit") + 1], "600000")
 
     def test_a_receipt_rpc_failure_never_sends_again(self):
         # an RPC error while waiting (Tenderly -32603): the receipt comes from the next RPC, one transaction only

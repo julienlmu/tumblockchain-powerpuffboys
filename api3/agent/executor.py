@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Optional
 
 import policy
-from chain import ChainError, Reverted
+from chain import GAS_LIMIT, ChainError, Reverted
 from config import Config
 from evidence import FetchFailed, PaymentFailed, SetupFailed, VerificationFailed
 from journal import Journal
@@ -22,8 +22,7 @@ QUARANTINE_REVERTS = {"WrongRequest", "WrongSigner", "InvalidSigner", "InvalidSi
 EXPECTED_REVERTS = {"NotActive", "NotDue", "NotApproved", "NoValidPermit", "PermitExpired", "RefundNotYet", "NotHeld",
                     "NotRefundable", "SupplierFailed", "NoNewerFailure"}
 WRITE_ONLY = {"stop": "applySupplierFailure", "refund": "refundRemaining", "release": "release"}
-WRITE_GAS = 400_000  # a generous upper bound per write (submitEvidence used ~205k on Sepolia)
-MIN_WRITES = 2  # the agent wallet must afford this many writes at the current gas price
+MIN_WRITES = 2  # the agent wallet must afford this many writes at their gas limit and the current gas price
 
 
 class Executor:
@@ -72,7 +71,7 @@ class Executor:
             self.journal.write(cycle=cycle, action="gas", outcome="skipped",
                                reason="gas price %.1f gwei above %.1f" % (gwei, self.cfg.max_gas_price_gwei))
             return False
-        needed = max(int(gwei * 1e9) * WRITE_GAS * MIN_WRITES, 1)
+        needed = max(int(gwei * 1e9) * GAS_LIMIT * MIN_WRITES, 1)
         if balance < needed:
             outcome = "skipped" if self._low_balance else "alert"  # alert once, not every tick
             self._low_balance = True

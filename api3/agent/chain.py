@@ -33,6 +33,11 @@ SIGNATURES = {
     "refundRemaining": "refundRemaining(uint256)",
 }
 OUTCOME_NAMES = {0: "Paid", 1: "AwaitingApproval", 2: "NotDue", 3: "Held"}
+# Fixed gas limit for every write. cast send would use the exact estimate, and on a chain that mines in intervals
+# (Sepolia) a transaction often lands a block later, where more storage is written (for example the verification
+# history after tierCountGap): 18 of 24 sends ran out of gas in Batu's test. Unused gas is refunded, and every
+# write is simulated first, so the fixed limit only removes the estimate's lack of headroom.
+GAS_LIMIT = 600_000
 
 # 4-byte selectors of every error the contract and its libraries can raise (cast sig "Name(types)")
 ERROR_SELECTORS = {
@@ -220,7 +225,7 @@ class Chain:
     def send(self, name: str, *args) -> str:
         """Broadcast once (cast send --async), then poll the receipt by hash, with failover. A slow block or
         an RPC hiccup while waiting never sends the transaction again."""
-        out = self._cast(["send", "--async", "--private-key", self._key, self.contract,
+        out = self._cast(["send", "--async", "--gas-limit", str(GAS_LIMIT), "--private-key", self._key, self.contract,
                           input_signature(self.signatures[name])] + [str(a) for a in args])
         tx = str(out[0] if isinstance(out, list) and out else out).strip().strip('"')
         if not re.fullmatch(r"0x[0-9a-fA-F]{64}", tx):
