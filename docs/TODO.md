@@ -1,6 +1,6 @@
 # To do before submission (Sat 31 Oct, 15:00 Berlin)
 
-From the security and submission review of 30 Oct, each item checked against the code on `main` (aa031ad, same as the live v2 `0xf25Aae1772326C95294D1923399D55c658493DfC`). Tick an item and add a line to `docs/PROGRESS.md` when it is done.
+From the security review findings of 30 Oct, each item checked against the code on `main` (aa031ad, same as the live v2 `0xf25Aae1772326C95294D1923399D55c658493DfC`). Tick an item and add a line to `docs/PROGRESS.md` when it is done.
 
 Rule for tonight: no contract change, no new deployment, no dependency upgrade.
 

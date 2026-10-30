@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Orhun · security review findings → docs/TODO.md
+- Changed: `docs/TODO.md`, the to-do list before submission with an owner for each item (public repo, README, Devfolio/video texts, agent order allowlist, x402 limit, dashboard stop label, merge of `orhun/doc-tools`), pitch wording and known limits.
+- Notes: each finding checked against `main`. Document-tool fixes are on `orhun/doc-tools` (71be4ed). No contract change, no deploy.
+- Next: each owner ticks their items.
+
 ### 2026-10-30 · Orhun · v2 source verified on Etherscan
 - Changed: Etherscan exact match for `0xf25Aae1772326C95294D1923399D55c658493DfC` (built from `c668c51`); `docs/evidence.md` updated.
 - Notes: for the video, fresh held orders are opened right before filming, because the agent's 10-minute monitoring holds and refunds a new order within minutes.
