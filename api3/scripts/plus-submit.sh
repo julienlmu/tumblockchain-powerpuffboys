@@ -72,8 +72,9 @@ fi
 echo "$verdict"
 
 if (( send )); then
-  # a fixed gas limit skips estimation, so a rejected record is still mined (as a failed tx)
-  rc="$(plus_send "$EVM_PRIVATE_KEY" --gas-limit 500000 "$PULSE_PLUS_ADDRESS" "$SIG" "${call_args[@]}")" \
+  # a fixed gas limit skips estimation, so a rejected record is still mined (as a failed tx). A clean real
+  # record needs ~683k gas on v2 (agent finding, 30 Oct); unused gas is refunded.
+  rc="$(plus_send "$EVM_PRIVATE_KEY" --gas-limit 2000000 "$PULSE_PLUS_ADDRESS" "$SIG" "${call_args[@]}")" \
     || { echo "send failed: $rc" >&2; exit 1; }
   echo "tx $(echo "$rc" | jq -r .transactionHash) status $( [[ "$(echo "$rc" | jq -r .status)" == 0x1 ]] && echo success || echo failed)"
 fi
