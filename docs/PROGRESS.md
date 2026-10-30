@@ -73,6 +73,21 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien · INTERFACE CHANGE: spec v1.1 (before kickoff)
+- Changed: `docs/SUPPLIERPULSE_PLUS.md` v1.1. It adopts the real findings of Orhun's two reviews (`codex/api3-only-research`, `claude/project-thread-0habue`) **before anyone builds**:
+  - **Companies House fields** (§4.2, §4.3): the current pointers `/accounts/next_accounts/overdue` and `/confirmation_statement/overdue`. The insolvency rule is dropped (the field is deprecated; current insolvency already shows in the status). The new test vector is `0x6e84…7f0f`. The fallback if a field is missing is in §4.2.
+  - **Tiers as verification history** (§2.4): only the base status counts, the history only moves forward, and **permits are never extended**. The tier only changes how often the agent re-checks.
+  - **Supplier-wide stop** (§2.4a): `lastBaseFailureAt` blocks `release` on older permits for every order of the supplier. `applySupplierFailure(orderId)` holds other orders without a new fetch. New errors: `SupplierFailed`, `NoNewerFailure`.
+  - **No-data exit** (§2.4a): an approved milestone without a permit, overdue by `refundGrace`, lets the money go back to the buyer. `NotHeld` is replaced by `NotRefundable`, and `OrderRefunded` gets `noDataExit`.
+  - Real signed responses for the tamper cases (b) and (c), and real reverted transactions in the video (§4.7).
+  - v1 stays the fallback submission (§7); the agent runs against v1 tonight as a hedge (§6.3).
+  - `effectivePermitTtl` is removed, and `supplierRecord` gets `lastBaseFailureAt`.
+  - Two new local orders (4: same supplier as order 1, 5: no data).
+- Next: everyone builds against v1.1. Create your branch from `supplierpulse-plus` now.
+- Notes:
+  - The agent wallet funded itself: 0.003 ETH bridged to Base Sepolia (tx `0xd700…61f3`) and 10 aUSD minted (tx `0xa0cf…0c70`). How to do the same is in §5.3.
+  - Cardano stays out (the office-hours review suggested keeping one job; we keep the focus).
+
 ### 2026-10-30 · Julien (agent) · Phase A done
 - Changed: `api3/agent/` is the autonomous agent for SupplierPulse+ (spec §6.3).
   - **Schedule:** due checks within the lead time, re-checks by trust tier, releases at the due date, refunds after the grace period.

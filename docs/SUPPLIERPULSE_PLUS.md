@@ -1,11 +1,19 @@
 # SupplierPulse+: build spec (API3 track)
 
 > **For:** Orhun, Emre, Julien, Batu, Ulaş, and the coding agent each of you uses.
-> **Status:** decided Fri 30 Oct, ~16:00. We enter the **API3 track only** and build **SupplierPulse+ with trust tiers**.
+> **Status:** decided Fri 30 Oct, ~16:00. We enter the **API3 track only** and build **SupplierPulse+ with trust tiers** (since v1.1: verification-history tiers, §2.4).
 > This file is the single source of truth until submission. It replaces the scope of `docs/SUPPLIER_PULSE_SPEC.md`
 > (its "out of scope: multiple registries, credit scoring" no longer applies). Its demo ideas are included here (§2.5, §6.4).
 > `docs/SUPPLIERPULSE.md` keeps describing v1, the contract that is live today.
 > **Branch:** `supplierpulse-plus` is the integration branch for this build (§5.1).
+> **v1.1 (Fri ~17:00, before kickoff):** interface update after two reviews (`codex/api3-only-research`, `claude/project-thread-0habue`). It brings:
+> - current Companies House fields, with the insolvency rule dropped (§4.2, §4.3);
+> - tiers as verification history, without longer permits (§2.4);
+> - a supplier-wide stop and a no-data exit (§2.4a);
+> - real signed responses for the tamper demo (§4.7);
+> - an agent hedge on v1 tonight (§6.3).
+>
+> Code against this version.
 
 ## How to use this file
 
@@ -32,10 +40,11 @@ SupplierPulse+ releases milestone payments to a supplier only with **fresh, sign
 
 - **The agent** checks each supplier before every due date. It also re-checks between due dates, less often for suppliers with a clean track record. Each check pays $0.01 over x402 for a signed record from API3 AirnodeHub and submits it to the contract.
 - **The contract** verifies signer, request and freshness, then applies the buyer's rules:
-  - UK supplier (Companies House): the company is active, has no insolvency history, and its accounts and confirmation statement are not overdue.
+  - UK supplier (Companies House): the company is active, and its accounts and confirmation statement are not overdue.
   - Supplier with an LEI (GLEIF): the entity is active and the LEI registration is issued.
 - **The result:** the contract either issues a payment permit for exactly the next milestone, or holds the remaining balance for the buyer.
-- **Trust tiers:** every accepted record updates the supplier's on-chain trust tier. A higher tier lengthens permits, so the agent needs fewer paid checks.
+- **Verification history (tiers):** every accepted record updates the supplier's on-chain history of register checks. A supplier with a long clean history is re-checked less often, so the agent needs fewer paid checks. Permits are never extended.
+- **Supplier-wide stop:** one failed register status stops payments on every order of that supplier. If data stays unavailable, the buyer gets the money back after a grace period.
 - **Screens:** a dashboard shows the protected balance and the audit trail. A "Try to break it" page lets judges attack the contract themselves.
 
 ### Who does what
@@ -104,7 +113,7 @@ These are official, checked on 30 Oct.
 | Real use case | 40 | Supplier insolvency costs real money. Several signed risk signals, two registries, an audit trail (§2) |
 | Signed data matters | 30 | The signed record *is* the payment decision. The request hash is built on-chain from source and supplier |
 | Execution | 20 | Deployed contract, tamper tests, judge page and CLI, a dashboard on live data |
-| Novelty | 10 | Permits that expire per stage, trust tiers from signed history, rules the buyer picks per order |
+| Novelty | 10 | Permits that expire per stage, a supplier-wide stop from one verified record, verification history from signed records, rules the buyer picks per order |
 | **Agent bonus** | **+10** | "Demonstrate repeated autonomous cycles and explain the schedule, spending limits and failure handling. x402 payment alone is not sufficient." See §6.3 |
 
 **Judges:** Matej Falat (Software Engineer, API3) and Ugur Schenk (Strategy Lead, API3).
@@ -144,6 +153,7 @@ These are official, checked on 30 Oct.
 - free-amount withdrawals
 - a React or Next build: we keep static HTML, so judges need no build step
 - mainnet
+- Cardano. The office-hours review suggests keeping one Masumi job; the team keeps its focus on one track (decided 16:00, confirmed 17:00).
 - the subcontractor-agent design (`docs/designs/subcontractor-agent.md` on branch `claude/top-starred-llm-repos-49fd68`). It targets the Cardano track with nested Masumi escrow, which we don't enter. Its process ideas are adopted here: the hero frame and the pre-run proofs (§6.5, §7.4), the cross-review (§7.1b), prior art and claim limits (§6.5), and the contrast pitch line (§2.6).
 
 ---
@@ -161,7 +171,7 @@ These are official, checked on 30 Oct.
 **Who relies on the data.** The buyer's money. The signed register record is the only input that decides whether a stage is paid.
 
 **What goes wrong if it is forged.**
-- A forged record that says "active, no insolvency, accounts filed" pays the next instalment to a company that is being wound up.
+- A forged record that says "active, accounts filed" pays the next instalment to a company that is being wound up.
 - A forged negative record blocks an honest supplier.
 
 **Data we wanted but could not find on AirnodeHub:**
@@ -175,7 +185,7 @@ GLEIF covers German companies only when they have an LEI.
 1. **The buyer creates an order.** It names the supplier by registry source and id, the payout wallet, the milestones (amount and due date), the permit lifetime and the rules. The buyer locks the full amount.
 2. **The buyer approves each milestone:** order accepted, stage reached, delivery accepted. This is the "dual lock": the registry check plus the buyer.
 3. **The agent fetches evidence** before each due date, and between due dates depending on the tier. It pays $0.01 over x402 for a fresh signed record:
-   - Companies House `getCompanyProfile`, projected to 4 fields, or
+   - Companies House `getCompanyProfile`, projected to 3 fields, or
    - GLEIF `getLegalEntity`, projected to 2 fields.
 
    It then submits the record.
@@ -186,51 +196,68 @@ GLEIF covers German companies only when they have an LEI.
    - it is not a replay, and it is newer than the order's last record.
 
    Then it evaluates the order's rules.
-5. **A clean record** issues a permit for exactly the next milestone. The permit is valid for `permitTtl` times the tier multiplier, counted from the evidence time.
-6. **A failed record** holds the order and protects the remaining balance. The buyer can claim it at once. After a grace period, anyone (the agent) can trigger the refund, which always goes to the buyer.
+5. **A clean record** issues a permit for exactly the next milestone. The permit is valid for `permitTtl`, counted from the evidence time.
+6. **A failed record** holds the order and protects the remaining balance. The buyer can claim it at once. After a grace period, anyone (the agent) can trigger the refund, which always goes to the buyer. If the register status itself failed, every other order of that supplier stops too (§2.4a).
 7. **Payment.** At or after the due date, with a valid permit and the buyer's approval, the milestone is paid (`release`). The permit is used up.
-8. **Every accepted record updates the supplier's trust tier** (§2.4).
+8. **Every accepted record updates the supplier's verification history** (§2.4).
+9. **If data stays unavailable** after an approved milestone is overdue by the grace period, the buyer gets the remaining balance back (§2.4a).
 
 ### 2.3 What "+" adds to v1
 
 | | v1 (live) | SupplierPulse+ |
 |---|---|---|
 | Registries | Companies House | Companies House + GLEIF (LEI) |
-| Signed fields | `status` | Companies House: status, insolvency history, accounts overdue, confirmation statement overdue. GLEIF: entity status, registration status |
+| Signed fields | `status` | Companies House: status, accounts overdue, confirmation statement overdue. GLEIF: entity status, registration status |
 | Rules | status is `active` | The buyer picks rules per order (bitmask, §4.3) |
 | Schedule | none | A due date per milestone, enforced by `release` |
-| Trust | none | On-chain trust tiers from the signed history: longer permits, fewer paid checks |
+| Trust | none | On-chain verification history from signed records: fewer paid re-checks for suppliers with a long clean history. Permits are not extended |
 | After a hold | the buyer refunds | The buyer claims at any time; after the grace period anyone can trigger the refund to the buyer |
+| A supplier fails | only the order that received the record | Every order of that supplier: no payment on an older permit, and anyone can hold its other orders without a new fetch |
+| Data stays unavailable | the order stays locked | After an approved milestone is overdue by the grace period without a permit, the buyer gets the remaining balance back |
 | Agent | one-shot script | Autonomous loop: schedule by due dates and tier, daily budget, failure handling |
 | Judges | CLI tamper script | CLI plus a "Try to break it" page that simulates each attack against the live contract |
 | Dashboard | v1 order screen | Protected balance, tiers, failed rules in plain words, an audit trail showing the signed records, agent activity |
 
-### 2.4 Trust tiers
+### 2.4 Verification-history tiers
 
-**Record.** A record is kept per supplier, meaning source plus id. It is shared across all orders and buyers and holds:
-- `cleanStreak`, `checks`, `failures`
-- `lastCountedAt`, `lastCheckAt`
-- `tier`
+The contract keeps a **verification history per supplier** (source plus id), shared across all orders and buyers:
+`cleanStreak`, `checks`, `failures`, `lastCountedAt`, `lastCheckAt`, `lastBaseFailureAt`, `tier`.
 
-**Counting.**
-- A clean record raises `cleanStreak` by 1 only if at least `tierCountGap` has passed since the last counted one (production 1 day, demo 5 minutes). This stops anyone from farming a tier with rapid checks.
-- A failed record resets `cleanStreak` to 0, and the order is held.
+**What counts.** Only the **base check**: the register status (`active` for Companies House, `ACTIVE` for GLEIF). The buyer-specific rules (accounts or confirmation statement overdue, LEI renewal) don't count, because buyers enable different rules and one history must mean the same thing for everyone.
 
-**Tier.**
+**Counting:**
+- A record only updates the history if it is **newer than anything seen for that supplier** (`timestamp > lastCheckAt`). An older record can still serve its own order, but it never moves the history backwards.
+- A record whose base check passes raises `cleanStreak` by 1, but only if at least `tierCountGap` has passed since the last counted one (production 1 day, demo 5 minutes). This stops anyone from farming a tier with rapid checks.
+- A record whose base check fails resets `cleanStreak` to 0 and sets `lastBaseFailureAt`. That stops payments on every order of the supplier (§2.4a).
 
-| Tier | `cleanStreak` | Permit lifetime (on chain) | Agent re-check interval (off chain), production | Demo |
-|---|---|---|---|---|
-| Standard | 0 to 2 | × 1 | 1 day | 10 min |
-| Trusted | 3 to 5 | × 2 | 3 days | 30 min |
-| Premium | 6 or more | × 4 | 7 days | 60 min |
+| Tier | `cleanStreak` | Agent re-check interval, production | Demo |
+|---|---|---|---|
+| Standard | 0 to 2 | 1 day | 10 min |
+| Trusted | 3 to 5 | 3 days | 30 min |
+| Premium | 6 or more | 7 days | 60 min |
 
-The freshness window `maxAge` is never relaxed by the tier.
+**What a tier changes:** only how often the agent re-checks between due dates, so a supplier with a long clean history costs fewer paid checks.
+- **Permits are never extended.** A permit is always valid for the order's `permitTtl`, counted from the evidence time.
+- `maxAge` (300 s) never changes.
+- Before every due date the agent checks again anyway (§6.3).
 
-**Why it cannot be gamed:**
-- every entry is a verified signed record;
-- replays and older records are rejected;
-- only one clean record counts per gap;
-- any failure resets the streak.
+**What a tier is not:** a credit score. It is a history of register checks, and an active company can still fail to deliver. Screens and the pitch say "verification history".
+
+### 2.4a Supplier-wide stop and no-data exit
+
+**Supplier-wide stop.** When any order receives a valid record whose base check fails (for example `liquidation`), the contract stores `lastBaseFailureAt` for that supplier. From then on:
+- no order of that supplier can be paid on a permit whose evidence is older than the failure (`release` reverts `SupplierFailed`);
+- a clean record older than the failure is refused (`SupplierFailed`);
+- anyone (the agent) can call `applySupplierFailure(orderId)` to hold another order of that supplier **without a new paid fetch**, because the failure is already verified on chain.
+
+Rule-specific failures (accounts or confirmation statement overdue, LEI renewal) only hold the order that received the record, because other buyers may not have enabled that rule.
+
+**No-data exit.** The buyer gets the remaining balance back when all three hold:
+- the buyer has approved the next milestone;
+- there is no valid permit;
+- the due date has passed by more than `refundGrace`.
+
+`refundRemaining` can then be called by anyone, and the money always goes to the buyer. This covers data that stays unavailable: the register or the Airnode is down, or a field is missing. Milestones already paid stay paid. Without approval there is no exit, because then it is the buyer who has not released the payment.
 
 ### 2.5 Demo scenario
 
@@ -240,12 +267,12 @@ The freshness window `maxAge` is never relaxed by the tier.
 
 | Order | Supplier | Registry | Rules | Milestones (tokens), due | Expected |
 |---|---|---|---|---|---|
-| **A** "PO-1001 Motor supply" | `09729896` (active, flags to verify) | Companies House | `0x07` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
-| **B** "PO-1002 Gearbox" | `07418033` (liquidation) | Companies House | `0x07` | 1,000 (C3 + 20 min), 2,000 | Held at the first check. The agent triggers the refund after the grace period |
+| **A** "PO-1001 Motor supply" | `09729896` (active, flags to verify) | Companies House | `0x06` | 500 (C3 + 20 min), 1,000 (Sat 11:45), 1,500 (Sat 15:30) | M1 paid overnight. Tier rises to Premium. M2 is paid live while we record the video. M3 falls in the judging slot |
+| **B** "PO-1002 Gearbox" | `07418033` (liquidation) | Companies House | `0x06` | 1,000 (C3 + 20 min), 2,000 | Held at the first check. The agent triggers the refund after the grace period |
 | **C** "PO-1003 Sensors" | active company with **accounts overdue** (Emre finds it) | Companies House | `0x02` | 500, 500 | Held with "accounts overdue", although the status alone would have paid |
 | **D** "PO-1004 Cable harness (DE)" | German company with an LEI, `ACTIVE`/`ISSUED` (Emre finds it) | GLEIF | `0x08` | 500 (C3 + 30 min), 1,000 (Sat 12:00) | Paid overnight, and again live in the video |
-| **E** "PO-1005 Castings" | LEI with registration **LAPSED** (Emre finds it) | GLEIF | `0x08` | 500, 500 | Held with "LEI registration lapsed" |
-| **B2** (created live in the video) | `07418033` | Companies House | `0x07` | 1,000, 2,000 (due in 2 minutes) | Held live. The refund countdown and the "Claim now" option appear on screen |
+| **E** "PO-1005 Castings" | LEI with registration **LAPSED** (Emre finds it) | GLEIF | `0x08` | 500, 500 | Held with "LEI renewal overdue (LAPSED)" |
+| **B2** (created live in the video) | `07418033` | Companies House | `0x06` | 1,000, 2,000 (due in 2 minutes) | Held at once by the **supplier-wide stop** (order B already showed `liquidation`), without a new fetch. The refund countdown and the "Claim now" option appear on screen |
 
 **Approvals at creation:** A: M1 and M2. B: M1. C: M1. D: M1 and M2. E: M1. The buyer approves A's M3 live, as the "dual lock" moment.
 
@@ -253,12 +280,14 @@ The freshness window `maxAge` is never relaxed by the tier.
 
 - **Tagline:** *Your supplier was approved last month. That should not approve today's payment.*
 - **One-liner:** *Every supplier payment carries its own proof: a fresh, signed register record the contract checked before the money moved.*
-- **Tiers:** *Good suppliers earn longer permits, computed from signed records, so nobody can fake a track record.*
+- **Verification history:** *Suppliers with a long clean record are re-checked less often. The history is computed from signed records, so nobody can fake it. It is a history of register checks, not a credit score.*
+- **Supplier-wide stop:** *One failed register record stops payments to that supplier on every order.*
+- **Status quo:** *An alert tells a person, who usually reads it after the payment went out. Here the register itself stops the money, stage by stage.*
 - **Agent:** *The agent pays a cent per check, before every due date, within a daily budget, and stops the money the moment a supplier fails.*
 - **Honest limit:** *A signature proves the register said it, not that the supplier will deliver. Delivery stays the buyer's approval.*
 - **Contrast:** *Today a person checks a supplier once, at onboarding. Here the arbiter is the register itself: signed, fresh, at every payment.*
 - **Bigger picture:** *Any register on AirnodeHub can become a payment condition, so every scheduled B2B payment can carry its own proof.*
-- **Claim limits:** never say "first". API3's own idea list names registry-condition payments. Our novelty is the mechanism: permits that expire per stage, rules the buyer picks per order, trust tiers from signed history, and an autonomous agent with a budget.
+- **Claim limits:** never say "first". API3's own idea list names registry-condition payments. Our novelty is the mechanism: permits that expire per stage, rules the buyer picks per order, a supplier-wide stop from one verified record, and an autonomous agent with a budget.
 
 ---
 
@@ -300,7 +329,7 @@ The freshness window `maxAge` is never relaxed by the tier.
 | GLEIF Airnode | `https://airnode-gleif.fly.dev/`, signer `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c` |
 | v1 contract (fallback) | `0x91d7dbae109029b2b1245179a68ac362799674d7` |
 | **v2 contract** | *set at C3 by Orhun (also in `docs/evidence.md` and `api3/.env.example`)* |
-| Agent wallet | `0xED3418aE93669a640650728E70f7aA712083253a` (Julien). Holds 0.05 Sepolia ETH and **needs at least 2 aUSD by C3** (Batu sends it) |
+| Agent wallet | `0xED3418aE93669a640650728E70f7aA712083253a` (Julien). Funded at ~16:55: 0.047 Sepolia ETH, and 10 aUSD minted by the wallet itself on Base Sepolia (mint tx `0xa0cf7101…0c70`) |
 | Buyer wallet (demo orders) | Orhun's deployer `0xEb3EB6da882798062b30CeC11AAaDe306287ce41` |
 | Supplier payout wallets | Fresh addresses the team controls. **Never anvil test addresses on Sepolia**, because anyone can sweep them |
 
@@ -337,10 +366,10 @@ Everything another workstream depends on is in this section. Code against it exa
   "source": "ch",
   "supplierId": "09729896",
   "airnode": "0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF",
-  "requestHash": "0xde8d697c8cd5e5ead92f39da40c08b65459caf8ba0b60d4543b39369c65e7775",
+  "requestHash": "0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f",
   "timestamp": "1793371032",
   "data": "0x7b226163636f756e74735f6f766572647565223a66616c73652c…",
-  "raw": "{\"accounts_overdue\":false,\"confirmation_overdue\":false,\"insolvency\":false,\"status\":\"active\"}",
+  "raw": "{\"accounts_overdue\":false,\"confirmation_overdue\":false,\"status\":\"active\"}",
   "signature": "0x…65 bytes…",
   "paymentTx": "0x… or null",
   "priceUsd": "0.01",
@@ -368,13 +397,13 @@ requestHash = keccak256(utf8(JSON.stringify([operation, sortedParameters, sorted
 **Companies House (source 0).** Replace `<ID>`:
 
 ```text
-["getCompanyProfile",[["company_number","<ID>"]],[["accounts_overdue","/accounts/overdue"],["confirmation_overdue","/confirmation_statement/overdue"],["insolvency","/has_insolvency_history"],["status","/company_status"]]]
+["getCompanyProfile",[["company_number","<ID>"]],[["accounts_overdue","/accounts/next_accounts/overdue"],["confirmation_overdue","/confirmation_statement/overdue"],["status","/company_status"]]]
 ```
 
 HTTP body:
 
 ```json
-{"operation":"getCompanyProfile","parameters":{"company_number":"<ID>"},"responseProjection":{"accounts_overdue":"/accounts/overdue","confirmation_overdue":"/confirmation_statement/overdue","insolvency":"/has_insolvency_history","status":"/company_status"}}
+{"operation":"getCompanyProfile","parameters":{"company_number":"<ID>"},"responseProjection":{"accounts_overdue":"/accounts/next_accounts/overdue","confirmation_overdue":"/confirmation_statement/overdue","status":"/company_status"}}
 ```
 
 **GLEIF (source 1):**
@@ -399,14 +428,20 @@ HTTP body:
 
 | Input | Value |
 |---|---|
-| `requestHash` Companies House `09729896` | `0xde8d697c8cd5e5ead92f39da40c08b65459caf8ba0b60d4543b39369c65e7775` |
+| `requestHash` Companies House `09729896` | `0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f` |
 | `requestHash` GLEIF `TESTLEI0000000000000` | `0x82e8da1da50a59eb4941e8461f35869cb1a4a95183dc1ea84075b99af97d790f` |
 | `supplierKey(0, "09729896")` | `0xabf8d9a610a62d829c8b4ecdf8bee9db7988e3386692f4e1667c46a4698b3d2a` |
 | `supplierKey(1, "TESTLEI0000000000000")` | `0x31b072a73946faf810268129043fd17faebcf51b0756ab720dffc03eaaefe0f6` |
 | Reference: the v1 one-field template for `09729896` (equals the real signed sample) | `0xcae416f2dce5fb6bb595eafe8c5f11ce9df4b33f8664042e10f8f776739fab48` |
 
-> ⚠️ **Not yet verified live:** the Companies House pointers `/accounts/overdue`, `/confirmation_statement/overdue` and `/has_insolvency_history`, and both GLEIF pointers.
-> Emre verifies them with real calls by **C1a (18:30)**. If a pointer or key changes, Emre updates this section and the test vectors in the same commit, writes a PROGRESS entry starting with `INTERFACE CHANGE:`, and tells Orhun. On the contract side that is two string constants.
+> ⚠️ **Not yet verified live:** the Companies House pointers `/accounts/next_accounts/overdue` and `/confirmation_statement/overdue`, and both GLEIF pointers.
+> **v1.1:** these replace the deprecated `/accounts/overdue` and `/has_insolvency_history` from the official Companies House schema. Both nested fields are optional in that schema, so some companies may not return them.
+> Emre verifies them with real calls by **C1a (18:30)**. Fallback, decided by Emre and Orhun at C1a:
+> 1. If a field is missing for a demo company, choose a demo company that has it.
+> 2. If it is missing for most companies, drop that field and its rule from the template.
+> 3. In the worst case, fall back to status only, which is v1's verified request.
+>
+> Any change follows §4.9: update this section and the vectors in the same commit, then write a PROGRESS entry starting with `INTERFACE CHANGE:`. On the contract side that is two string constants.
 > Until then, use the pointers exactly as written.
 
 ### 4.3 Signed fields and rules
@@ -414,7 +449,7 @@ HTTP body:
 The signed `data` is a flat JSON object containing exactly the projected fields. **Key order is not guaranteed**, so always parse by key.
 
 ```json
-{"accounts_overdue":false,"confirmation_overdue":false,"insolvency":false,"status":"active"}
+{"accounts_overdue":false,"confirmation_overdue":false,"status":"active"}
 {"entity_status":"ACTIVE","registration_status":"ISSUED"}
 ```
 
@@ -422,34 +457,39 @@ The signed `data` is a flat JSON object containing exactly the projected fields.
 |---|---|---|---|---|---|
 | base (always on) | none | Companies House | `status` (string) | `== "active"` | registry status not active |
 | base (always on) | none | GLEIF | `entity_status` (string) | `== "ACTIVE"` | LEI entity not active |
-| `0x01` | `RULE_NO_INSOLVENCY` | Companies House | `insolvency` (bool) | `false` | insolvency history |
+| `0x01` | reserved | | | Removed in v1.1: the "insolvency history" field is deprecated, and current insolvency already shows in the status (liquidation, administration) | |
 | `0x02` | `RULE_ACCOUNTS_CURRENT` | Companies House | `accounts_overdue` (bool) | `false` | accounts overdue |
 | `0x04` | `RULE_CONFIRMATION_CURRENT` | Companies House | `confirmation_overdue` (bool) | `false` | confirmation statement overdue |
-| `0x08` | `RULE_LEI_ISSUED` | GLEIF | `registration_status` (string) | `== "ISSUED"` | LEI registration not issued (e.g. lapsed) |
+| `0x08` | `RULE_LEI_ISSUED` | GLEIF | `registration_status` (string) | `== "ISSUED"` | LEI renewal overdue (e.g. LAPSED) |
 
 - **`failedRules`** (uint8) holds the bits of the enabled rules that failed, OR `0x80` if the base check failed. A record is **clean exactly when `failedRules == 0`**.
-- **Valid `rules` per order:** Companies House ⊆ `0x07`, GLEIF ⊆ `0x08`. Anything else reverts with `BadRules`.
-- **Missing field:** if a profile lacks a projected field, the Airnode answers HTTP 400 and signs nothing. The agent reports "no data" and retries. An order can never be paid without evidence (fail-safe).
+- **Valid `rules` per order:** Companies House ⊆ `0x06`, GLEIF ⊆ `0x08`. Anything else, including `0x01`, reverts with `BadRules`.
+- **LAPSED is not inactive.** For GLEIF, `LAPSED` means the LEI was not renewed on time. It does not mean the entity is inactive or insolvent, so screens say "LEI renewal overdue".
+- **Three outcomes for screens:**
+  - **verified eligible** (clean);
+  - **verified policy failure** (held, with labels);
+  - **data unavailable**: no signed record. Never show this as a negative fact.
+- **Missing field:** if a profile lacks a projected field, the Airnode answers HTTP 400 and signs nothing. The agent reports "no data" and retries. Without evidence there is no payment, and the no-data exit applies (§2.4a).
 - **Parsing in Solidity:**
   - strings with `PriceParser.parseString(data, '"status":')`;
-  - booleans with the new `JsonFields.parseBool(data, '"insolvency":')`: skip spaces, accept the literals `true` or `false`, otherwise revert `NoBool()`.
+  - booleans with the new `JsonFields.parseBool(data, '"accounts_overdue":')`: skip spaces, accept the literals `true` or `false`, otherwise revert `NoBool()`.
   - Key patterns always include the leading quote, so `"status":` can never match inside `"entity_status":`.
 
 ### 4.4 Contract interface: `api3/src/ISupplierPulsePlus.sol`
 
-Orhun copies this verbatim at C0, and `SupplierPulsePlus` implements it.
+Orhun copies this verbatim at C0 (v1.1), and `SupplierPulsePlus` implements it.
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// SupplierPulse+ interface, frozen in docs/SUPPLIERPULSE_PLUS.md §4.4.
+/// SupplierPulse+ interface, frozen in docs/SUPPLIERPULSE_PLUS.md §4.4 (v1.1).
 /// Enums travel as uint8:
 ///   source  0 CompaniesHouse, 1 Gleif
 ///   state   0 Active, 1 Held, 2 Closed
 ///   outcome 0 Paid, 1 AwaitingApproval, 2 NotDue, 3 Held
 ///   tier    0 Standard, 1 Trusted, 2 Premium
-/// rules / failedRules bits: 0x01 no insolvency history (CH), 0x02 accounts current (CH),
+/// rules / failedRules bits: 0x01 reserved (unused), 0x02 accounts current (CH),
 ///   0x04 confirmation statement current (CH), 0x08 LEI registration issued (GLEIF),
 ///   0x80 (failedRules only) base status check failed.
 interface ISupplierPulsePlus {
@@ -479,7 +519,7 @@ interface ISupplierPulsePlus {
     event PermitIssued(uint256 indexed orderId, uint256 milestone, uint256 amount, uint64 validUntil, bytes32 evidence);
     event MilestonePaid(uint256 indexed orderId, uint256 milestone, address supplier, uint256 amount, bytes32 evidence);
     event OrderHeld(uint256 indexed orderId, uint8 failedRules, uint256 remaining, uint64 autoRefundAt);
-    event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy);
+    event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy, bool noDataExit);
     event TierChanged(bytes32 indexed supplierKey, uint8 oldTier, uint8 newTier, uint32 cleanStreak);
     event ConfigUpdated(uint8 source, address airnode, uint256 maxAgeSeconds);
 
@@ -494,8 +534,10 @@ interface ISupplierPulsePlus {
     error NotApproved(uint256 milestone);
     error NotDue(uint256 dueDate, uint256 nowTs);
     error NotActive(uint8 state);
-    error NotHeld();
-    error RefundNotYet(uint256 autoRefundAt);
+    error NotRefundable();
+    error RefundNotYet(uint256 refundableAt);
+    error SupplierFailed(uint256 failedAt);
+    error NoNewerFailure();
     error BadOrder();
     error BadSource();
     error BadSupplierId();
@@ -515,7 +557,8 @@ interface ISupplierPulsePlus {
         uint8 rules
     ) external payable returns (uint256 orderId);
     function approveMilestone(uint256 orderId, uint256 milestone) external;
-    /// buyer: any time after a hold. Anyone: from autoRefundAt on. The money always goes to the buyer.
+    /// Held: the buyer any time, anyone from heldAt + refundGrace. Active (no-data exit): anyone, once the next
+    /// milestone is approved, has no valid permit and is overdue by refundGrace. The money always goes to the buyer.
     function refundRemaining(uint256 orderId) external;
 
     // ---- anyone (agent, judges)
@@ -534,6 +577,8 @@ interface ISupplierPulsePlus {
         bytes calldata data,
         bytes calldata signature
     ) external returns (uint8 outcome);
+    /// Hold this order because its supplier's register status failed on another order (no new evidence needed).
+    function applySupplierFailure(uint256 orderId) external;
 
     // ---- views
     function requestHashFor(uint8 source, string calldata supplierId) external pure returns (bytes32);
@@ -589,9 +634,9 @@ interface ISupplierPulsePlus {
             uint32 failures,
             uint64 lastCountedAt,
             uint64 lastCheckAt,
+            uint64 lastBaseFailureAt,
             uint8 tier
         );
-    function effectivePermitTtl(uint256 orderId) external view returns (uint64);
     function airnodeOf(uint8 source) external view returns (address);
     function maxAge() external view returns (uint256);
     function tierCountGap() external view returns (uint64);
@@ -609,14 +654,11 @@ The library errors can also surface and must be decodable by the tools:
 - `AirnodeVerifier`: `InvalidSignatureLength()`, `InvalidSignatureS()`, `InvalidSignatureV()`, `InvalidSigner()`
 - `PriceParser` and `JsonFields`: `KeyNotFound()`, `NoNumber()`, `NoString()`, `NoBool()`
 
-### 4.5 Contract behaviour (exact)
+### 4.5 Contract behaviour (exact, v1.1)
 
 **Constructor:** `constructor(address chAirnode, address gleifAirnode, uint256 maxAge, uint64 tierCountGap, uint64 refundGrace)`. `admin` is the deployer.
 
-**Constants:**
-- `MAX_FUTURE_SKEW = 60`
-- `TRUSTED_STREAK = 3`, `PREMIUM_STREAK = 6`
-- permit multipliers Standard × 1, Trusted × 2, Premium × 4
+**Constants:** `MAX_FUTURE_SKEW = 60`, `TRUSTED_STREAK = 3`, `PREMIUM_STREAK = 6`. There are no permit multipliers.
 
 **Deploy values:**
 
@@ -629,7 +671,7 @@ The library errors can also surface and must be decodable by the tools:
 **`createOrder`.** Validations, in this order:
 1. `source ≤ 1`, otherwise `BadSource`.
 2. The id format from §4.2, otherwise `BadSupplierId`.
-3. `rules` is valid for the source, otherwise `BadRules`.
+3. `rules` is valid for the source (Companies House ⊆ `0x06`, GLEIF ⊆ `0x08`), otherwise `BadRules`.
 4. `supplier != 0`, `amounts.length ≥ 1`, `amounts.length == dueDates.length`, every amount > 0, due dates are non-decreasing, `permitTtl > 0`, and `msg.value == sum(amounts)`. Otherwise `BadOrder`.
 
 Effects:
@@ -649,16 +691,17 @@ Effects:
 7. `timestamp > order.lastCheck` (`NotNewer`).
 8. The signer recovered with `AirnodeVerifier` equals `airnodeOf(order.source)` (`WrongSigner(recovered)`).
 9. Parse the fields of the order's source and compute `failedRules` (§4.3).
+10. If the record is clean but `timestamp ≤ supplier.lastBaseFailureAt`, revert `SupplierFailed(lastBaseFailureAt)`: a clean record that is older than a known failure.
 
 Then the effects:
 - `usedDigests[d] = true`, `order.lastCheck = timestamp`, `order.lastFailedRules = failedRules`.
-- **Supplier record:** `checks++` and `lastCheckAt = timestamp`.
-  - If clean and (`lastCountedAt == 0` or `timestamp ≥ lastCountedAt + tierCountGap`): `cleanStreak++` and `lastCountedAt = timestamp`.
-  - If not clean: `failures++` and `cleanStreak = 0`.
-  - Recompute the tier, and emit `TierChanged` if it changed.
+- **Supplier history, only if `timestamp > supplier.lastCheckAt`.** Then `checks++` and `lastCheckAt = timestamp`.
+  - Base check passed, and (`lastCountedAt == 0` or `timestamp ≥ lastCountedAt + tierCountGap`): `cleanStreak++` and `lastCountedAt = timestamp`.
+  - Base check failed: `failures++`, `cleanStreak = 0`, `lastBaseFailureAt = timestamp`.
+  - Recompute the tier, and emit `TierChanged` if it changed. Rule-only failures don't touch the history.
 - Emit `EvidenceAccepted(orderId, supplierKey, clean, failedRules, timestamp, d, msg.sender, data)`.
 - **Not clean:** `state = Held`, `heldAt = now`, clear the permit, emit `OrderHeld(orderId, failedRules, remaining, heldAt + refundGrace)`, and return `false`.
-- **Clean:** `validUntil = timestamp + permitTtl × multiplier(tier after this update)`. Set the permit to `(validUntil, paidCount, d)`, emit `PermitIssued`, and return `true`. A new clean record replaces an older permit.
+- **Clean:** set the permit to `(validUntil = timestamp + permitTtl, milestone = paidCount, evidence = d, evidenceAt = timestamp)`, emit `PermitIssued`, and return `true`. A new clean record replaces an older permit.
 
 **`release`.** Anyone may call it. Checks:
 - `state == Active` (`NotActive`)
@@ -666,6 +709,7 @@ Then the effects:
 - `now ≤ validUntil` (`PermitExpired`)
 - `approved[m]` (`NotApproved(m)`)
 - `now ≥ dueDates[m]` (`NotDue(dueDates[m], now)`)
+- `permit.evidenceAt > supplier.lastBaseFailureAt` (`SupplierFailed(lastBaseFailureAt)`): a newer failure on any order stops this payment
 
 Effects:
 - Clear the permit, `paidCount++`, `paid += amount`, and set `state = Closed` after the last milestone.
@@ -680,27 +724,39 @@ State changes happen before the transfer, as in v1.
 - `now < dueDates[m]`: return `2` (NotDue);
 - otherwise call `release` and return `0` (Paid).
 
-It reverts only on verification failures.
+It reverts only on verification failures and on `SupplierFailed`.
+
+**`applySupplierFailure`.** Anyone may call it.
+- Checks: `state == Active` (`NotActive`), and `supplier.lastBaseFailureAt > order.lastCheck` (`NoNewerFailure`).
+- Effects: `state = Held`, `heldAt = now`, `lastFailedRules = 0x80`, clear the permit, and emit `OrderHeld(orderId, 0x80, remaining, heldAt + refundGrace)`.
 
 **`refundRemaining`.**
-- `state == Held` (`NotHeld`).
-- `msg.sender == buyer` or `now ≥ heldAt + refundGrace` (`RefundNotYet(heldAt + refundGrace)`).
-- Effects: `state = Closed`, emit `OrderRefunded(orderId, buyer, remaining, msg.sender)`, and transfer the remaining balance **to the buyer**.
+- **Held:** `msg.sender == buyer` or `now ≥ heldAt + refundGrace` (`RefundNotYet(heldAt + refundGrace)`). `noDataExit = false`.
+- **Active (no-data exit):** with `m = paidCount`:
+  - `approved[m]` (`NotApproved(m)`);
+  - no valid permit for `m` (`NotRefundable`);
+  - `now ≥ dueDates[m] + refundGrace` (`RefundNotYet(dueDates[m] + refundGrace)`).
+
+  Anyone may call it. `noDataExit = true`.
+- **Closed:** `NotRefundable`.
+- Effects: `state = Closed`, emit `OrderRefunded(orderId, buyer, remaining, msg.sender, noDataExit)`, and transfer the remaining balance **to the buyer**.
 
 A hold is final: there is no un-hold.
 
 **Views:**
 - `orderSchedule.nextDueDate` is `dueDates[paidCount]`, or `0` when closed.
-- `autoRefundAt` is `heldAt + refundGrace` when held, otherwise `0`.
+- `autoRefundAt`:
+  - `heldAt + refundGrace` when held;
+  - `dueDates[m] + refundGrace` when active, the next milestone is approved and there is no valid permit (the no-data exit);
+  - otherwise `0`.
 - `tier` is the supplier's current tier.
-- `effectivePermitTtl` is `permitTtl × multiplier(current tier)`.
 - `orderStatus.permitValid` follows v1: active, permit exists for `paidCount`, and `now ≤ validUntil`.
 
 **Admin:** `setAirnode` and `setMaxAge` are admin only and emit `ConfigUpdated`.
 
 ### 4.6 The ABI for tools
 
-**cast signatures** (for bash and the Python agent; `cast call` prints one value per line):
+**cast signatures** (for bash and the Python agent; `cast call` prints one value per line, `cast call --json` prints a JSON array):
 
 | Purpose | Signature |
 |---|---|
@@ -709,16 +765,17 @@ A hold is final: there is no un-hold.
 | milestones | `orderMilestones(uint256)(uint256[],uint64[],bool[])` |
 | status | `orderStatus(uint256)(uint8,uint256,uint256,uint256,uint256,uint64,bool,uint256)` |
 | schedule | `orderSchedule(uint256)(uint64,bool,uint8,uint64,uint64,uint8)` |
-| supplier | `supplierRecord(bytes32)(uint32,uint32,uint32,uint64,uint64,uint8)` |
+| supplier | `supplierRecord(bytes32)(uint32,uint32,uint32,uint64,uint64,uint64,uint8)` |
 | key | `supplierKeyOf(uint8,string)(bytes32)` |
 | evidence | `submitEvidence(uint256,bytes32,uint256,bytes,bytes)` returns `(bool)` |
 | check and pay | `checkAndRelease(uint256,bytes32,uint256,bytes,bytes)` returns `(uint8)` |
 | pay | `release(uint256)` |
+| supplier-wide stop | `applySupplierFailure(uint256)` |
 | refund | `refundRemaining(uint256)` |
 | create | `createOrder(uint8,string,address,bytes32,uint256[],uint64[],uint64,uint8)` |
 | approve | `approveMilestone(uint256,uint256)` |
 
-cast prints numbers like `1793371032 [1.793e9]`, so strip everything after the first space. Strings come back quoted.
+cast prints numbers like `1793371032 [1.793e9]`, so strip everything after the first space. Strings come back quoted. With `--json`, `uint256` values come as strings.
 
 **ethers v6 human-readable ABI** (for the browser pages):
 
@@ -729,10 +786,9 @@ export const PULSE_PLUS_ABI = [
   "function orderMilestones(uint256) view returns (uint256[] amounts, uint64[] dueDates, bool[] approved)",
   "function orderStatus(uint256) view returns (uint8 state, uint256 paid, uint256 remaining, uint256 nextMilestone, uint256 milestones, uint64 permitValidUntil, bool permitValid, uint256 lastCheck)",
   "function orderSchedule(uint256) view returns (uint64 nextDueDate, bool nextApproved, uint8 lastFailedRules, uint64 heldAt, uint64 autoRefundAt, uint8 tier)",
-  "function supplierRecord(bytes32) view returns (uint32 cleanStreak, uint32 checks, uint32 failures, uint64 lastCountedAt, uint64 lastCheckAt, uint8 tier)",
+  "function supplierRecord(bytes32) view returns (uint32 cleanStreak, uint32 checks, uint32 failures, uint64 lastCountedAt, uint64 lastCheckAt, uint64 lastBaseFailureAt, uint8 tier)",
   "function supplierKeyOf(uint8 source, string supplierId) pure returns (bytes32)",
   "function requestHashFor(uint8 source, string supplierId) pure returns (bytes32)",
-  "function effectivePermitTtl(uint256) view returns (uint64)",
   "function airnodeOf(uint8) view returns (address)",
   "function maxAge() view returns (uint256)",
   "function tierCountGap() view returns (uint64)",
@@ -743,6 +799,7 @@ export const PULSE_PLUS_ABI = [
   "function submitEvidence(uint256 orderId, bytes32 requestHash, uint256 timestamp, bytes data, bytes signature) returns (bool clean)",
   "function release(uint256 orderId)",
   "function checkAndRelease(uint256 orderId, bytes32 requestHash, uint256 timestamp, bytes data, bytes signature) returns (uint8 outcome)",
+  "function applySupplierFailure(uint256 orderId)",
   "function refundRemaining(uint256 orderId)",
   "event OrderCreated(uint256 indexed orderId, address indexed buyer, bytes32 indexed supplierKey, address supplier, uint8 source, string supplierId, bytes32 requestHash, bytes32 orderRef, uint256 total, uint8 rules)",
   "event MilestoneApproved(uint256 indexed orderId, uint256 milestone)",
@@ -750,14 +807,15 @@ export const PULSE_PLUS_ABI = [
   "event PermitIssued(uint256 indexed orderId, uint256 milestone, uint256 amount, uint64 validUntil, bytes32 evidence)",
   "event MilestonePaid(uint256 indexed orderId, uint256 milestone, address supplier, uint256 amount, bytes32 evidence)",
   "event OrderHeld(uint256 indexed orderId, uint8 failedRules, uint256 remaining, uint64 autoRefundAt)",
-  "event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy)",
+  "event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount, address triggeredBy, bool noDataExit)",
   "event TierChanged(bytes32 indexed supplierKey, uint8 oldTier, uint8 newTier, uint32 cleanStreak)",
   "error WrongSigner(address recovered)", "error WrongRequest(bytes32 got, bytes32 expected)",
   "error StaleResponse(uint256 timestamp, uint256 nowTs)", "error FutureResponse(uint256 timestamp, uint256 nowTs)",
   "error Replayed(bytes32 digest)", "error NotNewer(uint256 timestamp, uint256 lastCheck)",
   "error NoValidPermit(uint256 milestone)", "error PermitExpired(uint256 validUntil, uint256 nowTs)",
   "error NotApproved(uint256 milestone)", "error NotDue(uint256 dueDate, uint256 nowTs)",
-  "error NotActive(uint8 state)", "error NotHeld()", "error RefundNotYet(uint256 autoRefundAt)",
+  "error NotActive(uint8 state)", "error NotRefundable()", "error RefundNotYet(uint256 refundableAt)",
+  "error SupplierFailed(uint256 failedAt)", "error NoNewerFailure()",
   "error BadOrder()", "error BadSource()", "error BadSupplierId()", "error BadRules()",
   "error NotAuthorized()", "error TransferFailed()",
   "error InvalidSignatureLength()", "error InvalidSignatureS()", "error InvalidSignatureV()", "error InvalidSigner()",
@@ -795,6 +853,12 @@ All paths are from the repo root.
 | `key` | The untouched response, re-signed with a random key | `WrongSigner(random address)` |
 | `replay` | Unchanged; submitted after the original was accepted | `Replayed` |
 
+**Real inputs for the video and for judges (v1.1).** The mutation modes are good tests, but for (b) and (c) a judge should see untouched, genuinely signed records:
+- **(b) too old:** a real signed response for the order's company that is older than `maxAge`, submitted unchanged. Emre keeps one from C1a in `api3/fixtures/`.
+- **(c) different request:** a real, fresh signed response for **another** company (e.g. `12493325`), submitted unchanged to order A.
+
+In the video, send the four tamper cases as **real transactions** (`plus-submit.sh … --send`), so each one shows a red "Fail" on Etherscan. They cost a few cents of Sepolia gas.
+
 ### 4.8 Local development environment (no money, no waiting)
 
 These are anvil's public default keys. **Never send value to them on a public network.**
@@ -815,10 +879,12 @@ These are anvil's public default keys. **Never send value to them on a public ne
 
 | Local order | Source and id | Rules | Milestones (tokens) | Due | Approved |
 |---|---|---|---|---|---|
-| 0 | Companies House `01234567` | `0x07` | 500, 1000, 1500 | +60 s, +600 s, +1200 s | 0, 1 |
-| 1 | Companies House `07654321` | `0x07` | 1000, 2000 | +60 s, +600 s | 0 |
+| 0 | Companies House `01234567` | `0x06` | 500, 1000, 1500 | +60 s, +600 s, +1200 s | 0, 1 |
+| 1 | Companies House `07654321` | `0x06` | 1000, 2000 | +60 s, +600 s | 0 |
 | 2 | GLEIF `TESTLEI0000000000000` | `0x08` | 500, 1000 | +60 s, +600 s | 0, 1 |
 | 3 | GLEIF `TESTLEI0000000000001` | `0x08` | 500, 500 | +60 s, +600 s | 0 |
+| 4 | Companies House `07654321` | `0x06` | 500, 500 | +60 s, +600 s | 0 |
+| 5 | Companies House `99999999` (no data) | `0x06` | 500, 500 | +60 s, +600 s | 0 |
 
 - Writes `api3/.local/plus-local.env` (`.local/` is gitignored):
 
@@ -836,8 +902,8 @@ export FETCH_CMD=api3/scripts/fetch-local.sh
 
 | Key | Fields |
 |---|---|
-| `ch:01234567` | all clean: `active`, no insolvency, nothing overdue |
-| `ch:07654321` | `{"accounts_overdue":true,"confirmation_overdue":false,"insolvency":true,"status":"liquidation"}` |
+| `ch:01234567` | all clean: `active`, nothing overdue |
+| `ch:07654321` | `{"accounts_overdue":true,"confirmation_overdue":false,"status":"liquidation"}` |
 | `gleif:TESTLEI0000000000000` | `ACTIVE` / `ISSUED` |
 | `gleif:TESTLEI0000000000001` | `ACTIVE` / `LAPSED` |
 
@@ -889,7 +955,9 @@ After C2 (22:00) there are no breaking changes unless the whole team agrees.
   - The agent: up to $1.00 per day, enforced in code.
   - Everyone else: up to $0.20 for testing.
 - **Bulk calls:** announce any scripted bulk calls in PROGRESS first (CLAUDE.md: paid calls need a human's OK).
-- **Getting aUSD:** the faucet at <https://api3dao.github.io/airnodehub-hackathon/faucet/> (minting needs Base Sepolia ETH for gas), or ask Batu, who holds about 9.99 aUSD.
+- **Getting aUSD:** the faucet at <https://api3dao.github.io/airnodehub-hackathon/faucet/> (minting needs Base Sepolia ETH for gas), or ask Batu, who holds about 9.99 aUSD. Without anyone's help:
+  1. Bridge a little Sepolia ETH to Base Sepolia through Base's official bridge `0xfd0Bf71F60660E2f608ed56e1659C450eB113120` (`depositETH(200000, 0x)` on Ethereum Sepolia, verified from chain).
+  2. Call `mintFromFaucet(uint256)` on the aUSD contract yourself.
 
 ### 5.4 Definition of done (for every task)
 
@@ -908,7 +976,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 ### 6.1 Orhun: contract
 
-**Goal.** `SupplierPulsePlus` implements §4.4 and §4.5 exactly: tamper-safe, fully tested, deployable, with buyer scripts and a local test chain. You also own the Sepolia launch.
+**Goal.** `SupplierPulsePlus` implements §4.4 and §4.5 (v1.1) exactly: tamper-safe, fully tested, deployable, with buyer scripts and a local test chain. You also own the Sepolia launch.
 
 **You own:**
 - `api3/src/ISupplierPulsePlus.sol`, `api3/src/SupplierPulsePlus.sol`, `api3/src/JsonFields.sol`
@@ -921,37 +989,46 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Phase A**
 
-1. **(16:45 → 17:15)** Copy §4.4 verbatim into `ISupplierPulsePlus.sol`. Push a skeleton `SupplierPulsePlus` that compiles and implements the interface, even if the bodies are still empty.
+1. **(→ +30 min)** Copy §4.4 verbatim into `ISupplierPulsePlus.sol`. Push a skeleton `SupplierPulsePlus` that compiles and implements the interface, even if the bodies are still empty.
 2. **(→ 19:00)** Implement:
-   - **Storage.** An `Order` with `buyer`, `supplier`, `source`, `supplierId`, `supplierKey`, `requestHash`, `orderRef`, `permitTtl`, `rules`, `paidCount`, `state`, `paid`, `amounts[]`, `dueDates[]`, `approved[]`, `permit` (`validUntil`, `milestone`, `evidence`), `lastFailedRules`, `lastCheck` and `heldAt`. Plus `mapping(bytes32 => SupplierRecord)`, `mapping(bytes32 => bool) public usedDigests` and the Airnode per source.
+   - **Storage.** An `Order` with `buyer`, `supplier`, `source`, `supplierId`, `supplierKey`, `requestHash`, `orderRef`, `permitTtl`, `rules`, `paidCount`, `state`, `paid`, `amounts[]`, `dueDates[]`, `approved[]`, `permit` (`validUntil`, `milestone`, `evidence`, `evidenceAt`), `lastFailedRules`, `lastCheck` and `heldAt`.
+   - `mapping(bytes32 => SupplierRecord)` with `cleanStreak`, `checks`, `failures`, `lastCountedAt`, `lastCheckAt`, `lastBaseFailureAt` and `tier`; `mapping(bytes32 => bool) public usedDigests`; the Airnode per source.
    - **`requestHashFor`.** The two templates from §4.2 via `abi.encodePacked`, with id validation like v1 `companyRequestHash`. GLEIF ids are exactly 20 characters.
    - **`supplierKeyOf`**, the rule evaluation (§4.3) and `JsonFields.parseBool`.
-   - **Tiers**, the permit multiplier, `release` with `NotDue`, the `checkAndRelease` outcomes, `refundRemaining` with the grace period, all views, and admin.
+   - **Verification history** that counts only the base check and only moves forward, the supplier-wide stop (`lastBaseFailureAt`, the `SupplierFailed` checks, `applySupplierFailure`), `release` with `NotDue`, the `checkAndRelease` outcomes, `refundRemaining` with both paths (§4.5), all views, and admin.
 3. **Forge tests.** Use the same style as `SupplierPulse.t.sol` (custom `Vm`, `vm.sign`). At least these:
    - **Hashes and keys:** `requestHashFor` and `supplierKeyOf` reproduce the §4.2 vectors.
-   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x08` on a Companies House order, `0x01` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` of 0). `BadSource`.
-   - **Companies House:** a clean record issues a permit. Each failure gives exactly its `failedRules`: `0x01`, `0x02` and `0x04` alone, and status `liquidation` (`0x80` plus whatever else is enabled). A disabled rule is ignored.
+   - **Bad input:** `BadSupplierId` (empty, too long, lowercase, a GLEIF id of 19 characters). `BadRules` (`0x01` and `0x08` on a Companies House order, `0x02` on a GLEIF order). `BadOrder` (wrong value, empty list, a zero amount, length mismatch, decreasing due dates, `permitTtl` of 0). `BadSource`.
+   - **Companies House:** a clean record issues a permit valid for exactly `permitTtl`. `0x02` and `0x04` fail alone. Status `liquidation` gives `0x80` plus whatever else is enabled. A disabled rule is ignored.
    - **GLEIF:** clean; `LAPSED` with `0x08` is held; `INACTIVE` gives `0x80`.
    - **Tamper:** an edited value (`WrongSigner`), stale, future, another request (`WrongRequest`), a wrong key (`WrongSigner`), replay (`Replayed`), not newer (`NotNewer`), a high-s signature (`InvalidSignatureS`). A Companies House response on a GLEIF order gives `WrongRequest`. A held order rejects new evidence (`NotActive`).
-   - **Permits:** the lifetime is `permitTtl × 1/2/4` per tier; `PermitExpired`; the permit is used up after `release`; the next milestone gives `NoValidPermit`.
+   - **Permits:** `PermitExpired`; the permit is used up after `release`; the next milestone gives `NoValidPermit`; the tier never changes how long a permit lives.
    - **Payment:** `NotDue` before the due date; paid after it; `NotApproved`; `checkAndRelease` returns 0, 1, 2 and 3 in the right cases.
-   - **Tiers:**
-     - the streak counts only after `tierCountGap`;
-     - it resets on a failure;
+   - **Verification history:**
+     - the streak counts only base-clean records, only after `tierCountGap`;
+     - an older record does not change the history (`lastCheckAt` never decreases);
+     - rule-only failures don't reset the streak;
+     - a base failure resets it and sets `lastBaseFailureAt`;
      - the thresholds 3 and 6 emit `TierChanged`;
      - two orders of the same supplier share one record.
+   - **Supplier-wide stop:**
+     - order A has a permit, order B gets `liquidation`: A's `release` reverts `SupplierFailed`;
+     - `applySupplierFailure(A)` holds A;
+     - a second `applySupplierFailure` gives `NotActive`;
+     - on an order whose last check is newer than the failure, `NoNewerFailure`;
+     - a clean record older than the failure gives `SupplierFailed`;
+     - a rule-only failure on B does not stop A.
    - **Refund:**
-     - the buyer can claim at once;
-     - a stranger before the grace period gets `RefundNotYet`;
-     - a stranger after the grace period triggers a refund that reaches the buyer;
-     - an order that is not held gives `NotHeld`.
-   - **Events:** every event fires with the exact arguments (`vm.expectEmit` style, or by checking logs).
+     - Held: the buyer at once; a stranger before the grace period gets `RefundNotYet`, after it the refund reaches the buyer.
+     - No-data exit: approved, no permit, overdue by the grace period, so anyone can refund to the buyer with `noDataExit = true`. It gives `NotApproved` when the milestone is not approved, `NotRefundable` with a valid permit, `RefundNotYet` before due date + grace, and `NotRefundable` on a closed order.
+   - **Events:** every event fires with the exact arguments.
 4. **Deploy script.** `DeploySupplierPulsePlus.s.sol` reads env `EVM_PRIVATE_KEY`, `CH_AIRNODE` (default the real one), `GLEIF_AIRNODE` (default the real one), `MAX_AGE=300`, `TIER_COUNT_GAP=300` and `REFUND_GRACE=600`.
 5. **Scripts.**
    - `plus-lib.sh`: a send helper with the Foundry JSON unwrap (copy `pulse_send`), and error-name decoding for every error in §4.6 (extend `pulse_error`).
    - `plus-local.sh` (§4.8). Create the orders with inline `cast`, so it does not depend on Emre's tools.
    - The buyer scripts from §4.7. Amounts are given in tokens; convert with 1 token = 10¹² wei.
    - `plus-demo-orders.sh`: orders A to E from §2.5. It reads the supplier ids from env `DEMO_CH_A`, `DEMO_CH_B`, `DEMO_CH_C`, `DEMO_LEI_D` and `DEMO_LEI_E`, and the supplier wallets from `DEMO_SUPPLIER_1` and `DEMO_SUPPLIER_2`.
+   - Use `EVM_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com` when Tenderly answers `-32603`.
 
 **Phase B**
 - **C1a:** add tests with Emre's real Companies House and GLEIF fixtures (`vm.warp(timestamp + 10)`, like v1's real-response test).
@@ -996,7 +1073,10 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
    - Make one paid Companies House v2 call each for `09729896`, `07418033` and `12493325`, and one GLEIF call for a real LEI. Find the LEI with the free `searchLegalEntities`, for example `filter[entity.registeredAs]` with a German HRB number and `filter[entity.jurisdiction]=DE`.
    - Check that the Airnode's `requestHash` equals `requestHash()`, and that every projected field is present.
    - Save the responses as fixtures named `api3/fixtures/<source>-<id>-<YYYYMMDDHHMM>.json`.
-   - If anything differs, update §4.2, §4.3 and the vectors, then follow §4.9.
+   - If anything differs, update §4.2, §4.3 and the vectors, then follow §4.9. If a field is missing, apply the fallback in §4.2.
+   - **Keep two genuine tamper inputs** (§4.7):
+     - one real response for `09729896` that you leave until it is older than `maxAge` (a genuinely stale record);
+     - one real fresh response for another company (`12493325`) to submit against order A (a genuinely different request).
 3. **(→ 18:30) For everyone:** `sign-local.mjs`, `local-registry.json` (§4.8) and `fetch-local.sh`, all producing the §4.1 format.
 4. **`airnode-fetch.mjs` and `fetch-evidence.sh`.**
    - Generalise `ch-fetch.mjs` to both sources.
@@ -1009,17 +1089,17 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
    - If the simulation succeeds, decode the returned `bool clean`. Print `ACCEPTED clean`, or `ACCEPTED held: <labels>`. To get the labels, evaluate `raw` against the order's `rules` (from `orderInfo`) with the §4.3 table; that is the same logic the contract runs.
    - If it reverts, print `REJECTED <ErrorName>(args)`.
    - Decode errors by selector for every error in §4.6.
-   - `--send` sends the transaction with `EVM_PRIVATE_KEY`.
+   - `--send` sends the transaction with `EVM_PRIVATE_KEY`. Use it for the video: real reverted transactions show as a red "Fail" on Etherscan.
 7. **(→ 21:00) Demo suppliers.** Find real entities for orders A to E (§2.5) and document them in `docs/data-sources.md`, with links to the register pages and the expected flags:
    - Companies House active and clean (check `09729896`).
    - Companies House in liquidation (`07418033`).
-   - Companies House **active but with accounts overdue**. Hint: a company incorporated about 2 to 3 years ago that never filed. Use `advancedSearchCompanies` at $0.01 to list candidates, then profile a few. If you can't find one, use an active company with insolvency history or an overdue confirmation statement instead.
+   - Companies House **active but with accounts overdue**. Hint: a company incorporated about 2 to 3 years ago that never filed. Use `advancedSearchCompanies` at $0.01 to list candidates, then profile a few. If you can't find one, use an active company with an overdue confirmation statement instead.
    - A German LEI that is `ACTIVE`/`ISSUED`, and an LEI with registration `LAPSED`. The free search returns full records with `registration.status`, so filter them there. Only the final `getLegalEntity` is paid.
 
 **Phase B**
 - **C2:** check that `plus-submit.sh` against `plus-local.sh` gives:
   - order 0 with a fresh `fetch-local` record: `ACCEPTED clean`;
-  - order 1: `ACCEPTED held: registry status not active, insolvency history, accounts overdue`;
+  - order 1: `ACCEPTED held: registry status not active, accounts overdue`;
   - all five tamper modes rejected with the expected errors.
 - **C3:** real fetches for the demo suppliers right before their due dates. Then the judge CLI against Sepolia v2. Add the tx links to evidence.
 
@@ -1051,7 +1131,7 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 
 **Stack:** Python 3.8+ (the default `python3` on Julien's laptop is 3.8.20), standard library only. Chain I/O goes through `cast` subprocesses (Foundry is installed); evidence comes from `FETCH_CMD`.
 
-**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`.
+**Status (Fri ~16:35): Phase A done** on `julien/plus-agent`. 48 tests pass. `pulse_agent.py run --fake` runs the whole flow against an in-memory contract. The chain adapter was also checked live against v1 on a local anvil, which has the same write ABI: simulate and send, receipt parsing, RPC failover, and decoding of `Replayed`, `StaleResponse`, `WrongRequest`, `WrongSigner` and `NoValidPermit`. Details in `docs/agent.md`. Next on `julien/plus-agent`: the v1.1 changes (supplier-wide stop, no-data exit, verification history) and the v1 hedge mode.
 
 **Modules (`api3/agent/`):**
 
@@ -1087,7 +1167,9 @@ Each section is complete on its own. **Phase A** needs nothing from anyone else.
 **Plan, once per tick.** `now` is the chain time. Actions are listed by priority:
 
 ```text
-P1 refund   state=Held  and now ≥ autoRefundAt and remaining > 0          → refundRemaining(order)        (no fetch)
+P0 stop     state=Active and supplier.lastBaseFailureAt > order.lastCheck   → applySupplierFailure(order)   (no fetch)
+P1 refund   autoRefundAt set and now ≥ autoRefundAt and remaining > 0     → refundRemaining(order)        (no fetch)
+            (a hold after its grace period, or the no-data exit of an approved milestone without a permit)
 P2 release  state=Active and permitValid and nextApproved and now ≥ nextDueDate → release(order)          (no fetch)
 P3 due      state=Active and now ≥ nextDueDate − DUE_LEAD
             and not (permitValid and permitValidUntil ≥ max(now, nextDueDate))
@@ -1145,6 +1227,7 @@ Required policy tests:
 - the daily budget resets at 00:00 UTC.
 
 **Phase B**
+- **Tonight, the hedge for the bonus:** a v1 mode runs the same loop against the **live v1 contract** (`0x91d7…74d7`, §1.3). It fetches the status only (v1's request, through `api3/scripts/supplier-fetch.sh`) and runs monitoring checks on v1 orders. It makes no refunds, because v1 refunds are buyer-only. The autonomous-cycle evidence then builds up even if v2 is late.
 - **C2:** run against `plus-local.sh` with `FETCH_CMD=api3/scripts/fetch-local.sh` (§7.1).
 - **C3:** run on Sepolia with the agent wallet (check its aUSD first) and the demo profile. Supervise the first cycles live.
 - **Morning:** run `report` and write `docs/agent.md`: purpose, the loop, the schedule (both profiles), the spending limits, the failure handling table, real excerpts from the overnight log, and tx links.
@@ -1175,8 +1258,10 @@ Required policy tests:
   - The **rules** as chips (§4.3 labels).
   - **Protected remaining balance** as the hero number, with paid / remaining.
   - The **milestone timeline:** amount, due date, and state (paid ✓, permit valid until …, awaiting approval, not due yet, held 🔒).
-  - The permit countdown, and `effectivePermitTtl`.
-  - The **trust tier** badge (Standard / Trusted / Premium) with the streak (`supplierRecord`).
+  - The permit countdown.
+  - The **verification history** badge (Standard / Trusted / Premium) with the streak (`supplierRecord`). Label it as a history of register checks, not a credit score.
+  - **Supplier-wide stop:** if `lastBaseFailureAt` is set, show a red banner: "register status failed on <date>: payments to this supplier are stopped on every order".
+  - **No-data exit:** when `autoRefundAt` is set on an active order, show "no verified data since the due date: the money can go back to the buyer from <time>".
   - **Last check:** time ago, "clean ✓" or the failed-rule chips in plain words.
   - **When held:**
     - a red banner with the failed rules;
@@ -1193,6 +1278,7 @@ Required policy tests:
 - **Buttons:** "Submit as is", "(a) Edit value", "(b) Too old", "(c) Different request", "(d) Wrong key", "Replay".
   - The tampered response is built **in the browser** with exactly the §4.7 semantics.
   - For the wrong key, use `ethers.Wallet.createRandom().signMessage(getBytes(digest))`.
+  - For (b) and (c), **use the real inputs when available** (§4.7): the genuinely old response and another company's real response from `api3/fixtures/`. The mutation buttons stay as extras.
 - **Off-chain diagnostics**, shown as a checklist:
   - `digest = keccak256(solidityPacked(["bytes32","uint256","bytes"], [requestHash, timestamp, data]))`
   - the recovered signer against `airnodeOf(order source)`
@@ -1279,6 +1365,11 @@ Required policy tests:
    - Why two chains? The contract is on Ethereum Sepolia, and API3 takes data payments in aUSD on Base Sepolia.
    - What's missing? The German register and insolvency notices.
 6. **Logistics:** create the Devfolio submission on **Sat 09:00**, add all five teammates, select only the API3 track, and keep editing it until 14:30.
+7. **Repo hygiene judges will notice** (from the office-hours review):
+   - the empty "API3" table at the top of `docs/evidence.md`: fill it with the v1 and v2 addresses, or remove it;
+   - v1's demo supplier wallet `0x3C44…93BC` is anvil's public test address: say so next to the evidence, since v2 uses team addresses;
+   - one README sentence on `cardano-agent/`.
+8. **A persona for the opening** (office-hours suggestion): *a 12-person robot maker in Munich pays a UK motor supplier €30k in three instalments. Two weeks before instalment 2, the supplier enters liquidation.*
 
 **Phase B**
 - **C4 (08:00):** QA as a judge. Make a fresh clone and follow only the README. Post the bug list in PROGRESS, with an owner per bug.
@@ -1289,6 +1380,8 @@ Required policy tests:
 
 ## 7. Integration and launch
 
+**Fallback at every step (office-hours review).** v1 (live), the agent's v1 mode and the judge page against v1 already make a complete API3 submission. v2 adds to it. If v2 slips, we submit that.
+
 ### 7.1 C2: local integration (22:00, run by Julien, everyone joins)
 
 1. **Orhun:** `api3/scripts/plus-local.sh`, then everyone runs `source api3/.local/plus-local.env`.
@@ -1297,7 +1390,9 @@ Required policy tests:
    - order 0, M1 paid;
    - order 1 held, then **refunded by the agent** after 120 s;
    - order 2 paid;
-   - order 3 held (LEI lapsed);
+   - order 3 held (LEI renewal overdue);
+   - order 4 (same supplier as order 1) held by `applySupplierFailure`, **without a fetch**;
+   - order 5 (no data) refunded through the no-data exit 120 s after its due date;
    - order 0's supplier climbs tiers as monitoring checks pass the 60 s gap.
 4. **Batu:** the dashboard on `rpc=http://127.0.0.1:8545` shows all of this live, and the judge page verdicts equal step 2.
 5. **Ulaş:** follows the README draft against what actually happens, and notes demo moments.
@@ -1338,7 +1433,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 | 09:00 | Ulaş creates the Devfolio submission, adds the team and selects API3 |
 | 09:30 – 10:30 | **Dry run** of the whole video flow on Sepolia with separate orders. Save every step's tx as a pre-run proof, in case a live moment fails during recording |
 | 11:00 | **Feature freeze** |
-| 11:00 – 13:00 | Video (A M2 is due at 11:45, D M2 at 12:00; B2 is created live) |
+| 11:00 – 13:00 | Video (A M2 is due at 11:45, D M2 at 12:00; B2 is created live; the tamper cases are sent as real transactions) |
 | 13:00 | Julien merges `supplierpulse-plus` into `main`. The repo is public (it already is) |
 | 14:30 | Submit |
 | 15:00 – 17:00 | API3 booth: everyone present; who speaks is decided at 08:00 |
@@ -1352,7 +1447,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 | The AirnodeHub data is essential | README and Devfolio "How it works" | Ulaş |
 | A deployed contract verifies signer, request and timing | v2 address on Sepolia; §4.5 | Orhun |
 | A signed value drives an on-chain action, with duplicate protection | milestone payments and holds; `usedDigests`; `NotNewer` | Orhun |
-| Tamper test: valid, then (a)–(d) rejected | judge page and `plus-submit.sh`; the video from 1:05 | Batu, Emre, Ulaş |
+| Tamper test: valid, then (a)–(d) rejected | judge page and `plus-submit.sh`; in the video as real reverted transactions, with a genuinely old response and another company's real response | Batu, Emre, Ulaş |
 | Contract address and network | README, Devfolio | Ulaş |
 | A way for judges to submit their own responses | `demo/judge.html` and `plus-submit.sh`, documented | Batu, Emre |
 | Who relies on the data, what goes wrong if forged, data we couldn't find | Devfolio (§2.1) | Ulaş |
@@ -1367,7 +1462,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 | Risk | Fallback |
 |---|---|
 | A GLEIF pointer is wrong, or a field is missing (C1a) | Fix §4.2 (two constants). If GLEIF fails completely, drop GLEIF and keep Companies House with all its rules |
-| A Companies House field is missing for some companies (HTTP 400) | Use demo companies where all fields exist and document it as a limit. If it's common, remove that field from the template (§4.9, before C2) |
+| A Companies House field is missing or deprecated (HTTP 400; the official schema deprecates `accounts.overdue` and `has_insolvency_history`, and its nested fields are optional) | v1.1 uses the current pointers. At C1a apply the fallback in §4.2: a demo company that has the field, then drop the field and its rule, down to status only, which is v1's verified request. Never treat missing data as a negative fact |
 | AirnodeHub or x402 is down during the demo | Recorded video; the judge page still works with fixtures (stale cases); the v1 and v2 evidence links |
 | Sepolia RPC or gas trouble | `--slow --gas-estimate-multiplier 800`, and a second RPC. Tenderly's public gateway refuses bursts with `-32603`; scripts then switch `EVM_RPC_URL` to publicnode, and the agent fails over automatically (`EVM_RPC_URLS`) |
 | The agent crashes overnight | Supervised loop; state in `state.json`; Julien watches |
@@ -1380,14 +1475,15 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 3. GitHub Pages
 4. order E (lapsed LEI)
 5. GLEIF entirely
-6. monitoring checks (keep due checks)
+6. tier visuals on the dashboard
+7. monitoring checks (keep due checks)
 
 **Never cut:**
-- the contract rules, tiers and due dates
-- the Companies House multi-field fetch
-- the agent loop with budget and failure handling
+- the contract rules, due dates, verification history, supplier-wide stop and no-data exit
+- the Companies House multi-field fetch, or its status-only fallback
+- the agent loop with budget and failure handling, including the v1 hedge run
 - the judge page simulation
-- the tamper test in the video
+- the tamper test in the video, as real reverted transactions
 - the README, Devfolio and video
 
 ---
@@ -1397,7 +1493,7 @@ Findings go to the owner as a PROGRESS entry. Blocking findings are fixed before
 - **Track rules:** <https://hackathon.tum-blockchain.com/prizes#api3>. **Submission:** <https://hackathon.tum-blockchain.com/prizes#how-to-submit>
 - **API3 challenge and scoring:** <https://api3dao.github.io/airnodehub-hackathon/>. **Projections:** <https://api3dao.github.io/airnodehub-hackathon/docs/projections>
 - **AirnodeHub catalogue:** <https://airnodehub.api3.org/llms-full.txt>. **MCP:** `https://airnodehub.api3.org/mcp`. **aUSD faucet:** <https://api3dao.github.io/airnodehub-hackathon/faucet/>
-- **Starter (request hash, signature checks):** `~/tumblockchain/starters/airnodehub-hackathon-starter/src/airnode-v2.ts`
+- **Starter (request hash, signature checks):** <https://github.com/api3dao/airnodehub-hackathon-starter>, file `src/airnode-v2.ts`
 - **v1 files:** `docs/SUPPLIERPULSE.md` (v1 plan), `docs/SUPPLIER_PULSE_SPEC.md` (Orhun's ideas), `api3/README.md`, `docs/evidence.md` ("SupplierPulse live run")
 - **Batu's analysis:** `docs/decision-sheet.md` and `docs/supplierpulse-upgrades.md` on `batu/api3-setup`
 - **Security rules:** CLAUDE.md §7
