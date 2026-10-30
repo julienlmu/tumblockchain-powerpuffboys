@@ -4,6 +4,23 @@ From the security review findings of 30 Oct, each item checked against the code 
 
 Rule for tonight: no contract change, no new deployment, no dependency upgrade.
 
+## Merge for Julien (Orhun's fixes of 31 Oct, nothing merged yet)
+
+Two branches, checked with `git merge-tree` against `main` at dc719f6. No contract change, no deployment.
+
+1. **`orhun/final-fixes`** (4 commits, merges cleanly into `main`):
+   - F07: the x402 client refuses any payment above $0.01 (was $0.05); the record stores the amount actually paid (`priceUsd`, `priceAtomic`).
+   - F10 on the dashboard in `main`: a supplier with newer clean evidence shows "Earlier failure on record" instead of a stop.
+   - `api3/scripts/judge-tamper.sh`: the tamper test in one command, linked from the README. Local by default (no keys): four tampered records rejected, the valid one pays, its replay is rejected (6/6 PASS on anvil). `--live <orderId> <record.json>` simulates the same on v2 without gas.
+   - Fix: `tamper.mjs`, `sign-local.mjs`, `verify.mjs` printed nothing when the repo path contains a space, so `plus-submit.sh <mode>` failed with "parser error".
+   - `api3/scripts/plus-quick-orders.sh`: demo orders on v2 due in 2 min instead of 20 to 30 (for the video). `plus-warp.sh`: moves a local anvil clock forward.
+   - `docs/PROGRESS.md` entry and the ticks below.
+2. **`orhun/plus-ui-f10`** = `batu/plus-ui` + the same F10 fix (1 commit on top). Merges cleanly into `main` on its own.
+
+Order: merge 1, then 2. The only conflict is `demo/index.html` (both changed it): take the `orhun/plus-ui-f10` version, which is Batu's new dashboard with the F10 fix (`git checkout --theirs demo/index.html`). If `batu/plus-ui` is not going to `main`, merge only 1.
+
+After merging, check: `api3/scripts/judge-tamper.sh` prints "All cases behaved as expected", and `demo/index.html?sample=1` shows order #5 as "Supplier stopped".
+
 ## Submission (blocks qualification)
 
 - [ ] **Julien:** make the repository public and check it with a fresh public clone.
