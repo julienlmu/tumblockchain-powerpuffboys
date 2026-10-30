@@ -73,29 +73,34 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
-### 2026-10-30 · Julien (agent) · C2 check passes against Orhun's v1.1 contract; v1.1 checklist for Batu
+### 2026-10-30 · Julien (agent) · C2 check passes against Orhun's v1.1 contract; C2.5 review fixed
 - Changed:
   - `api3/agent/c2_check.py` runs the C2 integration (§7.1) as one command. It runs `plus-local.sh`, then the agent at 10 s ticks with the local fetch, and checks the 8 expected outcomes on chain and in the agent log. `--fake` runs the same checks in memory.
-  - **First real integration passed (~17:22):** the agent with Orhun's v1.1 contract on anvil, all 8 checks in 180 s. Payments, holds with labels, the supplier-wide stop without a fetch, the no-data exit, and the tier rising. Emre's `fetch-local.sh` was still v1.0 then, so a scratchpad v1.1 signer stood in.
-  - **The check found a real agent bug:** functions without return values (`release`, `applySupplierFailure`, `refundRemaining`) print a bare `0x`, which the agent read as an error. Fixed, with a test (55 tests).
+  - **First real integration passed (~17:22):** the agent with Orhun's v1.1 contract on anvil, all 8 checks in 180 s. Payments, holds with labels, the supplier-wide stop without a fetch, the no-data exit, and the tier rising. Emre's v1.1 `fetch-local.sh` is not in `supplierpulse-plus` yet, so a scratchpad v1.1 signer stood in.
+  - **The check found a real agent bug:** functions without return values (`release`, `applySupplierFailure`, `refundRemaining`) print a bare `0x`, which the agent read as an error. Fixed, with a test.
+  - **Batu's C2.5 review: all three points fixed** (§6.3 and `docs/agent.md` updated):
+    1. no monitoring while a due milestone waits for the buyer;
+    2. a quarantined order gets no action at all, including release and refund;
+    3. the no-data refund comes only after the agent's own try at or after the due date failed. That last try ignores the retry backoff. A failed x402 payment does not count as missing data.
+  - **One more fix of my own:** the check before a due date now waits until its permit still covers the due date (`permitTtl − 60 s` if that is shorter than the lead time). Before, a buyer's short `permitTtl` meant a paid fetch every tick.
+  - 61 tests pass (Python 3.8 and 3.13); `c2_check.py --fake` passes 8/8.
   - Spec §2.5/§7.2 now has Emre's demo suppliers: A `03778796`, B `07418033`, C `09729896`, D `391200JI69LS8L648F30`, E `52990092KBQJF8QBGJ50`.
-- **Batu (UI, built on v1.0): v1.1 checklist**
-  1. `common.js` ABI = §4.6 v1.1:
-     - `supplierRecord` has 7 fields (`lastBaseFailureAt` before `tier`);
-     - add `applySupplierFailure` and `OrderRefunded(…, bool noDataExit)`;
-     - errors `NotRefundable`, `SupplierFailed` and `NoNewerFailure` instead of `NotHeld`;
-     - no `effectivePermitTtl`.
-  2. The Companies House template in the browser = §4.2 v1.1 (vector `0x6e84…7f0f`). Labels: no insolvency (`0x01` is reserved), and `0x08` = "LEI renewal overdue".
-  3. Dashboard (§6.4 v1.1):
-     - drop `effectivePermitTtl`;
-     - the tier becomes "verification history";
-     - a supplier-wide stop banner from `lastBaseFailureAt`;
-     - a no-data exit line when `autoRefundAt` is set on an active order;
-     - refunds show `noDataExit`.
-  4. Judge page: (b) and (c) with real inputs from `api3/fixtures/` (§4.7). The tamper logic itself is correct (reviewed, C2.5).
-  5. Sample data with the v1.1 fields.
+- Batu's pages are already on v1.1 (`2c09a7c`), so no checklist for him.
 - **Orhun:** please start anvil with `--block-time 1` in `plus-local.sh` (Batu's finding: an idle anvil lags, and fresh records then simulate as `FutureResponse`). The C2 check mines a block before every tick as a safety net.
-- Next: C2 again with Emre's v1.1 `fetch-local.sh` instead of the stand-in, then Batu's pages against the same chain once they are on v1.1.
+- Next: C2 again with Emre's real v1.1 `fetch-local.sh` (in a test worktree until `emre/plus-data` is merged).
+
+### 2026-10-30 · Orhun · real Companies House tests (C1a done)
+- Changed: 7 new tests run Emre's v1.1 Companies House records (`4267d11`, pointers verified live) against the contract:
+  - the three request hashes match;
+  - A `03778796` is paid;
+  - B `07418033` is held with `0x86` (status, accounts, confirmation);
+  - C `09729896` with rules `0x02` is held with `0x02` only;
+  - B2: `applySupplierFailure` holds a second order of B without a new fetch;
+  - A's record on order C gives `WrongRequest`;
+  - B's signature with the status edited to `active` gives `WrongSigner`.
+
+  `forge test`: 111 passed. **This resolves the open question in my previous entry: v1.1 stays, no interface change.**
+- Next: C2 integration at 22:00 (`plus-local.sh`), then the C2.5 review of `tamper.mjs`, `verify.mjs` and `plus-submit.sh`.
 
 ### 2026-10-30 · Orhun · demo suppliers and real GLEIF tests (C1a, part 1)
 - Changed:
@@ -115,6 +120,7 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
   - Judge page: buttons for the real inputs (b) and (c), untouched records from `api3/fixtures/` (bundled in `demo/sample/responses.js`); the checklist includes the `SupplierFailed` check.
   - Tested on a local chain with the v1.1 contract (`plus-local.sh`, 6 orders): valid → accepted; (a) `WrongSigner`, (b) `StaleResponse`, (c) `WrongRequest`, (d) `WrongSigner`; real (b) `StaleResponse`, real (c) `WrongRequest`. A clean record older than the supplier's failure → `SupplierFailed`. Dashboard rendered held + supplier-wide stop (order 1), the stop on the supplier's other order (4), and the no-data exit countdown (5).
 - Next: C2 with the agent and `plus-submit.sh`. C3: Sepolia v2 address in the pages.
+- aUSD for C3 (§7.2 step 4): the agent wallet `0xED34…253a` already holds **9.96 aUSD** and 0.003 ETH on Base Sepolia (read 30 Oct ~17:30), so no transfer is needed. Batu's wallet keeps 9.91 aUSD as a reserve.
 - Notes, **C2.5 review of `api3/agent/policy.py` for Julien** (54/54 tests pass; the P0 to P4 order matches §6.3). Nothing blocking, three points:
   1. **P4 pays while waiting for the buyer.** A supplier whose only active order is past due and unapproved is still monitored: `plan()` returns `monitor` at $0.01 per tier interval. P3 skips exactly this case on purpose. Suggest: leave such orders out of `open_orders` in P4.
   2. **Quarantine does not stop releases and refunds.** A quarantined order that is due with a valid permit gets `release`, and a quarantined held order gets `refund` (only P0 and the fetches check quarantine). Both are safe on chain, but §6.3 says "stop acting on it" and the test is called `test_quarantined_orders_are_left_alone`. Either gate them or document it in `docs/agent.md`.
