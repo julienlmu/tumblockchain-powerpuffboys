@@ -538,8 +538,8 @@
   const SYNTH = ["asis", "value", "stale", "request", "key", "replay"];
   const all = (modes, t) => Object.fromEntries(modes.map((m) => [m, t]));
   const BLOCKED = {
-    empty: all(SYNTH, "needs a record (step 2)"),
-    invalid: all(SYNTH, "record needs fixing (step 2)"),
+    empty: all(SYNTH, "needs a record"),
+    invalid: all(SYNTH, "record needs fixing"),
     held: all([...SYNTH, "realOld", "realOther"], 'order not active: answers <span class="mono">NotActive</span>'),
     other: all(["asis", "value", "stale", "key", "replay"], 'other company: answers <span class="mono">WrongRequest</span>'),
     stale: all(["asis", "value", "key", "replay"], 'too old: answers <span class="mono">StaleResponse</span>'),
