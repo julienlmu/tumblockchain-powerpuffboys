@@ -93,6 +93,7 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes:
   - Masumi escrow releases after `unlockTime` unless a refund is requested, so "payment tied to result" needs our code to trigger the refund. `agent.py` currently returns a result even when `executed=false`.
   - AirnodeHub: Nodary ETH/USD is free and first-party. The CoinGecko `simplePrice` used in `fetch-eth-usd.sh` costs $0.02 aUSD (x402).
+  - API3 judging: real use case 40%, signed data matters 30%, execution 20%, novelty 10% ("beyond the unchanged starter"; the starter is already a Nodary ETH/USD consumer), +10 agent bonus. Projections let a contract read string fields such as Companies House `company_status`. Details in `docs/decision-sheet.md`.
 
 ### 2026-10-30 · Orhun
 - Changed: Deployed PriceTriggeredVault on Ethereum Sepolia at 0xBC68DB972A62cFf3161e600d92C475c29c22886A (Nodary signer, max age 300s). Live checks: real ETH/USD response accepted, replay and all four tampered responses (value, stale, request, key) rejected on-chain, agent-run created and executed order 0. Deploy needs `--slow --gas-estimate-multiplier 800`. submit.sh now reads revert errors from newer cast output. README has a Deployment section; .env.example points at Sepolia (Tenderly RPC).

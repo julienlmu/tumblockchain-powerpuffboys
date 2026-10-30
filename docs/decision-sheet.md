@@ -25,6 +25,23 @@ Legend: **[F]** = fact, checked against a source today. **[I]** = inference or j
    aUSD is API3's test dollar on Base Sepolia (free from the faucet).
    GLEIF's own note: an issued LEI does **not** prove solvency, sanctions clearance or authority to transact.
 4. **[I] Suggestion for the vault path, owner Orhun's call:** Nodary ETH/USD is free and first-party, so it may be simpler than CoinGecko, which is priced and therefore needs the x402 402-flow. This needs re-checking against the signed response format.
+5. **[F] API3 judging weights** (https://api3dao.github.io/airnodehub-hackathon/docs/):
+   - **Real use case 40%**
+   - Signed data matters 30%
+   - Execution 20%
+   - Novelty 10%: "beyond the unchanged starter"
+   - +10 agent bonus: repeated autonomous cycles in which the agent chooses data, pays via x402 and acts on-chain. x402 alone does not earn it.
+   - The tamper test is pass/fail, and a valid response must also work.
+6. **[F] The official starter already is a Nodary ETH/USD price consumer.** API3's own idea list names "payment or escrow released when … data meets a condition" with Companies House as an example, and "Conditions → payments … a company meets a registry condition".
+   → [I] A price-triggered vault (#0) sits very close to the unchanged starter, which costs points on novelty (10%) and likely on real use case (40%).
+7. **[F] Projections answer the open question for #3.**
+   - A request can project any JSON pointer, e.g. `status` → `/company_status`, into a top-level field.
+   - The Airnode signs only those fields, and the request hash covers the projection.
+   - The starter's `ProjectedJson` reads strings, numbers, booleans and ISO 8601 times. A Companies House status therefore reads like a price.
+   - A missing field returns HTTP 400 and nothing is signed.
+   - Source: https://api3dao.github.io/airnodehub-hackathon/docs/projections
+   - [I] The exact GLEIF pointer (likely `/data/attributes/entity/status`) still has to be checked against a live response.
+8. **[F] The API3 submission must also state "who relies on the data, what goes wrong if forged, what data you wanted but could not find".** For #3: a forged "active" status would release money to a dissolved or fake company, which is a concrete answer.
 
 ## Comparison
 
@@ -42,7 +59,8 @@ Legend: **[F]** = fact, checked against a source today. **[I]** = inference or j
 - **Batu's earlier inference: "#3 has the stronger customer story and makes API3 core"** → **partly confirmed**.
   - [F] The data exists on AirnodeHub, is cheap ($0.01 test aUSD) and is signed.
   - [I] The customer story is stronger than #0.
-  - Still open: whether the contract can read `company_status` / entity status from the exact signed bytes as easily as a price. Ask at the API3 booth.
+  - [F] Projections make the status field readable on-chain like a price (fact 7). This was the main technical doubt, and it is now resolved on paper. It still needs one live signed response.
+  - [F] API3's own idea list points at exactly this pattern (fact 6), and real use case is the heaviest weight at 40%.
 - **If API3 stays in scope:** #3, built by reusing Orhun's vault, is the best trade-off between originality and risk [I]. The parser and the condition change; signer, request, freshness and replay checks stay the same.
 - **If Cardano only:** #1 + #2 merged. The 8D agent is the seller and a verifier agent pays only for a passed check. This shows "agents hire agents" and "payment tied to result" [I].
 - **Regardless of idea, do now:**
