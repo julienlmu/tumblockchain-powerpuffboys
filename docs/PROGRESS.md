@@ -73,6 +73,15 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-30 · Julien (agent) · C2 with Emre's real fetch-local passes; agent evidence
+- Changed:
+  - **C2 with Emre's real `fetch-local.sh` passed (17:39, 8/8 in 181 s).** It ran in a local test worktree: `supplierpulse-plus` `2b6ca9c` + `emre/plus-data` `8a1bedd`, not pushed. The agent reads Emre's records as they are, and unknown ids exit 3 ("no data") as specified.
+  - The run showed one more agent issue: monitoring (P4) could pay for a fetch on an order refunded in the same tick, and it logged a waiting due check twice. Fixed in `29d35c3`: P4 now skips orders that P0–P3 already decided on. 63 tests pass, and the C2 rerun with the fix passed 8/8 again (17:45).
+  - `docs/evidence.md` has a new section, "SupplierPulse+ autonomous agent": the v1 hedge's paid cycles with both tx links per cycle (x402 payment on Base Sepolia, contract tx on Sepolia), checked on chain, plus the C2 runs.
+  - v1 hedge: 74 cycles since 17:03, 4 paid checks ($0.04), 0 alerts, 0 errors.
+- **Emre:** your branch works with the agent as it is. Please merge `emre/plus-data` into `supplierpulse-plus` before Orhun's C2 at 22:00. Until then, `plus-local.sh` sets `FETCH_CMD=api3/scripts/fetch-local.sh`, a file that only exists on your branch, so C2 cannot fetch on the integration branch. Expect one conflict in `docs/PROGRESS.md`: keep both sides.
+- Next: C3, the agent on the v2 contract on Sepolia once Orhun deploys it (demo profile, next to the v1 hedge).
+
 ### 2026-10-30 · Julien (agent) · C2 check passes against Orhun's v1.1 contract; C2.5 review fixed
 - Changed:
   - `api3/agent/c2_check.py` runs the C2 integration (§7.1) as one command. It runs `plus-local.sh`, then the agent at 10 s ticks with the local fetch, and checks the 8 expected outcomes on chain and in the agent log. `--fake` runs the same checks in memory.

@@ -41,7 +41,7 @@ The tier comes from the contract's **verification history**: the supplier's veri
 **Rules the schedule follows:**
 - **One paid check per milestone.** The check window opens at the due date minus the lead time, or minus `permitTtl − 60 s` if the order's permit lifetime is shorter. The permit from that check still covers the due date, so the agent does not fetch again every tick.
 - **No paid check while a due milestone waits for the buyer's approval**, neither a due-date check (priority 3) nor monitoring (priority 4). The check before the due date already issued a permit. When the buyer approves while that permit is still valid, the agent pays with `release` and no new check.
-- **One last try before the no-data refund.** When an approved milestone reaches its no-data exit, the data may be back. The agent fetches once more, even during a retry backoff. It refunds only if that try fails. A failed x402 payment does not count: it is the agent's problem, not missing data, and must not cost the supplier the order. The buyer can always call `refundRemaining` directly.
+- **One last try before the no-data refund.** When an approved milestone reaches its no-data exit, the data may be back. Unless one of its own tries already failed after the due date, the agent fetches once more, even during a retry backoff, and refunds only if that try fails. A failed x402 payment does not count: it is the agent's problem, not missing data, and must not cost the supplier the order. The buyer can always call `refundRemaining` directly.
 - **A quarantined order gets no action at all**: no fetch, release, refund or stop.
 - **At most one fetch per supplier per tick**, and at most `MAX_FETCHES_PER_TICK` fetches in total.
 
