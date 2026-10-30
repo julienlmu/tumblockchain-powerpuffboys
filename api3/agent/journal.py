@@ -72,3 +72,38 @@ def report(entries: List[dict], spend: dict) -> str:
     alerts = [e for e in entries if e.get("outcome") in ("alert", "quarantined")]
     lines.append("alerts:        %d" % len(alerts))
     return "\n".join(lines)
+
+
+PAYMENT_TX_URL = "https://sepolia.basescan.org/tx/"  # x402 payments in aUSD (Base Sepolia)
+CONTRACT_TX_URL = "https://sepolia.etherscan.io/tx/"  # SupplierPulse(+) transactions (Ethereum Sepolia)
+
+
+def _local(ts: str) -> datetime.datetime:
+    return datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc).astimezone()
+
+
+def _link(tx: Optional[str], base: str) -> str:
+    return "[`%s…%s`](%s%s)" % (tx[:8], tx[-4:], base, tx) if tx else "–"
+
+
+def report_markdown(entries: List[dict], spend: dict) -> str:
+    """Every transaction of a run as a Markdown table with explorer links, for docs/evidence.md."""
+    if not entries:
+        return "no cycles logged yet"
+    zone = _local(entries[0]["ts"]).strftime("%Z")
+    rows = ["| Cycle | Time (%s) | Order / supplier | Why | Action | x402 payment (Base Sepolia) | Contract tx (Sepolia) | Outcome |" % zone,
+            "|---|---|---|---|---|---|---|---|"]
+    for e in entries:
+        if not e.get("tx"):
+            continue
+        rows.append("| %s | %s | %s / `%s` | %s | `%s` | %s | %s | %s |" % (
+            e.get("cycle"), _local(e["ts"]).strftime("%d %b %H:%M:%S"), e.get("orderId"), e.get("supplier"),
+            e.get("reason", ""), e.get("action"), _link(e.get("paymentTx"), PAYMENT_TX_URL),
+            _link(e["tx"], CONTRACT_TX_URL), e.get("outcome")))
+    cycles = {e.get("cycle") for e in entries if e.get("cycle") is not None}
+    outcomes = collections.Counter(e.get("outcome") for e in entries)
+    summary = ("%d cycles from %s to %s (%s): %d transactions, $%.2f spent on paid checks, %d alerts, %d errors."
+               % (len(cycles), _local(entries[0]["ts"]).strftime("%d %b %H:%M"),
+                  _local(entries[-1]["ts"]).strftime("%d %b %H:%M"), zone, len(rows) - 2, sum(spend.values()),
+                  outcomes["alert"] + outcomes["quarantined"], outcomes["error"]))
+    return "\n".join(rows + ["", summary])

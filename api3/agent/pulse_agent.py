@@ -22,7 +22,7 @@ from chain import Chain
 from chain_v1 import ChainV1
 from evidence import Fetcher
 from executor import Executor
-from journal import Journal, report
+from journal import Journal, report, report_markdown
 from ledger import Ledger
 from policy import plan
 
@@ -79,12 +79,14 @@ def main(argv=None) -> int:
     ap.add_argument("--profile", choices=sorted(config.PROFILES), help="default: AGENT_PROFILE or demo")
     ap.add_argument("--ticks", type=int, default=0, help="run: stop after N ticks (0 = forever)")
     ap.add_argument("--quiet", action="store_true", help="log to the file only")
+    ap.add_argument("--markdown", action="store_true", help="report: transactions as a table for docs/evidence.md")
     args = ap.parse_args(argv)
 
     if args.command == "report":
         cfg = config.load(profile=args.profile, require_chain=False)
         state_dir = cfg.state_dir / "fake" if args.fake else cfg.state_dir
-        print(report(Journal(state_dir / "cycles.jsonl").read(), Ledger(state_dir / "state.json").data["spend"]))
+        render = report_markdown if args.markdown else report
+        print(render(Journal(state_dir / "cycles.jsonl").read(), Ledger(state_dir / "state.json").data["spend"]))
         return 0
 
     try:

@@ -57,7 +57,7 @@ The tier comes from the contract's **verification history**: the supplier's veri
 | After a failed payment (for example no aUSD) | all paid checks paused for 15 min | same | `ledger.py` |
 | Gas in the agent wallet | at least two writes' worth at the current gas price | same | `executor.py`: otherwise no action, one alert |
 
-**Wasted gas.** Every write is simulated first (`eth_call`) and only sent if the simulation passes, so a record the contract would refuse costs no gas.
+**Wasted gas.** Every write is simulated first (`eth_call`) and only sent if the simulation passes, so a record the contract would refuse costs no gas. Every write has a fixed gas limit of 600,000 (unused gas is refunded). With the exact estimate as the limit, a transaction that landed a block later on Sepolia could run out of gas, for example when it also updates the verification history (Batu's finding).
 
 **Free local fetches** (the local test chain) do not count against the budget. A failed fetch that may have been paid (verification failed, timeout, crash) does.
 
@@ -106,7 +106,7 @@ Every action is one JSON line in `api3/agent/state/cycles.jsonl`:
 
 ```sh
 cd api3/agent
-python3 -m unittest discover -s tests                   # 78 tests, no network
+python3 -m unittest discover -s tests                   # 80 tests, no network
 python3 pulse_agent.py run --fake --ticks 45            # whole flow against an in-memory contract, simulated clock
 python3 pulse_agent.py report --fake
 
@@ -117,8 +117,12 @@ AGENT_CONTRACT_VERSION=v1 PULSE_PLUS_ADDRESS=0x91d7dbae109029b2b1245179a68ac3627
                                                         # hedge: the live v1 contract (status-only fetch via fetch-v1.sh)
 cp .env.example .env                                    # Sepolia: fill in the address and keys, then
 python3 pulse_agent.py plan                             # what the next tick would do, without acting
-while true; do python3 pulse_agent.py run; sleep 5; done   # supervised loop
+./run-forever.sh                                        # supervised loop: restarts after a crash, stops on a
+                                                        # config error or a second agent on the same state
+python3 pulse_agent.py report --markdown                # every transaction with explorer links, for docs/evidence.md
 ```
+
+One agent runs per state directory (`state/` for v2, `state/v1/` for v1): a second `run` or `once` on the same one refuses to start, while `plan` and `report` work alongside it. The v1 hedge and the v2 agent can run at the same time.
 
 | Setting | Meaning |
 |---|---|
