@@ -14,6 +14,7 @@ html,body{background:var(--paper-page);color:var(--paper-ink)}body{padding:0;mar
 #supplierpulse-selected-ui-concepts .sp-brand{font-weight:500;letter-spacing:-.4px;font-size:17px;gap:8px}
 #supplierpulse-selected-ui-concepts .sp-brandmark{background:transparent;color:var(--sp-accent);border-radius:0;width:21px;height:27px}
 #supplierpulse-selected-ui-concepts .sp-brandmark svg{width:20px;height:20px}
+#supplierpulse-selected-ui-concepts .sp-brandmark img{width:21px;height:auto;display:block}
 #supplierpulse-selected-ui-concepts .sp-control-nav{gap:25px}
 #supplierpulse-selected-ui-concepts .sp-control-nav button{font-family:inherit;font-size:13px;font-weight:400;padding:7px 0;position:relative}
 #supplierpulse-selected-ui-concepts .sp-control-nav button[aria-current=page]{font-weight:500}

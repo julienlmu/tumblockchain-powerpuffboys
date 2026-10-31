@@ -1,3 +1,5 @@
+<p align="center"><img src="demo/logo/supplierpulse-logo.png" width="200" alt="SupplierPulse logo"></p>
+
 # SupplierPulse
 
 **Your supplier was approved last month. That should not approve today's payment.**

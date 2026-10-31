@@ -73,6 +73,9 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · logo
+- Changed: added the SupplierPulse logo (green shield with a pulse line) in `demo/logo/`: full square logo (SVG + 1024 px PNG, also the Devfolio project image) and the shield mark alone. The mark is now the favicon of every demo page and the brand mark in the Control Room header; the README shows the logo at the top.
+
 ### 2026-10-31 · Orhun · README: order assistant (future work)
 - Changed: added an "Order assistant in the Control Room" subsection to README Future work (a chat panel that answers order questions only from on-chain and signed data). No code or ABI change.
 
