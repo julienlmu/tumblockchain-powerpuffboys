@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · selected Paper theme for the Control Room
+- Changed: applied the approved Paper presentation to `demo/control.html` through `demo/control-paper.css`; bundled IBM Plex Sans and its OFL license, simplified page headings, and matched the Guide to the same palette. Simple/Complex and the live/sample selection are preserved. Screenshots and validation notes: `docs/ui/paper/README.md`.
+- Checked: all five screens in both densities at 1280 px in sample mode; edited-value illustration; Guide; local fonts; inline JavaScript syntax; behavior equivalence to base after normalizing headings; whitespace checks. No paid fetch, wallet action, contract change or dependency change.
+- Next: review and merge the separate `codex/control-room-paper` branch when ready. No deployment is part of this push.
+
 ### 2026-10-31 · Julien · the website: Control Room, simple views, FAQ, name "SupplierPulse"
 - Changed (`demo/`, merged from `batu/plus-ui`):
   - **`control.html`, the Control Room:** Orhun's design (`codex/ui-design-concepts`) with our real data and actions. Five screens in its top navigation: Operations, Verification lab, Agent, Judge kit, Settings, each in Simple and Complex. A Guide button walks through it. Ulaş's FAQ (the 7 most frequent questions) sits on Operations.
