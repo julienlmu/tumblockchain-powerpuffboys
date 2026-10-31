@@ -655,7 +655,7 @@
     const n = o.next + 1, due = o.dueDates[o.next];
     if (o.state === 1) return null; // the held box says it
     if (o.state === 2) return null; // the closed box says it
-    if (o.autoRefundAt > 0 || supplierStopped(o)) return null; // the no-data box or the stop strip says it
+    if (noDataExit(o) || supplierStopped(o)) return null; // the no-data box or the stop strip says it
     if (permitValid(o) && o.approved[o.next] && nowSec() >= due) {
       // the page itself never pays: say who does, and when the agent last acted
       const last = ctx.agentLast ? ` (it last acted ${since(ctx.agentLast)})` : ""; // permit, approval and due date: in the milestone row
@@ -744,11 +744,14 @@
     closed: { cls: "done", icon: "refund", label: "Refunded", def: "Closed: the rest went back to the buyer." },
   };
   const totalOf = (o) => o.amounts.reduce((x, y) => x + y, 0n);
+  // The no-data exit (§2.4a) applies only once the next milestone is due. Before that, the contract's autoRefundAt is
+  // just the time the exit would open (approved, no valid permit), not a sign that data is missing.
+  const noDataExit = (o) => o.state === 0 && o.autoRefundAt > 0 && nowSec() >= o.dueDates[o.next];
   const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2;
   function stateOf(o) {
     if (o.state === 2) return o.paid >= totalOf(o) ? "paid" : "closed";
     if (o.state === 1 || supplierStopped(o) || o.lastFailedRules) return "rule";
-    if (o.autoRefundAt > 0) return "nodata";
+    if (noDataExit(o)) return "nodata";
     if (permitValid(o)) return "ok";
     return "pending";
   }
@@ -837,14 +840,14 @@
         ${claimRow(true)}
       </div>`;
     } else if (notHeldYet) {
-      const nd = o.autoRefundAt > 0;
+      const nd = noDataExit(o);
       box = `<div class="held-box stop">
         <div class="title">${I("stop")}<span>${term("Payments stopped", "g-stop")}, supplier-wide</span></div>
         ${stoppedBy}${alsoStops}${stopLine}
         <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent holds it on its next pass, without paying for a new check.</p>
         ${nd ? `<p id="${whoId}">${term("No verified data", "g-grace")} since milestone ${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
-    } else if (!closed && o.autoRefundAt > 0) {
+    } else if (!closed && noDataExit(o)) {
       // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
       box = `<div class="held-box nodata">
         <div class="title">${I("clock")}<span>${term("No verified data", "g-grace")} since milestone ${o.next + 1} was due</span></div>
@@ -1069,7 +1072,7 @@
     const now = nowSec(), due = o.dueDates[o.next] || Infinity;
     if (o.state === 2) return [4, 0];
     if (o.state === 1) return [0, o.autoRefundAt];
-    if (o.autoRefundAt > 0) return [now >= o.autoRefundAt ? 0 : 1, o.autoRefundAt];
+    if (noDataExit(o)) return [now >= o.autoRefundAt ? 0 : 1, o.autoRefundAt];
     if (supplierStopped(o)) return [1, o.rec.lastBaseFailureAt];
     if (!o.approved[o.next]) return [2, due];
     return [3, due];
