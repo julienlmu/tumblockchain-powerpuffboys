@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Change Report</title>
+<!-- What changed between the agreed order document and the one now presented: the line diff and a short
+     plain-language summary. Needs api3/scripts/change-report-server.py (it runs plus-doc-diff.sh --summary and keeps
+     the language-model key on this machine). Informational only: payments are decided by the contract. -->
+<link rel="stylesheet" href="base.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232457d6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
+<style>
+  .wrap { max-width: 1180px; padding-top: var(--s5); }
+  .brand { font-weight: 700; font-size: var(--t0); color: var(--text); }
+  .brand .plus { color: var(--accent); }
+  .intro { margin-top: var(--s5); }
+  .intro h1 { font-size: var(--t4); letter-spacing: -0.02em; }
+  .intro p { margin: var(--s2) 0 0; color: var(--muted); max-width: 64ch; text-wrap: pretty; }
+  .docs { margin-top: var(--s5); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
+  @media (max-width: 760px) { .docs { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+  .card h2 { margin: 0; font-size: var(--t0); font-weight: 600; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+  .card-head .hint { color: var(--muted); font-size: var(--t-1); }
+  textarea { width: 100%; min-height: 260px; resize: vertical; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; }
+  .file { font-size: var(--t-1); color: var(--muted); }
+  .file input { font-size: var(--t-1); max-width: 100%; }
+  .actions { margin-top: var(--s4); display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+  .actions .primary { min-height: 44px; padding: 10px 18px; font-size: var(--t0); }
+  .actions .note { color: var(--muted); font-size: var(--t-1); }
+  #out { margin-top: var(--s5); display: flex; flex-direction: column; gap: var(--s4); }
+  .summary { border-color: var(--accent); }
+  .summary .label { font-size: var(--t-1); color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  .summary-text { margin: 0; white-space: pre-wrap; line-height: 1.6; }
+  .fine { margin: 0; color: var(--muted); font-size: var(--t-1); }
+  pre.diff { margin: 0; overflow-x: auto; font: 12.5px/1.55 var(--mono); border-radius: var(--r-md); background: var(--raised); border: 1px solid var(--line); padding: var(--s3) 0; }
+  pre.diff span { display: block; padding: 0 var(--s3); white-space: pre; }
+  pre.diff .del { background: var(--hold-bg); color: var(--hold); }
+  pre.diff .add { background: var(--ok-bg); color: var(--ok); }
+  pre.diff .hunk { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="control.html">Supplier<span class="plus">Pulse</span></a>
+    <div class="head-links"><a class="btn" href="control.html">Control Room</a></div>
+  </header>
+
+  <section class="intro">
+    <h1>What changed in the contract?</h1>
+    <p>Paste the version both sides agreed and the version now presented. You get every changed line, and a short summary in plain language from a language model. The summary is for the reviewer only: payments are decided by the contract and the signed registry records, never by this text.</p>
+  </section>
+
+  <div class="docs">
+    <div class="card">
+      <div class="card-head"><h2><label for="agreed">Agreed version</label></h2><label class="file">Text file <input type="file" accept=".txt,text/plain" data-for="agreed"></label></div>
+      <textarea id="agreed" spellcheck="false" placeholder="The document both sides signed off"></textarea>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2><label for="presented">Presented version</label></h2><label class="file">Text file <input type="file" accept=".txt,text/plain" data-for="presented"></label></div>
+      <textarea id="presented" spellcheck="false" placeholder="The document as it is presented now"></textarea>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="run" type="button">Show the changes</button>
+    <button id="sample" type="button">Load the sample contract</button>
+    <span class="note" id="status" role="status"></span>
+  </div>
+
+  <div id="out" hidden>
+    <div class="card summary" id="sum-card">
+      <span class="label">Summary</span>
+      <p class="summary-text" id="summary"></p>
+      <p class="fine">Written by a language model from the diff below. Informational only; it does not affect payments.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Every changed line</h2><span class="hint">Computed on this machine · <span style="color:var(--hold)">− agreed</span> · <span style="color:var(--ok)">+ presented</span></span></div>
+      <pre class="diff" id="diff"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const status = (t) => { $('status').textContent = t; };
+
+  document.querySelectorAll('input[type=file]').forEach((inp) => inp.addEventListener('change', async () => {
+    const f = inp.files[0];
+    if (f) $(inp.dataset.for).value = await f.text();
+  }));
+
+  $('sample').addEventListener('click', async () => {
+    try {
+      const [a, p] = await Promise.all(['sample/po-agreed.txt', 'sample/po-presented.txt'].map((u) => fetch(u).then((r) => {
+        if (!r.ok) throw new Error(u);
+        return r.text();
+      })));
+      $('agreed').value = a; $('presented').value = p;
+      status('Sample loaded: purchase agreement PO-2026-0417, 13 changes.');
+    } catch { status('Could not load the sample files.'); }
+  });
+
+  function showDiff(text) {
+    const pre = $('diff'); pre.textContent = '';
+    for (const line of text.split('\n')) {
+      if (line.startsWith('---') || line.startsWith('+++')) continue;
+      const s = document.createElement('span');
+      s.className = line.startsWith('-') ? 'del' : line.startsWith('+') ? 'add' : line.startsWith('@@') ? 'hunk' : '';
+      s.textContent = line || ' ';
+      pre.appendChild(s);
+    }
+  }
+
+  $('run').addEventListener('click', async () => {
+    const agreed = $('agreed').value, presented = $('presented').value;
+    if (!agreed.trim() || !presented.trim()) { status('Fill in both versions first.'); return; }
+    const btn = $('run');
+    btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+    status('Comparing and writing the summary… (about 10–20 seconds)');
+    try {
+      const r = await fetch('/api/change-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agreed, presented }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || (r.status === 404 || r.status === 501 ? 'this page needs api3/scripts/change-report-server.py, not a plain file server' : `HTTP ${r.status}`));
+      showDiff(j.diff || '');
+      $('summary').textContent = j.summary || '';
+      $('sum-card').hidden = !j.summary;
+      $('out').hidden = false;
+      status(j.summary ? 'Done.' : j.note || 'No summary.');
+      $('out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      status(`Failed: ${e.message}`);
+    } finally {
+      btn.disabled = false; btn.removeAttribute('aria-busy');
+    }
+  });
+})();
+</script>
+</body>
+</html>

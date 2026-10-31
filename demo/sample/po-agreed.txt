@@ -1,0 +1,50 @@
+PURCHASE AGREEMENT PO-2026-0417
+Date: 12 October 2026
+
+1. PARTIES
+Buyer: Bavaria Motion GmbH, Leopoldstr. 12, 80802 Munich, Germany (HRB 245118)
+Supplier: Northfield Components Ltd, 14 Dock Road, Leeds LS10 1PQ, UK (Company No. 07418033)
+
+2. GOODS
+Line 1: Brushless DC motor BLM-400, 24 V, 400 W, qty 1,200 pcs, unit price EUR 38.50
+Line 2: Motor controller MC-20, qty 1,200 pcs, unit price EUR 21.90
+Line 3: Mounting kit MK-4, qty 2,400 pcs, unit price EUR 3.20
+Line 4: Wiring harness WH-1.5m, qty 1,200 pcs, unit price EUR 6.75
+Total order value: EUR 88,860.00 (net, excl. VAT)
+
+3. DELIVERY
+Incoterms 2020: DAP Munich, Leopoldstr. 12
+Delivery in two batches:
+  Batch 1: 600 sets by 20 November 2026
+  Batch 2: 600 sets by 18 December 2026
+Partial deliveries outside these batches require written consent of the Buyer.
+
+4. QUALITY
+All motors comply with IEC 60034-1 and are CE marked.
+Acceptance inspection: AQL 0.65, general inspection level II.
+The Supplier provides a certificate of conformity with each batch.
+Warranty: 24 months from delivery.
+
+5. PAYMENT
+Payment in two milestones through the SupplierPulse escrow:
+  Milestone 1: 50% on acceptance of Batch 1
+  Milestone 2: 50% on acceptance of Batch 2
+Payment term: 30 days net after acceptance.
+Supplier bank account: IBAN GB29 NWBK 6016 1331 9268 19, BIC NWBKGB2L
+
+6. PENALTIES
+Late delivery: 0.5% of the batch value per started week, capped at 5% of the order value.
+Failed acceptance: the Supplier replaces the batch within 10 working days at its own cost.
+
+7. TERMINATION
+Either party may terminate with 30 days written notice.
+The Buyer may terminate immediately if the Supplier becomes insolvent or is struck off the register.
+
+8. CONFIDENTIALITY
+Both parties keep the terms of this agreement confidential for 3 years.
+
+9. LAW AND JURISDICTION
+This agreement is governed by German law. Place of jurisdiction: Munich.
+
+Signed for the Buyer: Anna Keller, Head of Procurement
+Signed for the Supplier: James Holt, Managing Director

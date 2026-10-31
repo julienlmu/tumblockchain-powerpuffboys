@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · change report page on localhost (branch orhun/change-report-page)
+- Changed: `demo/changes.html` (two documents in, every changed line plus the language-model summary out), `api3/scripts/change-report-server.py` (serves `demo/` on 127.0.0.1:8766 and `POST /api/change-report`, which runs `plus-doc-diff.sh --summary`; the key never reaches the browser; only localhost Host and JSON accepted, 200 KB limit, 90 s timeout), `api3/scripts/plus-doc-diff.sh` (same file as `orhun/doc-tools`, default `gpt-6-luna`), sample `demo/sample/po-agreed.txt` / `po-presented.txt` (13 changes). `demo/README.md` row.
+- Notes: tested in the browser: sample loaded, summary listed all 13 changes, diff colored. Branch is based on main, not merged. Needs internet at the presentation; one report takes about 10-20 s and well under $0.001.
+
 ### 2026-10-31 · Julien · the website: Control Room, simple views, FAQ, name "SupplierPulse"
 - Changed (`demo/`, merged from `batu/plus-ui`):
   - **`control.html`, the Control Room:** Orhun's design (`codex/ui-design-concepts`) with our real data and actions. Five screens in its top navigation: Operations, Verification lab, Agent, Judge kit, Settings, each in Simple and Complex. A Guide button walks through it. Ulaş's FAQ (the 7 most frequent questions) sits on Operations.
