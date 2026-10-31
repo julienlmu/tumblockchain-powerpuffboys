@@ -228,6 +228,7 @@
   .next-step.ok .i { color: var(--ok); } .next-step.wait .i { color: var(--wait); } .next-step.info .i { color: var(--accent); }
 
   /* one status box per card: held or supplier-wide stop (red), no data (amber), closed (neutral) */
+  .past-failure { color: var(--muted); font-size: var(--t-1); margin: 0; }
   .held-box { border-radius: var(--r-md); padding: var(--s3); background: var(--hold-bg); color: var(--hold); display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t-1); }
   .held-box.nodata { background: var(--wait-bg); color: var(--wait); }
   .held-box .title { font-size: var(--t0); font-weight: 600; display: flex; gap: var(--s2); align-items: flex-start; }
@@ -747,7 +748,12 @@
   // The no-data exit (§2.4a) applies only once the next milestone is due. Before that, the contract's autoRefundAt is
   // just the time the exit would open (approved, no valid permit), not a sign that data is missing.
   const noDataExit = (o) => o.state === 0 && o.autoRefundAt > 0 && nowSec() >= o.dueDates[o.next];
-  const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2;
+  // A failed base status stays on record (lastBaseFailureAt), but it only blocks a payment whose evidence is not newer
+  // (release: evidenceAt <= lastBaseFailureAt). The supplier has recovered once its newest record is newer than the failure.
+  const failedAt = (o) => o.rec.lastBaseFailureAt;
+  const supplierRecovered = (o) => failedAt(o) > 0 && o.rec.lastCheckAt > failedAt(o);
+  const supplierStopped = (o) => failedAt(o) > 0 && o.state !== 2 && o.lastCheck <= failedAt(o);
+  const pastFailure = (o) => failedAt(o) > 0 && o.state !== 2 && !supplierStopped(o);
   function stateOf(o) {
     if (o.state === 2) return o.paid >= totalOf(o) ? "paid" : "closed";
     if (o.state === 1 || supplierStopped(o) || o.lastFailedRules) return "rule";
@@ -828,6 +834,10 @@
     const stopLine = byOther ? `<p>No permit from before then can pay, on any of this supplier's orders.</p>`
       : `<p class="keep">The supplier's register status failed${statusWord} on ${when}: no permit from before then can pay, on any of its orders.</p>`;
 
+    const recoveredLine = `<p class="keep">The register status failed on ${when}. A newer clean record of the same supplier has been accepted since, but this order's last evidence is older than the failure: it needs a new check before it can pay.</p>`;
+    // F10: newer clean evidence on this order: the old failure is history, not a stop
+    const pastNote = pastFailure(o) ? `<p class="past-failure">Earlier failure on record: the register status failed on ${dayClock(failedAt(o))}. This order's evidence is newer, so the failure no longer blocks its payments.</p>` : "";
+
     let box = "";
     if (held) {
       const ownStop = byOther && o.lastFailedRules === P.BASE_FAILED;
@@ -843,7 +853,7 @@
       const nd = noDataExit(o);
       box = `<div class="held-box stop">
         <div class="title">${I("stop")}<span>${term("Payments stopped", "g-stop")}, supplier-wide</span></div>
-        ${stoppedBy}${alsoStops}${stopLine}
+        ${stoppedBy}${alsoStops}${supplierRecovered(o) ? recoveredLine : stopLine}
         <p class="note keep"${nd ? "" : ` id="${whoId}"`}>Not held yet: the agent holds it on its next pass, without paying for a new check.</p>
         ${nd ? `<p id="${whoId}">${term("No verified data", "g-grace")} since milestone ${o.next + 1} was due either: anyone can send the ${tok(o.remaining)} tokens back to the buyer ${opens(o.autoRefundAt)}${offNote}.</p>${claimRow(nowSec() >= o.autoRefundAt)}` : ""}
       </div>`;
@@ -916,7 +926,7 @@
         ${bar}
         ${step ? `<p class="next-step ${step[0]}">${I(stepIcon[step[0]] || "arrow-right")}<span>${step[1]}</span></p>` : ""}
         ${approveInStep ? `<div class="step-approve">${approveWays(o, o.next, env)}</div>` : ""}
-        ${box}
+        ${box}${pastNote}
         <ol class="ms" aria-label="Milestones">${o.amounts.map((_, i) => milestoneView(o, i, !box, env, approveInStep)).join("")}</ol>
         <details class="more" data-key="${moreKey}"${isOpen(moreKey, wide.matches) ? " open" : ""}>
           <summary>Details</summary>

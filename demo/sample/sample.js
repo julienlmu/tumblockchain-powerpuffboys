@@ -20,7 +20,7 @@ window.PULSE_SAMPLE = (now) => {
   const NONE = { heldAt: 0, autoRefundAt: 0 };
 
   // Supplier records are shared by every order of the supplier (§2.4).
-  const B_REC = { cleanStreak: 0, checks: 1, failures: 1, lastCountedAt: 0, lastCheckAt: m(-4), lastBaseFailureAt: m(-4) - 3, tier: 0 };
+  const B_REC = { cleanStreak: 0, checks: 1, failures: 1, lastCountedAt: 0, lastCheckAt: m(-4) - 3, lastBaseFailureAt: m(-4) - 3, tier: 0 };
 
   return {
     agent: AGENT,

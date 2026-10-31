@@ -7,6 +7,7 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { requestHash } from './requests.mjs';
 import { digestOf } from './sign-local.mjs';
 import { loadRecord } from './verify.mjs';
+import { pathToFileURL } from 'node:url';
 
 const OTHER_ID = { ch: '00000001', gleif: 'TESTLEI0000000000001' };
 const OTHER_ID_ALT = { ch: '00000002', gleif: 'TESTLEI0000000000002' };
@@ -57,7 +58,8 @@ export async function tamper(r, mode) {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// run as a script (pathToFileURL: the repository path may contain spaces)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [file, mode] = process.argv.slice(2);
   try {
     if (!file || !mode) throw new Error('usage: node tamper.mjs <file> <value|stale|request|key|replay>');

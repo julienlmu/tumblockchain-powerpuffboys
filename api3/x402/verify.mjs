@@ -7,6 +7,7 @@ import { hexToString, isAddressEqual, isHex, recoverMessageAddress } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts';
 import { RULES, evaluateRules, requestHash, sourceOf } from './requests.mjs';
 import { LOCAL_KEYS, digestOf } from './sign-local.mjs';
+import { pathToFileURL } from 'node:url';
 
 const MAX_FUTURE_SKEW = 60;
 
@@ -67,7 +68,8 @@ export async function verifyRecord(r, { maxAge = 300, local = false, now = Math.
   return results;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// run as a script (pathToFileURL: the repository path may contain spaces)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   const file = args.find((a) => !a.startsWith('--') && args[args.indexOf(a) - 1] !== '--max-age');
   const maxAgeArg = args.includes('--max-age') ? args[args.indexOf('--max-age') + 1] : '300';

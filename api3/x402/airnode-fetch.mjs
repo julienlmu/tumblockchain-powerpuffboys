@@ -3,7 +3,7 @@
 // Usage: PAYER_PRIVATE_KEY=0x... node airnode-fetch.mjs <ch|gleif> <id>
 // Exit: 0 ok, 2 usage, 3 no data, 4 payment failed, 5 verification failed
 import { ExactEvmScheme } from '@x402/evm';
-import { decodePaymentResponseHeader, wrapFetchWithPaymentFromConfig } from '@x402/fetch';
+import { decodePaymentResponseHeader, wrapFetchWithPayment, x402Client } from '@x402/fetch';
 import { isAddressEqual, recoverMessageAddress, toHex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { buildRequest, normalizeId, requestHash, sourceOf } from './requests.mjs';
@@ -11,6 +11,9 @@ import { digestOf } from './sign-local.mjs';
 
 const BASE_SEPOLIA = 'eip155:84532';
 const AUSD = '0xbeA34973e5f67F18F656A2C6070C64326C791808';
+const AUSD_DECIMALS = 6;
+// one registry lookup costs $0.01; refuse anything above that
+const MAX_ATOMIC = '10000';
 
 const fail = (code, msg) => {
   console.error(msg);
@@ -28,14 +31,21 @@ try {
 const key = process.env.PAYER_PRIVATE_KEY;
 if (!key) fail(2, 'PAYER_PRIVATE_KEY is not set (a Base Sepolia wallet holding aUSD)');
 
-const payingFetch = wrapFetchWithPaymentFromConfig(fetch, {
+const client = x402Client.fromConfig({
   schemes: [{ network: BASE_SEPOLIA, client: new ExactEvmScheme(privateKeyToAccount(key)) }],
   spendControls: {
-    maxAmountPerPayment: '$0.05',
-    allowedAssets: [{ network: BASE_SEPOLIA, asset: AUSD, maxAmountPerPayment: '50000' }],
+    maxAmountPerPayment: '$0.01',
+    allowedAssets: [{ network: BASE_SEPOLIA, asset: AUSD, maxAmountPerPayment: MAX_ATOMIC }],
   },
   policies: [(_v, reqs) => reqs.filter((r) => r.asset.toLowerCase() === AUSD.toLowerCase())],
 });
+// the amount we actually signed for, so the record shows the real price
+let paidAtomic = null;
+client.onAfterPaymentCreation(async ({ selectedRequirements }) => {
+  paidAtomic = selectedRequirements.amount;
+});
+const payingFetch = wrapFetchWithPayment(fetch, client);
+const toUsd = (atomic) => (Number(atomic) / 10 ** AUSD_DECIMALS).toFixed(AUSD_DECIMALS).replace(/0+$/, '').replace(/\.$/, '');
 
 let res;
 try {
@@ -76,7 +86,8 @@ console.log(
     raw: signed.data,
     signature: signed.signature,
     paymentTx: settlement?.transaction ?? null,
-    priceUsd: '0.01',
+    priceUsd: paidAtomic === null ? null : toUsd(paidAtomic),
+    priceAtomic: paidAtomic,
     fetchedAt: new Date().toISOString(),
   })
 );
