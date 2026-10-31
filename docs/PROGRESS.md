@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · pitch: customer persona and real numbers
+- Changed: `docs/PITCH_CUSTOMER.md`: one customer (German machinery maker paying a UK supplier in advance; German suppliers via GLEIF), three sourced numbers (England and Wales insolvencies 2025, Destatis insolvencies and creditor claims 2025, Companies House dissolutions 2024/25), a 3-sentence pitch line, and ready answers to "who would use this?" and "does the wallet belong to that company?".
+- Next: Ulaş / pitch owner uses it on the slides and in the video.
+- Notes: no reliable public figure found for losses on advance payments; the doc says not to quote one.
+
 ### 2026-10-31 · Orhun · demo video idea
 - Changed: `docs/DEMO_IDEAS.md`, a storyboard for the 2.5-min video: happy path first (paid vs. held), then the four tamper cases side by side and zoomed, then the judge command and Etherscan. Uses the case and error names `judge-tamper.sh` prints, and `plus-quick-orders.sh` to open fresh orders 5 min before filming.
 - Next: team decides; Ulaş / video owner.
