@@ -20,8 +20,8 @@ if (!key) throw new Error('PAYER_PRIVATE_KEY is not set (a Base Sepolia wallet h
 const payingFetch = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: BASE_SEPOLIA, client: new ExactEvmScheme(privateKeyToAccount(key)) }],
   spendControls: {
-    maxAmountPerPayment: '$0.05',
-    allowedAssets: [{ network: BASE_SEPOLIA, asset: AUSD, maxAmountPerPayment: '50000' }],
+    maxAmountPerPayment: '$0.01',
+    allowedAssets: [{ network: BASE_SEPOLIA, asset: AUSD, maxAmountPerPayment: '10000' }],
   },
   policies: [(_v, reqs) => reqs.filter((r) => r.asset.toLowerCase() === AUSD.toLowerCase())],
 });

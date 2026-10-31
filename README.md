@@ -85,6 +85,8 @@ The contract must reject a manipulated record. Every case below has been run aga
 | (d) signed by a key that is not the expected Airnode | `WrongSigner` |
 | The same valid record a second time | `Replayed` |
 
+**Fastest, in one command** (Foundry, Node.js and jq; no keys, no money): `api3/scripts/judge-tamper.sh` deploys the contract on a local anvil chain, rejects four tampered records (edited value, too old, other request, wrong key), pays one valid record and rejects its replay. Against the live v2 on Sepolia: `api3/scripts/judge-tamper.sh --live <orderId> <fresh record.json>` (simulated, no gas).
+
 Run it yourself in one of three ways:
 
 1. **In the browser.** Open "Try to break it" (`demo/judge.html`, see "Run it" below), pick an order, load a record, and press **Run the full tamper test**. Each attempt is an `eth_call` of the live contract: no wallet, no gas.

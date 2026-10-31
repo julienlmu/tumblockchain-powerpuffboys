@@ -73,6 +73,13 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · handoff tasks 1–3 landed together
+- Merged: `orhun/lab-interactive` (Verification lab: edit the signed data yourself, `docs/LAB_RECORDING.md`) and `orhun/final-fixes` (`judge-tamper.sh`, `plus-quick-orders.sh`, `plus-warp.sh`, F07, x402 tools with spaces in the path).
+- Changed: `demo/index.html` keeps `main`'s redesigned dashboard and security fixes; only F10 is re-applied (`failedAt`, `supplierRecovered`, `supplierStopped` now `o.lastCheck <= failedAt(o)`, `pastFailure`, the recovered-supplier line, the "Earlier failure on record" note). `orhun/plus-ui-f10` is replaced by this and stays unmerged.
+- Changed: `plus-create-order.sh` passes an `ORDER_REF` that is already 32-byte hex through unchanged; `plus-quick-orders.sh` stores readable names (`PO-<HHMM><n> Motor supply`, `Gearbox`, `Cable harness (DE)`), so quick orders show their PO number and name on the website instead of a bare `#12`.
+- README: one paragraph for `judge-tamper.sh` in the tamper-test section.
+- Next: run `judge-tamper.sh` and `plus-quick-orders.sh` on local anvil, then land on `main` and `supplierpulse-plus`.
+
 ### 2026-10-31 · Julien · the website: Control Room, simple views, FAQ, name "SupplierPulse"
 - Changed (`demo/`, merged from `batu/plus-ui`):
   - **`control.html`, the Control Room:** Orhun's design (`codex/ui-design-concepts`) with our real data and actions. Five screens in its top navigation: Operations, Verification lab, Agent, Judge kit, Settings, each in Simple and Complex. A Guide button walks through it. Ulaş's FAQ (the 7 most frequent questions) sits on Operations.
@@ -86,6 +93,13 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 ### 2026-10-31 · Orhun · demo video idea
 - Changed: `docs/DEMO_IDEAS.md`, a storyboard for the 2.5-min video: happy path first (paid vs. held), then the four tamper cases side by side and zoomed, then the judge command and Etherscan. Uses the case and error names `judge-tamper.sh` prints, and `plus-quick-orders.sh` to open fresh orders 5 min before filming.
 - Next: team decides; Ulaş / video owner.
+### 2026-10-31 · Orhun · F07, F10, judge tamper command, quick demo orders
+- Changed: `api3/x402/airnode-fetch.mjs` and `ch-fetch.mjs` refuse any payment above $0.01 (was $0.05). The record's `priceUsd` is now the amount actually signed for (plus `priceAtomic`), not a fixed "0.01"; checked against a local 402 server: $0.01 paid and recorded, $0.05 refused (F07).
+- Changed: `demo/index.html` (on `main` and on `orhun/plus-ui-f10`, branched from `batu/plus-ui`): a failed register status blocks an order only while the order's evidence is not newer than the failure, the same check as `release()`. After newer clean evidence the card shows "Earlier failure on record" instead of a stop. The sample supplier record of order B now matches the contract (F10).
+- New: `api3/scripts/judge-tamper.sh`, the tamper test in one command. Local by default (anvil, no keys): (a) value, (b) stale, (c) request, (d) key rejected, the valid record pays 500 tokens, its replay is rejected (6/6 PASS). `--live <orderId> <record.json>` simulates the same cases on the live v2 without gas. Linked from the README.
+- Fixed: `tamper.mjs`, `sign-local.mjs`, `verify.mjs` printed nothing when the repository path contains a space (the `import.meta.url` check never matched), so `plus-submit.sh <mode>` failed with "parser error" on such machines.
+- New: `api3/scripts/plus-quick-orders.sh` creates orders QA (clean CH, 2 milestones), QB (liquidation), QD (clean GLEIF) on the deployed contract with M1 approved and due in 2 min (`QUICK_DUE`), `permitTtl` = `maxAge`. A paid video take then needs about 5 min instead of 20 to 30. `api3/scripts/plus-warp.sh <s>` moves a local anvil chain forward (refuses any other chain). No contract change, no deploy. Tested on anvil only; nothing sent on Sepolia.
+- Next: run `plus-quick-orders.sh` on Sepolia right before the video (costs 0.002 ETH from the buyer and $0.01 aUSD per agent check); merge `orhun/final-fixes` and `orhun/plus-ui-f10` after review.
 
 ### 2026-10-30 · Orhun · security review findings → docs/TODO.md
 - Changed: `docs/TODO.md`, the to-do list before submission with an owner for each item (public repo, README, Devfolio/video texts, agent order allowlist, x402 limit, dashboard stop label, merge of `orhun/doc-tools`), pitch wording and known limits.

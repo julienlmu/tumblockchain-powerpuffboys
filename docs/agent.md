@@ -52,7 +52,7 @@ The tier comes from the contract's **verification history**: the supplier's veri
 | Daily budget for paid checks (UTC day) | $1.00 | $5.00 | `policy.py`: no fetch that would exceed it |
 | Reserve kept for due-date checks | $0.20 | $1.00 | `policy.py`: monitoring stops at budget minus reserve |
 | Fetches per tick | 3 | 10 | `policy.py` |
-| Price per payment | at most $0.05, aUSD only | same | the x402 client in `api3/x402/` refuses anything else |
+| Price per payment | at most $0.01, aUSD only; the record stores the amount actually paid | same | the x402 client in `api3/x402/` refuses anything else |
 | Gas price | at most 50 gwei | 50 gwei | `executor.py`: no writes above it |
 | After a failed payment (for example no aUSD) | all paid checks paused for 15 min | same | `ledger.py` |
 | Gas in the agent wallet | at least two writes' worth at the current gas price | same | `executor.py`: otherwise no action, one alert |
