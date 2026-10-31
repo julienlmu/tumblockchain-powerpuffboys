@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · demo video idea
+- Changed: `docs/DEMO_IDEAS.md`, a storyboard for the 2.5-min video: happy path first (paid vs. held), then the four tamper cases side by side and zoomed, then the judge command and Etherscan. Uses the case and error names `judge-tamper.sh` prints, and `plus-quick-orders.sh` to open fresh orders 5 min before filming.
+- Next: team decides; Ulaş / video owner.
+
 ### 2026-10-30 · Orhun · security review findings → docs/TODO.md
 - Changed: `docs/TODO.md`, the to-do list before submission with an owner for each item (public repo, README, Devfolio/video texts, agent order allowlist, x402 limit, dashboard stop label, merge of `orhun/doc-tools`), pitch wording and known limits.
 - Notes: each finding checked against `main`. Document-tool fixes are on `orhun/doc-tools` (71be4ed). No contract change, no deploy.
