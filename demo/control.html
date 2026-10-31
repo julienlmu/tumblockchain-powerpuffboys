@@ -269,6 +269,13 @@
 /* the screen navigation, larger than the design's 11 px so the screens are easy to find (user request) */
 #supplierpulse-selected-ui-concepts .sp-control-nav button { font-size:13.5px; font-weight:500; padding:6px 0; }
 @media(max-width:620px) { #supplierpulse-selected-ui-concepts .sp-control-nav { flex-wrap:wrap; gap:6px 16px; } }
+/* nav hover (user request): darker text and a grey line where the current screen has its green one (Paper's offsets per width) */
+#supplierpulse-selected-ui-concepts .sp-control-nav button { cursor:pointer; transition:color .15s; }
+#supplierpulse-selected-ui-concepts .sp-control-nav button:not([aria-current=page]):hover { color:var(--sp-ink); }
+#supplierpulse-selected-ui-concepts .sp-control-nav button:not([aria-current=page]):hover:after { content:""; position:absolute; left:0; right:0; height:1px; bottom:-20px; background:var(--sp-muted); }
+@media(max-width:900px) { #supplierpulse-selected-ui-concepts .sp-control-nav button:not([aria-current=page]):hover:after { bottom:-13px; } }
+@media(max-width:620px) { #supplierpulse-selected-ui-concepts .sp-control-nav button:not([aria-current=page]):hover:after { bottom:0; } }
+@media (prefers-reduced-motion: reduce) { #supplierpulse-selected-ui-concepts .sp-control-nav button { transition:none; } }
 #supplierpulse-selected-ui-concepts .sp-faq { padding-top:6px; padding-bottom:6px; }
 #supplierpulse-selected-ui-concepts .sp-faq-item { border-bottom:1px solid var(--sp-line); padding:16px 0; }
 #supplierpulse-selected-ui-concepts .sp-faq-item:last-child { border-bottom:0; }
@@ -288,6 +295,11 @@
 #supplierpulse-selected-ui-concepts .sp-input::placeholder { color:var(--sp-muted); }
 #supplierpulse-selected-ui-concepts a.sp-line-item:hover strong { text-decoration:underline; }
 #supplierpulse-selected-ui-concepts .sp-kv dd .sp-button.sp-quiet { padding:0 0 0 8px; font-size:11px; }
+/* Inspect: the order's panel outlines once so the change is visible */
+@keyframes sp-flash { from { box-shadow:0 0 0 3px var(--sp-accent); } to { box-shadow:0 0 0 3px transparent; } }
+#supplierpulse-selected-ui-concepts .sp-control-grid > aside > .sp-sheet { scroll-margin-top:16px; }
+#supplierpulse-selected-ui-concepts .sp-flash { animation:sp-flash 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { #supplierpulse-selected-ui-concepts .sp-flash { animation:none; } }
 /* the Guide (P.tour) sits outside the app, so it takes the Control Room palette directly */
 .tour-ring { position:fixed; z-index:1000; border-radius:12px; pointer-events:none; box-shadow:0 0 0 2px light-dark(#345a35,#d0e8a0), 0 0 0 200vmax rgba(8,12,10,.62); transition:left .2s, top .2s, width .2s, height .2s; }
 .tour-card { position:fixed; z-index:1001; width:min(330px, calc(100vw - 32px)); background:light-dark(#f9fbf8,#18211b); color:light-dark(#203025,#edf3e9); border:1px solid light-dark(#cdd7ca,#344337); border-radius:12px; padding:20px; box-shadow:0 16px 40px #0006; display:flex; flex-direction:column; gap:8px; font:400 13px/1.5 'Manrope',sans-serif; }
@@ -645,7 +657,7 @@
     const also = st.length ? `<p class="sp-small sp-muted" style="margin-top:6px">Also stops ${st.map(orderLink).join(' ')}</p>` : '';
     const past = pastFailure(o) ? `<p class="sp-small sp-muted" style="margin-top:6px">Earlier failure on record (${dayClock(o.lastBaseFailureAt)}); this order's evidence is newer, so it no longer blocks payment.</p>` : '';
     const sched = s.mode === 'complex' ? `<details class="sp-disclosure" data-key="sched-${o.id}"${opened('sched-' + o.id)}><summary class="cursor-interaction">Milestone schedule</summary>${milestone(o)}</details>` : '';
-    return `<div class="sp-sheet sp-padding"><h3>Release conditions</h3><div style="margin-top:10px">${rows.map(([ok, ic, label, value, extra]) => `<div class="sp-check ${ok ? '' : extra || 'sp-expired'}">${icon(ic)}${label}<span>${value}</span></div>`).join('')}</div><button class="sp-button ${a.fn && !busy ? 'sp-primary' : ''} cursor-interaction" ${a.fn && !busy ? `data-act="${a.fn}"` : 'disabled'} style="width:100%;margin-top:12px">${icon(busy ? 'loader' : a.icon)}${busy ? 'Waiting for the wallet…' : a.label}</button><p class="sp-small sp-muted" style="margin-top:9px">${a.why}</p>${stop}${also}${past}${sendLine(o)}${sched}</div>`;
+    return `<div class="sp-sheet sp-padding"><h3>Release conditions</h3><p class="sp-small sp-muted" style="margin-top:4px">${esc(o.ref)} · ${esc(o.name)}</p><div style="margin-top:10px">${rows.map(([ok, ic, label, value, extra]) => `<div class="sp-check ${ok ? '' : extra || 'sp-expired'}">${icon(ic)}${label}<span>${value}</span></div>`).join('')}</div><button class="sp-button ${a.fn && !busy ? 'sp-primary' : ''} cursor-interaction" ${a.fn && !busy ? `data-act="${a.fn}"` : 'disabled'} style="width:100%;margin-top:12px">${icon(busy ? 'loader' : a.icon)}${busy ? 'Waiting for the wallet…' : a.label}</button><p class="sp-small sp-muted" style="margin-top:9px">${a.why}</p>${stop}${also}${past}${sendLine(o)}${sched}</div>`;
   }
   // the agent's own transactions, one row per transaction, newest first (sample events carry no hash: grouped by time)
   function agentRows() {
@@ -1072,9 +1084,11 @@
       document.getElementById('sp-edit-reset').disabled = !d.changed;
     }
   });
+  // the lab starts again at its first scenario whenever the record under test changes (another order, source or file)
+  const firstScenario = () => { s.test = 'valid'; s.last = 'case'; };
   app.addEventListener('change', async (e) => {
-    if (e.target.id === 'sp-file' && e.target.files[0]) { userRecord = await e.target.files[0].text(); render(); }
-    else if (e.target.id === 'sp-record') render(); // the editor picks up the pasted record
+    if (e.target.id === 'sp-file' && e.target.files[0]) { userRecord = await e.target.files[0].text(); firstScenario(); render(); }
+    else if (e.target.id === 'sp-record') { firstScenario(); render(); } // the editor picks up the pasted record
   });
   app.addEventListener('submit', (e) => {
     if (e.target.id !== 'sp-settings') return;
@@ -1089,14 +1103,14 @@
   });
   app.addEventListener('click', async (event) => {
     const b = event.target.closest('button'); if (!b || b.disabled) return;
-    let changed = true;
+    let changed = true, inspect = false;
     if (b.dataset.mode) { s.mode = b.dataset.mode; s.filter = 'all'; if (s.mode === 'simple' && s.test === 'replay') s.test = 'valid'; try { localStorage.setItem('pulse-control-mode', s.mode); } catch { /* storage blocked */ } }
     else if (b.dataset.page) { s.page = b.dataset.page; history.replaceState(null, '', `${location.pathname}${location.search}#${s.page}`); }
-    else if (b.dataset.order !== undefined) { s.order = Number(b.dataset.order); s.page = 'orders'; sendMsg = { id: null, html: '' }; history.replaceState(null, '', `${location.pathname}${location.search}#orders`); }
-    else if (b.dataset.pick !== undefined) { s.order = Number(b.dataset.pick); }
+    else if (b.dataset.order !== undefined) { if (Number(b.dataset.order) !== s.order) firstScenario(); s.order = Number(b.dataset.order); s.page = 'orders'; sendMsg = { id: null, html: '' }; inspect = true; history.replaceState(null, '', `${location.pathname}${location.search}#orders`); }
+    else if (b.dataset.pick !== undefined) { if (Number(b.dataset.pick) !== s.order) firstScenario(); s.order = Number(b.dataset.pick); }
     else if (b.dataset.aorder !== undefined) { s.agentOrder = b.dataset.aorder === 'all' ? null : Number(b.dataset.aorder); }
     else if (b.dataset.filter) { s.filter = b.dataset.filter; }
-    else if (b.dataset.source) { s.source = b.dataset.source; }
+    else if (b.dataset.source) { if (b.dataset.source !== s.source) firstScenario(); s.source = b.dataset.source; }
     else if (b.dataset.case) { s.test = b.dataset.case; s.last = 'case'; const o = selected(), c = cases.find((x) => x.key === s.test); render(); if (mode !== 'sample' && o && c) runCase(o, c); return; }
     else if (b.dataset.runall !== undefined) { runAll(selected()); return; }
     else if (b.dataset.upload !== undefined) { document.getElementById('sp-file').click(); return; }
@@ -1107,7 +1121,16 @@
     else if (b.dataset.edit) { editAction(b.dataset.edit); return; }
     else changed = false;
     if (changed) render();
+    if (inspect) showConditions();
   });
+
+  // Inspect: the selected order's panel can sit above the fold or below the list (narrow screens): bring it into view and mark it briefly
+  function showConditions() {
+    const p = app.querySelector('.sp-control-grid > aside > .sp-sheet'); if (!p) return;
+    const r = p.getBoundingClientRect();
+    if (r.top < 0 || r.top > innerHeight - 120) p.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    p.classList.remove('sp-flash'); void p.offsetWidth; p.classList.add('sp-flash');
+  }
 
   // Release or Refund: the contract's own answer first (staticCall), then the wallet; pending, included or refused
   async function act(fn) {
