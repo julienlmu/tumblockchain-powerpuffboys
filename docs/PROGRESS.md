@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · change report: default model gpt-6-luna (orhun/doc-hash)
+- Changed: `plus-doc-diff.sh` default OpenAI model `gpt-5.4-mini` -> `gpt-6-luna` (override with `DOC_SUMMARY_MODEL`).
+- Notes: same 50-line contract test (13 changes plus one reordered line that is not a change), 3 runs each. gpt-6-luna 13/13 in all 3 runs; gpt-5.4-mini 13/13, 12/13, 12/13 (twice missed the supplier company number). Per report about 940 input + 730 output tokens for gpt-6-luna (about 310 of them reasoning) vs 940 + 430 for gpt-5.4-mini; at list prices ($0.10/$0.50 vs $0.75/$4.50 per 1M) about $0.0005 vs $0.0026, roughly 6x cheaper.
+
 ### 2026-10-30 · Orhun · change report: OpenAI key supported (branch orhun/doc-hash)
 - Changed: `plus-doc-diff.sh` uses `ANTHROPIC_API_KEY` first if set, otherwise `OPENAI_API_KEY` (from env or `api3/.env`). Default OpenAI model `gpt-5-mini`, override with `DOC_SUMMARY_MODEL`. `OPENAI_API_KEY=` added to `api3/.env.example`.
 - Notes: tested live with gpt-5-mini (default) and gpt-5.4-mini on a PO-1001 test pair (quantity, delivery place, payment terms, price changed): both summaries listed all four changes correctly.
