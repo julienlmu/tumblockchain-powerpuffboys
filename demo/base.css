@@ -102,8 +102,30 @@ button:disabled, button:disabled:hover { opacity: 0.5; cursor: not-allowed; tran
 button.primary:disabled, button.danger:disabled { background: var(--done-bg); border-color: transparent; color: var(--muted); }
 button[aria-busy="true"] { cursor: progress; }
 
+button.copy { min-height: 26px; padding: 2px 8px; font-size: 12px; font-weight: 500; gap: 4px; margin-left: 6px; vertical-align: middle; }
+button.copy .i { width: 1em; height: 1em; }
+kbd { font: 500 11px/1 var(--mono); padding: 2px 5px; border-radius: 4px; border: 1px solid var(--line-strong); border-bottom-width: 2px; background: var(--raised); color: var(--text); }
+
+/* in-page guide: same box as the settings form */
+.guide-body { margin-top: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); font-size: var(--t-1); display: flex; flex-direction: column; gap: var(--s3); max-width: 110ch; }
+.guide-body ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--s1); }
+.guide-body p { margin: 0; }
+.guide-body table { width: 100%; border-collapse: collapse; }
+.guide-body th { text-align: left; color: var(--muted); font-weight: 400; padding: 4px var(--s3) 4px 0; border-bottom: 1px solid var(--line-strong); }
+.guide-body td { padding: 4px var(--s3) 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.small { font-size: var(--t-1); }
+dl.defs { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px var(--s4); }
+dl.defs dt { color: var(--muted); }
+dl.defs dd { margin: 0; overflow-wrap: anywhere; }
+dl.defs dd b { font-weight: 500; }
+@media (max-width: 640px) { dl.defs { grid-template-columns: 1fr; gap: 0; } dl.defs dd { margin-bottom: var(--s2); } }
+
 /* settings */
 details.cfg-box { margin-top: var(--s3); }
+/* the meta line and the settings toggle share one row; open settings take the full width below */
+.meta-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s4); margin-top: var(--s3); }
+.meta-row .meta, .meta-row details.cfg-box { margin-top: 0; }
+.meta-row details.cfg-box[open] { flex-basis: 100%; }
 form.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s3); margin-top: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); }
 form.cfg label { display: flex; flex-direction: column; gap: var(--s1); font-size: var(--t-1); color: var(--muted); }
 form.cfg input, select, textarea {
@@ -113,10 +135,45 @@ form.cfg input, select, textarea {
 }
 form.cfg input:hover, select:hover, textarea:hover { border-color: var(--muted); }
 form.cfg input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.85; }
+form.cfg input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--hold); box-shadow: inset 0 0 0 1px var(--hold); }
+form.cfg .field-err { color: var(--hold); font-size: 12px; min-height: 0; }
 form.cfg .btns { display: flex; gap: var(--s2); align-items: flex-end; }
-summary { cursor: pointer; color: var(--muted); font-size: var(--t-1); width: fit-content; border-radius: var(--r-sm); }
+summary { cursor: pointer; color: var(--muted); font-size: var(--t-1); width: fit-content; border-radius: var(--r-sm); list-style: none; display: inline-flex; align-items: center; gap: 4px; }
+summary::-webkit-details-marker { display: none; }
 summary:hover { color: var(--text); }
+/* one disclosure marker for every <details>: the chevron of the icon set, turned when open */
+summary::before, .disclosure-mark::before {
+  content: ""; flex: none; width: 0.95em; height: 0.95em; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform var(--fast) var(--ease);
+}
+details[open] > summary::before, details[open] > summary .disclosure-mark::before { transform: rotate(90deg); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* ---------------------------------------------------------------- simple / detailed view switch (both page pairs) */
+.view-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--card); }
+.view-switch a { padding: 5px 12px; border-radius: 7px; font-size: var(--t-1); font-weight: 500; line-height: 1.2; color: var(--muted); text-decoration: none; }
+.view-switch a:hover { color: var(--text); text-decoration: none; background: var(--raised); }
+.view-switch button { border: none; background: none; min-height: 0; padding: 5px 12px; border-radius: 7px; font-size: var(--t-1); font-weight: 500; line-height: 1.2; color: var(--muted); }
+.view-switch button:hover { color: var(--text); background: var(--raised); border: none; }
+.view-switch a[aria-current="page"], .view-switch button[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+
+/* ---------------------------------------------------------------- starter guide (P.tour) */
+.tour-ring { position: fixed; z-index: 1000; border-radius: var(--r-md); pointer-events: none;
+  box-shadow: 0 0 0 3px var(--accent), 0 0 0 200vmax rgba(8, 10, 14, 0.62);
+  transition: left 200ms var(--ease), top 200ms var(--ease), width 200ms var(--ease), height 200ms var(--ease); }
+.tour-card { position: fixed; z-index: 1001; width: min(340px, calc(100vw - 32px)); background: var(--card); color: var(--text);
+  border: 1px solid var(--line-strong); border-radius: var(--r-lg); padding: var(--s4); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; gap: var(--s2); }
+.tour-card h2 { margin: 0; font-size: var(--t1); line-height: 1.25; }
+.tour-card h2:focus { outline: none; }
+.tour-card p { margin: 0; line-height: 1.5; }
+.tour-step { font-size: 12px; color: var(--muted); }
+.tour-btns { display: flex; gap: var(--s2); align-items: center; margin-top: var(--s1); }
+.tour-btns span { flex: 1; }
+.tour-btns .tour-close { border: none; background: none; color: var(--muted); padding-left: 0; padding-right: 0; }
+.tour-btns .tour-close:hover { color: var(--text); background: none; }

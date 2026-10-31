@@ -1,11 +1,12 @@
-# SupplierPulse+ screens
+# SupplierPulse screens
 
 Two static pages for `api3/src/SupplierPulsePlus.sol` (spec: `docs/SUPPLIERPULSE_PLUS.md` v1.1, §6.4). No build step: HTML plus ethers 6.13.5.
 
 | Page | For | What it does |
 |---|---|---|
-| `index.html` | buyers, the demo video | One card per order: protected remaining balance, milestones (paid, permit valid until, awaiting approval, not due, held, refunded), permit countdown, verification history, last check with failed rules in plain words, refund countdown and "Claim now" when held, the supplier-wide stop and the no-data exit, and the audit trail with the decoded signed data. Above the cards: the agent's autonomous transactions. |
-| `judge.html` | judges | "Try to break it": pick an order, paste or load a signed response, press **Submit as is**, **(a) Edit value**, **(b) Too old**, **(c) Different request**, **(d) Wrong key** or **Replay**, plus the real inputs **(b) Real old record** and **(c) Real, other company** (untouched signed records). The tampered response is built in the browser (same rules as `api3/x402/tamper.mjs`, §4.7). The verdict is the contract's own: an `eth_call` of `submitEvidence` from `0x…dEaD`, no wallet, no gas. A checklist shows each check in the contract's order and where it stops; a scoreboard keeps every attempt. |
+| `index.html` | buyers, the demo video | One card per order: protected remaining balance, milestones (paid, permit valid until, awaiting approval, not due, held, refunded), permit countdown, verification history, last check with failed rules in plain words, refund countdown and "Refund to buyer (MetaMask)" when held or open to anyone, the supplier-wide stop and the no-data exit, and the audit trail with the decoded signed data. Above the cards: the agent's autonomous transactions. |
+| `simple.html` | judges, the demo video | "Try to break it", simple view: one signed record (signed in the browser on the local test chain, pasted or uploaded elsewhere), **Run the tamper test**, and five rows: the real record accepted, (a)–(d) rejected with the contract's error, then **Send for real, then replay**. Same `eth_call` of `submitEvidence` from `0x…dEaD` as `judge.html`. The **Simple / Detailed** switch in the header moves between the two views and keeps `contract`, `rpc` and `order`. |
+| `judge.html` | judges | "Try to break it", detailed view: pick an order, paste or load a signed response, press **Submit as is**, **(a) Edit value**, **(b) Too old**, **(c) Different request**, **(d) Wrong key** or **Replay**, plus the real inputs **(b) Real old record** and **(c) Real, other company** (untouched signed records). The tampered response is built in the browser (same rules as `api3/x402/tamper.mjs`, §4.7). The verdict is the contract's own: an `eth_call` of `submitEvidence` from `0x…dEaD`, no wallet, no gas. A checklist shows each check in the contract's order and where it stops; a scoreboard keeps every attempt. |
 | `v1.html` | fallback | The v1 order screen for `SupplierPulse.sol` (`0x91d7…74d7` on Sepolia). |
 
 ## Run
@@ -22,7 +23,7 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 | Local test chain (after `api3/scripts/plus-local.sh`) | `http://localhost:8765/?contract=<PULSE_PLUS_ADDRESS>&rpc=http://127.0.0.1:8545&from=0` |
 | Judge page | `http://localhost:8765/judge.html?contract=<address>` (same `rpc` parameter) |
 
-**Without an address, both pages find the contract themselves.** They look at the last 80 transactions of Orhun's deployer `0xEb3E…ce41` (§3.2), compute the address each one would have created, and take the newest contract that returns the v1.1 test vector for `requestHashFor(0, "09729896")` (§4.2). Only SupplierPulse+ v1.1 returns it. So after the C3 deploy the pages show v2 with no edit, and a later redeploy is picked up too. The dashboard then puts the address in the URL, so the link can be shared. While no v2 exists on Sepolia, the dashboard links to the v1 screen, and the judge page runs against the live v1 contract (§7 fallback).
+**Without an address, both pages find the contract themselves.** They look at the last 80 transactions of Orhun's deployer `0xEb3E…ce41` (§3.2), compute the address each one would have created, and take the newest contract that returns the v1.1 test vector for `requestHashFor(0, "09729896")` (§4.2). Only SupplierPulse v1.1 returns it. So after the C3 deploy the pages show v2 with no edit, and a later redeploy is picked up too. The dashboard then puts the address in the URL, so the link can be shared. While no v2 exists on Sepolia, the dashboard links to the v1 screen, and the judge page runs against the live v1 contract (§7 fallback).
 
 Opening the files straight from disk also works (`file://`); sample data is a `.js` file for that reason.
 
@@ -79,7 +80,7 @@ On **Ethereum Sepolia** (read only):
 
 On a test chain with Sepolia's chain id (anvil `--chain-id 11155111 --block-time 2`), v1.1 deployed **from Orhun's deployer address** (impersonated) between other transactions:
 - Both pages found the contract with no address given; the dashboard decoded the order names.
-- **MetaMask flows**, with an EIP-1193 test wallet in the page that forwards to the chain (the same calls MetaMask gets: `eth_requestAccounts`, `eth_estimateGas`, `eth_sendTransaction`, receipts): judge **Send for real** included (status 1); **Replay** then **Send anyway** reverted on chain (status 0), as simulated; dashboard **Claim now** by the buyer on a held order refunded it (simulation first, then the transaction).
+- **MetaMask flows**, with an EIP-1193 test wallet in the page that forwards to the chain (the same calls MetaMask gets: `eth_requestAccounts`, `eth_estimateGas`, `eth_sendTransaction`, receipts): judge **Send for real** included (status 1); **Replay** then **Send anyway** reverted on chain (status 0), as simulated; dashboard **Refund to buyer (MetaMask)** by the buyer on a held order refunded it (simulation first, then the transaction).
 
 Local anvil chain (31337), `SupplierPulsePlus` v1.1 from `supplierpulse-plus` (`plus-local.sh`, 6 orders), records from Emre's `sign-local.mjs`:
 

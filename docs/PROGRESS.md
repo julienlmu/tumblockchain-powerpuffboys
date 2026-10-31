@@ -73,6 +73,16 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Julien · the website: Control Room, simple views, FAQ, name "SupplierPulse"
+- Changed (`demo/`, merged from `batu/plus-ui`):
+  - **`control.html`, the Control Room:** Orhun's design (`codex/ui-design-concepts`) with our real data and actions. Five screens in its top navigation: Operations, Verification lab, Agent, Judge kit, Settings, each in Simple and Complex. A Guide button walks through it. Ulaş's FAQ (the 7 most frequent questions) sits on Operations.
+  - **Actions:** Release and Refund are offered only when the contract would accept them; the lab runs the real tamper test, including a replay. Real sends use the agent's 2,000,000 gas limit, because an estimate made one block earlier can run out.
+  - **`simple.html`:** the tamper test in one click. Every page has a Simple / Detailed switch; the dashboard has a Simple mode.
+  - **Name:** "SupplierPulse" everywhere on screen (no "+"). Code identifiers are unchanged.
+  - **Dashboard fixes:** the round-4/5 critique fixes, and the no-data state only after the due date (already on `main` as 47ed42c, now in the new dashboard).
+- Next: security review of the pages (running); Orhun's F10 dashboard fix (`orhun/plus-ui-f10`) is applied in `control.html`, not yet in `index.html`.
+- Open: http://localhost:8765/control.html after `python3 -m http.server 8765 --bind 127.0.0.1 --directory demo`.
+
 ### 2026-10-31 · Orhun · demo video idea
 - Changed: `docs/DEMO_IDEAS.md`, a storyboard for the 2.5-min video: happy path first (paid vs. held), then the four tamper cases side by side and zoomed, then the judge command and Etherscan. Uses the case and error names `judge-tamper.sh` prints, and `plus-quick-orders.sh` to open fresh orders 5 min before filming.
 - Next: team decides; Ulaş / video owner.

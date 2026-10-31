@@ -55,12 +55,12 @@
 
   // Finding the contract without configuration (§7.2 C3). Orhun's deployer deploys v2 at C3 with a plain CREATE, so
   // its address follows from the deployer's nonce. The newest contract that answers requestHashFor with the v1.1
-  // test vector (§4.2) is SupplierPulse+ v1.1; nothing else can return that value.
+  // test vector (§4.2) is SupplierPulse v1.1; nothing else can return that value.
   const V2_DEPLOYER = "0xEb3EB6da882798062b30CeC11AAaDe306287ce41";
   const V11_VECTOR = "0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f"; // requestHashFor(0, "09729896")
   const V1_SEPOLIA = "0x91d7dbae109029b2b1245179a68ac362799674d7"; // v1, live since 30 Oct (§3.2), the fallback
 
-  /** Newest SupplierPulse+ v1.1 deployed by `deployer` among its last `depth` nonces, or null. */
+  /** Newest SupplierPulse v1.1 deployed by `deployer` among its last `depth` nonces, or null. */
   async function discoverV2(provider, deployer = V2_DEPLOYER, depth = 80) {
     const nonce = await provider.getTransactionCount(deployer);
     const probe = new ethers.Contract(deployer, ["function requestHashFor(uint8 source, string supplierId) pure returns (bytes32)"], provider);
@@ -119,11 +119,28 @@
   ];
   const sourceIndex = (key) => SOURCES.findIndex((s) => s.key === key);
 
+  // Order names. Orders store orderRef as bytes32; the team scripts use keccak256(name), which cannot be decoded, so
+  // known names are matched by hash. LOCAL-<id> comes from api3/scripts/plus-local.sh; bytes32 strings decode directly.
+  const DEMO_NAMES = ["PO-1001 Motor supply", "PO-1002 Gearbox", "PO-1003 Sensors", "PO-1004 Cable harness (DE)", "PO-1005 Castings", "PO-1"];
+  function orderNamer(extra = []) {
+    const byHash = {};
+    for (const n of [...DEMO_NAMES, ...extra]) byHash[ethers.id(n).toLowerCase()] = n;
+    return (ref, supplierId) => {
+      if (!ref) return null;
+      if (!String(ref).startsWith("0x")) return String(ref); // sample data holds the plain name
+      const k = ref.toLowerCase();
+      if (byHash[k]) return byHash[k];
+      if (supplierId && ethers.id(`LOCAL-${supplierId}`).toLowerCase() === k) return `LOCAL-${supplierId}`;
+      try { const s = ethers.decodeBytes32String(ref); if (s && /^[\x20-\x7e]+$/.test(s)) return s; } catch { /* not a bytes32 string */ }
+      return null;
+    };
+  }
+
   const KNOWN_SIGNERS = {
     "0x392228e5cca260313e5ed337ed3561b59a1e4bff": "Companies House Airnode",
     "0x26d83124541e89ef28b9a5fb012b4b5f4097c20c": "GLEIF Airnode",
-    "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": "local Companies House key (anvil #1)",
-    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "local GLEIF key (anvil #2)",
+    "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": "local Companies House key, anvil #1",
+    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "local GLEIF key, anvil #2",
   };
 
   // §4.3. Base checks are always on; bit 0x80 in failedRules means the base check failed. 0x01 is reserved since v1.1.
@@ -136,7 +153,7 @@
     { bit: 0x02, source: 0, field: "accounts_overdue", clean: (v) => v === false, label: "accounts overdue", rule: "accounts filed" },
     { bit: 0x04, source: 0, field: "confirmation_overdue", clean: (v) => v === false, label: "confirmation statement overdue", rule: "confirmation statement filed" },
     // LAPSED means the LEI was not renewed on time, not that the entity is inactive (§4.3)
-    { bit: 0x08, source: 1, field: "registration_status", clean: (v) => v === "ISSUED", label: "LEI renewal overdue (e.g. LAPSED)", rule: "LEI registration issued" },
+    { bit: 0x08, source: 1, field: "registration_status", clean: (v) => v === "ISSUED", label: "LEI renewal overdue", rule: "LEI registration issued" },
   ];
 
   /** Rule chips for an order: the base check plus each enabled bit. */
@@ -208,7 +225,7 @@
         const { raw, what } = editValue(r.source, ethers.toUtf8String(r.data));
         out.raw = raw;
         out.data = ethers.hexlify(ethers.toUtf8Bytes(raw));
-        return { record: out, what: `(a) Edited value: ${what}. The signature is unchanged.`, expect: "WrongSigner" };
+        return { record: out, what: `(a) Edit value: ${what}. The signature is unchanged.`, expect: "WrongSigner" };
       }
       case "stale":
         out.timestamp = String(BigInt(r.timestamp) - 3600n);
@@ -222,12 +239,12 @@
       case "key": {
         const w = ethers.Wallet.createRandom();
         out.signature = await w.signMessage(ethers.getBytes(digestOf(r.requestHash, r.timestamp, r.data)));
-        return { record: out, what: `(d) Wrong key: the untouched response, re-signed by a random key ${w.address}.`, expect: "WrongSigner", signer: w.address };
+        return { record: out, what: `(d) Wrong key: the untouched record, re-signed by a random key ${w.address}.`, expect: "WrongSigner", signer: w.address };
       }
       case "replay":
-        return { record: out, what: "Replay: the response unchanged. It is rejected once the original was accepted on chain.", expect: "Replayed" };
+        return { record: out, what: "Replay: the record unchanged. It is rejected once the original was accepted on chain.", expect: "Replayed" };
       default:
-        return { record: out, what: "Submitted as is.", expect: null };
+        return { record: out, what: "Submit as is: the record untouched.", expect: null };
     }
   }
 
@@ -246,13 +263,13 @@
   /** One plain sentence per contract error, for judges. */
   function explain(name, args, ctx = {}) {
     const a = args || [];
-    const t = (x) => new Date(Number(x) * 1000).toLocaleString("en-GB");
+    const t = (x) => dayClockS(x);
     switch (name) {
       case "WrongSigner": return `The signature recovers to ${a[0]}, not the Airnode this contract trusts for this registry${ctx.expectedSigner ? ` (${ctx.expectedSigner})` : ""}. Any edit of the signed bytes, or a different key, changes the recovered address.`;
-      case "WrongRequest": return "The response answers a different request (another company, operation or projection) than the one this order was built for.";
-      case "StaleResponse": return `The response was signed at ${t(a[0])}, more than maxAge before the chain's time ${t(a[1])}. Old evidence cannot pay today's milestone.`;
+      case "WrongRequest": return "The record answers a different request (another company, operation or projection) than the one this order was built for.";
+      case "StaleResponse": return `The record was signed at ${t(a[0])}, more than the contract's maximum age (maxAge) before the chain's time ${t(a[1])}. Old evidence cannot pay today's milestone.`;
       case "FutureResponse": return `The timestamp ${t(a[0])} lies more than 60 s in the future of the chain's time ${t(a[1])}.`;
-      case "Replayed": return "This exact signed response was already used once. Each record can move the order only once.";
+      case "Replayed": return "This exact signed record was already used once. Each record can move the order only once.";
       case "NotNewer": return "The order already accepted a record signed at the same time or later. Older evidence cannot overwrite newer evidence.";
       case "NotActive": return `The order is ${STATE[Number(a[0])] || "not active"}: a held or closed order accepts no new evidence.`;
       case "BadOrder": return "There is no order with this id.";
@@ -266,7 +283,15 @@
       case "BadCompanyNumber": return "The company number is not 1 to 10 characters of 0-9 and A-Z.";
       case "NotRefundable": return "Nothing to refund: the order is closed, or it still has a valid permit.";
       case "RefundNotYet": return `Not yet: from ${t(a[0])} anyone can send the remaining balance back to the buyer.`;
-      case "NotAuthorized": return "Only the buyer may do this.";
+      case "NotAuthorized": return "Only the buyer may do this now; anyone may once the grace period ends.";
+      case "NotApproved": return "The buyer has not approved this milestone yet.";
+      case "NotDue": return "This milestone is not due yet.";
+      case "NoValidPermit": return "There is no valid payment permit for this milestone: it needs a fresh signed record first.";
+      case "PermitExpired": return "The payment permit has expired: it needs a fresh signed record first.";
+      case "TransferFailed": return "The contract could not send the money: the receiving wallet refused the transfer. Nothing changed.";
+      case "BadSource": return "The registry of this order is unknown to the contract.";
+      case "BadSupplierId": return "The supplier id has the wrong format for its registry.";
+      case "BadRules": return "These rules do not exist for this registry.";
       default: return "";
     }
   }
@@ -278,6 +303,7 @@
   const nowSec = () => Math.floor(Date.now() / 1000);
   const clock = (ts) => new Date(Number(ts) * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const dayClock = (ts) => new Date(Number(ts) * 1000).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const dayClockS = (ts) => new Date(Number(ts) * 1000).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   function ago(sec) {
     if (sec < 0) return "in the future";
@@ -289,7 +315,7 @@
   function span(sec) {
     sec = Math.max(0, Math.round(sec));
     if (sec < 120) return `${sec} s`;
-    if (sec < 7200) return `${Math.floor(sec / 60)} min ${String(sec % 60).padStart(2, "0")} s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)} min ${String(sec % 60).padStart(2, "0")} s`;
     if (sec < 172800) return `${Math.floor(sec / 3600)} h ${String(Math.floor((sec % 3600) / 60)).padStart(2, "0")} min`;
     return `${Math.round(sec / 86400)} days`;
   }
@@ -307,6 +333,22 @@
     if (rest === 0n) return whole.toLocaleString("en");
     const frac = (Number(rest) / Number(u)).toFixed(3).slice(1).replace(/0+$/, "");
     return whole.toLocaleString("en") + frac;
+  }
+
+  /** Plain words for a failed RPC or wallet call: { kind: "wallet" | "network" | "address" | "other", text }. */
+  function friendlyError(e, ctx = {}) {
+    const code = e && (e.code || (e.error && e.error.code) || (e.info && e.info.error && e.info.error.code));
+    const msg = (e && (e.shortMessage || e.message)) || String(e);
+    if (code === "ACTION_REJECTED" || code === 4001 || /user (rejected|denied)/i.test(msg)) return { kind: "wallet", text: "You cancelled in the wallet. Nothing was sent." };
+    if (code === "INSUFFICIENT_FUNDS") return { kind: "wallet", text: "The wallet has too little ETH to pay the gas. Nothing was sent." };
+    const m = msg.match(/no contract at (0x[0-9a-fA-F]{40}) on chain (\d+)/);
+    if (m) return { kind: "address", text: `There is no contract at ${short(m[1])} on ${NETWORKS[m[2]] || "chain " + m[2]}. Check the address, or the RPC URL if the contract lives on another network.` };
+    if (["NETWORK_ERROR", "TIMEOUT", "SERVER_ERROR"].includes(code) || /failed to fetch|fetch failed|ECONNREFUSED|network|timeout|could not detect/i.test(msg))
+      return { kind: "network", text: `The RPC${ctx.rpc ? " " + ctx.rpc : ""} did not answer. Check the RPC URL in Settings, or try again in a moment.` };
+    // reading a contract that has code but not SupplierPulse v1.1's functions (for example the v1 contract)
+    if (ctx.reading && (code === "BAD_DATA" || (code === "CALL_EXCEPTION" && !(e.data && e.data !== "0x"))))
+      return { kind: "address", notV2: true, text: `This address answers, but not as SupplierPulse v1.1${ctx.contract ? ` (${short(ctx.contract)})` : ""}. If it is the v1 contract, open the v1 screen; otherwise check the address in Settings.` };
+    return { kind: "other", text: `Unexpected answer from the RPC or the contract: ${msg}` };
   }
 
   // ---------------------------------------------------------------- icons (presentation only)
@@ -335,6 +377,9 @@
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>',
     send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
     file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   };
   const icon = (name, cls = "") => `<svg class="i${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name] || ""}</svg>`;
   /** Puts the icon named in data-icon in front of each static element's label. */
@@ -345,12 +390,170 @@
     }
   }
 
+  // ---------------------------------------------------------------- starter guide (presentation only)
+
+  /** A short guided walk through a page: one step at a time, the element ringed and the rest dimmed, with Back, Next
+      and Close. steps: [{ el: "#selector" | () => Element | null, title, text (trusted HTML) }]. A step without `el` is
+      a centred card; a step whose element is missing or hidden (another view) is skipped. Esc closes, ← → move, focus
+      returns to `returnTo`. While it runs the page behind is inert and its keyboard shortcuts are off. */
+  function tour(steps, { returnTo = null } = {}) {
+    if (document.querySelector(".tour-card")) return;
+    const pick = (s) => (typeof s.el === "function" ? s.el() : s.el ? document.querySelector(s.el) : null);
+    const shown = (n) => !!n && n.getClientRects().length > 0 && getComputedStyle(n).visibility !== "hidden";
+    const list = steps.map((s) => ({ ...s, node: pick(s) })).filter((s) => !s.el || shown(s.node));
+    if (!list.length) return;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ring = document.createElement("div");
+    ring.className = "tour-ring"; ring.setAttribute("aria-hidden", "true");
+    const card = document.createElement("div");
+    card.className = "tour-card"; card.setAttribute("role", "dialog"); card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "tour-t"); card.setAttribute("aria-describedby", "tour-x");
+    const behind = [...document.body.children].map((e) => [e, e.inert]);
+    for (const [e] of behind) e.inert = true;
+    document.body.append(ring, card);
+    let i = 0, timer = null;
+    // a page that redraws (a periodic refresh) replaces the highlighted element: find it again by its selector
+    const nodeOf = (st) => { if (st.el && (!st.node || !st.node.isConnected)) st.node = pick(st); return st.node; };
+    function place() {
+      const n = nodeOf(list[i]), vw = innerWidth, vh = innerHeight, pad = 6, gap = 12, m = 16;
+      const cw = card.offsetWidth, ch = card.offsetHeight;
+      if (!n) {
+        ring.style.cssText = "display:none";
+        card.style.left = `${Math.max(m, (vw - cw) / 2)}px`; card.style.top = `${Math.max(m, (vh - ch) / 2)}px`;
+        return;
+      }
+      const r = n.getBoundingClientRect();
+      ring.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + 2 * pad}px;height:${r.height + 2 * pad}px`;
+      if (vw <= 520) { card.style.left = `${m}px`; card.style.top = `${r.top > vh / 2 ? m : vh - ch - m}px`; return; }
+      let top = r.bottom + pad + gap;
+      if (top + ch > vh - m) top = r.top - pad - gap - ch;
+      if (top < m) top = Math.max(m, Math.min(vh - ch - m, r.top + pad)); // a tall element: the card sits over its edge
+      card.style.left = `${Math.min(Math.max(m, r.left), vw - cw - m)}px`;
+      card.style.top = `${top}px`;
+    }
+    function show(k) {
+      i = k;
+      const s = list[i], last = i === list.length - 1;
+      card.innerHTML = `<div class="tour-step">${i + 1} of ${list.length}</div><h2 id="tour-t" tabindex="-1">${esc(s.title)}</h2><p id="tour-x">${s.text}</p>
+        <div class="tour-btns"><button type="button" class="tour-close" data-tour="end">Close</button><span></span>${i ? `<button type="button" data-tour="back">Back</button>` : ""}<button type="button" class="primary" data-tour="next">${last ? "Done" : "Next"}</button></div>`;
+      const node = nodeOf(s);
+      if (node) node.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      place();
+      clearTimeout(timer); timer = setTimeout(place, reduce ? 0 : 400); // again once a smooth scroll has settled
+      card.querySelector("#tour-t").focus({ preventScroll: true });
+    }
+    function end() {
+      clearTimeout(timer);
+      document.removeEventListener("keydown", onKey, true);
+      removeEventListener("resize", place); removeEventListener("scroll", place, true);
+      ring.remove(); card.remove();
+      for (const [e, was] of behind) e.inert = was;
+      if (returnTo && returnTo.isConnected) returnTo.focus();
+    }
+    function onKey(e) {
+      e.stopPropagation(); // the page's own single-key shortcuts stay off while the guide is open
+      if (e.key === "Escape") { e.preventDefault(); end(); }
+      else if (e.key === "ArrowRight" && i < list.length - 1) { e.preventDefault(); show(i + 1); }
+      else if (e.key === "ArrowLeft" && i > 0) { e.preventDefault(); show(i - 1); }
+      else if (e.key === "Tab") { // focus stays in the card
+        const b = [...card.querySelectorAll("button")];
+        const at = b.indexOf(document.activeElement);
+        e.preventDefault();
+        b[(at + (e.shiftKey ? -1 : 1) + b.length) % b.length].focus();
+      }
+    }
+    card.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-tour]");
+      if (!t) return;
+      if (t.dataset.tour === "end") end();
+      else if (t.dataset.tour === "back") show(i - 1);
+      else if (i < list.length - 1) show(i + 1); else end();
+    });
+    document.addEventListener("keydown", onKey, true);
+    addEventListener("resize", place); addEventListener("scroll", place, true);
+    show(0);
+  }
+
+  // ---------------------------------------------------------------- copy to the clipboard (presentation only)
+
+  /** A small Copy button for a command, address or JSON. Wired once by the click listener below. */
+  const copyBtn = (text, label = "Copy") => `<button type="button" class="copy" data-copy="${esc(text)}" aria-label="${esc(label)}: ${esc(text.length > 40 ? text.slice(0, 40) + "…" : text)}">${icon("copy")}<span>${esc(label)}</span></button>`;
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch { /* file:// or no permission: fall back */ }
+    const ta = Object.assign(document.createElement("textarea"), { value: t });
+    ta.style.cssText = "position:fixed;opacity:0";
+    document.body.append(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch { /* not supported */ }
+    ta.remove();
+    return ok;
+  }
+  /** Shows a short confirmation in the button's label, then restores it. */
+  function flashLabel(btn, text) {
+    const l = btn.querySelector("span") || btn;
+    if (!btn.dataset.label) btn.dataset.label = l.textContent;
+    l.textContent = text;
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { l.textContent = btn.dataset.label; }, 1600);
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest && e.target.closest("[data-copy]");
+    if (b) flashLabel(b, (await copyText(b.dataset.copy)) ? "Copied" : "Select and copy");
+  });
+
+  // ---------------------------------------------------------------- settings form checks (presentation only)
+
+  const FIELD_RULES = {
+    contract: [/^(0x[0-9a-fA-F]{40})?$/, "0x followed by 40 hex characters"],
+    agent: [/^(0x[0-9a-fA-F]{40})?$/, "0x followed by 40 hex characters"],
+    rpc: [/^https?:\/\/\S+$/, "a URL that starts with http:// or https://"],
+    orders: [/^(\d+(\s*,\s*\d+)*)?$/, "order numbers separated by commas, for example 0,1,2"],
+    from: [/^\d*$/, "a block number, digits only"],
+    unit: [/^([1-9]\d*)?$/, "a whole number above 0"],
+  };
+  /** Checks each settings field as it is typed: the message sits under the field, and submit stays off until all are valid. */
+  function wireSettings(form) {
+    const submit = form.querySelector('[type="submit"]');
+    const check = () => {
+      let ok = true;
+      for (const el of form.elements) {
+        const rule = FIELD_RULES[el.name];
+        if (!rule) continue;
+        const bad = !rule[0].test(el.value.trim());
+        ok = ok && !bad;
+        let msg = el.parentElement.querySelector(".field-err");
+        if (!msg) { msg = Object.assign(document.createElement("span"), { className: "field-err", id: `err-${form.id}-${el.name}` }); el.after(msg); }
+        msg.textContent = bad ? `Expected ${rule[1]}.` : "";
+        if (bad) { el.setAttribute("aria-invalid", "true"); el.setAttribute("aria-describedby", msg.id); }
+        else if (!el.dataset.serverError) { el.removeAttribute("aria-invalid"); el.removeAttribute("aria-describedby"); }
+      }
+      if (submit) submit.disabled = !ok;
+      return ok;
+    };
+    form.addEventListener("input", (e) => { if (e.target.dataset) delete e.target.dataset.serverError; check(); });
+    check();
+    return check;
+  }
+  /** Marks one settings field as the cause of a load error, with the message under it. */
+  function markField(form, name, text) {
+    const el = form.elements[name];
+    if (!el) return;
+    el.dataset.serverError = "1";
+    el.setAttribute("aria-invalid", "true");
+    let msg = el.parentElement.querySelector(".field-err");
+    if (!msg) { msg = Object.assign(document.createElement("span"), { className: "field-err", id: `err-${form.id}-${name}` }); el.after(msg); }
+    msg.textContent = text;
+    el.setAttribute("aria-describedby", msg.id);
+  }
+
   window.PULSE = {
+    wireSettings, markField,
+    copyBtn, copyText, flashLabel, tour,
     icon, hydrateIcons,
     ABI, ABI_V1, V2_DEPLOYER, V11_VECTOR, V1_SEPOLIA, discoverV2, requestHashV1, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,
     ruleNames, failedLabels, evaluate, requestHashFor, supplierKeyOf, digestOf, normalizeRecord, parseFields,
-    tamper, decodeRevert, explain,
-    esc, short, nowSec, clock, dayClock, ago, span, duration, tokens,
+    tamper, decodeRevert, explain, friendlyError,
+    esc, short, nowSec, clock, dayClock, dayClockS, ago, span, duration, tokens, orderNamer, DEMO_NAMES,
   };
 })();

@@ -13,7 +13,7 @@
     --bg: #f6f7f9; --card: #ffffff; --text: #14171c; --muted: #5f6b7a; --line: #e3e7ec;
     --ok: #137a3f; --ok-bg: #e5f5ec; --hold: #b4231b; --hold-bg: #fdecea;
     --wait: #8a5a00; --wait-bg: #fff4dc; --done: #3d4a5c; --done-bg: #eceff3;
-    --accent: #2457d6; --sample: #6b3fc4; --sample-bg: #f1ebfd;
+    --accent: #2457d6; --on-accent: #ffffff; --sample: #6b3fc4; --sample-bg: #f1ebfd;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
@@ -21,14 +21,14 @@
       --bg: #0f1216; --card: #171b21; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b;
       --ok: #4cc983; --ok-bg: #12301f; --hold: #ff7a70; --hold-bg: #3a1714;
       --wait: #f2bd55; --wait-bg: #33270d; --done: #b5c0cd; --done-bg: #242a33;
-      --accent: #7aa2ff; --sample: #b99bff; --sample-bg: #261c3d;
+      --accent: #7aa2ff; --on-accent: #0b1020; --sample: #b99bff; --sample-bg: #261c3d;
     }
   }
   :root[data-theme="dark"] {
     --bg: #0f1216; --card: #171b21; --text: #e8ecf1; --muted: #9aa5b3; --line: #2a313b;
     --ok: #4cc983; --ok-bg: #12301f; --hold: #ff7a70; --hold-bg: #3a1714;
     --wait: #f2bd55; --wait-bg: #33270d; --done: #b5c0cd; --done-bg: #242a33;
-    --accent: #7aa2ff; --sample: #b99bff; --sample-bg: #261c3d;
+    --accent: #7aa2ff; --on-accent: #0b1020; --sample: #b99bff; --sample-bg: #261c3d;
   }
   * { box-sizing: border-box; }
   body {
@@ -98,7 +98,7 @@
   form.cfg input { font: inherit; font-size: 13px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); min-width: 0; }
   form.cfg .btns { display: flex; gap: 8px; align-items: flex-end; }
   button { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   footer { margin-top: 28px; color: var(--muted); font-size: 13px; max-width: 760px; }
   @media (max-width: 420px) {
     .grid { grid-template-columns: 1fr; }
