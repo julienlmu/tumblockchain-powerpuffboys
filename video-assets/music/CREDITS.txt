@@ -10,3 +10,7 @@ Wallpaper.mp3       3:40  feel: bouncy, bright, calming, uplifting    ISRC USUAN
 
 Airport Lounge.mp3  5:08  feel: bouncy, calming, relaxed              ISRC USUAN1100806
 "Airport Lounge" Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0 License http://creativecommons.org/licenses/by/4.0/
+
+Mid_Morning_Briefing.mp3  1:49  chosen by Orhun for the final video (Sat 31 Oct 14:02)
+Supplied by Orhun. The file carries a C2PA manifest signed by Google LLC (Google C2PA Media Services), i.e. it was
+generated with a Google AI music tool; no third-party licence or attribution line is embedded.
