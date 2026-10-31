@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SupplierPulse+ Control Room</title>
+<!-- Control Room: Orhun's design (codex/ui-design-concepts, design/ui-concepts/CONTROL_ROOM.md), layout and look unchanged,
+     with SupplierPulse+'s real data and actions. Live: ?contract=0x…&rpc=…; sample: ?sample=1. -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
+<script src="common.js"></script>
+<script src="sample/sample.js"></script>
+<script src="sample/responses.js"></script>
+<script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23345a35' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2'/%3E%3C/svg%3E">
+<!-- the preview's page frame (design/ui-concepts/preview.html) -->
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}</style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap');
+#supplierpulse-selected-ui-concepts { width:100%; }
+#supplierpulse-selected-ui-concepts .sp-app { --sp-page:light-dark(#f7f7f3,#15191e); --sp-panel:light-dark(#ffffff,#1c2229); --sp-subtle:light-dark(#efefea,#232a32); --sp-ink:light-dark(#222b32,#eff1f2); --sp-muted:light-dark(#626b72,#a8b2bd); --sp-line:light-dark(#dedfd8,#343d47); --sp-accent:light-dark(#344b70,#afc4ed); --sp-on-accent:light-dark(#fff,#17243b); --sp-accent-bg:light-dark(#eaf0f8,#273448); --sp-good:light-dark(#2b6651,#a9d7b8); --sp-good-bg:light-dark(#e8f2eb,#253c32); --sp-warn:light-dark(#885720,#ebc18a); --sp-warn-bg:light-dark(#faf0dd,#423627); --sp-red:light-dark(#9d453d,#f1b1a4); --sp-red-bg:light-dark(#f8ece8,#462e2d); --sp-radius:12px; --sp-space:26px; color:var(--sp-ink); background:var(--sp-page); border:1px solid var(--sp-line); border-radius:16px; font:400 13px/1.5 'DM Sans',sans-serif; overflow:clip; }
+#supplierpulse-selected-ui-concepts .sp-stage { min-height:1400px; }
+#supplierpulse-selected-ui-concepts .sp-app * { box-sizing:border-box; }
+#supplierpulse-selected-ui-concepts .sp-ledger-work > *,#supplierpulse-selected-ui-concepts .sp-control-grid > *,#supplierpulse-selected-ui-concepts .sp-paper-grid > *,#supplierpulse-selected-ui-concepts .sp-lab-grid > * { min-width:0; }
+#supplierpulse-selected-ui-concepts .sp-app button,#supplierpulse-selected-ui-concepts .sp-app input,#supplierpulse-selected-ui-concepts .sp-app select,#supplierpulse-selected-ui-concepts .sp-app textarea { font:inherit; }
+#supplierpulse-selected-ui-concepts .sp-app button { color:inherit; }
+#supplierpulse-selected-ui-concepts .sp-app button:disabled { opacity:.65; cursor:not-allowed; }
+#supplierpulse-selected-ui-concepts .sp-app h1,#supplierpulse-selected-ui-concepts .sp-app h2,#supplierpulse-selected-ui-concepts .sp-app h3,#supplierpulse-selected-ui-concepts .sp-app p { margin:0; }
+#supplierpulse-selected-ui-concepts .sp-app h1 { font-size:34px; line-height:1.12; font-weight:500; letter-spacing:-1.2px; }
+#supplierpulse-selected-ui-concepts .sp-app h2 { font-size:17px; line-height:1.3; font-weight:600; letter-spacing:-.3px; }
+#supplierpulse-selected-ui-concepts .sp-app h3 { font-size:13px; font-weight:600; }
+#supplierpulse-selected-ui-concepts .sp-app svg { width:16px; height:16px; flex:none; stroke-width:1.6; }
+#supplierpulse-selected-ui-concepts .sp-muted { color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-small { font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-mono { font:400 11px/1.6 'IBM Plex Mono',monospace; overflow-wrap:anywhere; }
+#supplierpulse-selected-ui-concepts .sp-overline { font-size:11px; letter-spacing:1.6px; text-transform:uppercase; font-weight:600; color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-row { display:flex; align-items:center; gap:10px; }
+#supplierpulse-selected-ui-concepts .sp-between { justify-content:space-between; }
+#supplierpulse-selected-ui-concepts .sp-wrap { flex-wrap:wrap; }
+#supplierpulse-selected-ui-concepts .sp-gap { display:grid; gap:20px; }
+#supplierpulse-selected-ui-concepts .sp-brand { display:flex; align-items:center; gap:8px; font-size:16px; letter-spacing:-.6px; font-weight:700; white-space:nowrap; }
+#supplierpulse-selected-ui-concepts .sp-brandmark { display:grid; place-items:center; width:28px; height:28px; background:var(--sp-accent); color:var(--sp-on-accent); border-radius:8px; }
+#supplierpulse-selected-ui-concepts .sp-brandmark svg { width:18px; height:18px; }
+#supplierpulse-selected-ui-concepts .sp-plus { color:var(--sp-accent); margin-left:-7px; font-size:20px; }
+#supplierpulse-selected-ui-concepts .sp-mode { display:inline-flex; align-items:center; padding:3px; background:var(--sp-subtle); border:1px solid var(--sp-line); border-radius:8px; gap:2px; flex:none; }
+#supplierpulse-selected-ui-concepts .sp-mode button { border:0; background:transparent; padding:6px 12px; border-radius:5px; font-size:11px; color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-mode button[aria-pressed=true] { background:var(--sp-panel); color:var(--sp-ink); box-shadow:0 1px 4px #00000012; }
+#supplierpulse-selected-ui-concepts .sp-button { display:inline-flex; justify-content:center; align-items:center; gap:8px; border:1px solid var(--sp-line); background:var(--sp-panel); color:var(--sp-ink); border-radius:7px; padding:9px 12px; text-decoration:none; font-weight:500; }
+#supplierpulse-selected-ui-concepts .sp-button.sp-primary { background:var(--sp-accent); border-color:var(--sp-accent); color:var(--sp-on-accent); }
+#supplierpulse-selected-ui-concepts .sp-button.sp-quiet { border:0; padding:4px 0; background:transparent; }
+#supplierpulse-selected-ui-concepts .sp-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border-radius:5px; color:var(--sp-muted); background:var(--sp-subtle); font-size:11px; font-weight:500; white-space:nowrap; }
+#supplierpulse-selected-ui-concepts .sp-pill svg { width:12px; height:12px; }
+#supplierpulse-selected-ui-concepts .sp-pill.sp-positive { color:var(--sp-good); background:var(--sp-good-bg); }
+#supplierpulse-selected-ui-concepts .sp-pill.sp-wait { color:var(--sp-warn); background:var(--sp-warn-bg); }
+#supplierpulse-selected-ui-concepts .sp-pill.sp-negative { color:var(--sp-red); background:var(--sp-red-bg); }
+#supplierpulse-selected-ui-concepts .sp-sheet { background:var(--sp-panel); border:1px solid var(--sp-line); border-radius:var(--sp-radius); }
+#supplierpulse-selected-ui-concepts .sp-padding { padding:20px; }
+#supplierpulse-selected-ui-concepts .sp-rule { height:1px; background:var(--sp-line); margin:18px 0; }
+#supplierpulse-selected-ui-concepts .sp-list { display:grid; }
+#supplierpulse-selected-ui-concepts .sp-line-item { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:12px 0; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-selected-ui-concepts .sp-line-item:last-child { border-bottom:0; }
+#supplierpulse-selected-ui-concepts .sp-preview { display:flex; align-items:center; gap:6px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-preview svg { width:12px; height:12px; }
+#supplierpulse-selected-ui-concepts .sp-note { display:flex; gap:10px; padding:14px; color:var(--sp-warn); background:var(--sp-warn-bg); border-radius:8px; }
+#supplierpulse-selected-ui-concepts .sp-note svg { margin-top:2px; }
+#supplierpulse-selected-ui-concepts .sp-metric { font-size:43px; line-height:1.1; letter-spacing:-2px; font-weight:500; font-variant-numeric:tabular-nums; }
+#supplierpulse-selected-ui-concepts .sp-metric small { font-size:13px; letter-spacing:0; color:var(--sp-muted); margin-left:5px; }
+#supplierpulse-selected-ui-concepts .sp-progress { height:5px; background:var(--sp-subtle); border-radius:3px; margin:11px 0; display:flex; overflow:hidden; }
+#supplierpulse-selected-ui-concepts .sp-progress span { height:100%; display:block; background:var(--sp-accent); }
+#supplierpulse-selected-ui-concepts .sp-progress .sp-returned { background:var(--sp-muted); opacity:.35; }
+#supplierpulse-selected-ui-concepts .sp-step { display:flex; gap:11px; padding:12px 0; }
+#supplierpulse-selected-ui-concepts .sp-step-icon { width:25px; height:25px; display:grid; place-items:center; background:var(--sp-subtle); border-radius:50%; color:var(--sp-muted); flex:none; }
+#supplierpulse-selected-ui-concepts .sp-step-icon.sp-done { color:var(--sp-good); background:var(--sp-good-bg); }
+#supplierpulse-selected-ui-concepts .sp-step-icon.sp-alert { color:var(--sp-warn); background:var(--sp-warn-bg); }
+#supplierpulse-selected-ui-concepts .sp-kv { margin:0; }
+#supplierpulse-selected-ui-concepts .sp-kv div { display:grid; grid-template-columns:1fr auto; gap:12px; padding:9px 0; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-selected-ui-concepts .sp-kv div:last-child { border:0; }
+#supplierpulse-selected-ui-concepts .sp-kv dt { color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-kv dd { margin:0; text-align:right; overflow-wrap:anywhere; max-width:210px; }
+#supplierpulse-selected-ui-concepts .sp-filters { display:flex; gap:5px; flex-wrap:wrap; }
+#supplierpulse-selected-ui-concepts .sp-filters button { border:0; background:transparent; padding:5px 9px; border-radius:5px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-filters button[aria-pressed=true] { background:var(--sp-accent-bg); color:var(--sp-ink); }
+#supplierpulse-selected-ui-concepts .sp-table-wrap { overflow-x:auto; }
+#supplierpulse-selected-ui-concepts .sp-table { width:100%; border-collapse:collapse; text-align:left; }
+#supplierpulse-selected-ui-concepts .sp-table th { color:var(--sp-muted); font-size:11px; font-weight:500; padding:10px 14px; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-selected-ui-concepts .sp-table td { padding:13px 14px; border-bottom:1px solid var(--sp-line); font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-table tr:last-child td { border:0; }
+#supplierpulse-selected-ui-concepts .sp-table tr[data-selected=true] td { background:var(--sp-accent-bg); }
+#supplierpulse-selected-ui-concepts .sp-table button { border:0; background:transparent; padding:0; text-align:left; font-weight:500; }
+#supplierpulse-selected-ui-concepts .sp-table .sp-num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+#supplierpulse-selected-ui-concepts .sp-code { background:var(--sp-subtle); padding:14px; border-radius:7px; font:11px/1.8 'IBM Plex Mono',monospace; white-space:pre-wrap; overflow-wrap:anywhere; margin:0; }
+#supplierpulse-selected-ui-concepts .sp-disclosure { margin-top:14px; border-top:1px solid var(--sp-line); padding-top:12px; }
+#supplierpulse-selected-ui-concepts .sp-disclosure > summary { color:var(--sp-muted); font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-refund-row { display:flex; align-items:center; justify-content:space-between; width:100%; border:0; border-bottom:1px solid var(--sp-line); padding:11px 2px; text-align:left; background:transparent; }
+#supplierpulse-selected-ui-concepts .sp-refund-row:last-child { border-bottom:0; }
+#supplierpulse-selected-ui-concepts .sp-refund-row .sp-row { gap:7px; }
+#supplierpulse-selected-ui-concepts .sp-check { display:flex; gap:8px; align-items:center; font-size:12px; padding:9px 0; }
+#supplierpulse-selected-ui-concepts .sp-check svg { color:var(--sp-good); width:14px; }
+#supplierpulse-selected-ui-concepts .sp-check.sp-expired svg { color:var(--sp-warn); }
+#supplierpulse-selected-ui-concepts .sp-check span:last-child { margin-left:auto; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-footer { margin-top:24px; padding-top:14px; border-top:1px solid var(--sp-line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-footer .sp-row { gap:5px; }
+#supplierpulse-selected-ui-concepts .sp-footer svg { width:12px; height:12px; }
+
+/* Ledger: an editorial finance workspace with an enduring side rail. */
+#supplierpulse-selected-ui-concepts .sp-ledger { display:grid; grid-template-columns:145px minmax(0,1fr); }
+#supplierpulse-selected-ui-concepts .sp-ledger-side { border-right:1px solid var(--sp-line); padding:23px 14px; display:flex; flex-direction:column; gap:35px; background:var(--sp-panel); }
+#supplierpulse-selected-ui-concepts .sp-ledger-side .sp-brand { font-size:12px; gap:6px; letter-spacing:-.5px; }
+#supplierpulse-selected-ui-concepts .sp-ledger-side .sp-brandmark { width:23px; height:23px; }
+#supplierpulse-selected-ui-concepts .sp-ledger-side .sp-plus { font-size:16px; margin-left:-6px; }
+#supplierpulse-selected-ui-concepts .sp-side-nav { display:grid; gap:6px; }
+#supplierpulse-selected-ui-concepts .sp-side-nav button { display:flex; align-items:center; gap:8px; text-align:left; background:transparent; border:0; border-radius:6px; padding:9px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-side-nav button[aria-current=page] { background:var(--sp-accent-bg); color:var(--sp-ink); }
+#supplierpulse-selected-ui-concepts .sp-side-foot { margin-top:auto; font-size:11px; color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-avatar { display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--sp-subtle); font-size:11px; font-weight:600; }
+#supplierpulse-selected-ui-concepts .sp-ledger-main { padding:24px var(--sp-space); min-width:0; }
+#supplierpulse-selected-ui-concepts .sp-ledger h1 { font-family:'Instrument Serif',serif; font-size:43px; font-weight:400; letter-spacing:-.8px; }
+#supplierpulse-selected-ui-concepts .sp-ledger-hero { margin:30px 0 24px; }
+#supplierpulse-selected-ui-concepts .sp-ledger-summary { display:grid; grid-template-columns:1.35fr 1fr 1fr; gap:16px; padding:23px 0; border-bottom:1px solid var(--sp-line); margin-bottom:22px; }
+#supplierpulse-selected-ui-concepts .sp-ledger-summary .sp-metric { margin-top:8px; }
+#supplierpulse-selected-ui-concepts .sp-ledger-summary .sp-summary-minor { font-size:24px; letter-spacing:-.8px; margin-top:12px; font-variant-numeric:tabular-nums; }
+#supplierpulse-selected-ui-concepts .sp-ledger-work { display:grid; grid-template-columns:minmax(0,1fr) 225px; gap:20px; align-items:start; }
+#supplierpulse-selected-ui-concepts .sp-order-choice { width:100%; background:var(--sp-panel); border:1px solid var(--sp-line); border-radius:8px; padding:16px; text-align:left; display:block; margin:10px 0; }
+#supplierpulse-selected-ui-concepts .sp-order-choice[aria-pressed=true] { border-color:var(--sp-accent); background:var(--sp-accent-bg); }
+#supplierpulse-selected-ui-concepts .sp-choice-title { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+#supplierpulse-selected-ui-concepts .sp-choice-title strong { display:block; font-size:13px; font-weight:600; }
+#supplierpulse-selected-ui-concepts .sp-choice-title .sp-amount { font-size:16px; letter-spacing:-.5px; white-space:nowrap; }
+#supplierpulse-selected-ui-concepts .sp-choice-bottom { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+
+/* Control Room: a horizontal, precision-first operations desk. */
+#supplierpulse-selected-ui-concepts .sp-control { --sp-page:light-dark(#edf0eb,#111714); --sp-panel:light-dark(#f9fbf8,#18211b); --sp-subtle:light-dark(#e5ebe1,#202c23); --sp-ink:light-dark(#203025,#edf3e9); --sp-muted:light-dark(#596c5d,#9eafa1); --sp-line:light-dark(#cdd7ca,#344337); --sp-accent:light-dark(#345a35,#d0e8a0); --sp-on-accent:light-dark(#fff,#20301b); --sp-accent-bg:light-dark(#e1ebd8,#2c3c25); font-family:'Manrope',sans-serif; }
+#supplierpulse-selected-ui-concepts .sp-control-top { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:19px var(--sp-space); border-bottom:1px solid var(--sp-line); background:var(--sp-panel); }
+#supplierpulse-selected-ui-concepts .sp-control-nav { display:flex; gap:20px; align-items:center; }
+#supplierpulse-selected-ui-concepts .sp-control-nav button { border:0; background:transparent; color:var(--sp-muted); font-size:11px; padding:5px 0; }
+#supplierpulse-selected-ui-concepts .sp-control-nav button[aria-current=page] { color:var(--sp-ink); }
+#supplierpulse-selected-ui-concepts .sp-control-main { padding:26px var(--sp-space); }
+#supplierpulse-selected-ui-concepts .sp-control-head { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:15px 0 25px; }
+#supplierpulse-selected-ui-concepts .sp-control h1 { font-size:33px; font-weight:600; letter-spacing:-1.5px; }
+#supplierpulse-selected-ui-concepts .sp-control-stats { display:grid; grid-template-columns:1.4fr 1fr 1fr; margin:20px 0 24px; border:1px solid var(--sp-line); border-radius:var(--sp-radius); background:var(--sp-panel); }
+#supplierpulse-selected-ui-concepts .sp-control-stats > div { padding:20px; border-right:1px solid var(--sp-line); }
+#supplierpulse-selected-ui-concepts .sp-control-stats > div:last-child { border:0; }
+#supplierpulse-selected-ui-concepts .sp-control-stats .sp-metric { font-family:'Manrope',sans-serif; font-size:37px; margin:9px 0; font-weight:500; }
+#supplierpulse-selected-ui-concepts .sp-control-grid { display:grid; grid-template-columns:minmax(0,1fr) 245px; gap:20px; }
+#supplierpulse-selected-ui-concepts .sp-task { border:1px solid var(--sp-line); border-radius:var(--sp-radius); background:var(--sp-panel); padding:21px; margin-bottom:12px; }
+#supplierpulse-selected-ui-concepts .sp-task.sp-focus { background:var(--sp-accent-bg); border-color:var(--sp-accent); }
+#supplierpulse-selected-ui-concepts .sp-task-number { color:var(--sp-muted); font:11px 'IBM Plex Mono',monospace; }
+#supplierpulse-selected-ui-concepts .sp-task h2 { font-size:20px; margin:13px 0 9px; }
+#supplierpulse-selected-ui-concepts .sp-path { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:18px 0; }
+#supplierpulse-selected-ui-concepts .sp-path span { display:flex; align-items:center; gap:6px; background:var(--sp-panel); border-radius:5px; padding:6px 8px; font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-path > svg { width:13px; color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-log-line { padding:12px 0; border-bottom:1px solid var(--sp-line); display:flex; gap:9px; }
+#supplierpulse-selected-ui-concepts .sp-log-line:last-child { border:0; }
+#supplierpulse-selected-ui-concepts .sp-log-line > span { font:11px/1.8 'IBM Plex Mono',monospace; color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-log-line p { font-size:11px; }
+
+/* Agreement: an order-first workspace, with a paper-like review canvas. */
+#supplierpulse-selected-ui-concepts .sp-agreement { --sp-page:light-dark(#f1eee7,#1c1917); --sp-panel:light-dark(#fbfaf7,#27221e); --sp-subtle:light-dark(#eae5db,#332c26); --sp-ink:light-dark(#352f28,#f0e8dc); --sp-muted:light-dark(#746b5f,#b9ad9e); --sp-line:light-dark(#d9d1c4,#493e33); --sp-accent:light-dark(#8c4c32,#e1b99c); --sp-on-accent:light-dark(#fff,#332014); --sp-accent-bg:light-dark(#f0e1d3,#493224); }
+#supplierpulse-selected-ui-concepts .sp-agreement-top { padding:20px var(--sp-space); display:flex; align-items:center; justify-content:space-between; gap:15px; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-selected-ui-concepts .sp-agreement-body { display:grid; grid-template-columns:205px minmax(0,1fr); }
+#supplierpulse-selected-ui-concepts .sp-agreement-side { padding:25px 14px; border-right:1px solid var(--sp-line); }
+#supplierpulse-selected-ui-concepts .sp-agreement-side h2 { padding:0 9px 15px; font-size:14px; }
+#supplierpulse-selected-ui-concepts .sp-doc-choice { width:100%; padding:13px 10px; display:flex; gap:9px; text-align:left; border:1px solid transparent; border-radius:7px; background:transparent; margin-bottom:5px; }
+#supplierpulse-selected-ui-concepts .sp-doc-choice[aria-pressed=true] { background:var(--sp-panel); border-color:var(--sp-line); }
+#supplierpulse-selected-ui-concepts .sp-doc-choice > svg { margin-top:3px; color:var(--sp-accent); }
+#supplierpulse-selected-ui-concepts .sp-doc-choice strong { display:block; font-size:11px; font-weight:600; }
+#supplierpulse-selected-ui-concepts .sp-doc-choice small { display:block; color:var(--sp-muted); font-size:11px; margin-top:4px; }
+#supplierpulse-selected-ui-concepts .sp-agreement-main { padding:25px var(--sp-space); min-width:0; }
+#supplierpulse-selected-ui-concepts .sp-agreement h1 { font:400 39px/1.08 'Instrument Serif',serif; letter-spacing:-.7px; }
+#supplierpulse-selected-ui-concepts .sp-paper { --sp-paper:light-dark(#fffdf6,#e9e0cd); --sp-paper-ink:#3d3930; background:var(--sp-paper); color:var(--sp-paper-ink); padding:28px; border-radius:3px; box-shadow:0 5px 20px #0000000b; margin:22px 0; border-top:3px solid var(--sp-accent); }
+#supplierpulse-selected-ui-concepts .sp-paper .sp-muted,#supplierpulse-selected-ui-concepts .sp-paper .sp-overline { color:#726d61; }
+#supplierpulse-selected-ui-concepts .sp-paper h2 { font:400 29px/1.15 'Instrument Serif',serif; letter-spacing:-.5px; margin:12px 0 10px; }
+#supplierpulse-selected-ui-concepts .sp-paper .sp-rule { background:#d9d1c3; }
+#supplierpulse-selected-ui-concepts .sp-paper-dl { display:grid; grid-template-columns:1fr 1fr; gap:17px; margin:20px 0; }
+#supplierpulse-selected-ui-concepts .sp-paper-dl small { color:#726d61; font-size:11px; display:block; margin-bottom:3px; }
+#supplierpulse-selected-ui-concepts .sp-paper-dl strong { font-size:12px; font-weight:500; }
+#supplierpulse-selected-ui-concepts .sp-paper-grid { display:grid; grid-template-columns:minmax(0,1fr) 190px; gap:20px; }
+#supplierpulse-selected-ui-concepts .sp-paper-mark { width:39px; height:39px; display:grid; place-items:center; border:1px solid #c4bba9; border-radius:50%; color:#706144; }
+#supplierpulse-selected-ui-concepts .sp-paper-mark svg { width:21px; height:21px; }
+#supplierpulse-selected-ui-concepts .sp-paper-steps { border-top:1px solid #d9d1c3; }
+#supplierpulse-selected-ui-concepts .sp-paper-step { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid #d9d1c3; font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-paper-step > span:first-child { font:11px 'IBM Plex Mono',monospace; width:20px; color:#726d61; }
+#supplierpulse-selected-ui-concepts .sp-paper-step > span:last-child { margin-left:auto; white-space:nowrap; }
+#supplierpulse-selected-ui-concepts .sp-agreement-facts { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+/* The verification task keeps the same meaning in every visual direction. */
+#supplierpulse-selected-ui-concepts .sp-lab-heading { margin:25px 0; }
+#supplierpulse-selected-ui-concepts .sp-lab-grid { display:grid; grid-template-columns:minmax(0,1fr) 245px; gap:20px; }
+#supplierpulse-selected-ui-concepts .sp-cases { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin:17px 0; }
+#supplierpulse-selected-ui-concepts .sp-case { display:flex; align-items:center; gap:9px; text-align:left; border:1px solid var(--sp-line); border-radius:7px; padding:12px; background:var(--sp-panel); min-width:0; }
+#supplierpulse-selected-ui-concepts .sp-case[aria-pressed=true] { border-color:var(--sp-accent); background:var(--sp-accent-bg); }
+#supplierpulse-selected-ui-concepts .sp-case span { display:block; font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-case small { color:var(--sp-muted); font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-result { padding:23px; background:var(--sp-good-bg); color:var(--sp-good); border-radius:var(--sp-radius); margin:18px 0; }
+#supplierpulse-selected-ui-concepts .sp-result.sp-rejected { background:var(--sp-red-bg); color:var(--sp-red); }
+#supplierpulse-selected-ui-concepts .sp-result h2 { font-size:25px; margin:12px 0 8px; }
+#supplierpulse-selected-ui-concepts .sp-app .sp-result p { font-size:12px; }
+@media(max-width:900px) {
+  #supplierpulse-selected-ui-concepts .sp-ledger-work,#supplierpulse-selected-ui-concepts .sp-control-grid,#supplierpulse-selected-ui-concepts .sp-lab-grid { grid-template-columns:1fr; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-work > aside,#supplierpulse-selected-ui-concepts .sp-control-grid > aside { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-work > aside > .sp-sheet,#supplierpulse-selected-ui-concepts .sp-control-grid > aside > .sp-sheet { margin:0!important; }
+  #supplierpulse-selected-ui-concepts .sp-paper-grid { grid-template-columns:1fr; }
+  #supplierpulse-selected-ui-concepts .sp-agreement-body { grid-template-columns:175px minmax(0,1fr); }
+  #supplierpulse-selected-ui-concepts .sp-stage { min-height:1900px; }
+}
+@media(max-width:620px) {
+  #supplierpulse-selected-ui-concepts .sp-app { --sp-space:18px; }
+  #supplierpulse-selected-ui-concepts .sp-ledger { grid-template-columns:1fr; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-side { padding:15px 18px; flex-direction:row; justify-content:space-between; align-items:center; gap:10px; border-right:0; border-bottom:1px solid var(--sp-line); flex-wrap:wrap; }
+  #supplierpulse-selected-ui-concepts .sp-side-nav { display:flex; gap:6px; }
+  #supplierpulse-selected-ui-concepts .sp-side-nav button { padding:7px; }
+  #supplierpulse-selected-ui-concepts .sp-side-foot { display:none; }
+  #supplierpulse-selected-ui-concepts .sp-ledger h1 { font-size:36px; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-summary { gap:10px; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-summary .sp-metric { font-size:34px; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-summary .sp-summary-minor { font-size:21px; }
+  #supplierpulse-selected-ui-concepts .sp-control-top,#supplierpulse-selected-ui-concepts .sp-control-head,#supplierpulse-selected-ui-concepts .sp-agreement-top { flex-wrap:wrap; }
+  #supplierpulse-selected-ui-concepts .sp-control-top { gap:15px; }
+  #supplierpulse-selected-ui-concepts .sp-control-stats > div { padding:14px 10px; }
+  #supplierpulse-selected-ui-concepts .sp-control-stats .sp-metric { font-size:29px; letter-spacing:-1px; }
+  #supplierpulse-selected-ui-concepts .sp-control-nav { gap:15px; }
+  #supplierpulse-selected-ui-concepts .sp-agreement-body { grid-template-columns:1fr; }
+  #supplierpulse-selected-ui-concepts .sp-agreement-side { border-right:0; border-bottom:1px solid var(--sp-line); padding:15px 18px; }
+  #supplierpulse-selected-ui-concepts .sp-agreement-side .sp-doc-list { display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+  #supplierpulse-selected-ui-concepts .sp-agreement-side .sp-doc-choice { margin:0; }
+  #supplierpulse-selected-ui-concepts .sp-agreement-side h2 { padding:0 0 8px; }
+  #supplierpulse-selected-ui-concepts .sp-paper { padding:20px; }
+  #supplierpulse-selected-ui-concepts .sp-stage { min-height:2400px; }
+}
+@media(max-width:390px) {
+  #supplierpulse-selected-ui-concepts .sp-ledger-work > aside,#supplierpulse-selected-ui-concepts .sp-control-grid > aside,#supplierpulse-selected-ui-concepts .sp-agreement-facts,#supplierpulse-selected-ui-concepts .sp-cases { grid-template-columns:1fr; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-summary .sp-metric { font-size:29px; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-summary .sp-summary-minor { font-size:19px; }
+  #supplierpulse-selected-ui-concepts .sp-ledger-summary .sp-overline { font-size:11px; letter-spacing:.7px; }
+  #supplierpulse-selected-ui-concepts .sp-agreement-side .sp-doc-list { grid-template-columns:1fr; }
+}
+
+/* Combined direction: Ledger shell and totals, Control Room decision rail. */
+#supplierpulse-selected-ui-concepts .sp-hybrid { --sp-good:light-dark(#27634d,#a4d4b5); }
+#supplierpulse-selected-ui-concepts .sp-hybrid-hero { margin:25px 0 12px; }
+#supplierpulse-selected-ui-concepts .sp-hybrid-work { display:grid; grid-template-columns:minmax(0,1fr) 255px; gap:20px; align-items:start; }
+#supplierpulse-selected-ui-concepts .sp-hybrid-work > * { min-width:0; }
+@media(max-width:900px) {
+  #supplierpulse-selected-ui-concepts .sp-hybrid-work { grid-template-columns:minmax(0,1fr); }
+  #supplierpulse-selected-ui-concepts .sp-hybrid-rail { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  #supplierpulse-selected-ui-concepts .sp-hybrid-rail > * { margin:0!important; min-width:0; }
+}
+@media(max-width:620px) {
+  #supplierpulse-selected-ui-concepts .sp-hybrid-rail { display:block; }
+  #supplierpulse-selected-ui-concepts .sp-hybrid-rail > * { margin-top:14px!important; }
+}
+</style>
+<!-- additions for states the design's sample never shows; same tokens -->
+<style>
+#supplierpulse-selected-ui-concepts .sp-check.sp-failed svg { color:var(--sp-red); }
+#supplierpulse-selected-ui-concepts textarea.sp-record { width:100%; min-height:110px; margin-top:12px; border:1px solid var(--sp-line); color:var(--sp-ink); resize:vertical; display:block; }
+#supplierpulse-selected-ui-concepts .sp-app a { color:inherit; }
+</style>
+</head>
+<body>
+<div id="supplierpulse-selected-ui-concepts">
+  <div class="sp-app sp-stage sp-control" id="sp-control" aria-label="Control Room operations workspace"></div>
+</div>
+<script>
+// Control Room for SupplierPulse+: Orhun's design (design/ui-concepts, codex/ui-design-concepts) with the project's real
+// data and actions. The markup and styles are the design's own; the values come from the live contract (or sample mode)
+// through the same view functions and events as index.html, and the Verification lab runs the real tamper test
+// (eth_call of submitEvidence from 0x…dEaD, as judge.html). Writes only on a press: Release or Refund (any wallet;
+// the contract decides) and Replay (sends the valid record once).
+(() => {
+  const P = window.PULSE;
+  const { esc, short, nowSec } = P;
+  const root = document.getElementById('supplierpulse-selected-ui-concepts');
+  const app = document.getElementById('sp-control');
+  const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+  const UNIT = 10n ** 12n; // 1 token = 10^12 wei (§2.5)
+  const money = (wei) => P.tokens(wei, UNIT);
+  const params = new URLSearchParams(location.search);
+  const cfg = { contract: params.get('contract') || '', rpc: params.get('rpc') || P.DEFAULT_RPC, sample: params.has('sample'), from: params.get('from') };
+  const REFRESH_MS = 12000, LOG_CHUNK = 9000, MAX_CHUNKS = 30;
+  // Public anvil test keys (§4.8), the same as judge.html: used only on the local test chain (chain id 31337).
+  const LOCAL = {
+    signer: ['0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d', '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a'],
+    agent: '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6',
+    registry: {
+      'ch:01234567': { accounts_overdue: false, confirmation_overdue: false, status: 'active' },
+      'ch:07654321': { accounts_overdue: true, confirmation_overdue: false, status: 'liquidation' },
+      'gleif:TESTLEI0000000000000': { entity_status: 'ACTIVE', registration_status: 'ISSUED' },
+      'gleif:TESTLEI0000000000001': { entity_status: 'ACTIVE', registration_status: 'LAPSED' },
+    },
+    clean: [{ accounts_overdue: false, confirmation_overdue: false, status: 'active' }, { entity_status: 'ACTIVE', registration_status: 'ISSUED' }],
+  };
+  // The agent's real demo-profile settings (api3/agent/config.py, profile "demo"); the live heartbeat is its last transaction.
+  const AGENT_CONFIG = { profile: 'Demo', tick: '30 seconds', fetches: '3' };
+  const nameOf = P.orderNamer();
+  // A submitEvidence send gets the agent's fixed gas limit: its cost depends on the block it lands in (a history tier
+  // counting up writes more), so an estimate made one block earlier can run out (api3/agent/chain.py, plus-submit.sh).
+  const EVIDENCE_GAS = 2000000n;
+  const dayClock = P.dayClock;
+
+  // ---------------------------------------------------------------- data: one order model for sample and live
+
+  let provider = null, contract = null, iface = new ethers.Interface(P.ABI), chainId = null, explorer = null, consts = null, agentAddr = '';
+  let orders = null, readAt = 0, readFailed = '', mode = 'live';
+  const evState = { next: null, list: [], blockTime: {}, txFrom: {} };
+
+  function norm(o) {
+    const i = o.info, m = o.milestones, s = o.status, h = o.schedule, r = o.supplier;
+    const source = Number(i.source);
+    const label = nameOf(i.orderRef, i.supplierId) || `Order ${short(i.orderRef)}`;
+    const split = label.match(/^([A-Z]+-\d+)\s+(.+)$/);
+    const amounts = [...m.amounts].map((x) => BigInt(x));
+    return {
+      id: Number(o.id), ref: split ? split[1] : `#${o.id}`, name: split ? split[2] : label,
+      registry: source === 1 ? 'GLEIF' : 'Companies House', source: source === 1 ? 'LEI' : 'CH', sourceIndex: source,
+      supplier: i.supplierId, payee: i.supplier, buyer: i.buyer, rules: Number(i.rules), permitTtl: Number(i.permitTtl),
+      requestHash: i.requestHash || P.requestHashFor(source, i.supplierId),
+      amounts, total: amounts.reduce((a, b) => a + b, 0n), dueDates: [...m.dueDates].map(Number), approved: [...m.approved].map(Boolean),
+      state: Number(s.state), paid: BigInt(s.paid), remaining: BigInt(s.remaining), next: Number(s.nextMilestone),
+      permitValidUntil: Number(s.permitValidUntil), permitValidRead: Boolean(s.permitValid), lastCheck: Number(s.lastCheck),
+      lastFailedRules: Number(h.lastFailedRules), heldAt: Number(h.heldAt), autoRefundAt: Number(h.autoRefundAt),
+      tier: Number(r.tier), lastBaseFailureAt: Number(r.lastBaseFailureAt), events: o.events || [],
+    };
+  }
+
+  async function loadEvents(latest) {
+    let from = evState.next;
+    if (from === null) { // first read: the deploy block if given, else the last 9000 blocks; at most ~270k blocks
+      from = cfg.from ? Number(cfg.from) : Math.max(0, latest - LOG_CHUNK);
+      from = Math.max(from, latest - LOG_CHUNK * MAX_CHUNKS);
+    }
+    while (from <= latest) {
+      const to = Math.min(latest, from + LOG_CHUNK - 1);
+      const logs = await provider.getLogs({ address: cfg.contract, fromBlock: from, toBlock: to });
+      for (const log of logs) {
+        let ev; try { ev = iface.parseLog(log); } catch { continue; }
+        if (!ev) continue;
+        const args = {}; ev.fragment.inputs.forEach((inp, k) => { args[inp.name] = ev.args[k]; });
+        evState.list.push({ name: ev.name, args, block: log.blockNumber, tx: log.transactionHash, logIndex: log.index });
+      }
+      from = to + 1;
+    }
+    evState.next = latest + 1;
+    const txs = {};
+    for (const e of evState.list) (txs[e.tx] ||= []).push(e);
+    const lookups = [];
+    for (const [tx, evs] of Object.entries(txs)) {
+      if (evState.txFrom[tx]) continue;
+      const ea = evs.find((e) => e.name === 'EvidenceAccepted'), rf = evs.find((e) => e.name === 'OrderRefunded'), oc = evs.find((e) => e.name === 'OrderCreated');
+      if (ea) evState.txFrom[tx] = ea.args.submitter; else if (rf) evState.txFrom[tx] = rf.args.triggeredBy; else if (oc) evState.txFrom[tx] = oc.args.buyer;
+      else lookups.push(tx);
+    }
+    await Promise.all(lookups.slice(0, 40).map(async (tx) => { try { const t = await provider.getTransaction(tx); if (t) evState.txFrom[tx] = t.from; } catch { /* unknown */ } }));
+    const blocks = [...new Set(evState.list.map((e) => e.block))].filter((b) => !(b in evState.blockTime)).slice(-80);
+    await Promise.all(blocks.map(async (b) => { try { const blk = await provider.getBlock(b); if (blk) evState.blockTime[b] = blk.timestamp; } catch { /* unknown */ } }));
+    for (const e of evState.list) { e.time = evState.blockTime[e.block]; e.from = evState.txFrom[e.tx]; }
+  }
+  function eventsByOrder() {
+    const by = {}, orderOfTx = {};
+    for (const e of evState.list) if (e.args.orderId !== undefined) { const id = Number(e.args.orderId); (by[id] ||= []).push(e); orderOfTx[e.tx] = id; }
+    for (const e of evState.list) if (e.name === 'TierChanged' && orderOfTx[e.tx] !== undefined) by[orderOfTx[e.tx]].push(e);
+    return by;
+  }
+
+  async function loadLive() {
+    if (!consts) {
+      provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { staticNetwork: true });
+      chainId = Number((await provider.getNetwork()).chainId);
+      explorer = P.EXPLORERS[chainId] || null;
+      if (!cfg.contract) {
+        const found = await P.discoverV2(provider);
+        if (!found) throw new Error('No SupplierPulse+ contract found on this network. Add ?contract=0x… to the address.');
+        cfg.contract = found;
+      }
+      if ((await provider.getCode(cfg.contract)) === '0x') throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
+      contract = new ethers.Contract(cfg.contract, P.ABI, provider);
+      agentAddr = P.DEFAULT_AGENT[chainId] || '';
+      const [ch, gl, maxAge, grace] = await Promise.all([contract.airnodeOf(0), contract.airnodeOf(1), contract.maxAge(), contract.refundGrace()]);
+      consts = { airnodes: [ch, gl], maxAge: Number(maxAge), refundGrace: Number(grace) };
+    }
+    const latest = await provider.getBlockNumber();
+    const count = Number(await contract.ordersLength());
+    try { await loadEvents(latest); } catch { /* the trail shows what is loaded */ }
+    const evBy = eventsByOrder();
+    orders = await Promise.all([...Array(count).keys()].map(async (id) => {
+      const [info, milestones, status, schedule] = await Promise.all([contract.orderInfo(id), contract.orderMilestones(id), contract.orderStatus(id), contract.orderSchedule(id)]);
+      const supplier = await contract.supplierRecord(P.supplierKeyOf(Number(info.source), info.supplierId));
+      return norm({ id, info, milestones, status, schedule, supplier, events: evBy[id] || [] });
+    }));
+    readAt = nowSec(); readFailed = '';
+  }
+  function loadSample() {
+    const data = window.PULSE_SAMPLE(SAMPLE_T0);
+    agentAddr = data.agent; consts = { airnodes: data.airnodes, maxAge: data.maxAge, refundGrace: data.refundGrace };
+    orders = data.orders.map((o, id) => norm({ id, ...o, events: (o.events || []).map((e) => ({ ...e, args: { ...e.args, data: e.args.raw != null ? ethers.hexlify(ethers.toUtf8Bytes(e.args.raw)) : e.args.data } })) }));
+    readAt = nowSec(); mode = 'sample';
+  }
+  const SAMPLE_T0 = nowSec();
+
+  // ---------------------------------------------------------------- what each order means now (one place)
+
+  const permitValid = (o) => o.permitValidRead && nowSec() <= o.permitValidUntil;
+  const closed = (o) => o.state === 2;
+  const refunded = (o) => closed(o) && o.paid < o.total;
+  const stopped = (o) => !closed(o) && o.lastBaseFailureAt > 0;
+  // the no-data exit applies only once the next milestone is due (autoRefundAt alone is when it would open)
+  const noData = (o) => o.state === 0 && o.autoRefundAt > 0 && nowSec() >= o.dueDates[o.next];
+  const failedLabels = (o) => P.failedLabels(o.sourceIndex, o.lastFailedRules).join(', ');
+  const span = (sec) => P.span(Math.max(0, sec));
+  // a value short enough for the design's one-line condition rows: "In 20 min", "In 10 h", "In 45 s"
+  const soon = (sec) => { sec = Math.max(0, Math.round(sec)); return sec >= 7200 ? `In ${Math.round(sec / 3600)} h` : sec >= 120 ? `In ${Math.round(sec / 60)} min` : `In ${sec} s`; };
+  const when = (t) => (nowSec() >= t ? 'now' : `from ${dayClock(t)} (in ${span(t - nowSec())})`);
+  const tierName = (t) => P.TIERS[t] || 'Standard';
+  const lastEvidence = (o) => [...o.events].reverse().find((e) => e.name === 'EvidenceAccepted');
+  const rawOf = (e) => { try { return ethers.toUtf8String(e.args.data); } catch { return null; } };
+  const pretty = (raw) => { try { return JSON.stringify(JSON.parse(raw), null, 2); } catch { return raw || ''; } };
+
+  function status(o) {
+    if (refunded(o)) return { cls: '', icon: 'rotate-ccw', label: 'Refunded' };
+    if (closed(o)) return { cls: 'sp-positive', icon: 'circle-check', label: 'Fully paid' };
+    if (o.state === 1) return { cls: 'sp-negative', icon: 'lock', label: 'Held' };
+    if (stopped(o)) return { cls: 'sp-negative', icon: 'octagon-x', label: 'Supplier stopped' };
+    if (noData(o)) return { cls: 'sp-wait', icon: 'clock-3', label: 'No data' };
+    if (permitValid(o)) return { cls: 'sp-positive', icon: 'shield-check', label: 'Permit valid' };
+    return { cls: 'sp-wait', icon: 'clock-3', label: 'Fresh check needed' };
+  }
+  const badge = (o) => { const st = status(o); return `<span class="sp-pill ${st.cls}">${icon(st.icon)}${st.label}</span>`; };
+  // the reason and its detail, in the design's words where they fit the facts
+  function reason(o) {
+    const m = o.next + 1, due = o.dueDates[o.next];
+    if (refunded(o)) {
+      const ev = o.events.find((e) => e.name === 'OrderRefunded');
+      return { reason: ev && ev.args.noDataExit ? 'No verified data' : o.lastFailedRules ? failedLabels(o) : 'Refunded', detail: `${money(o.total - o.paid)} tokens went back to the buyer${ev && ev.time ? ` on ${dayClock(ev.time)}` : ''}.` };
+    }
+    if (closed(o)) return { reason: 'Fully paid', detail: 'Every milestone was paid against its own fresh signed record.' };
+    if (o.state === 1) return { reason: `Payment held: ${failedLabels(o) || 'failed registry check'}`, detail: `The registry check failed. The rest can only go back to the buyer: the buyer can refund now, anyone ${when(o.autoRefundAt)}.` };
+    if (stopped(o)) return { reason: 'Supplier stopped', detail: 'A failed registry status on another order stops payments to this supplier.' };
+    if (noData(o)) return { reason: 'No verified data', detail: `Milestone ${m} is due and no valid record arrived. Anyone can return the funds to the buyer ${when(o.autoRefundAt)}.` };
+    if (permitValid(o)) return { reason: 'Permit valid', detail: !o.approved[o.next] ? `Waiting for the buyer's approval of milestone ${m}.` : nowSec() >= due ? `Milestone ${m} can be released now.` : `Milestone ${m} pays when due, ${dayClock(due)} (in ${span(due - nowSec())}).` };
+    return { reason: 'Payment permit expired', detail: o.lastCheck ? 'The previous record passed the rules. A new record is required for the next payment.' : 'A fresh signed record is needed before the next milestone can be paid.' };
+  }
+
+  // ---------------------------------------------------------------- the design's components, with the real values
+
+  const s = { mode: 'simple', page: 'orders', order: 0, filter: 'all', test: 'valid' };
+  try { if (localStorage.getItem('pulse-control-mode') === 'complex') s.mode = 'complex'; } catch { /* storage blocked */ }
+  const openKeys = new Set(); // disclosures stay open across the 12 s refresh
+  const opened = (k) => (openKeys.has(k) ? ' open' : '');
+  const selected = () => (orders || []).find((o) => o.id === s.order) || (orders || [])[0];
+  const brand = () => `<div class="sp-brand"><span class="sp-brandmark">${icon('activity')}</span>SupplierPulse<span class="sp-plus">+</span></div>`;
+  const network = () => (mode === 'sample' ? 'Sample' : chainId === 31337 ? 'Local chain' : chainId === 11155111 ? 'Sepolia' : chainId ? `Chain ${chainId}` : 'Connecting');
+  const preview = () => mode === 'sample'
+    ? `<span class="sp-preview">${icon('flask-conical')}Sample data · not read from a chain</span>`
+    : readFailed ? `<span class="sp-preview">${icon('triangle-alert')}${esc(readFailed)} · retrying</span>`
+    : orders ? `<span class="sp-preview">${icon('radio')}Live contract · read ${dayClock(readAt)}</span>`
+    : `<span class="sp-preview">${icon('loader')}Reading the contract…</span>`;
+  const modeSwitch = () => `<div class="sp-mode" role="group" aria-label="Information density"><button class="cursor-interaction" data-mode="simple" aria-pressed="${s.mode === 'simple'}">Simple</button><button class="cursor-interaction" data-mode="complex" aria-pressed="${s.mode === 'complex'}">Complex</button></div>`;
+  const footer = () => `<footer class="sp-footer"><span class="sp-row">${icon('hexagon')}${mode === 'sample' ? 'Sample data' : esc(P.NETWORKS[chainId] || 'Ethereum Sepolia')} · tokens (1 token = 10¹² wei)</span><span>${mode === 'sample' ? 'Nothing can be sent in sample mode' : 'Read-only until you press Release, Refund or Replay'}</span></footer>`;
+  const kv = (pairs) => `<dl class="sp-kv">${pairs.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('')}</dl>`;
+  const inFilter = (o) => s.filter === 'all' || (s.filter === 'closed' ? refunded(o) : !closed(o));
+  const filters = () => `<div class="sp-filters" role="group" aria-label="Filter orders">${[['all', 'All orders'], ['open', 'Open'], ['closed', 'Refunded']].map(([k, l]) => `<button class="cursor-interaction" data-filter="${k}" aria-pressed="${s.filter === k}">${l}</button>`).join('')}</div>`;
+  const table = () => `<div class="sp-table-wrap"><table class="sp-table"><thead><tr><th>Order</th><th>Registry</th><th>Status</th><th class="sp-num">Remaining</th></tr></thead><tbody>${orders.filter(inFilter).map((o) => `<tr data-selected="${o.id === s.order}"><td><button class="cursor-interaction" data-order="${o.id}" aria-label="Open ${esc(o.name)}">${esc(o.name)}</button><div class="sp-muted sp-small">${esc(o.ref)}</div></td><td class="sp-muted">${o.source}</td><td>${badge(o)}</td><td class="sp-num">${money(closed(o) ? 0n : o.remaining)}</td></tr>`).join('') || `<tr><td colspan="4" class="sp-muted">No orders in this filter.</td></tr>`}</tbody></table></div>`;
+  function milestone(o) {
+    return o.amounts.map((amount, i) => {
+      const paid = i < o.next || (closed(o) && !refunded(o));
+      const cur = !closed(o) && i === o.next;
+      const text = paid ? 'Paid to supplier' : refunded(o) ? 'Closed · refunded to buyer' : cur ? `${o.approved[i] ? 'Buyer approved' : 'Awaiting buyer approval'} · ${permitValid(o) ? 'permit valid' : 'awaiting fresh check'}` : `Upcoming · due ${dayClock(o.dueDates[i])}`;
+      return `<div class="sp-step"><span class="sp-step-icon ${paid ? 'sp-done' : cur ? 'sp-alert' : ''}">${icon(paid ? 'check' : refunded(o) ? 'minus' : 'clock-3')}</span><div style="flex:1"><div class="sp-row sp-between"><span>Milestone ${i + 1}</span><strong>${money(amount)}</strong></div><div class="sp-small sp-muted">${text}</div></div></div>`;
+    }).join('');
+  }
+  const notice = (o) => { const r = reason(o); return `<div class="sp-note">${icon(refunded(o) ? 'rotate-ccw' : 'clock-3')}<div><strong>${closed(o) ? 'Order closed' : esc(r.reason)}</strong><p class="sp-small" style="margin-top:4px">${esc(r.detail)}</p></div></div>`; };
+  const details = (o, complex = false) => `<div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>${esc(o.ref)}</h3>${icon('file-check-2')}</div><h2 style="margin-top:8px">${esc(o.name)}</h2><p class="sp-small sp-muted" style="margin:5px 0 18px">${o.registry} · ${esc(o.supplier)}</p><div class="sp-overline">${refunded(o) ? 'Returned to buyer' : closed(o) ? 'Paid to supplier' : 'Next milestone'}</div><div style="font-size:31px;letter-spacing:-1px;margin:5px 0 12px">${money(refunded(o) ? o.total - o.paid : closed(o) ? o.paid : o.amounts[o.next])} <span class="sp-small sp-muted" style="letter-spacing:0">tokens</span></div>${notice(o)}${complex ? `<details class="sp-disclosure" data-key="ms-${o.id}"${opened('ms-' + o.id)}><summary class="cursor-interaction">Milestones and policy</summary>${milestone(o)}${kv([['Permit', closed(o) ? 'None · order closed' : permitValid(o) ? `Valid until ${dayClock(o.permitValidUntil)}` : o.permitValidUntil ? 'Expired' : 'None yet'], ['Submission max age', `${consts.maxAge} seconds`], ['Permit lifetime', `${o.permitTtl.toLocaleString('en-GB')} seconds`], ['History tier', tierName(o.tier)]])}</details>` : `<button class="sp-button sp-quiet cursor-interaction" data-mode="complex" style="margin-top:13px">Review milestones ${icon('arrow-right')}</button>`}${sendMsg.id === o.id && sendMsg.html ? `<p class="sp-small" style="margin-top:12px" role="status">${sendMsg.html}</p>` : ''}</div>`;
+
+  // Release conditions: the four facts the contract checks, from this order's own reads; one action at the bottom
+  function action(o) {
+    const due = o.dueDates[o.next];
+    if (mode === 'sample') return { label: 'Payment unavailable', icon: 'lock-keyhole', why: 'Sample data: nothing can be sent.' };
+    if (o.state === 1) {
+      const open = nowSec() >= o.autoRefundAt;
+      return { fn: 'refundRemaining', label: 'Refund to buyer', icon: 'rotate-ccw', why: open ? 'Anyone can send the rest back to the buyer now.' : `The buyer can refund now; anyone ${when(o.autoRefundAt)}.` };
+    }
+    if (noData(o)) {
+      const open = nowSec() >= o.autoRefundAt;
+      return { fn: open ? 'refundRemaining' : null, label: 'Refund to buyer', icon: 'rotate-ccw', why: open ? 'No verified data: anyone can return the funds to the buyer now.' : `No verified data: anyone can return the funds ${when(o.autoRefundAt)}.` };
+    }
+    const missing = [];
+    if (!o.approved[o.next]) missing.push("the buyer's approval");
+    if (!permitValid(o)) missing.push('a valid payment permit');
+    if (nowSec() < due) missing.push(`the due date (in ${span(due - nowSec())})`);
+    if (stopped(o)) return { label: 'Payment unavailable', icon: 'lock-keyhole', why: 'The supplier is stopped by a newer failed registry status.' };
+    if (missing.length) return { label: 'Payment unavailable', icon: 'lock-keyhole', why: `Needs ${missing.join(', ')}.` };
+    return { fn: 'release', label: `Release milestone ${o.next + 1}`, icon: 'send', why: `Pays ${money(o.amounts[o.next])} tokens to the supplier ${short(o.payee)}.` };
+  }
+  let sendMsg = { id: null, html: '' };
+  function checks(o) {
+    const due = o.dueDates[o.next];
+    const rows = [
+      [o.approved[o.next], o.approved[o.next] ? 'circle-check' : 'clock-3', 'Buyer approval', o.approved[o.next] ? 'Approved' : 'Not yet'],
+      o.state === 1 || o.lastFailedRules ? [false, 'circle-x', 'Registry rules', 'Failed', 'sp-failed'] : o.lastCheck ? [true, 'circle-check', 'Registry rules', 'Last check passed'] : [false, 'clock-3', 'Registry rules', 'No record yet'],
+      [permitValid(o), permitValid(o) ? 'circle-check' : 'clock-3', 'Payment permit', permitValid(o) ? `Valid until ${new Date(o.permitValidUntil * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : o.state === 1 ? 'Cleared by the hold' : o.permitValidUntil ? 'Expired' : 'None yet'],
+      [nowSec() >= due, nowSec() >= due ? 'circle-check' : 'calendar-clock', 'Milestone due', nowSec() >= due ? 'Due now' : soon(due - nowSec())],
+    ];
+    const a = action(o);
+    const busy = sendMsg.id === o.id && sendMsg.busy;
+    return `<div class="sp-sheet sp-padding"><h3>Release conditions</h3><div style="margin-top:10px">${rows.map(([ok, ic, label, value, extra]) => `<div class="sp-check ${ok ? '' : extra || 'sp-expired'}">${icon(ic)}${label}<span>${value}</span></div>`).join('')}</div><button class="sp-button ${a.fn && !busy ? 'sp-primary' : ''} cursor-interaction" ${a.fn && !busy ? `data-act="${a.fn}"` : 'disabled'} style="width:100%;margin-top:12px">${icon(busy ? 'loader' : a.icon)}${busy ? 'Waiting for the wallet…' : a.label}</button><p class="sp-small sp-muted" style="margin-top:9px">${a.why}</p>${sendMsg.id === o.id && sendMsg.html ? `<p class="sp-small" style="margin-top:8px" role="status">${sendMsg.html}</p>` : ''}</div>`;
+  }
+  function agentLast() {
+    if (mode === 'sample') return 'Sample data: no live agent.';
+    const mine = evState.list.filter((e) => e.from && agentAddr && e.from.toLowerCase() === agentAddr.toLowerCase() && e.time);
+    if (!mine.length) return 'No agent transaction in the loaded history: Unknown.';
+    const t = Math.max(...mine.map((e) => e.time));
+    return `Configured settings; last on-chain action ${P.ago(nowSec() - t)}.`;
+  }
+  const policy = (o) => `<div class="sp-sheet sp-padding" style="margin-top:16px"><div class="sp-row sp-between"><h3>Agent policy</h3>${icon('bot')}</div>${kv([['Profile', AGENT_CONFIG.profile], ['Tick interval', AGENT_CONFIG.tick], ['Max fetches / tick', AGENT_CONFIG.fetches], ['History tier', tierName(o.tier)]])}<p class="sp-small sp-muted" style="margin-top:12px">${agentLast()}</p></div>`;
+  function trailLine(e, o) {
+    const a = e.args, at = e.time ? ` · ${dayClock(e.time)}` : '';
+    switch (e.name) {
+      case 'OrderCreated': return ['Buyer funded the order.', `${money(a.total)} tokens locked${at}.`];
+      case 'MilestoneApproved': return [`Buyer approved milestone ${Number(a.milestone) + 1}.`, at.slice(3)];
+      case 'EvidenceAccepted': return [a.clean ? 'Airnode record accepted.' : 'Airnode record accepted: rules failed.', `${a.clean ? 'Every rule passes' : esc(P.failedLabels(o.sourceIndex, Number(a.failedRules)).join(', ') || 'failed')}${at}.`];
+      case 'PermitIssued': return [`Payment permit for milestone ${Number(a.milestone) + 1}.`, `Valid until ${dayClock(Number(a.validUntil))}${at}.`];
+      case 'MilestonePaid': return [`Milestone ${Number(a.milestone) + 1} paid.`, `${money(a.amount)} tokens released${at}.`];
+      case 'OrderHeld': return ['Order held.', `${esc(P.failedLabels(o.sourceIndex, Number(a.failedRules)).join(', '))}${at}.`];
+      case 'OrderRefunded': return ['Funds returned to buyer.', `${money(a.amount)} tokens${a.noDataExit ? ', no-data exit' : ''}${at}.`];
+      case 'TierChanged': return [`History tier: ${tierName(Number(a.oldTier))} → ${tierName(Number(a.newTier))}.`, `Clean streak ${a.cleanStreak}${at}.`];
+      default: return [e.name, at.slice(3)];
+    }
+  }
+  const eventLog = (o) => { const evs = [...o.events].sort((x, y) => (x.time || 0) - (y.time || 0) || (x.block || 0) - (y.block || 0) || (x.logIndex || 0) - (y.logIndex || 0)); return `<details class="sp-sheet sp-padding" data-key="trail-${o.id}"${opened('trail-' + o.id)}><summary class="cursor-interaction">Decision trail</summary>${evs.length ? evs.map((e, k) => { const [t, d] = trailLine(e, o); const tx = explorer && e.tx ? ` <a class="sp-muted" href="${explorer}/tx/${e.tx}" target="_blank" rel="noopener">tx</a>` : ''; return `<div class="sp-log-line"><span>${String(k + 1).padStart(2, '0')}</span><p>${t}<br><span class="sp-muted">${d}${tx}</span></p></div>`; }).join('') : `<div class="sp-log-line"><span>00</span><p><span class="sp-muted">No events in the loaded history.</span></p></div>`}</details>`; };
+  function evidence(o) {
+    const e = lastEvidence(o);
+    const raw = e ? pretty(rawOf(e)) : 'No signed record accepted for this order yet.';
+    return `<div class="sp-sheet sp-padding" style="margin-top:18px"><div class="sp-row sp-between"><h3>Evidence / ${esc(o.ref)}</h3><span class="sp-pill">${o.source}</span></div><pre class="sp-code" style="margin-top:12px">${esc(raw)}</pre><div class="sp-row sp-between sp-wrap" style="margin-top:13px"><span class="sp-small sp-muted">${o.registry} · ${esc(o.supplier)}${e && e.args.timestamp ? ` · signed ${dayClock(Number(e.args.timestamp))}` : ''}</span>${badge(o)}</div></div>`;
+  }
+  function task(x) {
+    const r = reason(x), st = status(x);
+    const second = st.label === 'Fresh check needed' ? 'Fresh record needed' : st.label;
+    return `<article class="sp-task ${x.id === s.order ? 'sp-focus' : ''}"><div class="sp-row sp-between"><span class="sp-task-number">${esc(x.ref)} / ${x.source}</span>${icon('radar')}</div><h2>${esc(x.name)}</h2><p class="sp-small sp-muted">${esc(r.detail)}</p><div class="sp-path"><span>${icon(x.approved[x.next] ? 'check' : 'clock-3')}${x.approved[x.next] ? 'Buyer approved' : 'Awaiting approval'}</span>${icon('arrow-right')}<span>${icon(st.icon)}${second}</span></div><div class="sp-row sp-between"><span class="sp-small"><strong>${money(x.remaining)}</strong> still in escrow</span><button class="sp-button cursor-interaction" data-order="${x.id}">Inspect ${icon('arrow-up-right')}</button></div></article>`;
+  }
+
+  function control() {
+    if (!orders) return `<header class="sp-control-top">${brand()}<nav class="sp-control-nav" aria-label="Main navigation"><button class="cursor-interaction" data-page="orders" aria-current="page">Operations</button><button class="cursor-interaction" data-page="lab">Verification lab</button></nav><span class="sp-pill">${icon('hexagon')}${network()}</span></header><main class="sp-control-main"><div class="sp-row sp-between sp-wrap">${preview()}${modeSwitch()}</div>${readFailed ? `<div class="sp-note" style="margin-top:20px">${icon('triangle-alert')}<div><strong>Could not read the contract</strong><p class="sp-small" style="margin-top:4px">${esc(readFailed)}</p></div></div>` : ''}${footer()}</main>`;
+    const o = selected();
+    const open = orders.filter((x) => !closed(x));
+    const needs = open.filter((x) => x.state === 0 && !permitValid(x)).length;
+    const nRefunded = orders.filter(refunded).length, nPaid = orders.filter((x) => closed(x) && !refunded(x)).length;
+    const regs = [...new Set(orders.map((x) => x.registry))];
+    const escrow = open.reduce((a, x) => a + x.remaining, 0n);
+    const pending = open.length;
+    return `<header class="sp-control-top">${brand()}<nav class="sp-control-nav" aria-label="Main navigation"><button class="cursor-interaction" data-page="orders" ${s.page === 'orders' ? 'aria-current="page"' : ''}>Operations</button><button class="cursor-interaction" data-page="lab" ${s.page === 'lab' ? 'aria-current="page"' : ''}>Verification lab</button></nav><span class="sp-pill">${icon('hexagon')}${network()}</span></header><main class="sp-control-main"><div class="sp-row sp-between sp-wrap">${preview()}${modeSwitch()}</div>${s.page === 'lab' ? lab(o) : `<div class="sp-control-head"><div><div class="sp-overline">Supplier monitoring</div><h1 style="margin-top:10px">Know why money moves.</h1></div>${needs ? `<span class="sp-pill sp-wait">${icon('clock-3')}${needs} check${needs === 1 ? '' : 's'} needed</span>` : `<span class="sp-pill sp-positive">${icon('circle-check')}No checks needed</span>`}</div><div class="sp-control-stats"><div><div class="sp-overline">Escrow remaining</div><div class="sp-metric">${money(escrow)}</div><div class="sp-small sp-muted">Tokens across open orders</div></div><div><div class="sp-overline">Open / total</div><div class="sp-metric">${open.length} <small>/ ${orders.length}</small></div><div class="sp-small sp-muted">${nRefunded} order${nRefunded === 1 ? '' : 's'} refunded</div></div><div><div class="sp-overline">Registries</div><div class="sp-metric">${regs.length}</div><div class="sp-small sp-muted">${regs.join(' + ') || 'None yet'}</div></div></div><div class="sp-control-grid"><section>${s.mode === 'complex' ? `<div class="sp-row sp-between sp-wrap" style="margin-bottom:14px"><h2>Order monitor</h2>${filters()}</div><div class="sp-sheet">${table()}</div>${evidence(o)}` : `<div class="sp-row sp-between" style="margin-bottom:14px"><h2>Next decisions</h2><span class="sp-mono">${String(pending).padStart(2, '0')} pending</span></div>${open.map(task).join('') || `<p class="sp-small sp-muted">No open orders.</p>`}<p class="sp-small sp-muted" style="margin-top:14px">${nRefunded} order${nRefunded === 1 ? ' was' : 's were'} closed after refunds to the buyer${nPaid ? `; ${nPaid} ${nPaid === 1 ? 'was' : 'were'} fully paid` : ''}.</p>`}</section><aside>${closed(o) ? details(o, s.mode === 'complex') : checks(o)}${policy(o)}${s.mode === 'complex' ? `<div style="margin-top:16px">${eventLog(o)}</div>` : ''}</aside></div>`}${footer()}</main>`;
+  }
+
+  // ---------------------------------------------------------------- Verification lab: the real tamper test on the selected order
+
+  const cases = [
+    { key: 'valid', mode: 'asis', name: 'Fresh, matching record', sub: 'Expected Airnode and request', expect: 'accepted', good: true },
+    { key: 'value', mode: 'value', name: 'Edited value', sub: 'Original signature, changed data', expect: 'WrongSigner' },
+    { key: 'old', mode: 'realOld', name: 'Genuine old record', sub: 'Untouched, signed earlier', expect: 'StaleResponse' },
+    { key: 'request', mode: 'realOther', name: 'Other company', sub: 'Genuine different-request record', expect: 'WrongRequest' },
+    { key: 'key', mode: 'key', name: 'Wrong signing key', sub: 'Signed by a different key', expect: 'WrongSigner' },
+    { key: 'replay', mode: 'replay', name: 'Previously used record', sub: 'Same digest a second time', expect: 'Replayed' },
+  ];
+  const WHY = {
+    valid: 'A fresh clean record can issue a payment permit. Buyer approval and the due date still control release.',
+    value: 'Changing a signed value changes the recovered signer. The record must be rejected.',
+    old: 'The signed record is authentic but outside the accepted age window.',
+    request: 'An authentic record for a different supplier cannot authorize this order.',
+    key: 'Only the configured Airnode signer for this registry is accepted.',
+    replay: 'The contract refuses an already consumed signed response.',
+  };
+  const results = {}; // `${order}:${case}` -> { state: 'busy' | 'done' | 'error', ... }
+  let userRecord = '', sentDigests = new Map();
+  const isLocal = () => chainId === 31337 && mode !== 'sample';
+  async function chainNow() {
+    if (chainId === 31337) { try { await provider.send('evm_mine', []); } catch { /* not anvil */ } }
+    return Number((await provider.getBlock('latest')).timestamp);
+  }
+  async function signFresh(o) {
+    const fields = LOCAL.registry[`${o.sourceIndex === 1 ? 'gleif' : 'ch'}:${o.supplier}`] || LOCAL.clean[o.sourceIndex];
+    const raw = JSON.stringify(fields), data = ethers.hexlify(ethers.toUtf8Bytes(raw)), ts = String(await chainNow());
+    const requestHash = P.requestHashFor(o.sourceIndex, o.supplier);
+    const signature = await new ethers.Wallet(LOCAL.signer[o.sourceIndex]).signMessage(ethers.getBytes(P.digestOf(requestHash, ts, data)));
+    return P.normalizeRecord({ source: o.sourceIndex === 1 ? 'gleif' : 'ch', supplierId: o.supplier, requestHash, timestamp: ts, data, raw, signature }, o.sourceIndex);
+  }
+  function realInput(o, which) {
+    const key = o.sourceIndex === 1 ? 'gleif' : 'ch', wantReal = chainId !== 31337;
+    const pool = (window.PULSE_SAMPLE_RESPONSES || []).filter((x) => x.record.source === key && P.requestHashFor(o.sourceIndex, String(x.record.supplierId || '')).toLowerCase() === String(x.record.requestHash).toLowerCase())
+      .sort((a, b) => (b.real === wantReal) - (a.real === wantReal));
+    const hit = which === 'realOld' ? pool.find((x) => x.record.supplierId === o.supplier) : pool.find((x) => x.record.supplierId !== o.supplier);
+    return hit ? P.normalizeRecord(hit.record, o.sourceIndex) : null;
+  }
+  async function baseRecord(o) {
+    if (isLocal()) return signFresh(o);
+    if (!userRecord.trim()) throw Object.assign(new Error('This case needs a fresh signed record of this supplier: paste or upload the file from fetch-evidence.sh below.'), { needRecord: true });
+    return P.normalizeRecord(JSON.parse(userRecord), o.sourceIndex);
+  }
+  async function ask(o, record) {
+    try {
+      const ret = await provider.call({ to: cfg.contract, from: P.DEAD, data: iface.encodeFunctionData('submitEvidence', [o.id, record.requestHash, BigInt(record.timestamp), record.data, record.signature]) });
+      return { accepted: true, clean: iface.decodeFunctionResult('submitEvidence', ret)[0] };
+    } catch (e) { const err = P.decodeRevert(iface, e); if (!err) throw e; return { accepted: false, err }; }
+  }
+  async function signerFor() {
+    if (chainId === 31337) return new ethers.Wallet(LOCAL.agent, provider);
+    if (!window.ethereum) throw new Error('No browser wallet found. Install MetaMask to send this transaction.');
+    const bp = new ethers.BrowserProvider(window.ethereum);
+    await bp.send('eth_requestAccounts', []);
+    if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send('wallet_switchEthereumChain', [{ chainId: '0x' + chainId.toString(16) }]);
+    return new ethers.BrowserProvider(window.ethereum).getSigner();
+  }
+  async function runCase(o, c) {
+    const k = `${o.id}:${c.key}`;
+    results[k] = { state: 'busy' }; render();
+    try {
+      let record;
+      if (c.mode === 'realOld' || c.mode === 'realOther') {
+        record = realInput(o, c.mode);
+        if (!record) throw new Error(c.mode === 'realOld' ? `No earlier signed record of ${o.supplier} is bundled with the page.` : 'No signed record of another company is bundled for this registry.');
+      } else {
+        const base = await baseRecord(o);
+        if (c.mode === 'replay') {
+          const dg = P.digestOf(base.requestHash, base.timestamp, base.data).toLowerCase();
+          if (!sentDigests.has(dg)) { // the original must be on chain first: the one real transaction of the lab
+            const first = await ask(o, base);
+            if (!first.accepted) throw new Error(`The valid record itself is refused (${first.err.name}), so it cannot be replayed. ${P.explain(first.err.name, first.err.args)}`);
+            const w = new ethers.Contract(cfg.contract, P.ABI, await signerFor());
+            const tx = await w.submitEvidence(o.id, base.requestHash, BigInt(base.timestamp), base.data, base.signature, { gasLimit: EVIDENCE_GAS });
+            const rc = await tx.wait();
+            sentDigests.set(dg, { block: rc.blockNumber, hash: tx.hash });
+          }
+          record = base;
+        } else record = (await P.tamper(base, c.mode, {})).record;
+      }
+      const ans = await ask(o, record);
+      const got = ans.accepted ? 'accepted' : ans.err.name;
+      results[k] = { state: 'done', ans, got, pass: got === c.expect, record, sent: c.mode === 'replay' ? sentDigests.get(P.digestOf(record.requestHash, record.timestamp, record.data).toLowerCase()) : null };
+    } catch (e) {
+      const f = e.needRecord ? { text: e.message } : P.friendlyError(e, { rpc: cfg.rpc });
+      results[k] = { state: 'error', text: e.needRecord || !f.text ? e.message : f.text, needRecord: !!e.needRecord };
+    }
+    render();
+    if (c.mode === 'replay') refresh(); // the send changed the order
+  }
+  function verificationChecks(o, r) {
+    if (!r || r.state !== 'done') return kv([['Request', 'Supplier-bound request hash'], ['Time', 'Fresh signed timestamp'], ['Signature', 'Configured Airnode'], ['Replay', 'Unused response digest'], ['Policy', "Buyer's registry rules"]]);
+    const rec = r.record, age = nowSec() - Number(rec.timestamp);
+    let signer = '?'; try { signer = ethers.verifyMessage(ethers.getBytes(P.digestOf(rec.requestHash, rec.timestamp, rec.data)), rec.signature); } catch { /* malformed */ }
+    const trusted = consts.airnodes[o.sourceIndex] || '';
+    const f = P.parseFields(rec.data), failed = f ? P.evaluate(o.sourceIndex, f, o.rules) : null;
+    return kv([['Request', rec.requestHash.toLowerCase() === o.requestHash.toLowerCase() ? 'Matches this order' : `Other request ${short(rec.requestHash)}`],
+      ['Time', age <= consts.maxAge ? `Signed ${P.ago(Math.max(0, age))}` : `Too old: ${P.ago(age)}`],
+      ['Signature', signer.toLowerCase() === trusted.toLowerCase() ? 'Configured Airnode' : `Other key ${short(signer)}`],
+      ['Replay', r.got === 'Replayed' ? 'Digest already used' : 'Unused response digest'],
+      ['Policy', failed === null ? 'Signed data is not JSON' : failed === 0 ? 'Every rule passes' : `Fails: ${esc(P.failedLabels(o.sourceIndex, failed).join(', '))}`]]);
+  }
+  function lab(o) {
+    const c = cases.find((x) => x.key === s.test) || cases[0];
+    const r = results[`${o.id}:${c.key}`];
+    const live = mode !== 'sample';
+    let result;
+    if (!live) result = `<div class="sp-result ${c.good ? '' : 'sp-rejected'}" role="status">${icon(c.good ? 'shield-check' : 'shield-x')}<div class="sp-overline" style="color:inherit;margin-top:12px">Expected contract result</div><h2>${c.good ? 'Permit issued' : c.expect}</h2><p>${WHY[c.key]} Sample data: open the live page to ask the contract.</p></div>`;
+    else if (!r) result = `<div class="sp-result ${c.good ? '' : 'sp-rejected'}" role="status">${icon(c.good ? 'shield-check' : 'shield-x')}<div class="sp-overline" style="color:inherit;margin-top:12px">Expected contract result</div><h2>${c.good ? 'Permit issued' : c.expect}</h2><p>${WHY[c.key]} Press the scenario to ask the live contract.</p></div>`;
+    else if (r.state === 'busy') result = `<div class="sp-result" role="status">${icon('loader')}<div class="sp-overline" style="color:inherit;margin-top:12px">Asking the contract</div><h2>…</h2><p>An eth_call of submitEvidence from 0x…dEaD on order ${esc(o.ref)}${c.mode === 'replay' ? ', after sending the valid record once' : ''}.</p></div>`;
+    else if (r.state === 'error') result = `<div class="sp-result sp-rejected" role="status">${icon('triangle-alert')}<div class="sp-overline" style="color:inherit;margin-top:12px">${r.needRecord ? 'Record needed' : 'Could not ask the contract'}</div><h2>${r.needRecord ? 'Load a record' : 'Not run'}</h2><p>${esc(r.text)}</p></div>`;
+    else {
+      const good = r.pass;
+      const head = r.ans.accepted ? (r.ans.clean ? 'Permit issued' : 'Accepted · order held') : r.got;
+      const text = r.ans.accepted ? (c.good ? WHY.valid : 'The contract accepted a manipulated record.') : P.explain(r.ans.err.name, r.ans.err.args, { expectedSigner: consts.airnodes[o.sourceIndex] });
+      // as in the design: an accepted valid record is green, every rejection red; the overline says whether it was expected
+      result = `<div class="sp-result ${r.ans.accepted && c.good ? '' : 'sp-rejected'}" role="status">${icon(good ? (c.good ? 'shield-check' : 'shield-x') : 'triangle-alert')}<div class="sp-overline" style="color:inherit;margin-top:12px">Contract result${good ? ' · as expected' : ` · expected ${c.expect}`}</div><h2>${esc(head)}</h2><p>${esc(text)}${r.sent ? ` Sent once in block ${r.sent.block}${explorer ? ` (<a style="color:inherit" href="${explorer}/tx/${r.sent.hash}" target="_blank" rel="noopener">tx</a>)` : ''}.` : ''}</p></div>`;
+    }
+    const needsInput = live && !isLocal() && !c.mode.startsWith('real');
+    const input = needsInput ? `<div class="sp-sheet sp-padding" style="margin-top:12px"><div class="sp-row sp-between"><h3>Your signed record</h3><button class="sp-button sp-quiet cursor-interaction" data-upload>${icon('upload')}Upload</button></div><textarea class="sp-code sp-record" id="sp-record" spellcheck="false" aria-label="Signed record (JSON from fetch-evidence.sh)" placeholder="Paste the JSON from api3/scripts/fetch-evidence.sh">${esc(userRecord)}</textarea><input type="file" id="sp-file" accept=".json,application/json" hidden></div>` : '';
+    return `<div class="sp-lab-heading"><div class="sp-overline">Verification lab</div><h1 style="margin-top:10px">Trust the proof.</h1><p class="sp-muted" style="margin-top:9px">A clear answer for every signed record. Order ${esc(o.ref)} · ${esc(o.name)}.</p></div><div class="sp-lab-grid"><section><div class="sp-row sp-between"><h3>Choose a scenario</h3><span class="sp-pill">${live ? 'Live contract answers' : 'Illustrative outcomes'}</span></div><div class="sp-cases">${cases.filter((x, i) => s.mode === 'complex' || i !== 5).map((x) => `<button class="sp-case cursor-interaction" data-case="${x.key}" aria-pressed="${x.key === s.test}">${icon(x.good ? 'file-check-2' : 'shield-alert')}<div><span>${x.name}</span><small>${x.sub}</small></div></button>`).join('')}</div>${input}${result}${s.mode === 'complex' ? `<div class="sp-sheet sp-padding"><h3>Verification checks</h3>${verificationChecks(o, r)}</div>` : ''}</section><aside><div class="sp-sheet sp-padding"><h3>From record to payment</h3><div class="sp-step"><span class="sp-step-icon">1</span><div>Authenticate record<p class="sp-small sp-muted">Signer, request and timing.</p></div></div><div class="sp-step"><span class="sp-step-icon">2</span><div>Issue permit or hold<p class="sp-small sp-muted">Apply the order’s rules.</p></div></div><div class="sp-step"><span class="sp-step-icon">3</span><div>Release only when eligible<p class="sp-small sp-muted">Buyer approval + due date + valid permit.</p></div></div><div class="sp-rule"></div><p class="sp-small sp-muted">${live ? 'Each scenario is an eth_call simulation: nothing is sent, except the replay, which sends the valid record once.' : 'Sample data: no record is submitted and no transaction is sent.'}</p></div></aside></div>`;
+  }
+
+  // ---------------------------------------------------------------- render, interactions, refresh
+
+  function render() {
+    const ae = document.activeElement, focusKey = ae && ae.closest && ae.closest('#sp-control') ? ['data-order', 'data-mode', 'data-page', 'data-filter', 'data-case', 'data-act'].map((a) => ae.getAttribute(a) !== null ? `[${a}="${ae.getAttribute(a)}"]` : '').join('') : '';
+    const recFocus = ae && ae.id === 'sp-record';
+    app.innerHTML = control();
+    app.querySelectorAll('button').forEach((b) => { b.type = 'button'; });
+    if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+    if (recFocus) { const t = document.getElementById('sp-record'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }
+    else if (focusKey) { const b = app.querySelector(focusKey); if (b) b.focus({ preventScroll: true }); }
+  }
+  app.addEventListener('toggle', (e) => { const k = e.target.dataset && e.target.dataset.key; if (k) { if (e.target.open) openKeys.add(k); else openKeys.delete(k); } }, true);
+  app.addEventListener('input', (e) => { if (e.target.id === 'sp-record') { userRecord = e.target.value; for (const k of Object.keys(results)) if (results[k].needRecord) delete results[k]; } });
+  app.addEventListener('change', async (e) => { if (e.target.id === 'sp-file' && e.target.files[0]) { userRecord = await e.target.files[0].text(); render(); } });
+  app.addEventListener('click', (event) => {
+    const b = event.target.closest('button'); if (!b || b.disabled) return;
+    let changed = true;
+    if (b.dataset.mode) { s.mode = b.dataset.mode; s.filter = 'all'; if (s.mode === 'simple' && s.test === 'replay') s.test = 'valid'; try { localStorage.setItem('pulse-control-mode', s.mode); } catch { /* storage blocked */ } }
+    else if (b.dataset.page) { s.page = b.dataset.page; }
+    else if (b.dataset.order !== undefined) { s.order = Number(b.dataset.order); s.page = 'orders'; sendMsg = { id: null, html: '' }; }
+    else if (b.dataset.filter) { s.filter = b.dataset.filter; }
+    else if (b.dataset.case) { s.test = b.dataset.case; const o = selected(), c = cases.find((x) => x.key === s.test); render(); if (mode !== 'sample' && o && c) runCase(o, c); return; }
+    else if (b.dataset.upload !== undefined) { document.getElementById('sp-file').click(); return; }
+    else if (b.dataset.act) { act(b.dataset.act); return; }
+    else changed = false;
+    if (changed) render();
+  });
+
+  // Release or Refund: the contract's own answer first (staticCall), then the wallet; pending, included or refused
+  async function act(fn) {
+    const o = selected();
+    sendMsg = { id: o.id, busy: true, html: '' }; render();
+    try {
+      const signer = await signerFor();
+      const c = new ethers.Contract(cfg.contract, P.ABI, signer);
+      await c[fn].staticCall(o.id);
+      const gas = await c[fn].estimateGas(o.id);
+      const tx = await c[fn](o.id, { gasLimit: gas * 13n / 10n }); // 30% headroom over the estimate
+      const link = explorer ? `<a href="${explorer}/tx/${tx.hash}" target="_blank" rel="noopener">${short(tx.hash)}</a>` : short(tx.hash);
+      sendMsg = { id: o.id, busy: true, html: `Sent ${link}, waiting for the block…` }; render();
+      let rc; try { rc = await tx.wait(); } catch (e) { rc = e.receipt || null; if (!rc) throw e; }
+      sendMsg = { id: o.id, busy: false, html: rc.status === 1 ? `Included in block ${rc.blockNumber}: ${link}.` : `Reverted on chain in block ${rc.blockNumber}: ${link}.` };
+      await refresh();
+    } catch (e) {
+      const err = P.decodeRevert(iface, e);
+      sendMsg = { id: o.id, busy: false, html: err ? `Not sent: the contract refuses it with ${esc(err.name)}. ${esc(P.explain(err.name, err.args))}` : esc(P.friendlyError(e, { rpc: cfg.rpc }).text) };
+      render();
+    }
+  }
+
+  let reading = false;
+  async function refresh() {
+    if (mode === 'sample' || reading) return;
+    reading = true;
+    try { await loadLive(); }
+    catch (e) { const f = P.friendlyError(e, { reading: true, contract: cfg.contract, rpc: cfg.rpc }); readFailed = e.message && e.message.startsWith('No SupplierPulse+') ? e.message : f.text; }
+    finally { reading = false; }
+    if (orders && !orders.some((x) => x.id === s.order)) s.order = (orders.find((x) => !closed(x)) || orders[0] || { id: 0 }).id;
+    render();
+  }
+  async function start() {
+    render();
+    if (cfg.sample) { loadSample(); s.order = (orders.find((x) => !closed(x)) || orders[0]).id; render(); setInterval(render, 1000 * 15); return; }
+    await refresh();
+    if (orders) { const first = orders.find((x) => !closed(x)); if (first) { s.order = first.id; render(); } }
+    setInterval(refresh, REFRESH_MS);
+  }
+  start();
+})();
+</script>
+</body>
+</html>
