@@ -73,6 +73,11 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Batu · demo video: one final script and shot list
+- Changed: `docs/VIDEO_SCRIPT.md`, six shots in 2:30 with English narration (265 words, about 1:45), merged from Orhun's `docs/DEMO_IDEAS.md` and Ulaş's `docs/drafts/video-script.md`. Uses only screens on `main` (Control Room: Operations, Verification lab, Agent), checked in the browser. Live payment and hold first, then the valid record and the four rejections in the Verification lab, the agent's overnight actions, and `judge-tamper.sh` at the end.
+- Next: **Julien** merges `orhun/final-fixes` (shot 3 needs `plus-quick-orders.sh`, shot 6 `judge-tamper.sh`); shots 3 and 4 are recorded on Julien's laptop (keys); **Ulaş** reads the narration aloud and times it. Video by 13:00.
+- Notes: the "1 in 190" figure comes from `docs/PITCH_CUSTOMER.md` (`orhun/pitch-customer`); open its source once before recording. Shot 4 needs a record fetched less than 5 minutes earlier, or every case shows `StaleResponse`.
+
 ### 2026-10-31 · Julien · the website: Control Room, simple views, FAQ, name "SupplierPulse"
 - Changed (`demo/`, merged from `batu/plus-ui`):
   - **`control.html`, the Control Room:** Orhun's design (`codex/ui-design-concepts`) with our real data and actions. Five screens in its top navigation: Operations, Verification lab, Agent, Judge kit, Settings, each in Simple and Complex. A Guide button walks through it. Ulaş's FAQ (the 7 most frequent questions) sits on Operations.
