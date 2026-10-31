@@ -48,6 +48,10 @@ Reverts on wrong signer, other request, stale or future timestamp, replayed or o
 
 ## Log
 
+### 2026-10-30 · Codex
+- Changed: added `docs/BRAINSTORMING.md` to capture an exploratory mining-reward valuation/settlement concept and its open API3/Cardano questions. This does not change the team's current project plan.
+- Next: team to decide whether this concept merits pursuing; validate API3-to-payment-chain support before committing to the integration.
+
 ```md
 ### YYYY-MM-DD · Name
 - Changed:
