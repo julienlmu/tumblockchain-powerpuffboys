@@ -285,7 +285,7 @@
           <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono"><a class="err" href="#err-WrongSigner" data-err="WrongSigner">WrongSigner</a></td></tr>
           <tr><td>Replay</td><td>the same record a second time</td><td class="mono"><a class="err" href="#err-Replayed" data-err="Replayed">Replayed</a></td></tr></tbody></table>
         <p><b>Amber tile, or "Not tested":</b> the record could not test that attack, because it is too old, already sent, or for another order, so an earlier check stopped it. What to do: load a fresh record (<b>Fresh local record</b> on the local chain, <span class="mono">fetch-evidence.sh</span> elsewhere, see the Judge kit) and run again. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
-        <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> run all, <kbd>1</kbd>–<kbd>8</kbd> one attempt, <kbd>S</kbd> replay step, <kbd>B</kbd> back to the summary, <kbd>T</kbd> colour theme, <kbd>Esc</kbd> stop or close this guide, <kbd>?</kbd> this guide, <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs all.</p>
+        <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffboys/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffboys/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a> · Keys: <kbd>R</kbd> run all, <kbd>1</kbd>–<kbd>8</kbd> one attempt, <kbd>S</kbd> replay step, <kbd>B</kbd> back to the summary, <kbd>T</kbd> colour theme, <kbd>Esc</kbd> stop or close this guide, <kbd>?</kbd> this guide, <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> in the record box runs all.</p>
         <p><label class="keys-toggle"><input type="checkbox" id="keys-on" checked> Single-key shortcuts (R, 1–8, S, B, T, ?) on</label></p>
         <details class="gloss"><summary>What each contract error means</summary>
           <table class="kv"><tbody>
@@ -375,7 +375,7 @@
     </section>
 
     <section class="panel kit" id="kit-panel" tabindex="-1" aria-labelledby="kit-title">
-      <div class="panel-head"><h2 id="kit-title">Judge kit</h2><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener" class="small">Full guide (README)</a></div>
+      <div class="panel-head"><h2 id="kit-title">Judge kit</h2><a href="https://github.com/julienlmu/tumblockchain-powerpuffboys/blob/main/demo/README.md" target="_blank" rel="noopener" class="small">Full guide (README)</a></div>
       <ul id="kit"></ul>
     </section>
   </div>
@@ -1147,7 +1147,7 @@
   // What a judge needs before fetch-evidence.sh works: one click from the command wherever it appears.
   const PREREQ = `<details class="prereq"><summary>What you need</summary><p class="hint">A checkout of this repo, Node 22 or newer, and <span class="mono">PAYER_PRIVATE_KEY</span>: a Base Sepolia wallet
     holding aUSD (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>).
-    Each record costs $0.01. Steps: <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">README</a>.</p></details>`;
+    Each record costs $0.01. Steps: <a href="https://github.com/julienlmu/tumblockchain-powerpuffboys/blob/main/demo/README.md" target="_blank" rel="noopener">README</a>.</p></details>`;
   function fetchCode() {
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
     // a supplier id goes into a copyable command only in the contract's format, single-quoted

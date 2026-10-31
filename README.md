@@ -6,7 +6,7 @@ SupplierPulse pays a supplier's milestones only against fresh, signed proof from
 
 > Hackathon prototype for the **API3 track "Any API in your contract"** (TUM Blockchain & AI Hackathon, Munich, October 2026). Testnets only. It is not a credit score or a guarantee that a supplier will deliver.
 
-**Try it live:** [julienlmu.github.io/tumblockchain-powerpuffgirls](https://julienlmu.github.io/tumblockchain-powerpuffgirls/) opens the Control Room on the live Sepolia contract: the orders and why each pays or waits, the **Verification lab** (the tamper test, simulated against the live contract: no wallet, no gas), the agent's own transactions and a judge kit with every command.
+**Try it live:** [julienlmu.github.io/tumblockchain-powerpuffboys](https://julienlmu.github.io/tumblockchain-powerpuffboys/) opens the Control Room on the live Sepolia contract: the orders and why each pays or waits, the **Verification lab** (the tamper test, simulated against the live contract: no wallet, no gas), the agent's own transactions and a judge kit with every command.
 
 Team log and status: [docs/PROGRESS.md](docs/PROGRESS.md).
 
@@ -91,7 +91,7 @@ The contract must reject a manipulated record. Every case below has been run aga
 
 Run it yourself in one of three ways:
 
-1. **In the browser.** Open the [Control Room](https://julienlmu.github.io/tumblockchain-powerpuffgirls/) → **Verification lab** (locally `demo/control.html#lab`, see "Run it"), pick an order and a scenario, or press **Run the tamper test**. The genuine old and other-company records run with nothing to load; for the other cases, load a fresh record under **Signed record → My own**. The earlier page `demo/judge.html` ("Try to break it") does the same. Each attempt is an `eth_call` of the live contract: no wallet, no gas.
+1. **In the browser.** Open the [Control Room](https://julienlmu.github.io/tumblockchain-powerpuffboys/) → **Verification lab** (locally `demo/control.html#lab`, see "Run it"), pick an order and a scenario, or press **Run the tamper test**. The genuine old and other-company records run with nothing to load; for the other cases, load a fresh record under **Signed record → My own**. The earlier page `demo/judge.html` ("Try to break it") does the same. Each attempt is an `eth_call` of the live contract: no wallet, no gas.
 2. **From a terminal, with nothing to buy.** Submit the genuine records bundled in [`api3/fixtures/`](api3/fixtures/). Needs Foundry and Node.js.
    ```sh
    cd api3
@@ -117,8 +117,8 @@ Run it yourself in one of three ways:
 Prerequisites: [Foundry](https://getfoundry.sh/), Node.js 22.18 or newer (`nvm use` picks 24), Python 3.8 or newer, `jq` and `curl`.
 
 ```sh
-git clone https://github.com/julienlmu/tumblockchain-powerpuffgirls.git
-cd tumblockchain-powerpuffgirls
+git clone https://github.com/julienlmu/tumblockchain-powerpuffboys.git
+cd tumblockchain-powerpuffboys
 ```
 
 **The screens, against the live contract** (no keys):
@@ -128,7 +128,7 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 - `http://localhost:8765/control.html` is the **Control Room**, the main screen: Operations (every order and why it pays or waits), Verification lab (the tamper test), Agent (what the agent did on chain), Judge kit (every command) and Settings. It finds the live v2 contract by itself.
 - `http://localhost:8765/control.html?sample=1` shows sample data, with no chain needed.
 - `http://localhost:8765/` is the buyer dashboard and `judge.html` is "Try to break it", the earlier screens.
-- The same pages are hosted at https://julienlmu.github.io/tumblockchain-powerpuffgirls/ (there the buyer dashboard is `dashboard.html`).
+- The same pages are hosted at https://julienlmu.github.io/tumblockchain-powerpuffboys/ (there the buyer dashboard is `dashboard.html`).
 
 See [demo/README.md](demo/README.md) for the local-chain mode.
 

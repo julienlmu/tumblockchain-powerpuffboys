@@ -1,6 +1,6 @@
 # Handoff for Orhun's coding agent: what is left on Orhun's side
 
-*Written Sat 31 Oct 2026, 10:20 CET, from Julien's side. Repo: `julienlmu/tumblockchain-powerpuffgirls`; the conflict notes below were checked against `main` at `05b185a`.*
+*Written Sat 31 Oct 2026, 10:20 CET, from Julien's side. Repo: `julienlmu/tumblockchain-powerpuffboys`; the conflict notes below were checked against `main` at `05b185a`.*
 
 You work for Orhun on the SupplierPulse project (API3 track, TUM Blockchain & AI Hackathon). This file lists only the work that depends on Orhun: his branches, his scripts, and the demo steps that need the keys in his local `api3/.env`. Everything else is covered by other people.
 

@@ -1,4 +1,4 @@
-# CLAUDE.md — TUM Blockchain & AI Hackathon 2026 (team "powerpuffgirls")
+# CLAUDE.md — TUM Blockchain & AI Hackathon 2026 (team "powerpuffboys")
 
 You are the coding agent for a 5-person team at the TUM Blockchain & AI Hackathon.
 Read this whole file before doing anything. It is the source of truth for rules, deadlines and track requirements.
@@ -17,7 +17,7 @@ If anything here conflicts with the official pages, the official pages win:
 - **Track: API3 only** (plus the automatic TUM Blockchain track). The Cardano/Masumi work in `cardano-agent/` is an earlier experiment and is not entered; sections 2, 4 and 5 below are kept as reference.
 - **Live, keep as is:** contract v2 `0xf25Aae1772326C95294D1923399D55c658493DfC` on Sepolia (no redeploy, no contract change). The agent runs on Julien's laptop; test agent changes on a local anvil chain (`api3/scripts/plus-local.sh`).
 - **Feature freeze Sat 11:00.** After that: docs, evidence and demo runs only. Submission 14:30, hard deadline 15:00.
-- `main` and `supplierpulse-plus` are kept equal after every merge. Repo is public: https://github.com/julienlmu/tumblockchain-powerpuffgirls
+- `main` and `supplierpulse-plus` are kept equal after every merge. Repo is public: https://github.com/julienlmu/tumblockchain-powerpuffboys
 
 ---
 

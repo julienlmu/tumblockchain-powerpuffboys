@@ -30,7 +30,7 @@ Tagline: **"Your supplier was approved last month. That should not approve today
 | 1 | **Julien's laptop: lid open, plugged in** | The agent runs on it. On Friday night it slept when the lid was closed on battery, and the agent stopped. |
 | 2 | Agent alive: Control Room → **Agent** → "last on-chain action" is recent (a few minutes to an hour, never "hours ago") | The live story is "it works on its own" |
 | 3 | Website served: `python3 -m http.server 8765 --bind 127.0.0.1 --directory demo` (repo root), then open `http://localhost:8765/control.html` | The Control Room is the pitch screen |
-| 3b | Backup: the hosted copy at https://julienlmu.github.io/tumblockchain-powerpuffgirls/ (same pages, live Sepolia; no local chain there) | If the laptop server fails |
+| 3b | Backup: the hosted copy at https://julienlmu.github.io/tumblockchain-powerpuffboys/ (same pages, live Sepolia; no local chain there) | If the laptop server fails |
 | 4 | Network pill top right says **Sepolia** and the strip says "Live contract · read …" | Shows you are on the real testnet, not sample data |
 | 5 | View: **Simple** (switch top right). Window about 1280 px wide | Simple is the cleanest for a pitch |
 | 6 | Tabs ready: the contract on [Etherscan](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC), the agent's data payments on [BaseScan](https://sepolia.basescan.org/address/0xED3418aE93669a640650728E70f7aA712083253a#tokentxns), the GitHub repo | For "show me on chain" |
@@ -393,8 +393,8 @@ Show them on Operations (Complex shows closed orders too) and the Agent screen. 
 | Contract (Ethereum Sepolia) | `0xf25Aae1772326C95294D1923399D55c658493DfC`, [Etherscan](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC#code) |
 | Trusted Airnodes | Companies House `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, GLEIF `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c` |
 | Agent wallet | `0xED3418aE93669a640650728E70f7aA712083253a`, data payments on [BaseScan](https://sepolia.basescan.org/address/0xED3418aE93669a640650728E70f7aA712083253a#tokentxns) |
-| Repository (public) | https://github.com/julienlmu/tumblockchain-powerpuffgirls |
-| Hosted Control Room (GitHub Pages) | https://julienlmu.github.io/tumblockchain-powerpuffgirls/ |
+| Repository (public) | https://github.com/julienlmu/tumblockchain-powerpuffboys |
+| Hosted Control Room (GitHub Pages) | https://julienlmu.github.io/tumblockchain-powerpuffboys/ |
 | Every transaction with links | `docs/evidence.md` |
 
 ## 13. Who built what (if asked)
