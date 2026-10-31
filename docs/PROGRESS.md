@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · change report: default model gpt-6-luna (orhun/doc-tools)
+- Changed: `plus-doc-diff.sh` default OpenAI model `gpt-5.4-mini` -> `gpt-6-luna` (override with `DOC_SUMMARY_MODEL`).
+- Notes: same 50-line contract test (13 changes plus one reordered line that is not a change), 3 runs each. gpt-6-luna 13/13 in all 3 runs; gpt-5.4-mini 13/13, 12/13, 12/13 (twice missed the supplier company number). Per report about 940 input + 730 output tokens for gpt-6-luna (about 310 of them reasoning) vs 940 + 430 for gpt-5.4-mini; at list prices ($0.10/$0.50 vs $0.75/$4.50 per 1M) about $0.0005 vs $0.0026, roughly 6x cheaper.
+
 ### 2026-10-30 · Orhun · document tools: review fixes (orhun/doc-tools)
 - Changed: `plus_doc_hash` (`plus-lib.sh`) fails with a non-zero exit instead of printing an empty hash, streams the file through `openssl dgst -keccak-256` (any size; fallback to `cast keccak` up to about 1 MiB) and checks the result is 32 bytes; `plus-doc-hash.sh` computes the hash in its own step so a failure stops the script; `plus-create-order.sh` refuses an `ORDER_DOC_HASH` that is set but not a 32-byte hash (no silent `ORDER_REF` fallback); `plus-doc-diff.sh` is local by default, the language-model summary needs `--summary` and says when the diff was cut at 20,000 bytes; `plus-verify-doc.sh` runs the local diff only. README updated.
 - Notes: same hashes as before (checked against the old method, empty file, 60 KB and 2 MiB files). Anvil run: MATCH, MISMATCH with local change report (no network call even with a key set), empty `ORDER_DOC_HASH` rejected. Contract unchanged, no deploy.

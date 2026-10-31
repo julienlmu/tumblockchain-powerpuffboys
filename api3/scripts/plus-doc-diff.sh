@@ -7,7 +7,7 @@
 # contract and the signed registry records, never by this summary.
 # Usage: scripts/plus-doc-diff.sh [--summary] <agreed file> <presented file>
 # env: [ANTHROPIC_API_KEY | OPENAI_API_KEY] [DOC_SUMMARY_MODEL] [DOC_SUMMARY_URL]
-#      defaults: claude-haiku-5-5 at api.anthropic.com, or gpt-5.4-mini at api.openai.com
+#      defaults: claude-haiku-5-5 at api.anthropic.com, or gpt-6-luna at api.openai.com
 set -euo pipefail
 send_summary=no
 [[ "${1:-}" == --summary ]] && { send_summary=yes; shift; }
@@ -53,7 +53,7 @@ if [[ "$provider" == anthropic ]]; then
   pick='[.content[]? | select(.type == "text") | .text] | join("\n")'
 else
   url="${DOC_SUMMARY_URL:-https://api.openai.com/v1/chat/completions}"
-  body="$(jq -n --arg m "${DOC_SUMMARY_MODEL:-gpt-5.4-mini}" --arg p "$prompt" \
+  body="$(jq -n --arg m "${DOC_SUMMARY_MODEL:-gpt-6-luna}" --arg p "$prompt" \
     '{model: $m, max_completion_tokens: 2000, messages: [{role: "user", content: $p}]}')"
   headers=(-H "authorization: Bearer $key")
   pick='.choices[0].message.content // empty'
