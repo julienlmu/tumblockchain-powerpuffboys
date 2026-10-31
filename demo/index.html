@@ -383,10 +383,13 @@
   };
   const totalOf = (o) => o.amounts.reduce((x, y) => x + y, 0n);
   const supplierStopped = (o) => o.rec.lastBaseFailureAt > 0 && o.state !== 2;
+  // The no-data exit (§2.4a) applies only once the next milestone is due. Before that, the contract's autoRefundAt is
+  // just the time the exit would open (approved, no valid permit), not a sign that data is missing.
+  const noDataExit = (o) => o.state === 0 && o.autoRefundAt > 0 && nowSec() >= o.dueDates[o.next];
   function stateOf(o) {
     if (o.state === 2) return o.paid >= totalOf(o) ? "paid" : "closed";
     if (o.state === 1 || supplierStopped(o) || o.lastFailedRules) return "rule";
-    if (o.autoRefundAt > 0) return "nodata";
+    if (noDataExit(o)) return "nodata";
     if (permitValid(o)) return "ok";
     return "pending";
   }
@@ -450,7 +453,7 @@
           ${open ? "<b>anyone (the agent) can trigger the refund now.</b>" : `anyone (the agent) can trigger the refund in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</p>
         ${claimRow("Claim now (MetaMask)", true)}
       </div>`;
-    } else if (!closed && o.autoRefundAt > 0) {
+    } else if (!closed && noDataExit(o)) {
       // no-data exit: approved, overdue, no valid permit (§2.4a). Never shown as a negative fact about the supplier.
       const open = nowSec() >= o.autoRefundAt;
       statusBox = `<div class="held-box nodata">
