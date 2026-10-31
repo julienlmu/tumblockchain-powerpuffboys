@@ -73,6 +73,10 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · final README and Devfolio text
+- Changed: `README.md` rewritten as one page for the API3 submission (problem with sourced numbers, live v2 address, one flow: order → signed register check → pay or stop → tamper rejected, demo in 3 commands, `judge-tamper.sh`, evidence link, "Also" extras, honest limits, team). Old Cardano/vault content removed. New `docs/DEVFOLIO.md` (tagline, description, how it's built, challenges, tracks: API3). Reuses Ulaş's `ulas/plus-story` drafts and `docs/PITCH_CUSTOMER.md` (`orhun/pitch-customer`).
+- Next: merge after `orhun/final-fixes` (the README points to `api3/scripts/judge-tamper.sh`) and `orhun/doc-tools` (the document hash scripts). On a README conflict with those branches, keep this version.
+
 ### 2026-10-31 · Orhun · demo video idea
 - Changed: `docs/DEMO_IDEAS.md`, a storyboard for the 2.5-min video: happy path first (paid vs. held), then the four tamper cases side by side and zoomed, then the judge command and Etherscan. Uses the case and error names `judge-tamper.sh` prints, and `plus-quick-orders.sh` to open fresh orders 5 min before filming.
 - Next: team decides; Ulaş / video owner.
