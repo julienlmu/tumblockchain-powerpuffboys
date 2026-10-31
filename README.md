@@ -1,16 +1,18 @@
-# SupplierPulse+
+# SupplierPulse
 
 **Your supplier was approved last month. That should not approve today's payment.**
 
-SupplierPulse+ pays a supplier's milestones only against fresh, signed proof from the official company register. A buyer locks the order amount in a smart contract on Ethereum Sepolia. Before each milestone, an autonomous agent buys a signed register record from **API3 AirnodeHub** ($0.01 over x402) and submits it. The contract checks the record before any money moves. A clean record unlocks one milestone; a failing one holds the rest of the money for the buyer.
+SupplierPulse pays a supplier's milestones only against fresh, signed proof from the official company register. A buyer locks the order amount in a smart contract on Ethereum Sepolia. Before each milestone, an autonomous agent buys a signed register record from **API3 AirnodeHub** ($0.01 over x402) and submits it. The contract checks the record before any money moves. A clean record unlocks one milestone; a failing one holds the rest of the money for the buyer.
 
 > Hackathon prototype for the **API3 track "Any API in your contract"** (TUM Blockchain & AI Hackathon, Munich, October 2026). Testnets only. It is not a credit score or a guarantee that a supplier will deliver.
+
+**Try it live:** [julienlmu.github.io/tumblockchain-powerpuffgirls](https://julienlmu.github.io/tumblockchain-powerpuffgirls/) opens the Control Room on the live Sepolia contract: the orders and why each pays or waits, the **Verification lab** (the tamper test, simulated against the live contract: no wallet, no gas), the agent's own transactions and a judge kit with every command.
 
 Team log and status: [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ## The problem
 
-Companies vet a supplier once, at onboarding, and then pay invoices for months on the strength of that approval. In between, the supplier can go into liquidation, stop filing its accounts or let its legal-entity registration lapse. The public registers know, but nobody looks before the next payment. SupplierPulse+ looks every time, and makes the contract act on what it finds.
+Companies vet a supplier once, at onboarding, and then pay invoices for months on the strength of that approval. In between, the supplier can go into liquidation, stop filing its accounts or let its legal-entity registration lapse. The public registers know, but nobody looks before the next payment. SupplierPulse looks every time, and makes the contract act on what it finds.
 
 ## How it works
 
@@ -54,7 +56,7 @@ More rules the contract enforces:
 
 | What | Value |
 |---|---|
-| Contract (SupplierPulse+ v1.1) | [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC#code), source verified on Etherscan and Sourcify |
+| Contract (SupplierPulse v1.1, `SupplierPulsePlus`) | [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC#code), source verified on Etherscan and Sourcify |
 | Trusted Airnodes | Companies House `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, GLEIF `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c` |
 | Settings | max record age 300 s, refund grace 600 s (demo values) |
 | Agent wallet | `0xED3418aE93669a640650728E70f7aA712083253a` |
@@ -89,7 +91,7 @@ The contract must reject a manipulated record. Every case below has been run aga
 
 Run it yourself in one of three ways:
 
-1. **In the browser.** Open "Try to break it" (`demo/judge.html`, see "Run it" below), pick an order, load a record, and press **Run the full tamper test**. Each attempt is an `eth_call` of the live contract: no wallet, no gas.
+1. **In the browser.** Open the [Control Room](https://julienlmu.github.io/tumblockchain-powerpuffgirls/) → **Verification lab** (locally `demo/control.html#lab`, see "Run it"), pick an order and a scenario, or press **Run the tamper test**. The genuine old and other-company records run with nothing to load; for the other cases, load a fresh record under **Signed record → My own**. The earlier page `demo/judge.html` ("Try to break it") does the same. Each attempt is an `eth_call` of the live contract: no wallet, no gas.
 2. **From a terminal, with nothing to buy.** Submit the genuine records bundled in [`api3/fixtures/`](api3/fixtures/). Needs Foundry and Node.js.
    ```sh
    cd api3
@@ -123,9 +125,10 @@ cd tumblockchain-powerpuffgirls
 ```sh
 python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 ```
-- `http://localhost:8765/` is the buyer dashboard. It finds the live v2 contract by itself and shows every order, its protected balance and the agent's transactions.
-- `http://localhost:8765/judge.html` is "Try to break it", the tamper test in the browser.
-- `http://localhost:8765/?sample=1` shows sample data, with no chain needed.
+- `http://localhost:8765/control.html` is the **Control Room**, the main screen: Operations (every order and why it pays or waits), Verification lab (the tamper test), Agent (what the agent did on chain), Judge kit (every command) and Settings. It finds the live v2 contract by itself.
+- `http://localhost:8765/control.html?sample=1` shows sample data, with no chain needed.
+- `http://localhost:8765/` is the buyer dashboard and `judge.html` is "Try to break it", the earlier screens.
+- The same pages are hosted at https://julienlmu.github.io/tumblockchain-powerpuffgirls/ (there the buyer dashboard is `dashboard.html`).
 
 See [demo/README.md](demo/README.md) for the local-chain mode.
 
@@ -146,7 +149,7 @@ python3 api3/agent/pulse_agent.py run --fake --ticks 40   # the agent against an
 | AirnodeHub data is essential to a core feature | No milestone pays without a signed Companies House or GLEIF record; a failing record holds the money |
 | A signed response goes to a deployed contract that checks signer, request and timing | `submitEvidence` in [`api3/src/SupplierPulsePlus.sol`](api3/src/SupplierPulsePlus.sol), live at the address above |
 | A value bound to the response drives an on-chain action, with replay protection | Permit, payment, hold or refund; each digest is accepted once, and only records newer than the last count |
-| A way for judges to submit their own responses | `demo/judge.html` and `api3/scripts/plus-submit.sh` (above) |
+| A way for judges to submit their own responses | The Control Room's Verification lab (hosted, or `demo/control.html`), `api3/scripts/judge-tamper.sh` and `api3/scripts/plus-submit.sh` (above) |
 | Who relies on the data | The buyer's money: the signed record is the only input that decides whether a milestone is paid |
 | What goes wrong if it is forged | A forged "active, accounts filed" record pays a company that is being wound up; a forged negative record blocks an honest supplier |
 | Data we wanted but could not find on AirnodeHub | The German Handelsregister and German insolvency notices (GLEIF covers German companies only when they have an LEI), and delivery confirmations from ERP systems |
@@ -164,7 +167,7 @@ The Airnode's signature proves that the register's API returned exactly this ans
 | [`api3/scripts/`](api3/scripts/) | Deploy, order, fetch and judge scripts, and the local demo |
 | [`api3/x402/`](api3/x402/) | Paid AirnodeHub fetch, request hashes, tamper and verify tools |
 | [`api3/agent/`](api3/agent/) | The autonomous agent |
-| [`demo/`](demo/) | The buyer dashboard and "Try to break it" |
+| [`demo/`](demo/) | The Control Room (main screen), the buyer dashboard and "Try to break it" |
 | [`docs/SUPPLIERPULSE_PLUS.md`](docs/SUPPLIERPULSE_PLUS.md) | The full specification |
 | [`docs/evidence.md`](docs/evidence.md) | Every on-chain transaction and test run |
 | [`cardano-agent/`](cardano-agent/) | An earlier Cardano/Masumi experiment, not part of this submission |

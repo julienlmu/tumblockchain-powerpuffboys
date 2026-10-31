@@ -1,0 +1,55 @@
+# Publishes demo/ to GitHub Pages on every push to main that touches it.
+# The Control Room is the front page: the buyer dashboard (demo/index.html) is served as dashboard.html and the pages' links follow.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["demo/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site from demo/
+        run: |
+          mkdir site
+          cp -R demo/. site/
+          rm -f site/README.md
+          mv site/index.html site/dashboard.html
+          sed -i 's/index\.html/dashboard.html/g' site/*.html site/*.js
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>SupplierPulse</title>
+          <meta http-equiv="refresh" content="0; url=control.html">
+          <script>location.replace('control.html' + location.search + location.hash);</script>
+          </head>
+          <body><p><a href="control.html">Open the SupplierPulse Control Room</a></p></body>
+          </html>
+          EOF
+          touch site/.nojekyll
+          ls -la site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

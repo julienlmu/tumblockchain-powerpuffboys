@@ -14,6 +14,15 @@ Tagline: **"Your supplier was approved last month. That should not approve today
 
 ---
 
+## Judging format (official site, checked Sat 11:35)
+
+- **Live, Sat 15:00–17:00, at the partner booths.** "Each partner judges its own track for two hours. Present your project to the judges of every track you entered. TUM Blockchain Club judges every project for the TUM Blockchain Track." The 15:00 submission deadline comes first; winners are announced at 17:30.
+- **No fixed pitch length is published.** Expect a conversation at the booth. Have three lengths ready (1 min, 3 min with demo, about 8 min with questions) and ask the judges at the start how long they have.
+- **Two juries:** the API3 judges (Matej Falat, Software Engineer; Ugur Schenk, Strategy Lead) at their booth, and the TUM Blockchain Club for the general track.
+- **API3 guidance, verbatim:** "Show a real use case where authenticated data matters to the core workflow. Judges look at execution and originality. The tamper test is a pass/fail qualification requirement. An autonomous agent adds value when it selects data, pays through x402 when required, and acts on-chain over repeated cycles. Payment alone or one-off MCP discovery does not demonstrate that workflow."
+
+---
+
 ## 1. Checklist before every pitch
 
 | # | Check | Why |
@@ -21,6 +30,7 @@ Tagline: **"Your supplier was approved last month. That should not approve today
 | 1 | **Julien's laptop: lid open, plugged in** | The agent runs on it. On Friday night it slept when the lid was closed on battery, and the agent stopped. |
 | 2 | Agent alive: Control Room → **Agent** → "last on-chain action" is recent (a few minutes to an hour, never "hours ago") | The live story is "it works on its own" |
 | 3 | Website served: `python3 -m http.server 8765 --bind 127.0.0.1 --directory demo` (repo root), then open `http://localhost:8765/control.html` | The Control Room is the pitch screen |
+| 3b | Backup: the hosted copy at https://julienlmu.github.io/tumblockchain-powerpuffgirls/ (same pages, live Sepolia; no local chain there) | If the laptop server fails |
 | 4 | Network pill top right says **Sepolia** and the strip says "Live contract · read …" | Shows you are on the real testnet, not sample data |
 | 5 | View: **Simple** (switch top right). Window about 1280 px wide | Simple is the cleanest for a pitch |
 | 6 | Tabs ready: the contract on [Etherscan](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC), the agent's data payments on [BaseScan](https://sepolia.basescan.org/address/0xED3418aE93669a640650728E70f7aA712083253a#tokentxns), the GitHub repo | For "show me on chain" |
@@ -331,6 +341,18 @@ Show them on Operations (Complex shows closed orders too) and the Agent screen. 
 | Is this a credit score? | No. It's fresh registry evidence: is the company alive and up to date with its filings, right now. |
 | What's next? | More registers (the German Handelsregister and insolvency notices once a signed source exists), longer production time windows, per-buyer allowlists, and privacy for order documents (only hashes on chain). |
 | Is this the first? | We don't claim that. Supplier-risk tools and smart-contract escrow exist. Our mechanism is fresh signed registry evidence inside the payment rule, enforced by the contract. |
+| Who is the customer, and would they pay? | A mid-size manufacturer paying advances to foreign suppliers (procurement or treasury). One cent of data per check, against advances worth tens of thousands of euros. |
+| Doesn't credit monitoring (Creditsafe, D&B) already do this? | Those alert a person; we gate the payment. A missed alert cannot release money. We don't claim to be first. |
+| How fast does the register show trouble? | Usually within days. That's why each milestone needs its own fresh check; last month's approval doesn't count. |
+| How would this make money? | Not built. Possible: a small fee per check or per order, or a subscription per buyer. Say it's an idea. |
+| Why not a bank escrow? | The rules are public and nobody can bend them, every decision leaves an audit trail, and nobody has to trust us: anyone can trigger the next step. |
+| What does a check cost on mainnet? | About 680,000 gas per check: several dollars on Ethereum mainnet, cents on a Layer 2. Production would run on an L2. |
+| Privacy: are amounts and suppliers public? | Amounts and the payout wallet are public (the contract moves the money); the order reference is stored only as a hash. Hiding amounts needs zero-knowledge proofs: future work. |
+| What if the Airnode's key is compromised? | The admin can switch to a new Airnode address. That's exactly why it belongs behind a time lock or several signers in production. |
+| How did you test it? | 115 contract tests (every tamper case with real signed records), 86 agent tests, two independent reviews, and the live run since Friday. |
+| What was hardest / what would you do with another week? | Hardest: real signed records cost ~680,000 gas, more than expected. Next week: more registers, production time windows, per-buyer allowlists, document hashes. |
+| Who built what? | See §13. |
+| Can I try it myself, right now? | Yes: the hosted Control Room → Verification lab, or `api3/scripts/judge-tamper.sh` (one command, no keys). |
 
 ---
 
@@ -372,6 +394,7 @@ Show them on Operations (Complex shows closed orders too) and the Agent screen. 
 | Trusted Airnodes | Companies House `0x392228E5CCA260313e5ed337Ed3561B59A1e4bFF`, GLEIF `0x26d83124541e89ef28B9A5FB012B4B5f4097C20c` |
 | Agent wallet | `0xED3418aE93669a640650728E70f7aA712083253a`, data payments on [BaseScan](https://sepolia.basescan.org/address/0xED3418aE93669a640650728E70f7aA712083253a#tokentxns) |
 | Repository (public) | https://github.com/julienlmu/tumblockchain-powerpuffgirls |
+| Hosted Control Room (GitHub Pages) | https://julienlmu.github.io/tumblockchain-powerpuffgirls/ |
 | Every transaction with links | `docs/evidence.md` |
 
 ## 13. Who built what (if asked)
