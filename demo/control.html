@@ -194,6 +194,20 @@
 #supplierpulse-selected-ui-concepts .sp-result.sp-rejected { background:var(--sp-red-bg); color:var(--sp-red); }
 #supplierpulse-selected-ui-concepts .sp-result h2 { font-size:25px; margin:12px 0 8px; }
 #supplierpulse-selected-ui-concepts .sp-app .sp-result p { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-gates { margin-top:10px; }
+#supplierpulse-selected-ui-concepts .sp-gate { display:flex; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid var(--sp-line); font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-gate:last-child { border-bottom:0; }
+#supplierpulse-selected-ui-concepts .sp-gate-dot { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; flex:none; background:var(--sp-subtle); color:var(--sp-muted); }
+#supplierpulse-selected-ui-concepts .sp-gate-dot svg { width:13px; height:13px; }
+#supplierpulse-selected-ui-concepts .sp-gate.sp-pass .sp-gate-dot { background:var(--sp-good-bg); color:var(--sp-good); }
+#supplierpulse-selected-ui-concepts .sp-gate.sp-fail .sp-gate-dot { background:var(--sp-red-bg); color:var(--sp-red); }
+#supplierpulse-selected-ui-concepts .sp-gate.sp-fail > span:last-child { color:var(--sp-red); font-weight:600; }
+#supplierpulse-selected-ui-concepts .sp-gate.sp-skip { opacity:.45; }
+#supplierpulse-selected-ui-concepts .sp-gate > span:last-child { margin-left:auto; color:var(--sp-muted); font-size:11px; text-align:right; }
+#supplierpulse-selected-ui-concepts .sp-animate .sp-gate { animation:sp-gate-in .3s both; animation-delay:calc(var(--i) * 140ms); }
+@keyframes sp-gate-in { from { opacity:0; transform:translateX(-6px); } }
+#supplierpulse-selected-ui-concepts .sp-edit-diff .sp-pill { margin:0 6px 6px 0; }
+@media (prefers-reduced-motion: reduce) { #supplierpulse-selected-ui-concepts .sp-animate .sp-gate { animation:none; } }
 @media(max-width:900px) {
   #supplierpulse-selected-ui-concepts .sp-ledger-work,#supplierpulse-selected-ui-concepts .sp-control-grid,#supplierpulse-selected-ui-concepts .sp-lab-grid { grid-template-columns:1fr; }
   #supplierpulse-selected-ui-concepts .sp-ledger-work > aside,#supplierpulse-selected-ui-concepts .sp-control-grid > aside { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -779,7 +793,7 @@
     { key: 'old', mode: 'realOld', name: 'Genuine old record', sub: 'Untouched, signed earlier', expect: 'StaleResponse' },
     { key: 'request', mode: 'realOther', name: 'Other company', sub: 'Genuine different-request record', expect: 'WrongRequest' },
     { key: 'key', mode: 'key', name: 'Wrong signing key', sub: 'Signed by a different key', expect: 'WrongSigner' },
-    { key: 'replay', mode: 'replay', name: 'Previously used record', sub: 'Same digest a second time', expect: 'Replayed' },
+    { key: 'replay', mode: 'replay', name: 'Previously used record', sub: 'Sends the valid record once for real, then retries', expect: 'Replayed' },
   ];
   const WHY = {
     valid: 'A fresh clean record can issue a payment permit. Buyer approval and the due date still control release.',
@@ -854,7 +868,7 @@
       const ans = await ask(o, record);
       const got = ans.accepted ? 'accepted' : ans.err.name;
       const what = c.mode === 'realOld' ? `An untouched record of ${o.supplier}, signed ${dayClock(Number(record.timestamp))}.` : c.mode === 'realOther' ? `An untouched record of another company (${record.supplierId}).` : c.mode === 'replay' ? 'The valid record, sent once for real, submitted a second time.' : c.mode === 'asis' ? 'The record as the Airnode signed it.' : tampered && tampered.what;
-      results[k] = { state: 'done', ans, got, what, pass: got === c.expect, record, sent: c.mode === 'replay' ? sentDigests.get(P.digestOf(record.requestHash, record.timestamp, record.data).toLowerCase()) : null };
+      results[k] = { state: 'done', at: Date.now(), ans, got, what, pass: got === c.expect, record, sent: c.mode === 'replay' ? sentDigests.get(P.digestOf(record.requestHash, record.timestamp, record.data).toLowerCase()) : null };
     } catch (e) {
       const f = e.needRecord || e.blocked ? { text: e.message } : P.friendlyError(e, { rpc: cfg.rpc });
       results[k] = { state: 'error', text: f.text || e.message, needRecord: !!e.needRecord };
@@ -876,8 +890,9 @@
     if (rs.some((r) => r.state !== 'done')) verdict = 'error';
     else if (attacks.some((r) => r.ans.accepted)) verdict = 'broken';
     else if (!valid.ans.accepted) verdict = 'untested';
+    else if (attacks.some((r) => !r.pass)) verdict = 'partial'; // rejected, but not for the reason the attack targets
     else verdict = 'passed';
-    suite = { order: o.id, state: 'done', verdict, refused: valid && valid.state === 'done' && !valid.ans.accepted ? valid.got : '' };
+    suite = { order: o.id, state: 'done', verdict, refused: valid && valid.state === 'done' && !valid.ans.accepted ? valid.got : '', clean: valid && valid.state === 'done' && valid.ans.accepted && valid.ans.clean, n: attacks.filter((r) => r.state === 'done' && r.pass).length };
     render();
   }
   function verificationChecks(o, r) {
@@ -911,29 +926,108 @@
     const switcher = isLocal() ? `<div class="sp-mode" role="group" aria-label="Record source" style="margin-top:10px"><button class="cursor-interaction" data-source="auto" aria-pressed="${!useOwn()}">Signed here</button><button class="cursor-interaction" data-source="own" aria-pressed="${useOwn()}">My own</button></div>` : '';
     return `<div class="sp-sheet sp-padding" style="margin-bottom:16px"><div class="sp-row sp-between"><h3>Signed record</h3>${useOwn() ? `<button class="sp-button sp-quiet cursor-interaction" data-upload>${icon('upload')}Upload</button>` : ''}</div>${switcher}<p class="sp-small sp-muted" style="margin-top:10px">${status}</p>${useOwn() ? `<textarea class="sp-code sp-record" id="sp-record" spellcheck="false" aria-label="Signed record (JSON from fetch-evidence.sh)" placeholder="Paste the JSON from api3/scripts/fetch-evidence.sh (Judge kit)">${esc(userRecord)}</textarea><input type="file" id="sp-file" accept=".json,application/json" hidden>` : ''}<p class="sp-small sp-muted" style="margin-top:10px">"Genuine old record" and "Other company" use untouched records bundled with the page.</p></div>`;
   }
+  // The contract's own order of checks (_verify, then _apply). A revert names the first failed check, so every
+  // check before it passed and none after it ran: the gates are read from the contract's answer, not computed here.
+  const GATES = [['Order is active', ['NotActive']], ['Request is this order’s', ['WrongRequest']], ['Signed recently', ['FutureResponse', 'StaleResponse']], ['Not used before', ['Replayed']], ['Newer than the last check', ['NotNewer']], ['Signed by the expected Airnode', ['WrongSigner']], ['The order’s rules', ['SupplierFailed']]];
+  function gates(r) {
+    if (!r || r.state !== 'done') return '';
+    const at = r.ans.accepted ? GATES.length : GATES.findIndex(([, errs]) => errs.includes(r.got));
+    if (at < 0) return `<div class="sp-sheet sp-padding"><h3>Where the contract stopped</h3><p class="sp-small sp-muted" style="margin-top:8px">Rejected with ${esc(r.got)}, before the evidence checks.</p></div>`;
+    const rows = GATES.map(([name], i) => {
+      const last = i === GATES.length - 1;
+      const [cls, ic, note] = i < at ? ['sp-pass', 'check', last ? (r.ans.clean ? 'clean · would issue a permit' : 'a rule fails · would hold') : 'passed'] : i === at ? ['sp-fail', 'x', r.got] : ['sp-skip', 'minus', 'not reached'];
+      return `<div class="sp-gate ${cls}" style="--i:${i}"><span class="sp-gate-dot">${icon(ic)}</span><span>${name}</span><span>${esc(note)}</span></div>`;
+    }).join('');
+    const fresh = Date.now() - (r.at || 0) < 1500 ? ' sp-animate' : '';
+    return `<div class="sp-sheet sp-padding${fresh}"><div class="sp-row sp-between"><h3>${r.ans.accepted ? 'Every check passed' : 'Where the contract stopped'}</h3><span class="sp-pill">eth_call</span></div><p class="sp-small sp-muted" style="margin-top:6px">The contract’s checks in its own order, read from its answer${r.ans.accepted ? '' : ': the first failed check reverts, so the ones after it never ran'}.</p><div class="sp-gates">${rows}</div></div>`;
+  }
+  function suiteRows(o) {
+    return `<div class="sp-sheet sp-padding"><div class="sp-gates" style="margin-top:0">${cases.slice(0, 5).map((c, i) => {
+      const r = results[`${o.id}:${c.key}`], done = r && r.state === 'done';
+      const [cls, ic] = !r || r.state === 'busy' ? ['sp-skip', 'loader'] : done && r.pass ? ['sp-pass', 'check'] : ['sp-fail', 'x'];
+      return `<div class="sp-gate ${cls}" style="--i:${i}"><span class="sp-gate-dot">${icon(ic)}</span><span>${c.name}</span><span>${done ? `${esc(r.got)}${r.pass ? '' : ` · expected ${c.expect}`}` : r && r.state === 'error' ? 'could not ask' : '…'}</span></div>`;
+    }).join('')}</div></div>`;
+  }
+
+  // Edit it yourself: the signed bytes as text. A submit sends exactly what is in the box with the original
+  // signature, nothing else is changed (unlike the "Edited value" case, which swaps one value by itself).
+  const edits = {}; // order id -> { base, orig, text }
+  function editState(o) {
+    let base = null, why = '';
+    if (useOwn()) {
+      if (!userRecord.trim()) why = 'Paste or upload a signed record under “Signed record” first.';
+      else { try { base = P.normalizeRecord(JSON.parse(userRecord), o.sourceIndex); } catch (e) { why = `The record is not usable: ${e.message}.`; } }
+    } else if (edits[o.id]) base = edits[o.id].base;
+    else why = 'Sign a fresh record with the local test key, then change it.';
+    if (!base) return { why };
+    if (base.raw == null) return { why: 'The signed data is not text, so it cannot be edited here.' };
+    let e = edits[o.id];
+    if (!e || e.base.signature !== base.signature || e.base.data !== base.data) e = edits[o.id] = { base, orig: base.raw, text: base.raw };
+    return e;
+  }
+  function editDiff(orig, text) {
+    if (text === orig) return { changed: false, html: 'Untouched: the exact bytes the Airnode signed.' };
+    const fmt = (v) => (v === undefined ? '(none)' : typeof v === 'string' ? `"${v}"` : JSON.stringify(v));
+    let a = null, b = null; try { a = JSON.parse(orig); b = JSON.parse(text); } catch { /* not JSON */ }
+    let parts = '';
+    if (a && b && typeof a === 'object' && typeof b === 'object') {
+      const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
+      parts = keys.map((k) => `<span class="sp-pill sp-negative">${esc(k)}: ${esc(fmt(a[k]))} → ${esc(fmt(b[k]))}</span>`).join('') || '<span class="sp-pill sp-negative">same values, other bytes</span>';
+    } else parts = '<span class="sp-pill sp-negative">signed bytes changed</span>';
+    return { changed: true, html: `${parts}<br><span class="sp-muted">Signature: the original, unchanged.</span>` };
+  }
+  const editCase = (o) => { const e = edits[o.id], same = !e || e.text === e.orig; return { key: 'edit', mode: 'edit', name: 'Your edit', expect: same ? 'accepted' : 'WrongSigner', good: same }; };
+  async function runEdit(o) {
+    const e = editState(o); if (!e.base) return;
+    const c = editCase(o), k = `${o.id}:edit`, d = editDiff(e.orig, e.text);
+    s.test = 'edit'; s.last = 'case'; results[k] = { state: 'busy', c }; render();
+    try {
+      const record = { ...e.base, raw: e.text, data: ethers.hexlify(ethers.toUtf8Bytes(e.text)) };
+      const ans = await ask(o, record), got = ans.accepted ? 'accepted' : ans.err.name;
+      results[k] = { state: 'done', at: Date.now(), c, ans, got, pass: got === c.expect, record, what: d.changed ? 'Your edited bytes with the original signature.' : 'The record as the Airnode signed it, from the editor.' };
+    } catch (err) { const f = P.friendlyError(err, { rpc: cfg.rpc }); results[k] = { state: 'error', c, text: f.text || err.message }; }
+    render();
+  }
+  async function editAction(what) {
+    const o = selected();
+    if (what === 'submit') { runEdit(o); return; }
+    if (what === 'reset') { const e = edits[o.id]; if (e) e.text = e.orig; }
+    if (what === 'sign') { try { const base = await signFresh(o); edits[o.id] = { base, orig: base.raw, text: base.raw }; } catch (err) { results[`${o.id}:edit`] = { state: 'error', c: editCase(o), text: err.message }; s.test = 'edit'; s.last = 'case'; } }
+    render();
+  }
+  function editSheet(o) {
+    if (mode === 'sample') return '';
+    const e = editState(o);
+    const head = `<div class="sp-row sp-between"><h3>Edit the signed data yourself</h3><span class="sp-pill">${icon('pen-line')}Signature kept</span></div>`;
+    if (!e.base) return `<div class="sp-sheet sp-padding">${head}<p class="sp-small sp-muted" style="margin-top:8px">${esc(e.why)}</p>${useOwn() ? '' : `<button class="sp-button cursor-interaction" data-edit="sign" style="margin-top:12px">${icon('key-round')}Sign a fresh record</button>`}</div>`;
+    const d = editDiff(e.orig, e.text);
+    return `<div class="sp-sheet sp-padding">${head}<p class="sp-small sp-muted" style="margin-top:8px">The exact bytes the Airnode signed. Change a value, for example “active” to “liquidation”, and ask the contract with the original signature.</p><textarea class="sp-code sp-record" id="sp-edit" spellcheck="false" aria-label="Signed data, editable">${esc(e.text)}</textarea><p class="sp-small sp-edit-diff" id="sp-edit-diff" style="margin-top:10px">${d.html}</p><div class="sp-row sp-wrap" style="margin-top:12px"><button class="sp-button sp-primary cursor-interaction" data-edit="submit">${icon('send')}<span id="sp-edit-label">${d.changed ? 'Ask the contract: edited record' : 'Ask the contract: untouched record'}</span></button><button class="sp-button sp-quiet cursor-interaction" data-edit="reset" id="sp-edit-reset" ${d.changed ? '' : 'disabled'}>${icon('rotate-ccw')}Reset to signed</button></div></div>`;
+  }
   function lab(o) {
-    const c = cases.find((x) => x.key === s.test) || cases[0];
+    const r0 = results[`${o.id}:edit`];
+    const c = s.test === 'edit' ? (r0 && r0.c) || editCase(o) : cases.find((x) => x.key === s.test) || cases[0];
     const r = results[`${o.id}:${c.key}`];
     const live = mode !== 'sample';
     const card = (cls, ic, over, h, p) => `<div class="sp-result ${cls}" role="status">${icon(ic)}<div class="sp-overline" style="color:inherit;margin-top:12px">${over}</div><h2>${h}</h2><p>${p}</p></div>`;
     let result;
     if (live && s.last === 'all' && suite && suite.order === o.id) {
       if (suite.state === 'busy') result = card('', 'loader', 'Tamper test', 'Asking the contract…', 'The valid record and four forgeries, one eth_call each.');
-      else if (suite.verdict === 'passed') result = card('', 'shield-check', 'Tamper test · passed', 'Not broken.', 'The valid record is accepted; all four forgeries are rejected. Press a scenario for its answer.');
+      else if (suite.verdict === 'passed') result = card('', 'shield-check', 'Tamper test · passed', '4/4 attacks rejected', `The genuine record is accepted (simulation: ${suite.clean ? 'would issue a permit' : 'would hold the order'}); each attack failed with the error it targets. All five are eth_call simulations: nothing was sent.`);
+      else if (suite.verdict === 'partial') result = card('sp-rejected', 'triangle-alert', 'Tamper test · check the reasons', `${suite.n}/4 rejected as expected`, 'Every attack was rejected, but not every one by the check it targets. The rows below show which.');
       else if (suite.verdict === 'broken') result = card('sp-rejected', 'shield-x', 'Tamper test · not passed', 'Broken.', 'The contract accepted a forgery. Press the scenarios to see which.');
       else if (suite.verdict === 'untested') result = card('sp-rejected', 'triangle-alert', 'Tamper test · not tested', esc(suite.refused), `The valid record itself was refused, so the forgeries never reached their own checks. ${esc(P.explain(suite.refused, []) || '')} Load a fresh record and run again.`);
       else result = card('sp-rejected', 'triangle-alert', 'Tamper test', 'Not run', esc(suite.text || 'A scenario could not be asked; press it for the reason.'));
-    } else if (!live || !r) result = card(c.good ? '' : 'sp-rejected', c.good ? 'shield-check' : 'shield-x', 'Expected contract result', c.good ? 'Permit issued' : c.expect, `${WHY[c.key]} ${live ? 'Press the scenario to ask the live contract.' : 'Sample data: open the live page to ask the contract.'}`);
+    } else if (!live || !r) result = card(c.good ? '' : 'sp-rejected', c.good ? 'shield-check' : 'shield-x', 'Expected contract result', c.good ? 'Would issue a permit' : c.expect, `${WHY[c.key]} ${live ? 'Press the scenario to ask the live contract.' : 'Sample data: open the live page to ask the contract.'}`);
     else if (r.state === 'busy') result = card('', 'loader', 'Asking the contract', '…', `An eth_call of submitEvidence from 0x…dEaD on order ${esc(o.ref)}${c.mode === 'replay' ? ', after sending the valid record once' : ''}.`);
     else if (r.state === 'error') result = card('sp-rejected', 'triangle-alert', r.needRecord ? 'Record needed' : 'Could not ask the contract', r.needRecord ? 'Load a record' : 'Not run', esc(r.text));
     else {
-      const head = r.ans.accepted ? (r.ans.clean ? 'Permit issued' : 'Accepted · order held') : r.got;
+      const head = r.ans.accepted ? (r.ans.clean ? 'Simulation: would issue a permit' : 'Simulation: would hold the order') : r.got;
       const text = r.ans.accepted ? (c.good ? WHY.valid : 'The contract accepted a manipulated record.') : P.explain(r.ans.err.name, r.ans.err.args, { expectedSigner: consts.airnodes[o.sourceIndex] });
       // as in the design: an accepted valid record is green, every rejection red; the overline says whether it was expected
       result = card(r.ans.accepted && c.good ? '' : 'sp-rejected', r.pass ? (c.good ? 'shield-check' : 'shield-x') : 'triangle-alert', `Contract result${r.pass ? ' · as expected' : ` · expected ${c.expect}`}`, esc(head), `${esc(text)}${r.sent ? ` Sent once in block ${r.sent.block}${txLink(r.sent.hash)}.` : ''}`);
     }
     const busy = suite && suite.state === 'busy';
-    return `${heading('Verification lab', 'Trust the proof.', `A clear answer for every signed record. Order ${esc(o.ref)} · ${esc(o.name)}.`)}${orderChips()}<div class="sp-lab-grid"><section><div class="sp-row sp-between"><h3>Choose a scenario</h3><span class="sp-pill">${live ? 'Live contract answers' : 'Illustrative outcomes'}</span></div><div class="sp-cases">${cases.filter((x, i) => s.mode === 'complex' || i !== 5).map((x) => `<button class="sp-case cursor-interaction" data-case="${x.key}" aria-pressed="${s.last === 'case' && x.key === s.test}">${icon(x.good ? 'file-check-2' : 'shield-alert')}<div><span>${x.name}</span><small>${live ? caseNote(o, x) : x.sub}</small></div></button>`).join('')}</div>${live ? `<button class="sp-button sp-primary cursor-interaction" data-runall ${busy ? 'disabled' : ''} style="width:100%">${icon(busy ? 'loader' : 'play')}${busy ? 'Running the tamper test…' : 'Run the tamper test'}</button>` : ''}${result}${s.mode === 'complex' ? `<div class="sp-sheet sp-padding"><h3>Verification checks</h3>${r && r.state === 'done' && r.what ? `<p class="sp-small sp-muted" style="margin-top:8px">${esc(r.what)}</p>` : ''}${verificationChecks(o, r)}${r && r.state === 'done' ? `<details class="sp-disclosure" data-key="sub-${o.id}-${c.key}"${opened(`sub-${o.id}-${c.key}`)}><summary class="cursor-interaction">Submitted record</summary>${code(JSON.stringify(r.record, null, 2))}</details>` : ''}</div>` : ''}</section><aside>${recordSheet(o)}<div class="sp-sheet sp-padding"><h3>From record to payment</h3><div class="sp-step"><span class="sp-step-icon">1</span><div>Authenticate record<p class="sp-small sp-muted">Signer, request and timing.</p></div></div><div class="sp-step"><span class="sp-step-icon">2</span><div>Issue permit or hold<p class="sp-small sp-muted">Apply the order’s rules.</p></div></div><div class="sp-step"><span class="sp-step-icon">3</span><div>Release only when eligible<p class="sp-small sp-muted">Buyer approval + due date + valid permit.</p></div></div><div class="sp-rule"></div><p class="sp-small sp-muted">${live ? 'Each scenario is an eth_call simulation: nothing is sent, except the replay, which sends the valid record once.' : 'Sample data: no record is submitted and no transaction is sent.'}</p></div></aside></div>`;
+    return `${heading('Verification lab', 'Trust the proof.', `A clear answer for every signed record. Order ${esc(o.ref)} · ${esc(o.name)}.`)}${orderChips()}<div class="sp-lab-grid"><section><div class="sp-row sp-between"><h3>Choose a scenario</h3><span class="sp-pill">${live ? 'Live contract answers' : 'Illustrative outcomes'}</span></div><div class="sp-cases">${cases.filter((x, i) => s.mode === 'complex' || i !== 5).map((x) => `<button class="sp-case cursor-interaction" data-case="${x.key}" aria-pressed="${s.last === 'case' && x.key === s.test}">${icon(x.good ? 'file-check-2' : 'shield-alert')}<div><span>${x.name}</span><small>${live ? caseNote(o, x) : x.sub}</small></div></button>`).join('')}</div>${live ? `<button class="sp-button sp-primary cursor-interaction" data-runall ${busy ? 'disabled' : ''} style="width:100%">${icon(busy ? 'loader' : 'play')}${busy ? 'Running the tamper test…' : 'Run the tamper test'}</button>` : ''}<div style="margin-top:16px">${editSheet(o)}</div>${result}${live && s.last === 'all' && suite && suite.order === o.id ? suiteRows(o) : live && s.last === 'case' ? gates(r) : ''}${s.mode === 'complex' ? `<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Computed in your browser</h3>${r && r.state === 'done' && r.what ? `<p class="sp-small sp-muted" style="margin-top:8px">${esc(r.what)}</p>` : ''}${verificationChecks(o, r)}${r && r.state === 'done' ? `<details class="sp-disclosure" data-key="sub-${o.id}-${c.key}"${opened(`sub-${o.id}-${c.key}`)}><summary class="cursor-interaction">Submitted record</summary>${code(JSON.stringify(r.record, null, 2))}</details>` : ''}</div>` : ''}</section><aside>${recordSheet(o)}<div class="sp-sheet sp-padding"><h3>From record to payment</h3><div class="sp-step"><span class="sp-step-icon">1</span><div>Authenticate record<p class="sp-small sp-muted">Signer, request and timing.</p></div></div><div class="sp-step"><span class="sp-step-icon">2</span><div>Issue permit or hold<p class="sp-small sp-muted">Apply the order’s rules.</p></div></div><div class="sp-step"><span class="sp-step-icon">3</span><div>Release only when eligible<p class="sp-small sp-muted">Buyer approval + due date + valid permit.</p></div></div><div class="sp-rule"></div><p class="sp-small sp-muted">${live ? 'Each scenario is an eth_call simulation: nothing is sent, except the replay, which sends the valid record once.' : 'Sample data: no record is submitted and no transaction is sent.'}</p></div></aside></div>`;
   }
 
   // ---------------------------------------------------------------- the page
@@ -950,8 +1044,8 @@
   let lastView = '';
   function render() {
     const ae = document.activeElement, inApp = ae && ae.closest && ae.closest('#sp-control');
-    const focusKey = inApp ? ['data-order', 'data-mode', 'data-page', 'data-filter', 'data-case', 'data-act', 'data-pick', 'data-source', 'data-copy', 'data-aorder', 'data-goto'].map((a) => (ae.getAttribute(a) !== null ? `[${a}="${CSS.escape(ae.getAttribute(a))}"]` : '')).join('') + (ae.hasAttribute('data-runall') ? '[data-runall]' : '') + (ae.hasAttribute('data-guide') ? '[data-guide]' : '') : '';
-    const fieldFocus = inApp && (ae.id === 'sp-record' || (ae.name && ae.closest('#sp-settings'))) ? (ae.id ? `#${ae.id}` : `#sp-settings [name="${ae.name}"]`) : '';
+    const focusKey = inApp ? ['data-order', 'data-mode', 'data-page', 'data-filter', 'data-case', 'data-act', 'data-pick', 'data-source', 'data-copy', 'data-aorder', 'data-goto', 'data-edit'].map((a) => (ae.getAttribute(a) !== null ? `[${a}="${CSS.escape(ae.getAttribute(a))}"]` : '')).join('') + (ae.hasAttribute('data-runall') ? '[data-runall]' : '') + (ae.hasAttribute('data-guide') ? '[data-guide]' : '') : '';
+    const fieldFocus = inApp && (ae.id === 'sp-record' || ae.id === 'sp-edit' || (ae.name && ae.closest('#sp-settings'))) ? (ae.id ? `#${ae.id}` : `#sp-settings [name="${ae.name}"]`) : '';
     // typed Settings values survive a refresh of the same view, not a switch between Simple and Complex
     const view = `${s.page}/${s.mode}`;
     const settingsDraft = s.page === 'settings' && view === lastView && document.getElementById('sp-settings') ? Object.fromEntries(new FormData(document.getElementById('sp-settings'))) : null;
@@ -964,8 +1058,21 @@
     else if (focusKey) { const b = app.querySelector(focusKey); if (b) b.focus({ preventScroll: true }); }
   }
   app.addEventListener('toggle', (e) => { const k = e.target.dataset && e.target.dataset.key; if (k) { if (e.target.open) openKeys.add(k); else openKeys.delete(k); } }, true);
-  app.addEventListener('input', (e) => { if (e.target.id === 'sp-record') { userRecord = e.target.value; for (const k of Object.keys(results)) if (results[k].needRecord) delete results[k]; } });
-  app.addEventListener('change', async (e) => { if (e.target.id === 'sp-file' && e.target.files[0]) { userRecord = await e.target.files[0].text(); render(); } });
+  app.addEventListener('input', (e) => {
+    if (e.target.id === 'sp-record') { userRecord = e.target.value; for (const k of Object.keys(results)) if (results[k].needRecord) delete results[k]; }
+    if (e.target.id === 'sp-edit') { // update the diff in place: a render would move the caret
+      const st = edits[selected().id]; if (!st) return;
+      st.text = e.target.value;
+      const d = editDiff(st.orig, st.text);
+      document.getElementById('sp-edit-diff').innerHTML = d.html;
+      document.getElementById('sp-edit-label').textContent = d.changed ? 'Ask the contract: edited record' : 'Ask the contract: untouched record';
+      document.getElementById('sp-edit-reset').disabled = !d.changed;
+    }
+  });
+  app.addEventListener('change', async (e) => {
+    if (e.target.id === 'sp-file' && e.target.files[0]) { userRecord = await e.target.files[0].text(); render(); }
+    else if (e.target.id === 'sp-record') render(); // the editor picks up the pasted record
+  });
   app.addEventListener('submit', (e) => {
     if (e.target.id !== 'sp-settings') return;
     e.preventDefault();
@@ -994,6 +1101,7 @@
     else if (b.dataset.goto) { location.href = b.dataset.goto === 'sample' ? 'control.html?sample=1' : 'control.html'; return; }
     else if (b.dataset.guide !== undefined) { guide(b); return; }
     else if (b.dataset.act) { act(b.dataset.act); return; }
+    else if (b.dataset.edit) { editAction(b.dataset.edit); return; }
     else changed = false;
     if (changed) render();
   });
