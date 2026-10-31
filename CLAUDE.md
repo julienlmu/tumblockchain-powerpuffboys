@@ -11,10 +11,13 @@ If anything here conflicts with the official pages, the official pages win:
 
 ## 0. Current status — READ FIRST
 
-- **The project idea is NOT decided yet.** Do not scaffold or write feature code until a human confirms the idea and the track selection. Ask first.
-- Target tracks: **Cardano** (primary), optionally **+ API3**. BSV is out of scope.
-- Every project is automatically judged for the TUM Blockchain Track as well (no action needed).
-- Repo: https://github.com/julienlmu/tumblockchain-powerpuffgirls (must be **public** before the deadline).
+*Updated Sat 31 Oct, 10:40.*
+
+- **Project: SupplierPulse** (called SupplierPulse+ until Friday night). A buyer locks an order in a contract on Ethereum Sepolia; each milestone pays only against a fresh, API3-signed Companies House or GLEIF record, which an autonomous agent buys over x402. Start with `README.md`; spec `docs/SUPPLIERPULSE_PLUS.md`, log `docs/PROGRESS.md`, transactions `docs/evidence.md`.
+- **Track: API3 only** (plus the automatic TUM Blockchain track). The Cardano/Masumi work in `cardano-agent/` is an earlier experiment and is not entered; sections 2, 4 and 5 below are kept as reference.
+- **Live, keep as is:** contract v2 `0xf25Aae1772326C95294D1923399D55c658493DfC` on Sepolia (no redeploy, no contract change). The agent runs on Julien's laptop; test agent changes on a local anvil chain (`api3/scripts/plus-local.sh`).
+- **Feature freeze Sat 11:00.** After that: docs, evidence and demo runs only. Submission 14:30, hard deadline 15:00.
+- `main` and `supplierpulse-plus` are kept equal after every merge. Repo is public: https://github.com/julienlmu/tumblockchain-powerpuffgirls
 
 ---
 
@@ -44,7 +47,7 @@ The official step-by-step "How to submit" guide opens Fri 09:00 on the Prizes pa
 
 ---
 
-## 2. Track: Cardano — "Agentic Commerce on Cardano" (€6,000: 3,000 / 2,000 / 1,000)
+## 2. Track: Cardano — "Agentic Commerce on Cardano" (€6,000: 3,000 / 2,000 / 1,000) — NOT ENTERED
 
 **Task:** Build an agent, service or developer tool that does a useful job and gets paid for it on Cardano. The agent does not have to contain an LLM. Fixed-step software counts too.
 
@@ -170,7 +173,7 @@ resourceServer.register("cardano:*", new ExactCardanoScheme());
 
 ---
 
-## 3. Track: API3 — "Any API in your contract" (€2,000: 1,000 / 600 / 400) — OPTIONAL
+## 3. Track: API3 — "Any API in your contract" (€2,000: 1,000 / 600 / 400) — ENTERED
 
 **Task:** An app or agent whose **core on-chain functionality** depends on authenticated AirnodeHub data. A user, keeper or agent brings the signed response on chain. The contract verifies signer, intended request and freshness before making a meaningful state change. A single API call bolted onto an unrelated project does not count.
 
@@ -271,7 +274,7 @@ Keep keys and secrets out of prompts and repositories.
 
 ---
 
-## 4. Candidate project ideas (not decided)
+## 4. Candidate project ideas (Friday morning; superseded by SupplierPulse)
 
 1. **8D-report agent + quality-gate escrow** (Cardano only): a quality manager hires an agent on Sokosumi to draft an 8D report from a supplier complaint. Escrow releases only if the report passes an automated completeness check (D1–D8 filled, root-cause depth).
 2. **Quality-gate escrow as a dev tool** (Cardano only): a verifier agent sits between buyer and any seller agent and releases payment only for work that passed a check.
