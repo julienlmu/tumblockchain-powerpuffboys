@@ -112,6 +112,11 @@ Run it yourself in one of three ways:
    ```
    `plus-submit.sh` simulates by default; add `--send` to send a real transaction (then the replay answers `Replayed`). Order 0 accepts records while it is active.
 
+## Screenshots
+
+See the [Control Room screenshot gallery](docs/screenshots/README.md). These are desktop captures in sample mode; no
+transaction was submitted.
+
 ## Run it
 
 Prerequisites: [Foundry](https://getfoundry.sh/), Node.js 22.18 or newer (`nvm use` picks 24), Python 3.8 or newer, `jq` and `curl`.
