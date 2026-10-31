@@ -55,6 +55,10 @@
   .held-box b { font-size: 15px; }
   .held-box .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .held-box .cmd { font-family: var(--mono); font-size: 12px; background: var(--card); color: var(--text); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
+  .no-data-box { border-radius: 12px; padding: 12px 14px; background: var(--wait-bg); color: var(--wait); display: flex; flex-direction: column; gap: 8px; }
+  .no-data-box b { font-size: 15px; }
+  .no-data-box .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .no-data-box .cmd { font-family: var(--mono); font-size: 12px; background: var(--card); color: var(--text); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
   .msg { font-size: 12px; }
   .closed-box { border-radius: 12px; padding: 10px 14px; background: var(--done-bg); color: var(--done); font-weight: 600; }
 
@@ -340,6 +344,17 @@
       statusBox = `<div class="closed-box">${ev && ev.args.noDataExit ? "Closed through the no-data exit" : "Closed after a hold"}: ${ev ? tok(ev.args.amount) : "the remaining"} tokens went back to the buyer${ev ? ` (${isAgent(ev.args.triggeredBy) ? "triggered by the agent" : "claimed"} ${since(ev.time)})` : ""}.</div>`;
     } else if (closed) {
       statusBox = `<div class="closed-box">Fully paid: every milestone was paid against its own fresh signed record.</div>`;
+    } else if (o.state === 0 && o.autoRefundAt > 0) {
+      const open = nowSec() >= o.autoRefundAt;
+      const m = claimMsg[o.id];
+      statusBox = `<div class="no-data-box">
+        <b>⏳ No current valid payment permit for the approved milestone</b>
+        <div>The payment is not authorized. This does not indicate supplier failure. The remaining balance returns to the buyer
+          ${open ? "<b>and can be refunded now by anyone.</b>" : `after the no-data grace period in <b>${cd(o.autoRefundAt, "now")}</b> (${dayClock(o.autoRefundAt)}).`}</div>
+        <div class="row"><button type="button" class="danger" data-claim="${o.id}" data-enable-at="${o.autoRefundAt}" data-sample="${env.sample ? "1" : "0"}"${!open || env.sample ? " disabled" : ""}>${open ? "Claim refund (MetaMask)" : "Refund available when timer expires"}</button>
+          <span class="cmd">api3/scripts/plus-refund.sh ${o.id}</span></div>
+        ${m ? `<div class="msg">${m}</div>` : ""}
+      </div>`;
     }
 
     const step = nextStep(o, total);
@@ -615,6 +630,12 @@
   setInterval(() => {
     for (const el of document.querySelectorAll(".cd")) el.textContent = cdText(Number(el.dataset.until), el.dataset.done);
     for (const el of document.querySelectorAll(".since")) el.textContent = ago(nowSec() - Number(el.dataset.since));
+    for (const button of document.querySelectorAll("button[data-enable-at]")) {
+      if (button.dataset.sample !== "1" && nowSec() >= Number(button.dataset.enableAt)) {
+        button.disabled = false;
+        button.textContent = "Claim refund (MetaMask)";
+      }
+    }
   }, 1000);
 
   let busy = false;

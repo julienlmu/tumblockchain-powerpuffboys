@@ -47,7 +47,7 @@ The two chains are linked by our agent, not trustlessly. Both legs can be checke
 | SupplierPulse, no data → refund | `3863ea54…59288cb` |
 | TODO: SupplierPulse with real registry data and Sepolia tx | |
 
-The SupplierPulse runs above used a simulated EVM side, while the contract deployment was pending; the Cardano legs are real. TODO: replace them with the real run.
+The SupplierPulse runs above used a simulated EVM side; their Cardano legs are real, but they do not prove the SupplierPulse+ v2 integration. Upstream v2 is now deployed and has separate Sepolia evidence in [`docs/evidence.md`](evidence.md). This checkout adds the `supplier-pulse-plus` Masumi app, but its paid Cardano-to-v2 path still needs a real job and transaction proof before this submission can claim end-to-end Cardano integration.
 
 ### How it could run in real use
 

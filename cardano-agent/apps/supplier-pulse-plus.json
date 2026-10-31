@@ -1,0 +1,48 @@
+{
+  "name": "supplier-pulse-plus",
+  "description": "A paid Masumi job that checks one SupplierPulse+ v2 order using fresh signed registry data. The agent earns its fee for a verified decision, including a hold; unavailable or rejected data produces no decision and can be refunded.",
+  "executor": [
+    "{python}",
+    "executors/supplier_pulse.py",
+    "{python}",
+    "executors/supplier_pulse_plus.py"
+  ],
+  "timeout_s": 210,
+  "retry": {
+    "interval_s": 0,
+    "max_wait_s": 0
+  },
+  "submit_margin_s": 300,
+  "input_schema": {
+    "input_data": [
+      {
+        "id": "order_id",
+        "type": "number",
+        "name": "SupplierPulse+ order ID",
+        "data": {
+          "description": "The active order on the configured SupplierPulse+ v2 contract on Ethereum Sepolia."
+        },
+        "validations": [
+          {
+            "validation": "min",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "id": "supplier_id",
+        "type": "string",
+        "name": "Supplier registry ID",
+        "data": {
+          "description": "The Companies House number or GLEIF LEI already recorded on the order."
+        },
+        "validations": [
+          {
+            "validation": "min",
+            "value": "1"
+          }
+        ]
+      }
+    ]
+  }
+}

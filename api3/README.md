@@ -4,6 +4,7 @@ Milestone payments to a supplier where **every payment needs fresh, signed regis
 Plan: [`docs/SUPPLIERPULSE.md`](../docs/SUPPLIERPULSE.md). Contract: `src/SupplierPulse.sol`.
 
 **Live on Sepolia:** [`0x91d7dbae109029b2b1245179a68ac362799674d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7). Paid run, held run and all four tampers rejected: [`docs/evidence.md`](../docs/evidence.md#supplierpulse-live-run-ethereum-sepolia-2026-10-30).
+The no-data refund path below is a source change and is **not present in this already-deployed contract**; it requires a new deployment before it protects live funds. The v1 agent detects this older ABI, logs a warning, and keeps operating without automatic refunds until the updated contract is deployed.
 
 A buyer locks the whole order (e.g. 500 + 1,500) for one supplier, identified by its Companies House number.
 Before each milestone the agent fetches the supplier's status from the Companies House Airnode on AirnodeHub
@@ -13,6 +14,11 @@ Before each milestone the agent fetches the supplier's status from the Companies
   wallet and this amount, valid for `permitTtl`. The payment uses it up, so every milestone needs new evidence.
 - anything else (`dissolved`, `liquidation`, ...): the remaining balance is **held**; the buyer can take it back
   with `refundRemaining`.
+- after the 48-hour grace from first approval, an approved next milestone can be refunded if it has no current
+  valid permit. Anyone can trigger that refund, but the funds always go to the buyer. A valid permit prevents
+  the no-data exit; `noDataRefundAt(orderId)` exposes the eligibility time.
+- before approving the next milestone, the buyer can cancel an active order and recover its remaining balance;
+  other callers cannot cancel it.
 - a milestone is paid only if the buyer approved it (`approveMilestone`): registry evidence does not prove delivery.
 
 The contract builds the request hash itself from the order's company number
@@ -33,9 +39,9 @@ are tests (`test_real*`).
 ### Run
 
 ```sh
-forge test                          # 36 tests (19 SupplierPulse, 17 vault)
+forge test                          # contract regression tests
 ./scripts/pulse-local-demo.sh       # anvil: 4 tampers rejected, milestone paid, replay rejected,
-                                    # supplier in liquidation -> held, buyer refund
+                                    # supplier in liquidation -> held, buyer refund; no-data refund boundary
 ```
 
 On a testnet (`.env`: `EVM_RPC_URL`, `EVM_PRIVATE_KEY`, `PULSE_ADDRESS`, `PAYER_PRIVATE_KEY` with aUSD on Base Sepolia):

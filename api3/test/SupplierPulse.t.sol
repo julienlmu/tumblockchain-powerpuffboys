@@ -92,6 +92,58 @@ contract SupplierPulseTest is TestBase {
         assertEq(address(this).balance - before, 1.5 ether, "buyer refunded");
     }
 
+    function test_noDataRefundWaits48HoursAndReturnsToBuyerPermissionlessly() public {
+        uint256 before = address(this).balance;
+        assertEq(pulse.noDataRefundAt(orderId), 0, "no timer before approval");
+        vm.prank(address(0xCAFE));
+        vm.expectRevert(SupplierPulse.NotAuthorized.selector);
+        pulse.refundRemaining(orderId);
+
+        pulse.approveMilestone(orderId, 0);
+        assertEq(pulse.noDataRefundAt(orderId), NOW + 48 hours, "timer starts on approval");
+        vm.warp(NOW + 24 hours);
+        pulse.approveMilestone(orderId, 0);
+        assertEq(pulse.noDataRefundAt(orderId), NOW + 48 hours, "re-approval does not reset timer");
+        vm.warp(NOW + 48 hours - 1);
+        vm.expectRevert(abi.encodeWithSelector(SupplierPulse.RefundNotYet.selector, NOW + 48 hours));
+        pulse.refundRemaining(orderId);
+
+        vm.warp(NOW + 48 hours);
+        vm.prank(address(0xCAFE));
+        pulse.refundRemaining(orderId);
+        assertEq(pulse.noDataRefundAt(orderId), 0, "closed order has no refund timer");
+
+        assertEq(address(this).balance - before, 2 ether, "buyer receives full remaining balance");
+        assertEq(supplier.balance, 0, "supplier is not paid");
+        (SupplierPulse.State state,, uint256 remaining,,,,,,) = pulse.orderStatus(orderId);
+        assertTrue(state == SupplierPulse.State.Closed, "order closed");
+        assertEq(remaining, 0, "no balance remains locked");
+    }
+
+    function test_buyerCanCancelBeforeApprovingNextMilestone() public {
+        _check("active", NOW);
+        uint256 before = address(this).balance;
+
+        vm.prank(address(0xCAFE));
+        vm.expectRevert(SupplierPulse.NotAuthorized.selector);
+        pulse.refundRemaining(orderId);
+
+        pulse.refundRemaining(orderId);
+        assertEq(address(this).balance - before, 2 ether, "buyer recovers unapproved order funds");
+        assertEq(supplier.balance, 0, "supplier is not paid without approval");
+    }
+
+    function test_noDataRefundCannotBypassAValidPermit() public {
+        pulse.approveMilestone(orderId, 0);
+        vm.warp(NOW + 47 hours);
+        assertTrue(_check("active", NOW + 47 hours) == SupplierPulse.Outcome.AwaitingApproval, "permit issued");
+        assertEq(pulse.noDataRefundAt(orderId), 0, "valid permit hides no-data refund timer");
+
+        vm.warp(NOW + 48 hours);
+        vm.expectRevert(SupplierPulse.NotRefundable.selector);
+        pulse.refundRemaining(orderId);
+    }
+
     function test_waitsForBuyerApproval() public {
         assertTrue(_check("active", NOW) == SupplierPulse.Outcome.AwaitingApproval, "awaiting");
         assertEq(supplier.balance, 0, "not paid");

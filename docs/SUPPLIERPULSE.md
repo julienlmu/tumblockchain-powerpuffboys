@@ -101,7 +101,7 @@ Out (not in the first version): credit scores, automatic fraud detection, more t
 - `submitEvidence(orderId, requestHash, timestamp, data, signature)`: verifies signer, this order's company request, freshness and no replay. Status `active` issues a permit for the next stage. Any other status holds the order.
 - `release(orderId)`: pays the next stage only with a valid, unexpired permit for that stage and the buyer's approval. The permit is used up.
 - `checkAndRelease(...)`: one call for the agent. Returns `Paid`, `AwaitingApproval` or `Held`. It reverts only when verification fails.
-- `refundRemaining(orderId)`: buyer only, after a hold
+- `refundRemaining(orderId)`: after a hold, the buyer can claim immediately. Before approving the next milestone, the buyer can cancel the active order and recover its remaining balance. After the 48-hour `NO_DATA_REFUND_GRACE` from first approval, anyone can trigger a refund to the buyer if no valid permit is available; a still-valid permit blocks this path. `noDataRefundAt(orderId)` exposes the eligibility time (zero when ineligible).
 - `orderStatus(orderId)`: everything the demo screen shows
 
 Tamper cases and the expected rejection:

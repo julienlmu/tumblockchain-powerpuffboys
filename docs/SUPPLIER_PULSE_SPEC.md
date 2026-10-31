@@ -67,7 +67,7 @@ Four red buttons in the UI let the judges attack the contract themselves:
 
 ### D. Auto-refund countdown
 
-When the supplier fails the registry check, a 48-hour countdown starts in the UI and offers the buyer a **Claim 2,500 tokens now** button.
+When the supplier fails the registry check, the order is held and the buyer can claim the remaining balance immediately. The buyer can also cancel an active order before approving its next milestone. Separately, after the 48-hour approval grace, anyone can trigger a refund if the approved next milestone has no current valid permit; the refund always returns funds to the buyer. A still-valid permit blocks this no-data exit.
 
 ## 5. MVP scope
 
@@ -84,4 +84,4 @@ When the supplier fails the registry check, a 48-hour countdown starts in the UI
 | `PermitExpired` | `PermitExpired` (already there) |
 | `AmountExceedsPermit` | Not needed today: amounts are fixed per milestone at order creation. Would need a free-amount `release`. |
 | `recipient`, `maxAmount` in the permit | Supplier and amounts live on the order, not the permit |
-| 48-hour auto-refund | `refundRemaining` exists, but has no deadline yet |
+| Active-order recovery | Buyer may cancel before approving the next milestone. After the 48-hour approval grace, anyone may trigger a refund if an approved milestone has no current valid permit; `noDataRefundAt` exposes the no-data refund time |

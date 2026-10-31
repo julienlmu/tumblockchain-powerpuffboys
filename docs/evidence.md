@@ -140,7 +140,19 @@ venv/bin/python buy_job.py --input '{"order_id": 0, "company_number": "99999999"
 
 ## SupplierPulse+ v2 integration and evidence status
 
-The v2 contract, tests and local deployment scripts, data tools and fixtures, dashboard, and judge page are integrated in this branch. **V2 is not deployed on Sepolia.** There is no v2 deployment address, public testnet payment/hold/refund run, or testnet tamper transaction to report. The live v1 contract evidence above must not be presented as v2 evidence.
+The v2 contract, tests and local deployment scripts, data tools and fixtures, dashboard, and judge page are integrated in this branch. Upstream `main` separately deployed and verified v2 on Sepolia; its live deployment and transaction evidence is in [commit `aa031ad`](https://github.com/julienlmu/tumblockchain-powerpuffgirls/commit/aa031ad251a9255124853838e7fbcaa93d9627ca). That deployment used source commit `c668c51`, while this checkout's contract source differs in permit-TTL validation and the no-data refund grace calculation. Do not treat upstream transactions as proof that this checkout's exact source is deployed. The live v1 evidence above remains v1 evidence.
+
+### Upstream v2 deployment and outcomes (30 October 2026)
+
+| Item | Evidence |
+|---|---|
+| Contract, Ethereum Sepolia | [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC) |
+| Deployment transaction | [`0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99`](https://sepolia.etherscan.io/tx/0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99) |
+| Verified source | Commit `c668c51869e9f6a80c0dbc841967c171572dd717`; Etherscan and Sourcify exact matches |
+| Paid milestone | Order 3, 500 tokens: [`0x7af6c99da9dd1bc3ef0479f3bae07342875e37f86d1d69de97667e61f45137ef`](https://sepolia.etherscan.io/tx/0x7af6c99da9dd1bc3ef0479f3bae07342875e37f86d1d69de97667e61f45137ef) |
+| Held order and buyer refund | Hold [`0x0dbce43cb2a1fdfc0ff20db3bb7a58eac80470cf651bd7095df0c5c7b8989e3e`](https://sepolia.etherscan.io/tx/0x0dbce43cb2a1fdfc0ff20db3bb7a58eac80470cf651bd7095df0c5c7b8989e3e); refund [`0xb617b152bd209fcf7f7cae7db112b2eac65994f580f31e7cc1cd8afa7f9f2800`](https://sepolia.etherscan.io/tx/0xb617b152bd209fcf7f7cae7db112b2eac65994f580f31e7cc1cd8afa7f9f2800) |
+
+The upstream evidence also records accepted signed records, held orders, paid outcomes, and simulated judge rejections. Simulated `eth_call` results are not mined tamper-rejection transactions.
 
 ### Local Anvil verification (chain 31337; not public-network evidence)
 
@@ -160,7 +172,7 @@ The local payout and refund were mined only on ephemeral Anvil and have no publi
 | Foundry contract tests | 100 passed |
 | API3 request/data tests | 11 passed |
 | API3 agent Python tests | 56 passed, 1 skipped (`cast` selector test; Foundry is unavailable); Windows shell/empty-return coverage passed |
-| Cardano agent gate tests | 17 passed |
+| Cardano agent tests | 25 passed (local, including the v2 adapter) |
 
 ### Autonomous local Anvil agent run (30 October 2026)
 

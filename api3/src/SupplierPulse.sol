@@ -15,6 +15,8 @@ import {PriceParser} from "./PriceParser.sol";
 /// `permitTtl`. It is used up by the payment, so the next milestone needs new evidence.
 /// If the signed status is anything else, the rest of the order is held and the buyer can take it back.
 contract SupplierPulse {
+    uint64 public constant NO_DATA_REFUND_GRACE = 48 hours;
+
     enum State {
         Active,
         Held, // signed status was not "active": no more payments, buyer may refund
@@ -45,6 +47,7 @@ contract SupplierPulse {
         uint256 paid;
         uint256[] amounts;
         bool[] approved;
+        uint64[] approvedAt;
         Permit permit;
         bytes lastStatus;
         uint256 lastCheck; // AirnodeHub timestamp of the last accepted evidence
@@ -76,6 +79,8 @@ contract SupplierPulse {
     event MilestonePaid(uint256 indexed orderId, uint256 milestone, address supplier, uint256 amount, bytes32 evidence);
     event OrderHeld(uint256 indexed orderId, bytes status, uint256 remaining);
     event OrderRefunded(uint256 indexed orderId, address buyer, uint256 amount);
+    event OrderCancelled(uint256 indexed orderId, address buyer, uint256 amount);
+    event OrderRefundedNoData(uint256 indexed orderId, address buyer, uint256 amount);
     event ConfigUpdated(address airnode, uint256 maxAge);
 
     error WrongSigner(address recovered);
@@ -89,6 +94,8 @@ contract SupplierPulse {
     error NotApproved(uint256 milestone);
     error NotActive(State state);
     error NotHeld();
+    error NotRefundable();
+    error RefundNotYet(uint256 refundAt);
     error BadOrder();
     error BadCompanyNumber();
     error NotAuthorized();
@@ -133,6 +140,7 @@ contract SupplierPulse {
         o.permitTtl = permitTtl;
         o.amounts = amounts;
         o.approved = new bool[](amounts.length);
+        o.approvedAt = new uint64[](amounts.length);
         emit OrderCreated(id, msg.sender, supplier, companyRequest, orderRef, total, amounts.length);
         emit OrderCompany(id, companyNumber, companyRequest);
     }
@@ -142,6 +150,7 @@ contract SupplierPulse {
         Order storage o = _order(orderId);
         if (msg.sender != o.buyer) revert NotAuthorized();
         if (milestone >= o.amounts.length) revert BadOrder();
+        if (!o.approved[milestone]) o.approvedAt[milestone] = uint64(block.timestamp);
         o.approved[milestone] = true;
         emit MilestoneApproved(orderId, milestone);
     }
@@ -232,14 +241,36 @@ contract SupplierPulse {
         return Outcome.Paid;
     }
 
-    /// @notice After a hold, the buyer takes back everything not yet paid.
+    /// @notice Refund the remaining balance after a hold, or cancel an active order before its next
+    /// milestone is approved. After the 48-hour approval grace, anyone can trigger a no-data refund
+    /// if no valid permit is available. Every path returns funds to the buyer.
     function refundRemaining(uint256 orderId) external {
         Order storage o = _order(orderId);
-        if (msg.sender != o.buyer) revert NotAuthorized();
-        if (o.state != State.Held) revert NotHeld();
+        bool noDataExit;
+        bool cancellation;
+        if (o.state == State.Held) {
+            if (msg.sender != o.buyer) revert NotAuthorized();
+        } else if (o.state == State.Active) {
+            uint256 milestone = o.paidCount;
+            if (!o.approved[milestone]) {
+                if (msg.sender != o.buyer) revert NotAuthorized();
+                cancellation = true;
+            } else {
+                if (_hasValidPermit(o, milestone)) revert NotRefundable();
+
+                uint256 refundAt = uint256(o.approvedAt[milestone]) + NO_DATA_REFUND_GRACE;
+                if (block.timestamp < refundAt) revert RefundNotYet(refundAt);
+                noDataExit = true;
+            }
+        } else {
+            revert NotHeld();
+        }
+
         uint256 amount = _remaining(o);
         o.state = State.Closed;
         emit OrderRefunded(orderId, o.buyer, amount);
+        if (cancellation) emit OrderCancelled(orderId, o.buyer, amount);
+        else if (noDataExit) emit OrderRefundedNoData(orderId, o.buyer, amount);
         (bool ok,) = o.buyer.call{value: amount}("");
         if (!ok) revert TransferFailed();
     }
@@ -294,10 +325,18 @@ contract SupplierPulse {
         nextMilestone = o.paidCount;
         milestones = o.amounts.length;
         permitValidUntil = p.validUntil;
-        permitValid = o.state == State.Active && p.validUntil != 0 && p.milestone == o.paidCount
-            && block.timestamp <= p.validUntil;
+        permitValid = _hasValidPermit(o, o.paidCount);
         lastStatus = string(o.lastStatus);
         lastCheck = o.lastCheck;
+    }
+
+    /// @notice Earliest time an approved active milestone can use the no-data refund path.
+    /// Returns zero when the order is not eligible or currently has a valid permit.
+    function noDataRefundAt(uint256 orderId) external view returns (uint256) {
+        Order storage o = _order(orderId);
+        uint256 milestone = o.paidCount;
+        if (o.state != State.Active || !o.approved[milestone] || _hasValidPermit(o, milestone)) return 0;
+        return uint256(o.approvedAt[milestone]) + NO_DATA_REFUND_GRACE;
     }
 
     function orderInfo(uint256 orderId)
@@ -327,6 +366,12 @@ contract SupplierPulse {
         for (uint256 i = o.paidCount; i < o.amounts.length; i++) {
             r += o.amounts[i];
         }
+    }
+
+    function _hasValidPermit(Order storage o, uint256 milestone) internal view returns (bool) {
+        Permit memory p = o.permit;
+        return o.state == State.Active && p.validUntil != 0 && p.milestone == milestone
+            && block.timestamp <= p.validUntil;
     }
 
     // ---------------------------------------------------------------- admin

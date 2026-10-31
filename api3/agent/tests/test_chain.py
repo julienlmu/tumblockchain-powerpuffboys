@@ -165,20 +165,36 @@ class ChainTest(unittest.TestCase):
         answers = {
             "ordersLength": ["2"],
             "companyNumberOf": lambda i: ["09729896" if i == "0" else "07418033"],
-            "orderStatus": lambda i: [0, "500000000000", "1500000000000", "1", "2", "1793372468", True, "active", "1793368868"]
+            "orderStatus": lambda i: [0, "500000000000", "1500000000000", "1", "2", "0", False, "active", "1793368868"]
             if i == "0" else [1, "0", "2000000000000", "0", "2", "0", False, "liquidation", "1793368852"],
             "orderInfo": lambda i: ["0xEb3EB6da882798062b30CeC11AAaDe306287ce41", "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
                                     "0xcae416f2dce5fb6bb595eafe8c5f11ce9df4b33f8664042e10f8f776739fab48" if i == "0" else "0xother",
                                     "0x66a5", "86400", ["500000000000", "1500000000000"],
-                                    [True, False] if i == "0" else [True, False]],
+                                    [True, True] if i == "0" else [True, False]],
+            "noDataRefundAt": lambda i: ["1800000000"] if i == "0" else ["0"],
         }
         snap = ChainV1("0xv1", ["http://a"], runner=ScriptedRunner(answers)).snapshot()
         active, held = snap.orders
-        self.assertEqual((active.supplier_id, active.rules, active.next_due_date, active.next_approved), ("09729896", 0, 0, False))
-        self.assertTrue(active.permit_valid)
-        self.assertEqual((held.state, held.last_failed_rules, held.auto_refund_at), (1, 0x80, 0))  # no agent refunds on v1
+        self.assertEqual((active.supplier_id, active.rules, active.next_due_date, active.next_approved), ("09729896", 0, 1, True))
+        self.assertFalse(active.permit_valid)
+        self.assertEqual(active.auto_refund_at, 1800000000)
+        self.assertEqual((held.state, held.last_failed_rules, held.auto_refund_at), (1, 0x80, 0))
         self.assertEqual(snap.suppliers[active.supplier_key].last_check_at, 1793368868)
         self.assertEqual(ChainV1.outcome_names[2], "Held")  # v1's Outcome enum has no NotDue
+
+    def test_v1_snapshot_keeps_older_deployments_usable(self):
+        answers = {
+            "ordersLength": ["1"],
+            "companyNumberOf": ["09729896"],
+            "orderStatus": [0, "0", "100", "1", "2", "0", False, "active", "0"],
+            "orderInfo": ["0xbuyer", "0xsupplier", "0xkey", "0xrequest", "86400",
+                          ["50", "50"], [True, True]],
+            "noDataRefundAt": proc("execution reverted", 1),
+        }
+        with self.assertLogs("chain_v1", level="WARNING") as logs:
+            snap = ChainV1("0xold", ["http://a"], runner=ScriptedRunner(answers)).snapshot()
+        self.assertEqual(snap.orders[0].auto_refund_at, 0)
+        self.assertIn("redeploy the updated SupplierPulse.sol", logs.output[0])
 
     @unittest.skipUnless(shutil.which("cast"), "cast not installed")
     def test_selector_table_matches_cast_sig(self):

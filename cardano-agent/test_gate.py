@@ -15,6 +15,7 @@ from refunds import RefundStore
 
 MOCK = load_app("apps/mock.json")
 PULSE_SIM = load_app("apps/supplier-pulse-sim.json")
+PULSE_PLUS = load_app("apps/supplier-pulse-plus.json")
 
 
 def app(**overrides):
@@ -108,6 +109,50 @@ class SupplierPulseTest(unittest.IsolatedAsyncioTestCase):
         verdict, _ = await check_supplier(a, "01234567")
         self.assertFalse(verdict.passed)
         self.assertTrue(verdict.retryable)
+
+
+class SupplierPulsePlusTest(unittest.IsolatedAsyncioTestCase):
+    async def test_fractional_order_id_is_rejected_without_retry(self):
+        helper = "import json; print(json.dumps({'outcome': 'Held'}))"
+        configured = dataclasses.replace(
+            PULSE_PLUS,
+            executor=[sys.executable, "executors/supplier_pulse.py", sys.executable, "-c", helper],
+        )
+        verdict, _ = await run_gate(
+            configured,
+            {"order_id": 7.5, "supplier_id": "07654321"},
+            deadline_for(configured),
+            log=lambda *_: None,
+        )
+        self.assertFalse(verdict.passed)
+        self.assertFalse(verdict.retryable)
+        self.assertEqual(verdict.evidence["outcome"], "Rejected")
+        self.assertIn("order_id must be an integer", verdict.summary)
+
+    async def test_not_due_verified_result_is_a_paid_job(self):
+        result = {
+            "outcome": "NotDue",
+            "txHash": "0xethereum",
+            "orderId": 7,
+            "status": "active",
+            "contract": "0xcontract",
+            "evidence": {"paymentTx": "0xbase"},
+        }
+        helper = "import json; print(json.dumps(%r))" % result
+        configured = dataclasses.replace(
+            PULSE_PLUS,
+            executor=[sys.executable, "executors/supplier_pulse.py", sys.executable, "-c", helper],
+        )
+        verdict, attempts = await run_gate(
+            configured,
+            {"order_id": 7, "supplier_id": "07654321"},
+            deadline_for(configured),
+            log=lambda *_: None,
+        )
+        self.assertTrue(verdict.passed)
+        self.assertEqual(len(attempts), 1)
+        self.assertEqual(verdict.evidence["outcome"], "NotDue")
+        self.assertEqual(verdict.evidence["evidence"]["paymentTx"], "0xbase")
 
 
 class ParseAndDeadlineTest(unittest.TestCase):

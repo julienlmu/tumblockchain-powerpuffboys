@@ -8,7 +8,7 @@ SupplierPulse+ is a prototype for milestone-based supplier payments gated by fre
 
 ## Try it
 
-**Status:** this branch integrates the SupplierPulse+ v2 contract and tests, local deployment scripts, signed-data tools and fixtures, dashboard, and judge page. A current-branch Anvil run verified the contract and ran the autonomous agent through clean checks, holds, 500-token local milestone payouts, supplier-wide stops, and refunds. This is local-chain validation only: v2 has **not** been deployed to Sepolia, so there is no public-network v2 payment/tamper evidence. The live contract transactions below are for v1; the paid API3 fetches in [`docs/data-sources.md`](docs/data-sources.md) are live data-source evidence, not v2 contract evidence.
+**Status:** this branch integrates the SupplierPulse+ v2 contract and tests, local deployment scripts, signed-data tools and fixtures, dashboard, and judge page. A current-branch Anvil run verified the local contract and agent. Separately, upstream `main` deployed v2 at [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC), with public Sepolia payment, hold/refund, and tamper evidence recorded in the upstream [evidence commit](https://github.com/julienlmu/tumblockchain-powerpuffgirls/commit/aa031ad251a9255124853838e7fbcaa93d9627ca). Important: the deployed contract was built from source commit `c668c51`; this checkout's `SupplierPulsePlus.sol` differs in permit-TTL validation and the no-data refund grace calculation. Treat the upstream deployment as separate evidence, not proof that this branch's source is deployed. The live v1 contract transactions below remain v1 evidence; paid API3 fetches are live data-source evidence, not by themselves v2 contract evidence.
 
 ### Existing v1 test flow
 
@@ -40,11 +40,11 @@ In another shell, start the static dashboard from the repository root:
 python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 ```
 
-Open `http://localhost:8765/?sample=1` for illustrative data without a chain. To use the local Anvil deployment, follow [`demo/README.md`](demo/README.md) and source `api3/.local/plus-local.env`. The current-branch local integration, autonomous local agent, and browser sample mode have been checked. Neither sample data nor local-chain interactions are Sepolia evidence. The browser judge page is [`demo/judge.html`](demo/judge.html); real v2 deployment, testnet transactions, overnight agent evidence, and video export remain pending. A GitHub Pages workflow is included, but public hosting is blocked until repository Pages is enabled; see [`demo/README.md`](demo/README.md#github-pages). Do not use a local signer or fixture as public-network evidence.
+Open `http://localhost:8765/?sample=1` for illustrative data without a chain. To use the local Anvil deployment, follow [`demo/README.md`](demo/README.md) and source `api3/.local/plus-local.env`. The current-branch local integration, autonomous local agent, and browser sample mode have been checked. Neither sample data nor local-chain interactions are Sepolia evidence. The browser judge page is [`demo/judge.html`](demo/judge.html); upstream v2 deployment and contract transactions are evidenced separately above and in [`docs/evidence.md`](docs/evidence.md). An end-to-end paid Cardano-to-v2 job, overnight agent evidence, and video export remain pending. A GitHub Pages workflow is included, but public hosting is blocked until repository Pages is enabled; see [`demo/README.md`](demo/README.md#github-pages). Do not use a local signer or fixture as public-network evidence.
 
 ## SupplierPulse+ v2 design
 
-The following describes the target v2 design; it is not the current deployed feature set.
+The following describes the v2 design. The upstream deployment is verified, but it was built from a different source revision than this checkout; its exact settings and live interactions are recorded in the upstream evidence.
 
 1. A buyer creates an order with a supplier registry ID, payout wallet, milestones, due dates, rules, and a permit lifetime. The full balance is locked in the contract.
 2. Before a payment, the agent pays $0.01 over x402 on Base Sepolia for a signed projected registry response from API3 AirnodeHub.
@@ -90,12 +90,20 @@ The agent implementation is in [`api3/agent/`](api3/agent/) and its schedule, bu
 
 Each registry check is specified at $0.01 in aUSD on **Base Sepolia**. The supplier-payment contract runs on **Ethereum Sepolia**, so data payment and supplier settlement are separate testnet flows.
 
+## Cardano agent-commerce track
+
+Cardano has a separate, useful role: a buyer can hire the SupplierPulse+ verifier as a **paid Masumi job on Cardano preprod**. The new job app checks one existing SupplierPulse+ v2 order, fetches a fresh API3-signed registry response, and submits the decision to the Ethereum Sepolia contract. The Masumi payment is the agent's service fee; it is **not** the supplier's milestone escrow. The registry request is separately paid in aUSD on Base Sepolia.
+
+The agent earns its job fee for any verified decision, including a hold, rather than only when a supplier is active. If the registry is unavailable or the contract rejects the evidence, the job returns no result and can be refunded; that is not a negative claim about the supplier. This is an off-chain agent coordinating three test networks, not atomic cross-chain settlement: the Cardano and Ethereum transactions are separately verifiable, while the agent links the job to its Ethereum result. Setup is in [`cardano-agent/README.md`](cardano-agent/README.md).
+
+The `supplier-pulse-plus` app is implemented and covered by offline tests, but no paid Cardano-to-v2 job has been recorded yet. Existing Cardano preprod proof for `supplier-pulse-sim` uses a simulated EVM decision and must not be presented as v2 integration evidence.
+
 ## Network and contracts
 
 | Contract | Network | Address |
 |---|---|---|
 | SupplierPulse v1 (fallback) | Ethereum Sepolia, chain `11155111` | [`0x91d7dbae109029b2b1245179a68ac362799674d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7) |
-| SupplierPulse+ v2 | Ethereum Sepolia, chain `11155111` | Pending deployment; see [`docs/evidence.md`](docs/evidence.md) |
+| SupplierPulse+ v2 (upstream deployment) | Ethereum Sepolia, chain `11155111` | [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC); deployed source differs from this checkout |
 | x402 data payment | Base Sepolia, chain `84532` | aUSD contract: `0xbeA34973e5f67F18F656A2C6070C64326C791808` |
 
 ## Setup
@@ -130,7 +138,7 @@ For environment variables and deploy/test instructions, see [`api3/README.md`](a
 | `docs/SUPPLIERPULSE_PLUS.md` | Frozen build specification and integration runbook |
 | `docs/evidence.md` | Testnet transaction evidence |
 | `docs/research.md` | Sourced context and prior-art notes |
-| `cardano-agent/` | Earlier experiment; not part of this API3-track submission |
+| `cardano-agent/` | Separate Masumi/Cardano agent-commerce track integration; live v2 job proof pending |
 
 ## Evidence and submission
 

@@ -3,11 +3,11 @@
 **Target runtime:** 2:30 maximum
 **Recording plan:** capture real Sepolia interactions and real signed registry evidence. Local-chain steps may be used for development only; never present them as live/testnet proof.
 
-> **Not record-ready:** the v2 contract, dashboard, judge page, and local flow are integrated, but v2 is not deployed to Sepolia and a real agent run is not yet evidenced. The current live contract evidence in `docs/evidence.md` is v1; its four tamper rejections were simulations, not mined revert transactions. Do not narrate the v2 storyboard as an accomplished live demo until each precondition below is met.
+> **Not record-ready:** upstream v2 is deployed and its Sepolia payment/hold/refund evidence is recorded in `docs/evidence.md`, but the paid Cardano-to-v2 job, the overnight agent run, and video export are not yet evidenced. The deployed source differs from this checkout, and simulated tamper rejections are not mined revert transactions. Do not present local behavior or the simulated Cardano app as live cross-chain proof.
 
 ## Preconditions before recording
 
-- [ ] Confirm the v2 contract address and deployment transaction from `docs/evidence.md`.
+- [ ] Confirm the deployed v2 address and deployment transaction from `docs/evidence.md`; note the deployed-source revision differs from this checkout.
 - [ ] Verify all demo order IDs, supplier IDs, payout wallets, due times, and rule flags.
 - [ ] Have fresh signed registry responses ready; do not reuse an expired response for the valid case.
 - [ ] Confirm a clean order with an approved, due milestone for the valid action.

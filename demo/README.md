@@ -42,7 +42,7 @@ After deployment, the sample dashboard will be at `https://julienlmu.github.io/t
 | `names` | the demo order names | extra order names, comma-separated. Orders store `orderRef = keccak256(name)` (`plus-create-order.sh`), which cannot be decoded, so the page matches known names by hash. `LOCAL-<id>` from `plus-local.sh` is matched too |
 | `sample` | off | `1` shows the sample data |
 
-The dashboard reads the chain every 12 s; countdowns move every second. Light and dark follow the system; the ◐ button overrides it.
+The dashboard reads the chain every 12 s; countdowns move every second. For an active v2 order with an approved milestone, no valid permit, and an open no-data exit, it shows the refund deadline and enables the claim action once the contract's grace period expires. This is a data-availability timeout, not a supplier-failure finding. Light and dark follow the system; the ◐ button overrides it.
 
 ## Sample mode
 

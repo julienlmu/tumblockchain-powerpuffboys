@@ -45,11 +45,17 @@ agent.py ──job input──▶ executor (app) ──▶ {"passed": true|false
 - `apps/mock.json` + `executors/mock.py`: test app. The buyer picks the outcome.
 - `apps/supplier-pulse.json` + `executors/supplier_pulse.py`: SupplierPulse. Runs
   the agent script `api3/scripts/supplier-agent.sh` (env `ORDER_ID`,
-  `COMPANY_NUMBER`) and maps its outcome to the gate. The script's output format
-  is in the executor's docstring.
+  `COMPANY_NUMBER`) and maps its outcome to the gate. This is the legacy v1
+  contract adapter; the script's output format is in the executor's docstring.
+- `apps/supplier-pulse-plus.json` + `executors/supplier_pulse_plus.py`: one paid
+  Masumi job that reads a SupplierPulse+ v2 order, verifies the requested
+  supplier matches that order, fetches one fresh signed registry record, and
+  submits it to the v2 contract. A valid hold is a delivered decision and earns
+  the agent its fee; unavailable or rejected evidence produces no decision and
+  can be refunded. One fetch per job avoids hidden retry spend.
 - `apps/supplier-pulse-sim.json` + `executors/supplier_agent_sim.py`: the same app
-  with a **simulated** agent script (no registry call, no EVM tx), to run the
-  Cardano side before the contract is deployed. Company `01234567` is active,
+  with a **simulated** agent script (no registry call, no EVM tx), for exercising
+  the Masumi flow without live registry or EVM calls. Company `01234567` is active,
   `07654321` dissolved, anything else has no data.
 - `apps/eth-vault.json` + `executors/api3_vault.py`: the API3 ETH/USD vault (`api3/`), the fallback.
 - `test_gate.py`: tests for the gate and the refund store.
@@ -110,6 +116,27 @@ A new app is one executor plus one `apps/<name>.json` with its `input_schema`
    python buy_job.py --input '{"order_id": 0, "company_number": "07654321"}'   # held: agent paid
    python buy_job.py --input '{"order_id": 0, "company_number": "99999999"}'   # no data: refunded
    ```
+   SupplierPulse+ v2 on Ethereum Sepolia (Masumi pays the agent job on Cardano
+   preprod; the supplier's milestone escrow remains on Ethereum):
+   ```bash
+   cp .env.example .env
+   # Set APP_CONFIG=apps/supplier-pulse-plus.json, EVM_RPC_URL,
+   # PULSE_PLUS_ADDRESS, AGENT_PRIVATE_KEY, and PAYER_PRIVATE_KEY.
+   # PAYER_PRIVATE_KEY needs Base Sepolia aUSD for the $0.01 API3 request.
+   python agent.py
+   python buy_job.py --input '{"order_id": 0, "supplier_id": "07654321"}'
+   ```
+   The deployed upstream v2 contract is at
+   [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC).
+   This checkout's contract source differs from the deployed source commit
+   (`c668c51`); see the deployment caveat in the repository README and evidence
+   log before describing local-chain behavior as deployed behavior.
+   The job result includes the Ethereum transaction hash and API3 payment
+   reference. `Paid`, `AwaitingApproval`, `NotDue` and `Held` all mean the
+   registry decision was verified; `NoData` and `Rejected` do not accuse the
+   supplier and do not produce a payable result. Existing Cardano proof rows
+   for the simulated SupplierPulse app are not evidence of this v2 path; run
+   and record a new job before claiming end-to-end Cardano/SupplierPulse+ use.
    Or hire the agent on Sokosumi preprod and pay there. The refund settles within
    minutes. The seller's payout waits for the unlock time (~36 min with the
    `.env.example` deadlines):
@@ -129,6 +156,8 @@ Quick test without Masumi: `masumi run agent.py --standalone --input '{"task": "
 - If the on-chain result submission itself fails after a pass, the job is
   marked failed but not recorded as refundable. Authorize that refund in the admin UI.
 - `eth-vault` creates a new vault order per attempt, so it does not retry.
-- `supplier-pulse` needs `api3/scripts/supplier-agent.sh`, which is not written
-  yet. Until then the app retries and refunds every job ("cannot run agent
-  script"). Use `supplier-pulse-sim` to test.
+- `supplier-pulse` uses the legacy v1 script and contract. The v2 adapter is a
+  separate app and needs a deployed v2 address, Ethereum Sepolia RPC and agent
+  gas, plus Base Sepolia aUSD for its signed-data fetch. The existing
+  `supplier-pulse-sim` Cardano preprod jobs are simulation evidence only; they
+  do not prove the new v2 app has run.

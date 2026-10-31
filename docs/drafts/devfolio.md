@@ -1,6 +1,6 @@
 # Devfolio submission draft — API3 track
 
-> **Submission status:** the v2 contract, tests/local scripts, signed-data tools/fixtures, dashboard, and judge page are integrated in this branch. V2 is **not deployed to Sepolia** and has no verified v2 on-chain run. The live contract transactions currently documented are SupplierPulse v1 (Companies House status only); live paid API3 fetches are documented separately and do not prove v2 contract behavior.
+> **Submission status:** this checkout integrates the v2 contract, tests/local scripts, signed-data tools/fixtures, dashboard, and judge page. Upstream `main` has a separately deployed and source-verified v2 contract with live Sepolia payment/hold/refund evidence. That deployment used source commit `c668c51`; this checkout's contract source differs on permit-TTL validation and no-data refund grace. The Cardano-to-v2 paid job is implemented here but has not yet been run or recorded.
 
 ## Project name
 
@@ -14,9 +14,9 @@ Your supplier was approved last month. That should not approve today's payment.
 
 Buyers commonly qualify suppliers at onboarding, then pay advances and milestone instalments over time. A later registry change—such as liquidation or an overdue statutory filing—may not be reflected in the buyer's next payment decision. In England and Wales, the Insolvency Service reported 1,882 company insolvencies in September 2026; 1,761 were compulsory or creditors' voluntary liquidations. That is a monthly aggregate, not a forecast of supplier failures.
 
-## SupplierPulse+ v2 prototype (integrated, not yet deployed)
+## SupplierPulse+ v2 prototype (integrated; upstream deployment evidenced)
 
-SupplierPulse+ v2 gates supplier milestone payments on fresh, signed registry evidence. The branch includes the contract, test suite and local-chain scripts; live-verified Companies House and GLEIF request pointers with genuine signed fixtures; and the dashboard and judge page. An agent can fetch a projected Companies House or GLEIF response through API3 AirnodeHub and submit the exact signed bytes to the Ethereum contract. These components have not yet been demonstrated together on Sepolia.
+SupplierPulse+ v2 gates supplier milestone payments on fresh, signed registry evidence. The branch includes the contract, test suite and local-chain scripts; live-verified Companies House and GLEIF request pointers with genuine signed fixtures; and the dashboard and judge page. An agent can fetch a projected Companies House or GLEIF response through API3 AirnodeHub and submit the exact signed bytes to the Ethereum contract. Upstream evidence records the deployed v2 address and live outcomes; the Cardano-paid job that coordinates Masumi, API3, and Ethereum has not yet been run end to end.
 
 The contract verifies the expected Airnode, supplier-specific request hash, response freshness, timestamp ordering, and replay protection. It evaluates buyer-selected rules and either issues an expiring permit for exactly the next milestone or holds the unpaid balance for the buyer. Buyer approval remains required to release a milestone because a registry cannot verify delivery.
 
@@ -44,13 +44,13 @@ We did not find German Handelsregister records or German insolvency notices amon
 
 ## Contract and network
 
-- **SupplierPulse+ v2:** Ethereum Sepolia, chain ID `11155111`; address and deployment transaction: **[insert verified v2 address and explorer link from `docs/evidence.md`]**.
+- **SupplierPulse+ v2 upstream deployment:** Ethereum Sepolia, chain ID `11155111`; [`0xf25Aae1772326C95294D1923399D55c658493DfC`](https://sepolia.etherscan.io/address/0xf25Aae1772326C95294D1923399D55c658493DfC), [deployment transaction](https://sepolia.etherscan.io/tx/0x2db57f1f6e10acfe03f8eb31712b168e1e4278d20b182e7160cfe07b83684e99). This uses source commit `c668c51`, not the exact source in this checkout.
 - **Currently deployed SupplierPulse v1:** [`0x91d7dbae109029b2b1245179a68ac362799674d7`](https://sepolia.etherscan.io/address/0x91d7dbae109029b2b1245179a68ac362799674d7), [deployment transaction](https://sepolia.etherscan.io/tx/0x21731862868abbc5394aa72799db6e03881eb8cf59d300493e1d782f6e596871). V1 checks only the Companies House status field; it is not the v2 feature set.
 - **Data-payment network:** Base Sepolia, chain ID `84532`; x402 payments use aUSD.
 
 ## How judges can test it
 
-The v2 judge page is integrated at [`demo/judge.html`](../../demo/judge.html), with setup and local-chain instructions in [`demo/README.md`](../../demo/README.md). The dashboard is [`demo/index.html`](../../demo/index.html); `?sample=1` displays illustrative data without a chain. The current v1 run and scripts are documented in [`docs/evidence.md`](../evidence.md); its four tamper attempts were `eth_call` simulations, not mined reverted transactions. A current-branch local Anvil run accepted clean evidence, rejected replay and four tamper variants, paid a buyer-approved 500-token milestone, and refunded a held order. This validates local behavior only. V2 Sepolia deployment and public-chain judge evidence are still pending. Before submission:
+The v2 judge page is integrated at [`demo/judge.html`](../../demo/judge.html), with setup and local-chain instructions in [`demo/README.md`](../../demo/README.md). The dashboard is [`demo/index.html`](../../demo/index.html); `?sample=1` displays illustrative data without a chain. Upstream v2 deployment, payment, hold/refund, and judge evidence are linked in [`docs/evidence.md`](../evidence.md); simulated tamper rejections are not mined reverted transactions. A current-branch local Anvil run validates only the checkout's source. Before presenting the deployed contract as identical to this branch, reconcile the source differences described above. Before submission:
 
 - Dashboard hosted URL: **pending Pages enablement** — expected `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/?sample=1`
 - “Try to break it” hosted URL: **pending Pages enablement** — expected `https://julienlmu.github.io/tumblockchain-powerpuffgirls/demo/judge.html`; requires a v2 address for contract verdicts.
