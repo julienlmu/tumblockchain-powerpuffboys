@@ -55,12 +55,12 @@
 
   // Finding the contract without configuration (§7.2 C3). Orhun's deployer deploys v2 at C3 with a plain CREATE, so
   // its address follows from the deployer's nonce. The newest contract that answers requestHashFor with the v1.1
-  // test vector (§4.2) is SupplierPulse+ v1.1; nothing else can return that value.
+  // test vector (§4.2) is SupplierPulse v1.1; nothing else can return that value.
   const V2_DEPLOYER = "0xEb3EB6da882798062b30CeC11AAaDe306287ce41";
   const V11_VECTOR = "0x6e84889a218993dcdaaa5e41a15b5b1bba283e48ca36763248620abbe2f17f0f"; // requestHashFor(0, "09729896")
   const V1_SEPOLIA = "0x91d7dbae109029b2b1245179a68ac362799674d7"; // v1, live since 30 Oct (§3.2), the fallback
 
-  /** Newest SupplierPulse+ v1.1 deployed by `deployer` among its last `depth` nonces, or null. */
+  /** Newest SupplierPulse v1.1 deployed by `deployer` among its last `depth` nonces, or null. */
   async function discoverV2(provider, deployer = V2_DEPLOYER, depth = 80) {
     const nonce = await provider.getTransactionCount(deployer);
     const probe = new ethers.Contract(deployer, ["function requestHashFor(uint8 source, string supplierId) pure returns (bytes32)"], provider);
@@ -345,9 +345,9 @@
     if (m) return { kind: "address", text: `There is no contract at ${short(m[1])} on ${NETWORKS[m[2]] || "chain " + m[2]}. Check the address, or the RPC URL if the contract lives on another network.` };
     if (["NETWORK_ERROR", "TIMEOUT", "SERVER_ERROR"].includes(code) || /failed to fetch|fetch failed|ECONNREFUSED|network|timeout|could not detect/i.test(msg))
       return { kind: "network", text: `The RPC${ctx.rpc ? " " + ctx.rpc : ""} did not answer. Check the RPC URL in Settings, or try again in a moment.` };
-    // reading a contract that has code but not SupplierPulse+ v1.1's functions (for example the v1 contract)
+    // reading a contract that has code but not SupplierPulse v1.1's functions (for example the v1 contract)
     if (ctx.reading && (code === "BAD_DATA" || (code === "CALL_EXCEPTION" && !(e.data && e.data !== "0x"))))
-      return { kind: "address", notV2: true, text: `This address answers, but not as SupplierPulse+ v1.1${ctx.contract ? ` (${short(ctx.contract)})` : ""}. If it is the v1 contract, open the v1 screen; otherwise check the address in Settings.` };
+      return { kind: "address", notV2: true, text: `This address answers, but not as SupplierPulse v1.1${ctx.contract ? ` (${short(ctx.contract)})` : ""}. If it is the v1 contract, open the v1 screen; otherwise check the address in Settings.` };
     return { kind: "other", text: `Unexpected answer from the RPC or the contract: ${msg}` };
   }
 

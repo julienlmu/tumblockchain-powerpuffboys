@@ -1,4 +1,4 @@
-# SupplierPulse+ screens
+# SupplierPulse screens
 
 Two static pages for `api3/src/SupplierPulsePlus.sol` (spec: `docs/SUPPLIERPULSE_PLUS.md` v1.1, §6.4). No build step: HTML plus ethers 6.13.5.
 
@@ -23,7 +23,7 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory demo
 | Local test chain (after `api3/scripts/plus-local.sh`) | `http://localhost:8765/?contract=<PULSE_PLUS_ADDRESS>&rpc=http://127.0.0.1:8545&from=0` |
 | Judge page | `http://localhost:8765/judge.html?contract=<address>` (same `rpc` parameter) |
 
-**Without an address, both pages find the contract themselves.** They look at the last 80 transactions of Orhun's deployer `0xEb3E…ce41` (§3.2), compute the address each one would have created, and take the newest contract that returns the v1.1 test vector for `requestHashFor(0, "09729896")` (§4.2). Only SupplierPulse+ v1.1 returns it. So after the C3 deploy the pages show v2 with no edit, and a later redeploy is picked up too. The dashboard then puts the address in the URL, so the link can be shared. While no v2 exists on Sepolia, the dashboard links to the v1 screen, and the judge page runs against the live v1 contract (§7 fallback).
+**Without an address, both pages find the contract themselves.** They look at the last 80 transactions of Orhun's deployer `0xEb3E…ce41` (§3.2), compute the address each one would have created, and take the newest contract that returns the v1.1 test vector for `requestHashFor(0, "09729896")` (§4.2). Only SupplierPulse v1.1 returns it. So after the C3 deploy the pages show v2 with no edit, and a later redeploy is picked up too. The dashboard then puts the address in the URL, so the link can be shared. While no v2 exists on Sepolia, the dashboard links to the v1 screen, and the judge page runs against the live v1 contract (§7 fallback).
 
 Opening the files straight from disk also works (`file://`); sample data is a `.js` file for that reason.
 

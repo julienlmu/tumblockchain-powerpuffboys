@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Try to Break It</title>
-<!-- "Try to break it" for SupplierPulse+ (docs/SUPPLIERPULSE_PLUS.md §6.4). Judges paste a signed register record, tamper
+<!-- "Try to break it" for SupplierPulse (docs/SUPPLIERPULSE_PLUS.md §6.4). Judges paste a signed register record, tamper
      with it in the browser (same semantics as api3/x402/tamper.mjs, §4.7) and get the live contract's verdict from an
      eth_call simulation of submitEvidence sent from 0x…dEaD: no wallet, no gas. Sending for real is optional. -->
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
@@ -303,7 +303,7 @@
     <details class="cfg-box" id="cfg-box">
       <summary>Settings: contract, network</summary>
       <form class="cfg" id="cfg">
-        <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
+        <label>Contract address (SupplierPulse contract)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
         <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
         <div class="btns"><button class="primary" type="submit">Load contract</button></div>
         <p class="hint" id="cfg-note"></p>
@@ -1167,7 +1167,7 @@
     const body = v1 ? v1Body : s.body(id);
     const reqText = v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id);
     $("kit").innerHTML = `
-      <li>Contract: ${cfg.contract ? `${addr(cfg.contract)}${P.copyBtn(cfg.contract)} (${v1 ? "SupplierPulse v1" : "SupplierPulse+ v1.1"}) on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>${P.copyBtn(order.info.requestHash)}` : ""}.</li>
+      <li>Contract: ${cfg.contract ? `${addr(cfg.contract)}${P.copyBtn(cfg.contract)} (${v1 ? "SupplierPulse v1" : "SupplierPulse v1.1"}) on <b>${esc(net)}</b>` : "not set"}${order.info ? ` · order #${order.id} expects request <code>${short(order.info.requestHash)}</code>${P.copyBtn(order.info.requestHash)}` : ""}.</li>
       <li>Get your own fresh signed record ($0.01 over x402), then paste or upload the file: ${code(fetchCmd)}${v1 ? "" : PREREQ}</li>
       <li><details><summary>Build the request yourself (AirnodeHub body and request hash)</summary>
         <p class="hint">Call AirnodeHub yourself (MCP <code>call-operation</code>, or POST with x402) with this body:</p>${code(body)}
@@ -1463,12 +1463,12 @@
       // No address given: the newest v2 by the team's deployer, else the live v1 on Sepolia (the §7 fallback)
       renderMeta([["Mode", "looking for the contract…"]]);
       const v2 = await P.discoverV2(provider);
-      if (v2) { cfg.contract = v2; found = "found automatically: the newest SupplierPulse+ v1.1 deployed by the team"; }
+      if (v2) { cfg.contract = v2; found = "found automatically: the newest SupplierPulse v1.1 deployed by the team"; }
       else if (chainId === 11155111) { cfg.contract = P.V1_SEPOLIA; found = "v1 fallback"; }
       else {
         $("cfg-box").open = true;
         renderMeta([["Mode", "not connected"]]);
-        banner("sample", `${P.icon("info")}<span>No SupplierPulse+ contract found on this network. Enter its address in Settings.</span>`);
+        banner("sample", `${P.icon("info")}<span>No SupplierPulse contract found on this network. Enter its address in Settings.</span>`);
         setNoOrder(true, "Connect a contract in Settings first.");
         return;
       }
@@ -1485,9 +1485,9 @@
     for (const el of document.querySelectorAll(".max-age")) el.textContent = maxAgeVal;
     renderKit();
     // how the contract was found and the simulated sender sit in Settings, one click away, not in the meta row
-    const vName = version === 2 ? "SupplierPulse+ v1.1" : "SupplierPulse v1";
+    const vName = version === 2 ? "SupplierPulse v1.1" : "SupplierPulse v1";
     renderMeta([[`<span class="live-dot"></span>Live on`, P.NETWORKS[chainId] || `chain ${chainId}`], [vName, addr(cfg.contract)], ["Max age", `${maxAge} s`]]);
-    $("cfg-note").innerHTML = `${found && version === 2 ? "Contract found automatically: the newest SupplierPulse+ v1.1 deployed by the team. " : ""}Every attempt is simulated from <span class="mono">${short(P.DEAD)}</span>.`;
+    $("cfg-note").innerHTML = `${found && version === 2 ? "Contract found automatically: the newest SupplierPulse v1.1 deployed by the team. " : ""}Every attempt is simulated from <span class="mono">${short(P.DEAD)}</span>.`;
     const dq = new URLSearchParams({ contract: cfg.contract });
     if (cfg.rpc !== P.DEFAULT_RPC) dq.set("rpc", cfg.rpc);
     dashQs.set("contract", cfg.contract);

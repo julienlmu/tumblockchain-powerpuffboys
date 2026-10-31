@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SupplierPulse+ Orders</title>
+<title>SupplierPulse Orders</title>
 <!-- Dashboard v2 for api3/src/SupplierPulsePlus.sol (docs/SUPPLIERPULSE_PLUS.md §6.4). Read-only by default:
      view functions and eth_getLogs. The only write is the optional "Refund to buyer (MetaMask)" through the buyer's MetaMask.
      Usage: demo/README.md. v1 (SupplierPulse.sol) is demo/v1.html. -->
@@ -345,7 +345,7 @@
 <div class="wrap">
   <header>
     <div>
-      <h1>SupplierPulse<span class="plus">+</span></h1>
+      <h1>SupplierPulse</h1>
       <p class="tagline">Every milestone pays only with a <span class="nobr"><button type="button" class="term" data-guide="g-permit" aria-haspopup="dialog">payment <span class="tl">permit</span></button>:</span> the contract's short-lived go-ahead after a fresh, signed register check.</p>
     </div>
     <div class="head-links">
@@ -385,7 +385,7 @@
   <details class="cfg-box" id="cfg-box">
     <summary>Settings</summary>
     <form class="cfg" id="cfg">
-      <label>Contract address (SupplierPulsePlus)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
+      <label>Contract address (SupplierPulse contract)<input name="contract" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
       <label>RPC URL<input name="rpc" spellcheck="false" autocomplete="off" inputmode="url"></label>
       <label>Order IDs (empty = all)<input name="orders" placeholder="0,1,2…" autocomplete="off"></label>
       <label>Agent address to highlight<input name="agent" placeholder="default: the team's agent wallet" spellcheck="false" autocomplete="off"></label>
@@ -1133,7 +1133,7 @@
   function renderDetails(d) {
     const row = (k, v, what) => `<dt>${k}</dt><dd><b>${v}</b> <span class="small-muted">${what}</span></dd>`;
     setHTML($("details"), [
-      d.contract ? row("Contract", `${addr(d.contract)}${P.copyBtn(d.contract)}`, "SupplierPulse+ v1.1") : "",
+      d.contract ? row("Contract", `${addr(d.contract)}${P.copyBtn(d.contract)}`, "SupplierPulse v1.1") : "",
       d.airnodes ? row("Trusted signers", `CH ${addr(d.airnodes[0])} · GLEIF ${addr(d.airnodes[1])}`, "the Airnodes whose signatures the contract accepts, one per register") : "",
       row("Max age", `${d.maxAge} s`, `a signed record is accepted only if it is at most ${duration(d.maxAge)} old`),
       row("Tier gap", duration(d.tierCountGap), `the verification history counts at most one clean check per ${duration(d.tierCountGap)}`),
@@ -1151,10 +1151,10 @@
   // Where the data comes from, the protected total, when it was read, and when the next read happens.
   const status = { mode: cfg.sample ? "sample" : "start", network: "", protectedTotal: null, readAt: 0, note: "", failed: false };
   // the meta line speaks in short sentences, not "Mode x"
-  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse+ v2…</b>", none: "<b>Not configured</b>: enter a contract address in Settings" };
+  const MODE_WORDS = { sample: "<b>Sample data</b>, not a chain", start: "<b>Reading the contract…</b>", discover: "<b>Looking for SupplierPulse v2…</b>", none: "<b>Not configured</b>: enter a contract address in Settings" };
   const rpcHost = () => { try { return new URL(cfg.rpc).host; } catch { return "the RPC"; } };
   const netGuess = () => (cfg.rpc === P.DEFAULT_RPC ? "Ethereum Sepolia" : rpcHost());
-  $("loading-label").innerHTML = `${I("loader", "spin")}<span>${cfg.contract ? `Reading orders from ${esc(netGuess())}…` : cfg.sample ? "Loading the sample data…" : `Looking for SupplierPulse+ v2 on ${esc(netGuess())}…`}</span>`;
+  $("loading-label").innerHTML = `${I("loader", "spin")}<span>${cfg.contract ? `Reading orders from ${esc(netGuess())}…` : cfg.sample ? "Loading the sample data…" : `Looking for SupplierPulse v2 on ${esc(netGuess())}…`}</span>`;
   function nextReadText() {
     if (busy) return "reading now…";
     const s = Math.max(0, nextReadAt - nowSec());
@@ -1828,9 +1828,9 @@
       setJudgeLinks(q.toString());
       startLive();
     } else if (Number(net.chainId) === 11155111) {
-      notConfigured(`SupplierPulse+ v2 is not deployed on Sepolia yet. The live v1 contract: <a href="v1.html?contract=${P.V1_SEPOLIA}&orders=0,1">v1 screen</a> · <a href="judge.html">try to break v1</a> · or the <a href="?sample=1">sample data</a>.`);
+      notConfigured(`SupplierPulse v2 is not deployed on Sepolia yet. The live v1 contract: <a href="v1.html?contract=${P.V1_SEPOLIA}&orders=0,1">v1 screen</a> · <a href="judge.html">try to break v1</a> · or the <a href="?sample=1">sample data</a>.`);
     } else {
-      notConfigured("No SupplierPulse+ contract found on this network. Enter its address, or open the <a href=\"?sample=1\">sample data</a>.");
+      notConfigured("No SupplierPulse contract found on this network. Enter its address, or open the <a href=\"?sample=1\">sample data</a>.");
     }
   }
 

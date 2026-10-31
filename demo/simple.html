@@ -135,7 +135,7 @@
 <body>
 <div class="wrap">
   <header>
-    <a class="brand" id="dash-link" href="index.html">SupplierPulse<span class="plus">+</span></a>
+    <a class="brand" id="dash-link" href="index.html">SupplierPulse</a>
     <div class="head-links">
       <nav class="view-switch" aria-label="View"><a href="simple.html" aria-current="page">Simple</a><a id="detailed-link" href="judge.html">Detailed</a></nav>
       <button type="button" id="guide-btn" data-icon="info" aria-label="Guide: a short walk through this page">Guide</button>
@@ -856,11 +856,11 @@
     chainId = Number((await provider.getNetwork()).chainId);
     explorer = P.EXPLORERS[chainId] || null;
     if (!cfg.contract) {
-      recLine("wait", "Looking for the newest SupplierPulse+ contract…");
+      recLine("wait", "Looking for the newest SupplierPulse contract…");
       const v2 = await P.discoverV2(provider);
       if (v2) cfg.contract = v2;
       else if (chainId === 11155111) cfg.contract = P.V1_SEPOLIA;
-      else throw new Error("No SupplierPulse+ contract found on this network.");
+      else throw new Error("No SupplierPulse contract found on this network.");
     }
     if ((await provider.getCode(cfg.contract)) === "0x") throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
     contract = new ethers.Contract(cfg.contract, P.ABI, provider);
@@ -893,7 +893,7 @@
     init().catch((e) => {
       const f = P.friendlyError(e, { rpc: cfg.rpc, reading: true, contract: cfg.contract });
       $("ctx").textContent = "Not connected.";
-      recLine("bad", `${esc(e.message && e.message.startsWith("No SupplierPulse+") ? e.message : f.text.replace(/ in Settings/g, ""))} <button type="button" class="link" id="retry">Try again</button> · <a href="${detailedHref()}">open the detailed view</a> to change the contract or the network in its Settings.`);
+      recLine("bad", `${esc(e.message && e.message.startsWith("No SupplierPulse") ? e.message : f.text.replace(/ in Settings/g, ""))} <button type="button" class="link" id="retry">Try again</button> · <a href="${detailedHref()}">open the detailed view</a> to change the contract or the network in its Settings.`);
       $("retry").addEventListener("click", start);
     });
   }
