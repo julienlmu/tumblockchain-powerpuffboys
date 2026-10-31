@@ -153,12 +153,7 @@
   .attacks button.valid .l .i { color: var(--text); }
   .attacks button.atk:hover { border-color: var(--hold); }
   .attacks button.real { border-style: dashed; }
-  /* the loaded record cannot test some attempts: the cause once above the buttons, an amber mark on each one it stops */
-  .blk-note { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--t-1); font-weight: 500; color: var(--wait); }
-  .blk-note > span { display: flex; gap: 6px; align-items: flex-start; }
-  .blk-note > span > .i { margin-top: 0.15em; }
-  .blk-note .mono { font-size: 12px; }
-  .blk-note kbd { font-size: 11px; padding: 1px 4px; }
+  /* the loaded record cannot test an attempt: an amber mark on its button (the words in its tip) */
   .attacks button .l .blk-ic { margin-left: auto; flex: none; display: inline-flex; }
   .attacks button .l .blk-ic .i { color: var(--wait); }
   /* the expected answer's arrow is the icon set's, not a text glyph */
@@ -309,11 +304,11 @@
   <header>
     <div>
       <h1>Try to break it</h1>
-      <p class="tagline">Tamper with a signed register record and see whether the live contract would act on it. No wallet, no gas.</p>
     </div>
     <div class="head-links">
       <nav class="view-switch" aria-label="View"><a id="simple-link" href="simple.html">Simple</a><a href="judge.html" aria-current="page">Detailed</a></nav>
       <a class="btn" id="dash-link" href="index.html" data-icon="arrow-left">Dashboard</a>
+      <button type="button" id="tour-btn" data-icon="info" aria-label="Guide: a short walk through this page">Guide</button>
       <button type="button" id="guide-btn" data-icon="help" aria-expanded="false" aria-controls="guide" aria-keyshortcuts="?">How it works<kbd class="kb-k" aria-hidden="true">?</kbd></button>
       <button type="button" id="theme-btn" aria-label="Colour theme: auto. Switch theme" aria-keyshortcuts="T"><span class="lbl">Theme: auto</span></button>
     </div>
@@ -330,6 +325,9 @@
           <li><b>Run the full tamper test.</b> Each attempt is the contract's own verdict, asked as a simulation (an <span class="mono">eth_call</span> of <span class="mono">submitEvidence</span> from <span class="mono">0x…dEaD</span>), so nothing changes on chain. It passes when the valid record is accepted and every attack is rejected.</li>
           <li><b>Replay last.</b> Send the valid record for real, then replay it: the contract answers <span class="mono">Replayed</span>.</li>
         </ol>
+        <h3 class="guide-sub">The contract's checks, in order</h3>
+        <p>It stops at the first check that fails, with its error:</p>
+        <ol class="checks-pre" id="ref-checks"></ol>
         <table class="kv"><thead><tr><th>Attempt</th><th>What changes</th><th>Expected answer</th></tr></thead><tbody>
           <tr><td>Submit as is</td><td>nothing</td><td>accepted</td></tr>
           <tr><td>(a) Edit value</td><td>one value inside the signed data</td><td class="mono"><a class="def" href="#err-WrongSigner">WrongSigner</a></td></tr>
@@ -338,6 +336,8 @@
           <tr><td>(d) Wrong key</td><td>re-signed by a random key</td><td class="mono"><a class="def" href="#err-WrongSigner">WrongSigner</a></td></tr>
           <tr><td>Replay</td><td>the same record a second time</td><td class="mono"><a class="def" href="#err-Replayed">Replayed</a></td></tr></tbody></table>
         <p><b>Amber tile, or "Not tested":</b> the record could not test that attack, because it is too old, already sent, or for another order, so an earlier check stopped it. What to do: load a fresh record (<b>Fresh local record</b> on the local chain, <span class="mono">fetch-evidence.sh</span> elsewhere, see the Judge kit) and run again. Attack a fresh record <b>before</b> you send it for real; afterwards (a) and (d) stop at <span class="mono">NotNewer</span> or <span class="mono">Replayed</span>.</p>
+        <p>A rejected attempt sent for real shows as a failed transaction on the explorer, with the same error; it costs a little gas.</p>
+        <p><b>What a pass proves:</b> the register said it, unaltered and recently. It does not prove the supplier will deliver; that stays the buyer's approval.</p>
         <p><a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">Full guide (demo/README.md)</a> · <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/docs/SUPPLIERPULSE_PLUS.md" target="_blank" rel="noopener">Specification</a></p>
         <details class="gloss" id="gloss"><summary>Glossary: the contract's errors and the words on this page</summary>
           <table class="kv"><caption>Contract errors</caption><tbody>
@@ -411,7 +411,6 @@
         <h2><span class="step" aria-hidden="true">3</span>Attack it</h2>
         <button type="button" class="primary suite" id="suite" data-icon="play">Run the full tamper test<kbd class="kb-k" aria-hidden="true">R</kbd></button>
         <p class="progress" id="suite-progress" role="status" aria-live="polite" hidden></p>
-        <p class="blk-note" id="blk-note" hidden></p>
         <div class="attack-groups">
         <div class="ag"><div class="ag-head">Or one attempt, built in your browser</div>
         <div class="attacks synth" role="group" aria-label="Single attempts, built in your browser">
@@ -443,7 +442,6 @@
   <div class="stack">
     <section class="panel">
       <div class="panel-head"><h2>Scoreboard</h2><span class="row"><span class="msg" id="score-undo" role="status"></span><button type="button" class="sm" id="copy-score" data-icon="copy" disabled>Copy as Markdown</button><button type="button" class="sm" id="clear-score" data-icon="x" disabled>Clear scoreboard</button></span></div>
-      <p class="hint">Every attempt in this tab, kept across reloads.</p>
       <table class="score"><thead><tr><th>Time</th><th>Order</th><th>Attempt</th><th>Contract verdict</th><th>Expected</th><th>Result</th></tr></thead>
         <tbody id="score"><tr class="empty"><td colspan="6">No attempts yet. Run the full tamper test, or press one attack.</td></tr></tbody></table>
     </section>
@@ -662,23 +660,20 @@
   // In the contract's order of checks: the order's state first, then the request, freshness, reuse. A missing record
   // comes before all of them: those attempts would not even ask. The two real records need no record from step 2.
   const SYNTH = ["asis", "value", "stale", "request", "key", "replay"];
-  const SHORT = { asis: "Submit as is", value: "(a)", stale: "(b)", request: "(c)", key: "(d)", replay: "Replay", realOld: "(b) real", realOther: "(c) real" };
   const all = (modes, t) => Object.fromEntries(modes.map((m) => [m, t]));
-  // cause -> { why: in a few words, modes: { attempt: the error it answers instead, or "" }, line: said once instead }
+  // cause -> { why: in a few words, modes: { attempt: the error it answers instead, or "" } }
   const BLOCKED = {
-    empty: { why: "needs a record", modes: all(SYNTH, ""), line: "The marked attempts need a record in step 2." },
-    invalid: { why: "the record needs fixing", modes: all(SYNTH, ""), line: "The marked attempts need the record in step 2 fixed." },
+    empty: { why: "needs a record", modes: all(SYNTH, "") },
+    invalid: { why: "the record needs fixing", modes: all(SYNTH, "") },
     held: { why: "order not active", modes: all([...SYNTH, "realOld", "realOther"], "NotActive") },
     other: { why: "record of another company", modes: all(["asis", "value", "stale", "key", "replay"], "WrongRequest") },
     stale: { why: "record too old", modes: all(["asis", "value", "key", "replay"], "StaleResponse") },
     used: { why: "already sent", modes: { asis: "Replayed", value: "NotNewer", key: "Replayed" } },
     // presentation only: the record is not on chain yet, so a replay of it is a first submission (no contract call)
-    notSent: { why: "tests only after a real send (S)", modes: { replay: "" }, solo: true },
+    notSent: { why: "tests only after a real send (S)", modes: { replay: "" } },
   };
-  const listOf = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
-  // A cause that stops several attempts is said once, above the buttons, with the attempts it stops and the error they
-  // answer instead; each of those buttons carries only an amber mark (its words for screen readers, and in its tip).
-  // A cause of one attempt only (Replay before a real send) is the mark alone: its words are in the tip.
+  // Before any press, each attempt the loaded record (or the order) cannot test carries an amber mark; its cause and the
+  // error it would answer instead are in its tip and spoken with it.
   let marked = null;
   function markAttacks() {
     const box = $("resp");
@@ -691,7 +686,6 @@
     const key = reasons.join();
     if (key === marked) return;
     marked = key;
-    const hits = new Map(); // cause -> Map(answer -> [attempts])
     const buttons = document.querySelectorAll(".attacks [data-mode]");
     for (const b of buttons) {
       const m = b.dataset.mode;
@@ -702,22 +696,7 @@
       const ans = BLOCKED[why].modes[m];
       b.dataset.blk = `${BLOCKED[why].why}${ans ? `: answers <span class="mono">${ans}</span>` : ""}`;
       b.querySelector(".l").insertAdjacentHTML("beforeend", `<span class="blk-ic">${P.icon("alert")}</span><span class="sr-only blk-sr">With this record: ${b.dataset.blk}</span>`);
-      if (BLOCKED[why].solo) continue;
-      if (!hits.has(why)) hits.set(why, new Map());
-      const byAns = hits.get(why);
-      byAns.set(ans, [...(byAns.get(ans) || []), m]);
     }
-    const lines = [...hits].map(([r, byAns]) => {
-      if (BLOCKED[r].line) return BLOCKED[r].line;
-      // one answer: "the marked attempts" (the marks show which); several: each named with its answer
-      const n = [...byAns.values()].flat().length;
-      const parts = [...byAns].map(([ans, ms]) => n === buttons.length ? `every attempt answers ${errLink(ans)}`
-        : byAns.size === 1 ? `the marked attempts answer ${errLink(ans)}`
-        : `${listOf(ms.map((m) => SHORT[m]))} ${ms.length > 1 ? "answer" : "answers"} ${errLink(ans)}`);
-      return `${BLOCKED[r].why[0].toUpperCase()}${BLOCKED[r].why.slice(1)}: ${parts.join("; ")}.`;
-    });
-    $("blk-note").hidden = !lines.length;
-    $("blk-note").innerHTML = lines.map((l) => `<span>${P.icon("alert")}<span>${l}</span></span>`).join("");
   }
   // Checks the record while it is typed or loaded, before any button is pressed: JSON, fields, age and supplier.
   function checkRecordInput(note = "") {
@@ -735,10 +714,10 @@
     recordOther = !!(order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase());
     markAttacks();
     const parts = [`<span class="okc">${P.icon("check")}</span> ${esc(s.name)} <span class="mono">${esc(r.supplierId || "?")}</span>, <span class="rec-age${isStale() ? " warn" : ""}" aria-hidden="true">${ageText()}</span><span class="sr-only">signed ${age >= 0 ? P.ago(age) : "in the future"}</span>.`];
-    if (recordUsed !== null) parts.push(`<span class="warn">Already sent in this tab (block ${recordUsed}). ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : "Load a fresh record"} to test each check.</span>`);
-    else if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: every attack stops at the freshness check. ${chainId === 31337 && version === 2 ? "Press <b>Fresh local record</b>" : `Get a fresh one (<a href="#kit-panel">Judge kit</a>)`} to test each check.</span>`);
+    if (recordUsed !== null) parts.push(`<span class="warn">Already sent (block ${recordUsed}): ${chainId === 31337 && version === 2 ? "press <b>Fresh local record</b>" : "load a fresh record"}.</span>`);
+    else if (maxAgeVal !== null && age > maxAgeVal) parts.push(`<span class="warn">Older than the ${maxAgeVal} s limit: ${chainId === 31337 && version === 2 ? "press <b>Fresh local record</b>" : `get a fresh one (<a href="#kit-panel">Judge kit</a>)`}.</span>`);
     if (order.info && r.supplierId && String(r.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase())
-      parts.push(`<span class="warn">This record is for <span class="mono">${esc(r.supplierId)}</span>, but order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>${order.info.state === 0 ? `: attempts stop at "Request matches the order"` : ""}.</span>`);
+      parts.push(`<span class="warn">For <span class="mono">${esc(r.supplierId)}</span>; order #${order.id} is for <span class="mono">${esc(order.info.supplierId)}</span>.</span>`);
     $("resp-msg").innerHTML = (note ? `<span>${note}</span> ` : "") + parts.join(" ");
   }
 
@@ -795,7 +774,7 @@
       <tr><th>Trusted signer (${term("airnode", "Airnode")})</th><td>${known ? `${esc(known)} (${addr(airnode)})` : addr(airnode)}${P.copyBtn(airnode)}</td></tr>`;
     // a held or closed order stops every attempt at its first check: said here, before any press
     $("order-msg").innerHTML = info.state !== 0
-      ? `<span class="warn">${P.icon("alert")} Order #${id} is ${P.STATE[info.state].toLowerCase()}, so every attempt stops at <span class="mono">NotActive</span>. Pick an active order to test the checks.</span>` : "";
+      ? `<span class="warn">${P.icon("alert")} Order #${id} is ${P.STATE[info.state].toLowerCase()}: every attempt answers <span class="mono">NotActive</span>.</span>` : "";
     markAttacks();
     $("fresh").hidden = chainId !== 31337 || version !== 2;
     simpleLink();
@@ -868,7 +847,7 @@
   function attemptProblem(title, msg) {
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `<h2>The contract's verdict</h2><div class="verdict warn"><div class="big">${P.icon("info")}<span>${esc(title)}</span></div>
-      <div class="why">${esc(msg)}</div><div class="why">Nothing was asked or sent. Your record in step 2 is kept: fix it there, then press the button again.</div></div>`;
+      <div class="why">${esc(msg)}</div><div class="why">Nothing was sent. Your record is kept.</div></div>`;
   }
 
   // The first thing in the verdict panel: the quickest way in, for this network, then the checks in the contract's
@@ -879,11 +858,8 @@
   function startHint() {
     const h = $("start-hint");
     if (!h) return;
-    h.innerHTML = chainId === 31337 && version === 2
-      ? `Press <b>Run the full tamper test</b>: a fresh local record is signed for you.`
-      : `Fastest, no setup: press <b>(b) Real old record</b> or <b>(c) Real, other company</b>, genuine signed records bundled with the page. For the full test, load a fresh record in step 2, then press <b>Run the full tamper test</b>.`;
-    if (!$("start-checks")) h.insertAdjacentHTML("afterend", `<p class="hint">The contract checks a record in this order and stops at the first check that fails, with its error:</p>
-      <ol class="checks-pre" id="start-checks">${checkNames().map(([t, err]) => `<li><span>${t}</span><span class="mono">${errLink(err)}</span></li>`).join("")}</ol>`);
+    h.textContent = "No attempt yet.";
+    $("ref-checks").innerHTML = checkNames().map(([t, err]) => `<li><span>${t}</span><span class="mono">${errLink(err)}</span></li>`).join("");
   }
   function noOrderVerdict() {
     if (connecting) { $("result").innerHTML = `<h2>The contract's verdict</h2><p class="waiting">${P.icon("loader", "spin")}Still connecting to the contract…</p>`; return; }
@@ -1018,8 +994,7 @@
       </ol>
       <details><summary>The submitted record</summary>${P.copyBtn(JSON.stringify(r, null, 2), "Copy JSON")}<pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>
       <div class="row"><button type="button" id="send">${P.icon("send")}${verdict.accepted ? "Send for real" : "Send anyway as a real transaction (it reverts on chain)"} ${chainId === 31337 ? "(local agent key)" : "(MetaMask)"}</button><span class="msg" id="send-msg" role="status"></span></div>
-      ${verdict.accepted ? (mode === "asis" && !(suiteRunning && runFlow === "replay") ? `<p class="hint">${P.icon("info")} Attack this record before you send it: once it is on chain, (a) and (d) stop earlier, at NotNewer or Replayed.</p>` : "")
-        : `<p class="hint">A rejected attempt sent for real shows as a failed transaction on the explorer, with the same error. It costs a little gas.</p>`}`;
+`;
     // every attempt is kept, so a tile or a scoreboard row reopens its checklist without asking the contract again
     attempts.push({ html, candidate: lastCandidate });
     const attempt = attempts.length - 1;
@@ -1283,25 +1258,20 @@
       : "The contract accepted an attack.";
     const replayStep = validOk && !replayed && !suiteStopped && suiteTx
       ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay-only" data-icon="refund" aria-keyshortcuts="S">Replay the sent record<kbd class="kb-k" aria-hidden="true">S</kbd></button>
-          <span class="hint">The valid record is on chain; this submits it once more, as a simulation.</span></div>`
+</div>`
       : validOk && !replayed && !suiteStopped
-      ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay" data-icon="send" aria-keyshortcuts="S">Send the valid record, then replay it<kbd class="kb-k" aria-hidden="true">S</kbd></button>
-          <span class="hint">Last step: sends it for real (${chainId === 31337 ? "local agent key" : "MetaMask, a little Sepolia gas"}), then submits it again.</span><span class="msg" id="send-msg" role="status"></span></div>`
+      ? `<div class="row replay-row"><button type="button" class="primary" id="suite-replay" data-icon="send" aria-keyshortcuts="S">Send the valid record, then replay it<kbd class="kb-k" aria-hidden="true">S</kbd></button><span class="msg" id="send-msg" role="status"></span></div>`
       : "";
     const skippedNote = skipped.length ? `<p class="hint">${P.icon("minus")} Not run: ${skipped.map((s) => `${MODE_NAME[s.mode]} (${esc(s.reason)})`).join("; ")}.</p>` : "";
     const txNote = suiteTx ? `<p class="hint">Valid record on chain: ${explorer ? `<a class="mono" href="${explorer}/tx/${suiteTx.hash}" target="_blank" rel="noopener">${short(suiteTx.hash)}</a>` : `<span class="mono">${short(suiteTx.hash)}</span>`} (block ${suiteTx.block}).</p>` : "";
-    // the same count as the hero and the scoreboard: the valid record plus n attacks
-    const nAtk = suite.filter((s) => s.mode !== "asis").length;
-    const countText = `${valid ? "the valid record and " : ""}${nAtk} attack${nAtk === 1 ? "" : "s"}, ${nAtk + (valid ? 1 : 0) === 1 ? "" : "each "}`;
     $("result").removeAttribute("aria-busy");
     $("result").innerHTML = `
       <h2>The contract's verdict</h2>
-      <p class="hint">Tamper test on order #${order.id}: ${countText} ${term("simulated", "simulated")}${suiteTx ? "; the replay followed one real send" : ""}.</p>
       <div class="verdict hero ${passed ? "ok" : suiteStopped ? "done" : notTested ? "warn" : "bad"}"><span class="mark">${P.icon(passed ? "shield" : suiteStopped ? "stop" : notTested ? "clock" : "x")}</span>
         <div><div class="big">${passed ? "Passed" : suiteStopped ? "Stopped" : notTested ? "Not tested" : "Not passed"}</div><div class="why">${why}</div>${notTested ? fix : ""}</div></div>
       ${replayStep}
       ${tilesHtml(suite)}
-      <ul class="legend">${legendOf(suite)}<li>Press a tile for its checklist.</li></ul>
+      <ul class="legend">${legendOf(suite)}</ul>
       ${skippedNote}${txNote}`;
     P.hydrateIcons($("result"));
     $("verdict-live").textContent = `Tamper test: ${passed ? "passed" : suiteStopped ? "stopped" : notTested ? "not tested, the valid record was refused" : "not passed, the contract accepted an attack"}.`;
@@ -1366,7 +1336,7 @@
     const w = new ethers.Wallet(LOCAL.signer[source]);
     const signature = await w.signMessage(ethers.getBytes(P.digestOf(requestHash, ts, data)));
     setRecord({ source: P.SOURCES[source].key, supplierId: id, airnode: w.address, requestHash, timestamp: ts, data, raw, signature, paymentTx: null, priceUsd: "0", fetchedAt: new Date().toISOString() },
-      `Signed now in your browser with the public local test key (anvil).`);
+      "");
   }
 
   // ---------------------------------------------------------------- judge kit
@@ -1401,7 +1371,7 @@
       <li>The same attacks from a terminal: ${v1
         ? `${code("api3/scripts/pulse-submit.sh")} (v1)`
         : code(`api3/scripts/plus-submit.sh ${order.id ?? 0} response.json [value|stale|request|key|replay] [--send]`)}</li>
-      <li>What a pass proves: the register said it, unaltered and recently. It does not prove the supplier will deliver; that stays the buyer's approval.</li>`;
+`;
   }
 
 
@@ -1454,7 +1424,7 @@
     const s = b && (window.PULSE_SAMPLE_RESPONSES || [])[Number(b.dataset.sample)];
     if (!s) return;
     menu.hidePopover();
-    setRecord(s.record, "Sample loaded, old on purpose.");
+    setRecord(s.record);
     $("suite").focus();
   });
   async function loadFile(f) {
@@ -1535,7 +1505,7 @@
     const f = P.friendlyError(e, { rpc: cfg.rpc });
     const fix = f.kind === "network" ? "" : " Nothing was sent. Your record is kept in step 2.";
     const back = !partial && suite.length ? `<button type="button" class="link" data-summary aria-keyshortcuts="B">${P.icon("arrow-left")} Tamper test summary<kbd class="kb-k" aria-hidden="true">B</kbd></button>` : "";
-    const tiles = partial ? `<p class="hint">Answered before the failure: ${suite.length} of ${SUITE.length} attempts. Press a tile for its checklist.</p>${tilesHtml(suite)}` : "";
+    const tiles = partial ? `<p class="hint">Answered before the failure: ${suite.length} of ${SUITE.length} attempts.</p>${tilesHtml(suite)}` : "";
     $("result").innerHTML = `${back}<h2>The contract's verdict</h2><div class="verdict bad"><div class="big">${P.icon("x")}<span>Could not ask the contract</span></div><div class="why">${esc(f.text)}${fix}</div>${recoverRow(again ? "data-retry" : null)}</div>${tiles}`;
     P.hydrateIcons($("result"));
     if (partial) suiteFailView = $("result").innerHTML;
@@ -1675,6 +1645,25 @@
   $("guide").querySelector(".guide-body").tabIndex = -1;
   $("guide-btn").addEventListener("click", () => setGuide(!$("guide").open));
   $("guide-close").addEventListener("click", () => setGuide(false));
+
+  // ---------------------------------------------------------------- the guide: a short walk, one element at a time
+  // (common.js P.tour). The explanations cut from the page live here and in the "How it works" reference.
+  function tourSteps() {
+    const local = chainId === 31337 && version === 2;
+    return [
+      { title: "Try to break it", text: "The contract pays a supplier only on a fresh company-register record (Companies House or GLEIF) signed by API3's Airnode. Here you tamper with such a record and ask the live contract whether it would act on it: no wallet, no gas." },
+      { el: ".view-switch", title: "Simple or Detailed", text: "Simple runs the whole test in one click. Detailed, this view, adds genuine old records, every check per attempt, a scoreboard and the judge kit." },
+      { el: "#order", title: "Pick an order", text: "The contract builds the request it expects from the order's supplier and trusts one signer per registry. A held or closed order refuses every record." },
+      { el: "#resp", title: "Load a signed record", text: `${local ? "<b>Fresh local record</b> signs one now with a public anvil test key." : `Paste, drop or upload a record from <span class="mono">fetch-evidence.sh</span> ($0.01 over x402; the command is in the Judge kit).`} <b>Load sample</b> gives genuine records, old on purpose. A record counts for ${maxAgeVal ?? 300} s, and it is kept when you reload or switch views.` },
+      { el: "#suite", title: "Run the full tamper test", text: `${local ? "A fresh record is signed if needed; then the" : "The"} valid record and six attacks go to the contract, each as a simulation. It passes when the valid record is accepted and every attack is rejected. <kbd>R</kbd> runs, <kbd>Esc</kbd> stops.` },
+      { el: ".attack-groups", title: "One attempt at a time", text: `Each button shows the error the contract should answer and its key, <kbd>1</kbd>–<kbd>8</kbd>. Hover, Tab to or long-press one for what it changes; an amber mark means the loaded record cannot test it.${local ? "" : " Fastest, without setup: <b>(b) Real old record</b> or <b>(c) Real, other company</b>."}` },
+      { el: "#result", title: "The verdict", text: "The contract's own answer. After a full run each tile is one attempt: green as expected, amber stopped by an earlier check, red not as expected. Press a tile for its checklist, an error name for its meaning; <kbd>B</kbd> returns to the summary." },
+      { el: () => $("suite-replay") || $("suite-replay-only") || document.querySelector('[data-mode="replay"]'), title: "Then the replay", text: `After a pass, send the valid record for real (the only transaction; ${local ? "the button asks twice" : "MetaMask asks"}), then it is submitted again: the contract must answer <span class="mono">Replayed</span>. Attack a record before you send it. Key: <kbd>S</kbd>.` },
+      { el: ".stack > .panel", title: "Scoreboard and judge kit", text: "Every attempt in this tab, kept across reloads; <b>Copy as Markdown</b> for your notes. Below it, the Judge kit: the contract, the fetch command and the same attacks from a terminal." },
+      { el: "#guide-btn", title: "How it works", text: "The reference: the contract's checks in order, what each attempt changes, every error and word, and the keys. Also with <kbd>?</kbd>." },
+    ];
+  }
+  $("tour-btn").addEventListener("click", () => { if ($("guide").open) setGuide(false, false); P.tour(tourSteps(), { returnTo: $("tour-btn") }); });
   // single-character shortcuts can be switched off (WCAG 2.1.4); the choice is remembered in this browser
   let keysOn = true;
   try { keysOn = localStorage.getItem("pulse-judge-keys") !== "off"; } catch { /* storage blocked */ }
