@@ -6,6 +6,10 @@ SupplierPulse pays a supplier's milestones only against fresh, signed proof from
 
 > Hackathon prototype for the **API3 track "Any API in your contract"** (TUM Blockchain & AI Hackathon, Munich, October 2026). Testnets only. It is not a credit score or a guarantee that a supplier will deliver.
 
+**Demo video:** [SupplierPulse demo on YouTube](https://youtu.be/zHWpYP_cOgU)
+
+[![SupplierPulse demo video](https://img.youtube.com/vi/zHWpYP_cOgU/hqdefault.jpg)](https://youtu.be/zHWpYP_cOgU)
+
 **Try it live:** [julienlmu.github.io/tumblockchain-powerpuffboys](https://julienlmu.github.io/tumblockchain-powerpuffboys/) opens the Control Room on the live Sepolia contract: the orders and why each pays or waits, the **Verification lab** (the tamper test, simulated against the live contract: no wallet, no gas), the agent's own transactions and a judge kit with every command.
 
 Team log and status: [docs/PROGRESS.md](docs/PROGRESS.md).
@@ -62,15 +66,16 @@ More rules the contract enforces:
 | Agent wallet | `0xED3418aE93669a640650728E70f7aA712083253a` |
 | Data payments (x402) | aUSD `0xbeA34973e5f67F18F656A2C6070C64326C791808` on Base Sepolia |
 
-Five demo orders against real companies from Companies House and GLEIF (30 Oct 2026). The buyer created and approved the orders; the agent did every check, payment, hold and refund:
+Demo orders against real companies from Companies House and GLEIF (A–E created on 30 Oct 2026, F on 31 Oct). The buyer created and approved the orders; the agent did every check, payment, hold and refund:
 
 | Order | Supplier | What happened |
 |---|---|---|
-| A · PO-1001 | Companies House `03778796`, active | Clean checks; milestone 1 paid when due; rose to Trusted, then Premium |
+| A · PO-1001 | Companies House `03778796`, active | Clean checks; milestones 1 and 2 paid when due (Fri 20:03, Sat 11:45); milestone 3 approved and due Sat 15:30; rose to Trusted, then Premium |
 | B · PO-1002 | Companies House `07418033`, in liquidation | Held at the first check, refunded to the buyer |
 | C · PO-1003 | Companies House `09729896`, accounts and confirmation statement overdue | Held, refunded |
-| D · PO-1004 | GLEIF `391200JI69LS8L648F30`, LEI issued | Clean checks; milestone 1 paid when due; rose to Trusted, then Premium |
+| D · PO-1004 | GLEIF `391200JI69LS8L648F30`, LEI issued | Clean checks; fully paid (milestones 1 and 2 when due, Fri 20:16 and Sat 12:00); rose to Trusted, then Premium |
 | E · PO-1005 | GLEIF `52990092KBQJF8QBGJ50`, LEI lapsed | Held, refunded |
+| F · PO-1006 | Companies House `03778796`, A's supplier | Open on purpose: due 31 Oct 18:02 and not approved, so the tamper test always has an active order to run against (order id **5**) |
 
 Every transaction, with its x402 payment and explorer link, is in [docs/evidence.md](docs/evidence.md).
 
@@ -87,30 +92,30 @@ The contract must reject a manipulated record. Every case below has been run aga
 | (d) signed by a key that is not the expected Airnode | `WrongSigner` |
 | The same valid record a second time | `Replayed` |
 
-**Fastest, in one command** (Foundry, Node.js and jq; no keys, no money): `api3/scripts/judge-tamper.sh` deploys the contract on a local anvil chain, rejects four tampered records (edited value, too old, other request, wrong key), pays one valid record and rejects its replay. In a fresh clone, run `npm ci` in `api3/x402` first. Against the live v2 on Sepolia: `api3/scripts/judge-tamper.sh --live <orderId> <fresh record.json>` (simulated, no gas).
+**Fastest, in one command** (Foundry, Node.js and jq; no keys, no money): `api3/scripts/judge-tamper.sh` deploys the contract on a local anvil chain, rejects four tampered records (edited value, too old, other request, wrong key), pays one valid record and rejects its replay. In a fresh clone, run `npm ci` in `api3/x402` first. Against the live v2 on Sepolia: `api3/scripts/judge-tamper.sh --live 5 <fresh record.json>` (simulated, no gas).
 
 Run it yourself in one of three ways:
 
-1. **In the browser.** Open the [Control Room](https://julienlmu.github.io/tumblockchain-powerpuffboys/) → **Verification lab** (locally `demo/control.html#lab`, see "Run it"), pick an order and a scenario, or press **Run the tamper test**. The genuine old and other-company records run with nothing to load; for the other cases, load a fresh record under **Signed record → My own**. The earlier page `demo/judge.html` ("Try to break it") does the same. Each attempt is an `eth_call` of the live contract: no wallet, no gas.
+1. **In the browser.** Open the [Control Room](https://julienlmu.github.io/tumblockchain-powerpuffboys/) → **Verification lab** (locally `demo/control.html#lab`, see "Run it"), pick **PO-1006** (it stays open; PO-1001 closes after its last payment on Sat 15:30) and a scenario, or press **Run the tamper test**. The genuine old and other-company records run with nothing to load; for the other cases, load a fresh record under **Signed record → My own**. The earlier page `demo/judge.html` ("Try to break it") does the same. Each attempt is an `eth_call` of the live contract: no wallet, no gas.
 2. **From a terminal, with nothing to buy.** Submit the genuine records bundled in [`api3/fixtures/`](api3/fixtures/). Needs Foundry and Node.js.
    ```sh
    cd api3
    export EVM_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com PULSE_PLUS_ADDRESS=0xf25Aae1772326C95294D1923399D55c658493DfC
-   scripts/plus-submit.sh 0 fixtures/ch-03778796-202610301614.json   # genuine but old        -> REJECTED StaleResponse
-   scripts/plus-submit.sh 0 fixtures/ch-07418033-202610301910.json   # genuine, other company -> REJECTED WrongRequest
+   scripts/plus-submit.sh 5 fixtures/ch-03778796-202610301614.json   # genuine but old        -> REJECTED StaleResponse
+   scripts/plus-submit.sh 5 fixtures/ch-07418033-202610301910.json   # genuine, other company -> REJECTED WrongRequest
    ```
 3. **With a fresh record of your own** ($0.01 in test aUSD on Base Sepolia, free from [API3's faucet](https://api3dao.github.io/airnodehub-hackathon/faucet/)):
    ```sh
    cd api3
    # with EVM_RPC_URL and PULSE_PLUS_ADDRESS exported as in 2.
    PAYER_PRIVATE_KEY=0x… scripts/fetch-evidence.sh ch 03778796 response.json   # pays over x402, checks signer and request
-   scripts/plus-submit.sh 0 response.json            # valid -> ACCEPTED clean
-   scripts/plus-submit.sh 0 response.json value      # (a)   -> REJECTED WrongSigner
-   scripts/plus-submit.sh 0 response.json stale      # (b)   -> REJECTED StaleResponse
-   scripts/plus-submit.sh 0 response.json request    # (c)   -> REJECTED WrongRequest
-   scripts/plus-submit.sh 0 response.json key        # (d)   -> REJECTED WrongSigner
+   scripts/plus-submit.sh 5 response.json            # valid -> ACCEPTED clean
+   scripts/plus-submit.sh 5 response.json value      # (a)   -> REJECTED WrongSigner
+   scripts/plus-submit.sh 5 response.json stale      # (b)   -> REJECTED StaleResponse
+   scripts/plus-submit.sh 5 response.json request    # (c)   -> REJECTED WrongRequest
+   scripts/plus-submit.sh 5 response.json key        # (d)   -> REJECTED WrongSigner
    ```
-   `plus-submit.sh` simulates by default; add `--send` to send a real transaction (then the replay answers `Replayed`). Order 0 accepts records while it is active.
+   `plus-submit.sh` simulates by default; add `--send` to send a real transaction (then the replay answers `Replayed`). Order 5 (PO-1006) stays active; order 0 (PO-1001) only accepts records until its last milestone is paid on Sat 15:30.
 
 ## Screenshots
 
