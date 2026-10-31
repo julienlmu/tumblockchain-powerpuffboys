@@ -1,0 +1,336 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap');
+#supplierpulse-ui-concepts { width:100%; }
+#supplierpulse-ui-concepts .sp-app { --sp-page:light-dark(#f7f7f3,#15191e); --sp-panel:light-dark(#ffffff,#1c2229); --sp-subtle:light-dark(#efefea,#232a32); --sp-ink:light-dark(#222b32,#eff1f2); --sp-muted:light-dark(#626b72,#a8b2bd); --sp-line:light-dark(#dedfd8,#343d47); --sp-accent:light-dark(#344b70,#afc4ed); --sp-on-accent:light-dark(#fff,#17243b); --sp-accent-bg:light-dark(#eaf0f8,#273448); --sp-good:light-dark(#2b6651,#a9d7b8); --sp-good-bg:light-dark(#e8f2eb,#253c32); --sp-warn:light-dark(#885720,#ebc18a); --sp-warn-bg:light-dark(#faf0dd,#423627); --sp-red:light-dark(#9d453d,#f1b1a4); --sp-red-bg:light-dark(#f8ece8,#462e2d); --sp-radius:12px; --sp-space:26px; color:var(--sp-ink); background:var(--sp-page); border:1px solid var(--sp-line); border-radius:16px; font:400 13px/1.5 'DM Sans',sans-serif; overflow:clip; }
+#supplierpulse-ui-concepts .sp-stage { min-height:1260px; }
+#supplierpulse-ui-concepts .sp-app * { box-sizing:border-box; }
+#supplierpulse-ui-concepts .sp-ledger-work > *,#supplierpulse-ui-concepts .sp-control-grid > *,#supplierpulse-ui-concepts .sp-paper-grid > *,#supplierpulse-ui-concepts .sp-lab-grid > * { min-width:0; }
+#supplierpulse-ui-concepts .sp-app button,#supplierpulse-ui-concepts .sp-app input,#supplierpulse-ui-concepts .sp-app select,#supplierpulse-ui-concepts .sp-app textarea { font:inherit; }
+#supplierpulse-ui-concepts .sp-app button { color:inherit; }
+#supplierpulse-ui-concepts .sp-app button:disabled { opacity:.65; cursor:not-allowed; }
+#supplierpulse-ui-concepts .sp-app h1,#supplierpulse-ui-concepts .sp-app h2,#supplierpulse-ui-concepts .sp-app h3,#supplierpulse-ui-concepts .sp-app p { margin:0; }
+#supplierpulse-ui-concepts .sp-app h1 { font-size:34px; line-height:1.12; font-weight:500; letter-spacing:-1.2px; }
+#supplierpulse-ui-concepts .sp-app h2 { font-size:17px; line-height:1.3; font-weight:600; letter-spacing:-.3px; }
+#supplierpulse-ui-concepts .sp-app h3 { font-size:13px; font-weight:600; }
+#supplierpulse-ui-concepts .sp-app svg { width:16px; height:16px; flex:none; stroke-width:1.6; }
+#supplierpulse-ui-concepts .sp-muted { color:var(--sp-muted); }
+#supplierpulse-ui-concepts .sp-small { font-size:11px; }
+#supplierpulse-ui-concepts .sp-mono { font:400 11px/1.6 'IBM Plex Mono',monospace; overflow-wrap:anywhere; }
+#supplierpulse-ui-concepts .sp-overline { font-size:11px; letter-spacing:1.6px; text-transform:uppercase; font-weight:600; color:var(--sp-muted); }
+#supplierpulse-ui-concepts .sp-row { display:flex; align-items:center; gap:10px; }
+#supplierpulse-ui-concepts .sp-between { justify-content:space-between; }
+#supplierpulse-ui-concepts .sp-wrap { flex-wrap:wrap; }
+#supplierpulse-ui-concepts .sp-gap { display:grid; gap:20px; }
+#supplierpulse-ui-concepts .sp-brand { display:flex; align-items:center; gap:8px; font-size:16px; letter-spacing:-.6px; font-weight:700; white-space:nowrap; }
+#supplierpulse-ui-concepts .sp-brandmark { display:grid; place-items:center; width:28px; height:28px; background:var(--sp-accent); color:var(--sp-on-accent); border-radius:8px; }
+#supplierpulse-ui-concepts .sp-brandmark svg { width:18px; height:18px; }
+#supplierpulse-ui-concepts .sp-plus { color:var(--sp-accent); margin-left:-7px; font-size:20px; }
+#supplierpulse-ui-concepts .sp-mode { display:inline-flex; align-items:center; padding:3px; background:var(--sp-subtle); border:1px solid var(--sp-line); border-radius:8px; gap:2px; flex:none; }
+#supplierpulse-ui-concepts .sp-mode button { border:0; background:transparent; padding:6px 12px; border-radius:5px; font-size:11px; color:var(--sp-muted); }
+#supplierpulse-ui-concepts .sp-mode button[aria-pressed=true] { background:var(--sp-panel); color:var(--sp-ink); box-shadow:0 1px 4px #00000012; }
+#supplierpulse-ui-concepts .sp-button { display:inline-flex; justify-content:center; align-items:center; gap:8px; border:1px solid var(--sp-line); background:var(--sp-panel); color:var(--sp-ink); border-radius:7px; padding:9px 12px; text-decoration:none; font-weight:500; }
+#supplierpulse-ui-concepts .sp-button.sp-primary { background:var(--sp-accent); border-color:var(--sp-accent); color:var(--sp-on-accent); }
+#supplierpulse-ui-concepts .sp-button.sp-quiet { border:0; padding:4px 0; background:transparent; }
+#supplierpulse-ui-concepts .sp-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border-radius:5px; color:var(--sp-muted); background:var(--sp-subtle); font-size:11px; font-weight:500; white-space:nowrap; }
+#supplierpulse-ui-concepts .sp-pill svg { width:12px; height:12px; }
+#supplierpulse-ui-concepts .sp-pill.sp-positive { color:var(--sp-good); background:var(--sp-good-bg); }
+#supplierpulse-ui-concepts .sp-pill.sp-wait { color:var(--sp-warn); background:var(--sp-warn-bg); }
+#supplierpulse-ui-concepts .sp-pill.sp-negative { color:var(--sp-red); background:var(--sp-red-bg); }
+#supplierpulse-ui-concepts .sp-sheet { background:var(--sp-panel); border:1px solid var(--sp-line); border-radius:var(--sp-radius); }
+#supplierpulse-ui-concepts .sp-padding { padding:20px; }
+#supplierpulse-ui-concepts .sp-rule { height:1px; background:var(--sp-line); margin:18px 0; }
+#supplierpulse-ui-concepts .sp-list { display:grid; }
+#supplierpulse-ui-concepts .sp-line-item { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:12px 0; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-ui-concepts .sp-line-item:last-child { border-bottom:0; }
+#supplierpulse-ui-concepts .sp-preview { display:flex; align-items:center; gap:6px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-ui-concepts .sp-preview svg { width:12px; height:12px; }
+#supplierpulse-ui-concepts .sp-note { display:flex; gap:10px; padding:14px; color:var(--sp-warn); background:var(--sp-warn-bg); border-radius:8px; }
+#supplierpulse-ui-concepts .sp-note svg { margin-top:2px; }
+#supplierpulse-ui-concepts .sp-metric { font-size:43px; line-height:1.1; letter-spacing:-2px; font-weight:500; font-variant-numeric:tabular-nums; }
+#supplierpulse-ui-concepts .sp-metric small { font-size:13px; letter-spacing:0; color:var(--sp-muted); margin-left:5px; }
+#supplierpulse-ui-concepts .sp-progress { height:5px; background:var(--sp-subtle); border-radius:3px; margin:11px 0; display:flex; overflow:hidden; }
+#supplierpulse-ui-concepts .sp-progress span { height:100%; display:block; background:var(--sp-accent); }
+#supplierpulse-ui-concepts .sp-progress .sp-returned { background:var(--sp-muted); opacity:.35; }
+#supplierpulse-ui-concepts .sp-step { display:flex; gap:11px; padding:12px 0; }
+#supplierpulse-ui-concepts .sp-step-icon { width:25px; height:25px; display:grid; place-items:center; background:var(--sp-subtle); border-radius:50%; color:var(--sp-muted); flex:none; }
+#supplierpulse-ui-concepts .sp-step-icon.sp-done { color:var(--sp-good); background:var(--sp-good-bg); }
+#supplierpulse-ui-concepts .sp-step-icon.sp-alert { color:var(--sp-warn); background:var(--sp-warn-bg); }
+#supplierpulse-ui-concepts .sp-kv { margin:0; }
+#supplierpulse-ui-concepts .sp-kv div { display:grid; grid-template-columns:1fr auto; gap:12px; padding:9px 0; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-ui-concepts .sp-kv div:last-child { border:0; }
+#supplierpulse-ui-concepts .sp-kv dt { color:var(--sp-muted); }
+#supplierpulse-ui-concepts .sp-kv dd { margin:0; text-align:right; overflow-wrap:anywhere; max-width:210px; }
+#supplierpulse-ui-concepts .sp-filters { display:flex; gap:5px; flex-wrap:wrap; }
+#supplierpulse-ui-concepts .sp-filters button { border:0; background:transparent; padding:5px 9px; border-radius:5px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-ui-concepts .sp-filters button[aria-pressed=true] { background:var(--sp-accent-bg); color:var(--sp-ink); }
+#supplierpulse-ui-concepts .sp-table-wrap { overflow-x:auto; }
+#supplierpulse-ui-concepts .sp-table { width:100%; border-collapse:collapse; text-align:left; }
+#supplierpulse-ui-concepts .sp-table th { color:var(--sp-muted); font-size:11px; font-weight:500; padding:10px 14px; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-ui-concepts .sp-table td { padding:13px 14px; border-bottom:1px solid var(--sp-line); font-size:12px; }
+#supplierpulse-ui-concepts .sp-table tr:last-child td { border:0; }
+#supplierpulse-ui-concepts .sp-table tr[data-selected=true] td { background:var(--sp-accent-bg); }
+#supplierpulse-ui-concepts .sp-table button { border:0; background:transparent; padding:0; text-align:left; font-weight:500; }
+#supplierpulse-ui-concepts .sp-table .sp-num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+#supplierpulse-ui-concepts .sp-code { background:var(--sp-subtle); padding:14px; border-radius:7px; font:11px/1.8 'IBM Plex Mono',monospace; white-space:pre-wrap; overflow-wrap:anywhere; margin:0; }
+#supplierpulse-ui-concepts .sp-disclosure { margin-top:14px; border-top:1px solid var(--sp-line); padding-top:12px; }
+#supplierpulse-ui-concepts .sp-disclosure > summary { color:var(--sp-muted); font-size:11px; }
+#supplierpulse-ui-concepts .sp-refund-row { display:flex; align-items:center; justify-content:space-between; width:100%; border:0; border-bottom:1px solid var(--sp-line); padding:11px 2px; text-align:left; background:transparent; }
+#supplierpulse-ui-concepts .sp-refund-row:last-child { border-bottom:0; }
+#supplierpulse-ui-concepts .sp-refund-row .sp-row { gap:7px; }
+#supplierpulse-ui-concepts .sp-check { display:flex; gap:8px; align-items:center; font-size:12px; padding:9px 0; }
+#supplierpulse-ui-concepts .sp-check svg { color:var(--sp-good); width:14px; }
+#supplierpulse-ui-concepts .sp-check.sp-expired svg { color:var(--sp-warn); }
+#supplierpulse-ui-concepts .sp-check span:last-child { margin-left:auto; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-ui-concepts .sp-footer { margin-top:24px; padding-top:14px; border-top:1px solid var(--sp-line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-ui-concepts .sp-footer .sp-row { gap:5px; }
+#supplierpulse-ui-concepts .sp-footer svg { width:12px; height:12px; }
+
+/* Ledger: an editorial finance workspace with an enduring side rail. */
+#supplierpulse-ui-concepts .sp-ledger { display:grid; grid-template-columns:145px minmax(0,1fr); }
+#supplierpulse-ui-concepts .sp-ledger-side { border-right:1px solid var(--sp-line); padding:23px 14px; display:flex; flex-direction:column; gap:35px; background:var(--sp-panel); }
+#supplierpulse-ui-concepts .sp-ledger-side .sp-brand { font-size:12px; gap:6px; letter-spacing:-.5px; }
+#supplierpulse-ui-concepts .sp-ledger-side .sp-brandmark { width:23px; height:23px; }
+#supplierpulse-ui-concepts .sp-ledger-side .sp-plus { font-size:16px; margin-left:-6px; }
+#supplierpulse-ui-concepts .sp-side-nav { display:grid; gap:6px; }
+#supplierpulse-ui-concepts .sp-side-nav button { display:flex; align-items:center; gap:8px; text-align:left; background:transparent; border:0; border-radius:6px; padding:9px; color:var(--sp-muted); font-size:11px; }
+#supplierpulse-ui-concepts .sp-side-nav button[aria-current=page] { background:var(--sp-accent-bg); color:var(--sp-ink); }
+#supplierpulse-ui-concepts .sp-side-foot { margin-top:auto; font-size:11px; color:var(--sp-muted); }
+#supplierpulse-ui-concepts .sp-avatar { display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--sp-subtle); font-size:11px; font-weight:600; }
+#supplierpulse-ui-concepts .sp-ledger-main { padding:24px var(--sp-space); min-width:0; }
+#supplierpulse-ui-concepts .sp-ledger h1 { font-family:'Instrument Serif',serif; font-size:43px; font-weight:400; letter-spacing:-.8px; }
+#supplierpulse-ui-concepts .sp-ledger-hero { margin:30px 0 24px; }
+#supplierpulse-ui-concepts .sp-ledger-summary { display:grid; grid-template-columns:1.35fr 1fr 1fr; gap:16px; padding:23px 0; border-bottom:1px solid var(--sp-line); margin-bottom:22px; }
+#supplierpulse-ui-concepts .sp-ledger-summary .sp-metric { margin-top:8px; }
+#supplierpulse-ui-concepts .sp-ledger-summary .sp-summary-minor { font-size:24px; letter-spacing:-.8px; margin-top:12px; font-variant-numeric:tabular-nums; }
+#supplierpulse-ui-concepts .sp-ledger-work { display:grid; grid-template-columns:minmax(0,1fr) 225px; gap:20px; align-items:start; }
+#supplierpulse-ui-concepts .sp-order-choice { width:100%; background:var(--sp-panel); border:1px solid var(--sp-line); border-radius:8px; padding:16px; text-align:left; display:block; margin:10px 0; }
+#supplierpulse-ui-concepts .sp-order-choice[aria-pressed=true] { border-color:var(--sp-accent); background:var(--sp-accent-bg); }
+#supplierpulse-ui-concepts .sp-choice-title { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+#supplierpulse-ui-concepts .sp-choice-title strong { display:block; font-size:13px; font-weight:600; }
+#supplierpulse-ui-concepts .sp-choice-title .sp-amount { font-size:16px; letter-spacing:-.5px; white-space:nowrap; }
+#supplierpulse-ui-concepts .sp-choice-bottom { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+
+/* Control Room: a horizontal, precision-first operations desk. */
+#supplierpulse-ui-concepts .sp-control { --sp-page:light-dark(#edf0eb,#111714); --sp-panel:light-dark(#f9fbf8,#18211b); --sp-subtle:light-dark(#e5ebe1,#202c23); --sp-ink:light-dark(#203025,#edf3e9); --sp-muted:light-dark(#596c5d,#9eafa1); --sp-line:light-dark(#cdd7ca,#344337); --sp-accent:light-dark(#345a35,#d0e8a0); --sp-on-accent:light-dark(#fff,#20301b); --sp-accent-bg:light-dark(#e1ebd8,#2c3c25); font-family:'Manrope',sans-serif; }
+#supplierpulse-ui-concepts .sp-control-top { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:19px var(--sp-space); border-bottom:1px solid var(--sp-line); background:var(--sp-panel); }
+#supplierpulse-ui-concepts .sp-control-nav { display:flex; gap:20px; align-items:center; }
+#supplierpulse-ui-concepts .sp-control-nav button { border:0; background:transparent; color:var(--sp-muted); font-size:11px; padding:5px 0; }
+#supplierpulse-ui-concepts .sp-control-nav button[aria-current=page] { color:var(--sp-ink); }
+#supplierpulse-ui-concepts .sp-control-main { padding:26px var(--sp-space); }
+#supplierpulse-ui-concepts .sp-control-head { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:15px 0 25px; }
+#supplierpulse-ui-concepts .sp-control h1 { font-size:33px; font-weight:600; letter-spacing:-1.5px; }
+#supplierpulse-ui-concepts .sp-control-stats { display:grid; grid-template-columns:1.4fr 1fr 1fr; margin:20px 0 24px; border:1px solid var(--sp-line); border-radius:var(--sp-radius); background:var(--sp-panel); }
+#supplierpulse-ui-concepts .sp-control-stats > div { padding:20px; border-right:1px solid var(--sp-line); }
+#supplierpulse-ui-concepts .sp-control-stats > div:last-child { border:0; }
+#supplierpulse-ui-concepts .sp-control-stats .sp-metric { font-family:'Manrope',sans-serif; font-size:37px; margin:9px 0; font-weight:500; }
+#supplierpulse-ui-concepts .sp-control-grid { display:grid; grid-template-columns:minmax(0,1fr) 245px; gap:20px; }
+#supplierpulse-ui-concepts .sp-task { border:1px solid var(--sp-line); border-radius:var(--sp-radius); background:var(--sp-panel); padding:21px; margin-bottom:12px; }
+#supplierpulse-ui-concepts .sp-task.sp-focus { background:var(--sp-accent-bg); border-color:var(--sp-accent); }
+#supplierpulse-ui-concepts .sp-task-number { color:var(--sp-muted); font:11px 'IBM Plex Mono',monospace; }
+#supplierpulse-ui-concepts .sp-task h2 { font-size:20px; margin:13px 0 9px; }
+#supplierpulse-ui-concepts .sp-path { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:18px 0; }
+#supplierpulse-ui-concepts .sp-path span { display:flex; align-items:center; gap:6px; background:var(--sp-panel); border-radius:5px; padding:6px 8px; font-size:11px; }
+#supplierpulse-ui-concepts .sp-path > svg { width:13px; color:var(--sp-muted); }
+#supplierpulse-ui-concepts .sp-log-line { padding:12px 0; border-bottom:1px solid var(--sp-line); display:flex; gap:9px; }
+#supplierpulse-ui-concepts .sp-log-line:last-child { border:0; }
+#supplierpulse-ui-concepts .sp-log-line > span { font:11px/1.8 'IBM Plex Mono',monospace; color:var(--sp-muted); }
+#supplierpulse-ui-concepts .sp-log-line p { font-size:11px; }
+
+/* Agreement: an order-first workspace, with a paper-like review canvas. */
+#supplierpulse-ui-concepts .sp-agreement { --sp-page:light-dark(#f1eee7,#1c1917); --sp-panel:light-dark(#fbfaf7,#27221e); --sp-subtle:light-dark(#eae5db,#332c26); --sp-ink:light-dark(#352f28,#f0e8dc); --sp-muted:light-dark(#746b5f,#b9ad9e); --sp-line:light-dark(#d9d1c4,#493e33); --sp-accent:light-dark(#8c4c32,#e1b99c); --sp-on-accent:light-dark(#fff,#332014); --sp-accent-bg:light-dark(#f0e1d3,#493224); }
+#supplierpulse-ui-concepts .sp-agreement-top { padding:20px var(--sp-space); display:flex; align-items:center; justify-content:space-between; gap:15px; border-bottom:1px solid var(--sp-line); }
+#supplierpulse-ui-concepts .sp-agreement-body { display:grid; grid-template-columns:205px minmax(0,1fr); }
+#supplierpulse-ui-concepts .sp-agreement-side { padding:25px 14px; border-right:1px solid var(--sp-line); }
+#supplierpulse-ui-concepts .sp-agreement-side h2 { padding:0 9px 15px; font-size:14px; }
+#supplierpulse-ui-concepts .sp-doc-choice { width:100%; padding:13px 10px; display:flex; gap:9px; text-align:left; border:1px solid transparent; border-radius:7px; background:transparent; margin-bottom:5px; }
+#supplierpulse-ui-concepts .sp-doc-choice[aria-pressed=true] { background:var(--sp-panel); border-color:var(--sp-line); }
+#supplierpulse-ui-concepts .sp-doc-choice > svg { margin-top:3px; color:var(--sp-accent); }
+#supplierpulse-ui-concepts .sp-doc-choice strong { display:block; font-size:11px; font-weight:600; }
+#supplierpulse-ui-concepts .sp-doc-choice small { display:block; color:var(--sp-muted); font-size:11px; margin-top:4px; }
+#supplierpulse-ui-concepts .sp-agreement-main { padding:25px var(--sp-space); min-width:0; }
+#supplierpulse-ui-concepts .sp-agreement h1 { font:400 39px/1.08 'Instrument Serif',serif; letter-spacing:-.7px; }
+#supplierpulse-ui-concepts .sp-paper { --sp-paper:light-dark(#fffdf6,#e9e0cd); --sp-paper-ink:#3d3930; background:var(--sp-paper); color:var(--sp-paper-ink); padding:28px; border-radius:3px; box-shadow:0 5px 20px #0000000b; margin:22px 0; border-top:3px solid var(--sp-accent); }
+#supplierpulse-ui-concepts .sp-paper .sp-muted,#supplierpulse-ui-concepts .sp-paper .sp-overline { color:#726d61; }
+#supplierpulse-ui-concepts .sp-paper h2 { font:400 29px/1.15 'Instrument Serif',serif; letter-spacing:-.5px; margin:12px 0 10px; }
+#supplierpulse-ui-concepts .sp-paper .sp-rule { background:#d9d1c3; }
+#supplierpulse-ui-concepts .sp-paper-dl { display:grid; grid-template-columns:1fr 1fr; gap:17px; margin:20px 0; }
+#supplierpulse-ui-concepts .sp-paper-dl small { color:#726d61; font-size:11px; display:block; margin-bottom:3px; }
+#supplierpulse-ui-concepts .sp-paper-dl strong { font-size:12px; font-weight:500; }
+#supplierpulse-ui-concepts .sp-paper-grid { display:grid; grid-template-columns:minmax(0,1fr) 190px; gap:20px; }
+#supplierpulse-ui-concepts .sp-paper-mark { width:39px; height:39px; display:grid; place-items:center; border:1px solid #c4bba9; border-radius:50%; color:#706144; }
+#supplierpulse-ui-concepts .sp-paper-mark svg { width:21px; height:21px; }
+#supplierpulse-ui-concepts .sp-paper-steps { border-top:1px solid #d9d1c3; }
+#supplierpulse-ui-concepts .sp-paper-step { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid #d9d1c3; font-size:12px; }
+#supplierpulse-ui-concepts .sp-paper-step > span:first-child { font:11px 'IBM Plex Mono',monospace; width:20px; color:#726d61; }
+#supplierpulse-ui-concepts .sp-paper-step > span:last-child { margin-left:auto; white-space:nowrap; }
+#supplierpulse-ui-concepts .sp-agreement-facts { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+/* The verification task keeps the same meaning in every visual direction. */
+#supplierpulse-ui-concepts .sp-lab-heading { margin:25px 0; }
+#supplierpulse-ui-concepts .sp-lab-grid { display:grid; grid-template-columns:minmax(0,1fr) 245px; gap:20px; }
+#supplierpulse-ui-concepts .sp-cases { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin:17px 0; }
+#supplierpulse-ui-concepts .sp-case { display:flex; align-items:center; gap:9px; text-align:left; border:1px solid var(--sp-line); border-radius:7px; padding:12px; background:var(--sp-panel); min-width:0; }
+#supplierpulse-ui-concepts .sp-case[aria-pressed=true] { border-color:var(--sp-accent); background:var(--sp-accent-bg); }
+#supplierpulse-ui-concepts .sp-case span { display:block; font-size:11px; }
+#supplierpulse-ui-concepts .sp-case small { color:var(--sp-muted); font-size:11px; }
+#supplierpulse-ui-concepts .sp-result { padding:23px; background:var(--sp-good-bg); color:var(--sp-good); border-radius:var(--sp-radius); margin:18px 0; }
+#supplierpulse-ui-concepts .sp-result.sp-rejected { background:var(--sp-red-bg); color:var(--sp-red); }
+#supplierpulse-ui-concepts .sp-result h2 { font-size:25px; margin:12px 0 8px; }
+#supplierpulse-ui-concepts .sp-app .sp-result p { font-size:12px; }
+@media(max-width:900px) {
+  #supplierpulse-ui-concepts .sp-ledger-work,#supplierpulse-ui-concepts .sp-control-grid,#supplierpulse-ui-concepts .sp-lab-grid { grid-template-columns:1fr; }
+  #supplierpulse-ui-concepts .sp-ledger-work > aside,#supplierpulse-ui-concepts .sp-control-grid > aside { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  #supplierpulse-ui-concepts .sp-ledger-work > aside > .sp-sheet,#supplierpulse-ui-concepts .sp-control-grid > aside > .sp-sheet { margin:0!important; }
+  #supplierpulse-ui-concepts .sp-paper-grid { grid-template-columns:1fr; }
+  #supplierpulse-ui-concepts .sp-agreement-body { grid-template-columns:175px minmax(0,1fr); }
+  #supplierpulse-ui-concepts .sp-stage { min-height:1900px; }
+}
+@media(max-width:620px) {
+  #supplierpulse-ui-concepts .sp-app { --sp-space:18px; }
+  #supplierpulse-ui-concepts .sp-ledger { grid-template-columns:1fr; }
+  #supplierpulse-ui-concepts .sp-ledger-side { padding:15px 18px; flex-direction:row; justify-content:space-between; align-items:center; gap:10px; border-right:0; border-bottom:1px solid var(--sp-line); flex-wrap:wrap; }
+  #supplierpulse-ui-concepts .sp-side-nav { display:flex; gap:6px; }
+  #supplierpulse-ui-concepts .sp-side-nav button { padding:7px; }
+  #supplierpulse-ui-concepts .sp-side-foot { display:none; }
+  #supplierpulse-ui-concepts .sp-ledger h1 { font-size:36px; }
+  #supplierpulse-ui-concepts .sp-ledger-summary { gap:10px; }
+  #supplierpulse-ui-concepts .sp-ledger-summary .sp-metric { font-size:34px; }
+  #supplierpulse-ui-concepts .sp-ledger-summary .sp-summary-minor { font-size:21px; }
+  #supplierpulse-ui-concepts .sp-control-top,#supplierpulse-ui-concepts .sp-control-head,#supplierpulse-ui-concepts .sp-agreement-top { flex-wrap:wrap; }
+  #supplierpulse-ui-concepts .sp-control-top { gap:15px; }
+  #supplierpulse-ui-concepts .sp-control-stats > div { padding:14px 10px; }
+  #supplierpulse-ui-concepts .sp-control-stats .sp-metric { font-size:29px; letter-spacing:-1px; }
+  #supplierpulse-ui-concepts .sp-control-nav { gap:15px; }
+  #supplierpulse-ui-concepts .sp-agreement-body { grid-template-columns:1fr; }
+  #supplierpulse-ui-concepts .sp-agreement-side { border-right:0; border-bottom:1px solid var(--sp-line); padding:15px 18px; }
+  #supplierpulse-ui-concepts .sp-agreement-side .sp-doc-list { display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+  #supplierpulse-ui-concepts .sp-agreement-side .sp-doc-choice { margin:0; }
+  #supplierpulse-ui-concepts .sp-agreement-side h2 { padding:0 0 8px; }
+  #supplierpulse-ui-concepts .sp-paper { padding:20px; }
+  #supplierpulse-ui-concepts .sp-stage { min-height:2400px; }
+}
+@media(max-width:390px) {
+  #supplierpulse-ui-concepts .sp-ledger-work > aside,#supplierpulse-ui-concepts .sp-control-grid > aside,#supplierpulse-ui-concepts .sp-agreement-facts,#supplierpulse-ui-concepts .sp-cases { grid-template-columns:1fr; }
+  #supplierpulse-ui-concepts .sp-ledger-summary .sp-metric { font-size:29px; }
+  #supplierpulse-ui-concepts .sp-ledger-summary .sp-summary-minor { font-size:19px; }
+  #supplierpulse-ui-concepts .sp-ledger-summary .sp-overline { font-size:11px; letter-spacing:.7px; }
+  #supplierpulse-ui-concepts .sp-agreement-side .sp-doc-list { grid-template-columns:1fr; }
+}
+</style>
+
+<div id="supplierpulse-ui-concepts">
+  <div class="viz-carousel" aria-label="SupplierPulse arayüz tasarımları" data-previous-label="Önceki tasarım" data-next-label="Sonraki tasarım">
+    <section data-variant="Ledger" aria-label="Ledger tasarımı">
+      <div class="sp-app sp-stage sp-ledger" id="sp-ledger" aria-label="Ledger finans çalışma alanı"></div>
+    </section>
+    <section data-variant="Control Room" aria-label="Control Room tasarımı" hidden>
+      <div class="sp-app sp-stage sp-control" id="sp-control" aria-label="Control Room operasyon çalışma alanı"></div>
+    </section>
+    <section data-variant="Agreement" aria-label="Agreement tasarımı" hidden>
+      <div class="sp-app sp-stage sp-agreement" id="sp-agreement" aria-label="Agreement sipariş çalışma alanı"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const root = document.getElementById('supplierpulse-ui-concepts');
+  const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+  const money = (n) => Number(n).toLocaleString('en-GB');
+  const orders = [
+    {id:0,name:'Motor supply',ref:'PO-1001',registry:'Companies House',source:'CH',supplier:'03778796',total:3000,paid:500,remaining:2500,next:1000,steps:[500,1000,1500],closed:false,reason:'Payment permit expired',detail:'A fresh signed record is needed before the next milestone can be paid.',tier:'Premium',raw:'{\n  "status": "active",\n  "accounts_overdue": false,\n  "confirmation_overdue": false\n}',fields:[['Company status','Active'],['Accounts','Filed'],['Confirmation statement','Filed']]},
+    {id:1,name:'Gearbox',ref:'PO-1002',registry:'Companies House',source:'CH',supplier:'07418033',total:3000,paid:0,remaining:0,next:0,steps:[1000,2000],closed:true,reason:'Company in liquidation',detail:'The registry status failed. All remaining funds were returned to the buyer.',tier:'Standard',raw:'{\n  "status": "liquidation",\n  "accounts_overdue": true,\n  "confirmation_overdue": true\n}',fields:[['Company status','Liquidation'],['Accounts','Overdue'],['Confirmation statement','Overdue']]},
+    {id:2,name:'Sensors',ref:'PO-1003',registry:'Companies House',source:'CH',supplier:'09729896',total:1000,paid:0,remaining:0,next:0,steps:[500,500],closed:true,reason:'Accounts overdue',detail:'The buyer’s filing rule failed. The company being active was not enough to permit payment.',tier:'Standard',raw:'{\n  "status": "active",\n  "accounts_overdue": true,\n  "confirmation_overdue": true\n}',fields:[['Company status','Active'],['Accounts','Overdue'],['Confirmation statement','Overdue']]},
+    {id:3,name:'Cable harness',ref:'PO-1004',registry:'GLEIF',source:'LEI',supplier:'391200JI69LS8L648F30',total:1500,paid:500,remaining:1000,next:1000,steps:[500,1000],closed:false,reason:'Payment permit expired',detail:'The previous record passed the rules. A new record is required for the next payment.',tier:'Trusted',raw:'{\n  "entity_status": "ACTIVE",\n  "registration_status": "ISSUED"\n}',fields:[['Entity status','Active'],['LEI registration','Issued']]},
+    {id:4,name:'Castings',ref:'PO-1005',registry:'GLEIF',source:'LEI',supplier:'52990092KBQJF8QBGJ50',total:1000,paid:0,remaining:0,next:0,steps:[500,500],closed:true,reason:'LEI renewal overdue',detail:'The LEI registration lapsed. The order was refunded; this does not mean the entity is bankrupt.',tier:'Standard',raw:'{\n  "entity_status": "ACTIVE",\n  "registration_status": "LAPSED"\n}',fields:[['Entity status','Active'],['LEI registration','Lapsed']]}
+  ];
+  const cases = [
+    {key:'valid',name:'Fresh, matching record',sub:'Expected Airnode and request',error:'Permit issued',good:true,why:'A fresh clean record can issue a payment permit. Buyer approval and the due date still control release.'},
+    {key:'value',name:'Edited value',sub:'Original signature, changed data',error:'WrongSigner',why:'Changing a signed value changes the recovered signer. The record must be rejected.'},
+    {key:'old',name:'Genuine old record',sub:'Untouched, signed earlier',error:'StaleResponse',why:'The signed record is authentic but outside the accepted age window.'},
+    {key:'request',name:'Other company',sub:'Genuine different-request record',error:'WrongRequest',why:'An authentic record for a different supplier cannot authorize this order.'},
+    {key:'key',name:'Wrong signing key',sub:'Signed by a different key',error:'WrongSigner',why:'Only the configured Airnode signer for this registry is accepted.'},
+    {key:'replay',name:'Previously used record',sub:'Same digest a second time',error:'Replayed',why:'The contract refuses an already consumed signed response.'}
+  ];
+  const states = {};
+  const brand = () => `<div class="sp-brand"><span class="sp-brandmark">${icon('activity')}</span>SupplierPulse<span class="sp-plus">+</span></div>`;
+  const badge = (o) => `<span class="sp-pill ${o.closed?'':'sp-wait'}">${icon(o.closed?'rotate-ccw':'clock-3')}${o.closed?'Refunded':'Fresh check needed'}</span>`;
+  const preview = () => `<span class="sp-preview">${icon('flask-conical')}Design preview · sample data</span>`;
+  const mode = (s) => `<div class="sp-mode" role="group" aria-label="Information density"><button class="cursor-interaction" data-mode="simple" aria-pressed="${s.mode==='simple'}">Simple</button><button class="cursor-interaction" data-mode="complex" aria-pressed="${s.mode==='complex'}">Complex</button></div>`;
+  const footer = () => `<footer class="sp-footer"><span class="sp-row">${icon('hexagon')}Ethereum Sepolia · demo units</span><span>No wallet connection or payments in this preview</span></footer>`;
+  const selected = (s) => orders.find(o=>o.id===s.order)||orders[0];
+  const kv = (pairs) => `<dl class="sp-kv">${pairs.map(([a,b])=>`<div><dt>${a}</dt><dd>${b}</dd></div>`).join('')}</dl>`;
+  const filters = (s) => `<div class="sp-filters" role="group" aria-label="Filter orders">${[['all','All orders'],['open','Open'],['closed','Refunded']].map(([k,l])=>`<button class="cursor-interaction" data-filter="${k}" aria-pressed="${s.filter===k}">${l}</button>`).join('')}</div>`;
+  const table = (s) => `<div class="sp-table-wrap"><table class="sp-table"><thead><tr><th>Order</th><th>Registry</th><th>Status</th><th class="sp-num">Remaining</th></tr></thead><tbody>${orders.filter(o=>s.filter==='all'||(s.filter==='closed' ? o.closed : !o.closed)).map(o=>`<tr data-selected="${o.id===s.order}"><td><button class="cursor-interaction" data-order="${o.id}" aria-label="Open ${o.name}">${o.name}</button><div class="sp-muted sp-small">${o.ref}</div></td><td class="sp-muted">${o.source}</td><td>${badge(o)}</td><td class="sp-num">${money(o.remaining)}</td></tr>`).join('')}</tbody></table></div>`;
+  const milestone = (o) => o.steps.map((amount,i)=>`<div class="sp-step"><span class="sp-step-icon ${o.paid>0&&i===0?'sp-done':(!o.closed&&i===1?'sp-alert':'')}">${icon(o.paid>0&&i===0?'check':o.closed?'minus':'clock-3')}</span><div style="flex:1"><div class="sp-row sp-between"><span>Milestone ${i+1}</span><strong>${money(amount)}</strong></div><div class="sp-small sp-muted">${o.paid>0&&i===0?'Paid to supplier':o.closed?'Closed · refunded to buyer':i===1?'Buyer approved · awaiting fresh check':'Upcoming'}</div></div></div>`).join('');
+  const notice = (o) => `<div class="sp-note">${icon(o.closed?'rotate-ccw':'clock-3')}<div><strong>${o.closed?'Order closed':o.reason}</strong><p class="sp-small" style="margin-top:4px">${o.detail}</p></div></div>`;
+  const details = (o,complex=false) => `<div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>${o.ref}</h3>${icon('file-check-2')}</div><h2 style="margin-top:8px">${o.name}</h2><p class="sp-small sp-muted" style="margin:5px 0 18px">${o.registry} · ${o.supplier}</p><div class="sp-overline">${o.closed?'Returned to buyer':'Next milestone'}</div><div style="font-size:31px;letter-spacing:-1px;margin:5px 0 12px">${money(o.closed?o.total-o.paid:o.next)} <span class="sp-small sp-muted" style="letter-spacing:0">demo units</span></div>${notice(o)}${complex?`<details class="sp-disclosure"><summary class="cursor-interaction">Milestones and policy</summary>${milestone(o)}${kv([['Permit',o.closed?'None · order closed':'Expired'],['Submission max age','300 seconds'],['Permit lifetime','1,800 seconds'],['History tier',o.tier]])}</details>`:`<button class="sp-button sp-quiet cursor-interaction" data-mode="complex" style="margin-top:13px">Review milestones ${icon('arrow-right')}</button>`}</div>`;
+  const proof = (o) => `<div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>Signed registry record</h3><span class="sp-pill">${o.source}</span></div><p class="sp-small sp-muted" style="margin:8px 0 13px">Last accepted record · historical example</p><div>${o.fields.map(([a,b])=>`<div class="sp-line-item sp-small"><span class="sp-muted">${a}</span><span>${b}</span></div>`).join('')}</div><details class="sp-disclosure"><summary class="cursor-interaction">Exact signed fields</summary><pre class="sp-code" style="margin-top:12px">${o.raw}</pre></details><div class="sp-rule"></div><div class="sp-small sp-muted">An authentic registry record does not prove delivery or wallet ownership.</div></div>`;
+  const checks = () => `<div class="sp-sheet sp-padding"><h3>Release conditions</h3><div style="margin-top:10px"><div class="sp-check">${icon('circle-check')}Buyer approval<span>Approved</span></div><div class="sp-check">${icon('circle-check')}Registry rules<span>Last check passed</span></div><div class="sp-check sp-expired">${icon('clock-3')}Payment permit<span>Expired</span></div><div class="sp-check sp-expired">${icon('calendar-clock')}Milestone due<span>Upcoming</span></div></div><button class="sp-button" disabled style="width:100%;margin-top:12px">${icon('lock-keyhole')}Payment unavailable</button></div>`;
+  const eventLog = (o) => `<details class="sp-sheet sp-padding"><summary class="cursor-interaction">Decision trail</summary><div class="sp-log-line"><span>01</span><p>Buyer funded the order.<br><span class="sp-muted">${money(o.total)} demo units locked.</span></p></div><div class="sp-log-line"><span>02</span><p>Airnode record accepted.<br><span class="sp-muted">${o.registry} · ${o.supplier}</span></p></div><div class="sp-log-line"><span>03</span><p>${o.closed?'Funds returned to buyer.':'First milestone paid.'}<br><span class="sp-muted">${o.closed?o.reason:money(o.paid)+' demo units released.'}</span></p></div></details>`;
+
+  function lab(s) {
+    const c=cases.find(c=>c.key===s.test)||cases[0];
+    return `<div class="sp-lab-heading"><div class="sp-overline">Verification lab</div><h1 style="margin-top:10px">Trust the proof.</h1><p class="sp-muted" style="margin-top:9px">A clear answer for every signed record.</p></div><div class="sp-lab-grid"><section><div class="sp-row sp-between"><h3>Choose a scenario</h3><span class="sp-pill">Illustrative outcomes</span></div><div class="sp-cases">${cases.filter((c,i)=>s.mode==='complex'||i!==5).map(c=>`<button class="sp-case cursor-interaction" data-case="${c.key}" aria-pressed="${c.key===s.test}">${icon(c.good?'file-check-2':'shield-alert')}<div><span>${c.name}</span><small>${c.sub}</small></div></button>`).join('')}</div><div class="sp-result ${c.good?'':'sp-rejected'}" role="status">${icon(c.good?'shield-check':'shield-x')}<div class="sp-overline" style="color:inherit;margin-top:12px">Expected contract result</div><h2>${c.error}</h2><p>${c.why}</p></div>${s.mode==='complex'?`<div class="sp-sheet sp-padding"><h3>Verification order</h3>${kv([['1 · Request','Supplier-bound request hash'],['2 · Time','Fresh signed timestamp'],['3 · Signature','Configured Airnode'],['4 · Replay','Unused response digest'],['5 · Policy','Buyer’s registry rules']])}</div>`:''}</section><aside><div class="sp-sheet sp-padding"><h3>From record to payment</h3><div class="sp-step"><span class="sp-step-icon">1</span><div>Authenticate record<p class="sp-small sp-muted">Signer, request and timing.</p></div></div><div class="sp-step"><span class="sp-step-icon">2</span><div>Issue permit or hold<p class="sp-small sp-muted">Apply the order’s rules.</p></div></div><div class="sp-step"><span class="sp-step-icon">3</span><div>Release only when eligible<p class="sp-small sp-muted">Buyer approval + due date + valid permit.</p></div></div><div class="sp-rule"></div><p class="sp-small sp-muted">These are design examples. No record is submitted and no transaction is sent.</p></div></aside></div>`;
+  }
+
+  function ledger(s) {
+    const o=selected(s);
+    return `<aside class="sp-ledger-side">${brand()}<nav class="sp-side-nav" aria-label="Main navigation"><button class="cursor-interaction" data-page="orders" ${s.page==='orders'?'aria-current="page"':''}>${icon('layout-dashboard')}Payments</button><button class="cursor-interaction" data-page="lab" ${s.page==='lab'?'aria-current="page"':''}>${icon('shield-check')}Verify a record</button></nav><div class="sp-side-foot"><div class="sp-overline">Workspace</div><div class="sp-row" style="margin-top:12px"><span class="sp-avatar">PP</span><span>Powerpuffgirls<br>Demo workspace</span></div></div></aside><main class="sp-ledger-main"><div class="sp-row sp-between sp-wrap">${preview()}${mode(s)}</div>${s.page==='lab'?lab(s):`<header class="sp-ledger-hero"><div class="sp-overline">Payments / Overview</div><h1 style="margin:10px 0">Every payment,<br>with a reason.</h1><p class="sp-muted">See what’s paid, what’s protected, and what happens next.</p></header><div class="sp-ledger-summary"><div><div class="sp-overline">Remaining in escrow</div><div class="sp-metric">3,500</div><div class="sp-small sp-muted" style="margin-top:8px">demo units · 2 open orders</div></div><div><div class="sp-overline">Paid to suppliers</div><div class="sp-summary-minor">1,000</div><div class="sp-small sp-muted" style="margin-top:8px">2 milestones</div></div><div><div class="sp-overline">Returned to buyer</div><div class="sp-summary-minor">5,000</div><div class="sp-small sp-muted" style="margin-top:8px">3 refunded orders</div></div></div><div class="sp-ledger-work"><section><div class="sp-row sp-between sp-wrap"><h2>${s.mode==='simple'?'Your orders':'Payment register'}</h2>${s.mode==='complex'?filters(s):'<span class="sp-small sp-muted">5 orders</span>'}</div>${s.mode==='complex'?`<div class="sp-sheet" style="margin-top:14px">${table(s)}</div><div style="margin-top:16px">${proof(o)}</div>`:orders.map(x=>`<button class="sp-order-choice cursor-interaction" data-order="${x.id}" aria-pressed="${x.id===s.order}"><div class="sp-choice-title"><div><strong>${x.name}</strong><span class="sp-small sp-muted">${x.ref} · ${x.registry}</span></div><span class="sp-amount">${money(x.remaining)}</span></div><div class="sp-choice-bottom">${badge(x)}${icon('arrow-up-right')}</div></button>`).join('')}</section><aside>${details(o,s.mode==='complex')}<div class="sp-sheet sp-padding" style="margin-top:14px"><div class="sp-row">${icon('shield-check')}<h3>Two conditions, one payment</h3></div><p class="sp-small sp-muted" style="margin-top:9px">The buyer approves the stage. A valid registry permit authorizes the payment.</p><button class="sp-button sp-quiet cursor-interaction" data-page="lab" style="margin-top:13px">Explore verification ${icon('arrow-right')}</button></div></aside></div>`}${footer()}</main>`;
+  }
+  function control(s) {
+    const o=selected(s);
+    return `<header class="sp-control-top">${brand()}<nav class="sp-control-nav" aria-label="Main navigation"><button class="cursor-interaction" data-page="orders" ${s.page==='orders'?'aria-current="page"':''}>Operations</button><button class="cursor-interaction" data-page="lab" ${s.page==='lab'?'aria-current="page"':''}>Verification lab</button></nav><span class="sp-pill">${icon('hexagon')}Sepolia</span></header><main class="sp-control-main"><div class="sp-row sp-between sp-wrap">${preview()}${mode(s)}</div>${s.page==='lab'?lab(s):`<div class="sp-control-head"><div><div class="sp-overline">Supplier monitoring</div><h1 style="margin-top:10px">Know why money moves.</h1></div><span class="sp-pill sp-wait">${icon('clock-3')}2 checks needed</span></div><div class="sp-control-stats"><div><div class="sp-overline">Escrow remaining</div><div class="sp-metric">3,500</div><div class="sp-small sp-muted">Demo units across open orders</div></div><div><div class="sp-overline">Open / total</div><div class="sp-metric">2 <small>/ 5</small></div><div class="sp-small sp-muted">3 orders refunded</div></div><div><div class="sp-overline">Registries</div><div class="sp-metric">2</div><div class="sp-small sp-muted">Companies House + GLEIF</div></div></div><div class="sp-control-grid"><section>${s.mode==='complex'?`<div class="sp-row sp-between sp-wrap" style="margin-bottom:14px"><h2>Order monitor</h2>${filters(s)}</div><div class="sp-sheet">${table(s)}</div><div class="sp-sheet sp-padding" style="margin-top:18px"><div class="sp-row sp-between"><h3>Evidence / ${o.ref}</h3><span class="sp-pill">${o.source}</span></div><pre class="sp-code" style="margin-top:12px">${o.raw}</pre><div class="sp-row sp-between sp-wrap" style="margin-top:13px"><span class="sp-small sp-muted">${o.registry} · ${o.supplier}</span>${badge(o)}</div></div>`:`<div class="sp-row sp-between" style="margin-bottom:14px"><h2>Next decisions</h2><span class="sp-mono">02 pending</span></div>${orders.filter(x=>!x.closed).map(x=>`<article class="sp-task ${x.id===s.order?'sp-focus':''}"><div class="sp-row sp-between"><span class="sp-task-number">${x.ref} / ${x.source}</span>${icon('radar')}</div><h2>${x.name}</h2><p class="sp-small sp-muted">${x.detail}</p><div class="sp-path"><span>${icon('check')}Buyer approved</span>${icon('arrow-right')}<span>${icon('clock-3')}Fresh record needed</span></div><div class="sp-row sp-between"><span class="sp-small"><strong>${money(x.remaining)}</strong> still in escrow</span><button class="sp-button cursor-interaction" data-order="${x.id}">Inspect ${icon('arrow-up-right')}</button></div></article>`).join('')}<p class="sp-small sp-muted" style="margin-top:14px">Three orders were closed after refunds to the buyer.</p>`}</section><aside>${o.closed?details(o):checks()}<div class="sp-sheet sp-padding" style="margin-top:16px"><div class="sp-row sp-between"><h3>Agent policy</h3>${icon('bot')}</div>${kv([['Profile','Demo'],['Tick interval','30 seconds'],['Max fetches / tick','3'],['History tier',o.tier]])}<p class="sp-small sp-muted" style="margin-top:12px">Configuration example, not a live agent heartbeat.</p></div>${s.mode==='complex'?`<div style="margin-top:16px">${eventLog(o)}</div>`:''}</aside></div>`}${footer()}</main>`;
+  }
+  function agreement(s) {
+    const o=selected(s);
+    return `<header class="sp-agreement-top">${brand()}<div class="sp-row sp-wrap"><nav class="sp-control-nav" aria-label="Main navigation"><button class="cursor-interaction" data-page="orders" ${s.page==='orders'?'aria-current="page"':''}>Orders</button><button class="cursor-interaction" data-page="lab" ${s.page==='lab'?'aria-current="page"':''}>Verify</button></nav>${mode(s)}</div></header><div class="sp-agreement-body"><aside class="sp-agreement-side"><h2>Order workspace</h2><div class="sp-doc-list">${orders.map(x=>`<button class="sp-doc-choice cursor-interaction" data-order="${x.id}" aria-pressed="${x.id===s.order}">${icon(x.closed?'file-check-2':'file-clock')}<div><strong>${x.name}</strong><small>${x.ref} · ${x.closed?'Refunded':'Open'}</small></div></button>`).join('')}</div><div class="sp-rule"></div><div class="sp-small sp-muted" style="padding:0 9px">Remaining in escrow<br><strong style="font-size:22px;color:var(--sp-ink)">3,500</strong> demo units</div></aside><main class="sp-agreement-main">${preview()}${s.page==='lab'?lab(s):`<div class="sp-row sp-between sp-wrap" style="margin-top:24px"><div><div class="sp-overline">${o.ref} / Order review</div><h1 style="margin-top:8px">${o.name}</h1></div>${badge(o)}</div><div class="sp-paper-grid"><section><article class="sp-paper"><div class="sp-row sp-between"><div><div class="sp-overline">SupplierPulse+ / Purchase order</div><h2>A clear agreement.<br>A controlled payment.</h2></div><div class="sp-paper-mark">${icon('file-check-2')}</div></div><div class="sp-paper-dl"><div><small>Registry</small><strong>${o.registry}</strong></div><div><small>Supplier reference</small><strong class="sp-mono">${o.supplier}</strong></div><div><small>Order amount</small><strong>${money(o.total)} demo units</strong></div><div><small>Paid to supplier</small><strong>${money(o.paid)} demo units</strong></div></div><div class="sp-paper-steps">${o.steps.map((amount,i)=>`<div class="sp-paper-step"><span>0${i+1}</span><div><strong style="font-weight:500">${i===0?'Initial stage':i===1?'Second stage':'Final stage'}</strong><div class="sp-small sp-muted">${o.paid&&i===0?'Paid':o.closed?'Closed after refund':'Not paid'}</div></div><span>${money(amount)}</span></div>`).join('')}</div><div class="sp-row sp-between" style="padding-top:20px"><span class="sp-small sp-muted">Remaining in escrow</span><strong style="font:400 31px 'Instrument Serif',serif">${money(o.remaining)}</strong></div></article>${s.mode==='complex'?proof(o):`<div class="sp-sheet sp-padding"><h3>Why the next payment is ${o.closed?'closed':'waiting'}</h3><p class="sp-small sp-muted" style="margin-top:9px">${o.detail}</p><button class="sp-button sp-quiet cursor-interaction" data-mode="complex" style="margin-top:12px">Read the evidence ${icon('arrow-right')}</button></div>`}</section><aside style="padding-top:22px"><div class="sp-overline">Decision checklist</div><div class="sp-step"><span class="sp-step-icon sp-done">${icon('check')}</span><div>Order funded<p class="sp-small sp-muted">${money(o.total)} units deposited</p></div></div><div class="sp-step"><span class="sp-step-icon ${o.paid?'sp-done':''}">${icon(o.paid?'check':'minus')}</span><div>Buyer approval<p class="sp-small sp-muted">${o.closed?'Order now closed':'Next stage approved'}</p></div></div><div class="sp-step"><span class="sp-step-icon ${o.closed?'':'sp-alert'}">${icon(o.closed?'rotate-ccw':'clock-3')}</span><div>${o.closed?'Returned to buyer':'Fresh check needed'}<p class="sp-small sp-muted">${o.closed?o.reason:'Previous permit expired'}</p></div></div><div class="sp-rule"></div><p class="sp-small sp-muted">Registry evidence controls eligibility. Buyer approval confirms the stage.</p>${s.mode==='complex'?`<div class="sp-rule"></div>${kv([['Max age','300 s'],['Permit TTL','1,800 s'],['History',o.tier]])}`:''}<button class="sp-button cursor-interaction" data-page="lab" style="margin-top:18px;width:100%">${icon('shield-check')}Verify a record</button></aside></div>`}${footer()}</main></div>`;
+  }
+  const renderers={ledger,control,agreement};
+  function save() {
+    if(window.openai && window.openai.setWidgetState) {
+      const content=Object.fromEntries(Object.entries(states).map(([key,s])=>[key,{mode:s.mode,page:s.page,order:s.order,test:s.test,filter:s.filter}]));
+      window.openai.setWidgetState({modelContent:{supplierpulseConcepts:content},privateContent:null}).catch(()=>{});
+    }
+  }
+  function render(key) {
+    const app=document.getElementById('sp-'+key);
+    app.innerHTML=renderers[key](states[key]);
+    app.querySelectorAll('button').forEach(b=>{b.type='button';});
+    if(window.lucide) window.lucide.createIcons({attrs:{width:16,height:16}});
+  }
+  const saved=window.openai && window.openai.widgetState && window.openai.widgetState.modelContent && window.openai.widgetState.modelContent.supplierpulseConcepts;
+  Object.keys(renderers).forEach(key=>{
+    const prior=saved && saved[key];
+    states[key]={mode:prior&&prior.mode==='complex'?'complex':'simple',page:prior&&prior.page==='lab'?'lab':'orders',order:prior&&orders.some(o=>o.id===prior.order)?prior.order:0,test:prior&&cases.some(c=>c.key===prior.test)?prior.test:'valid',filter:prior&&['all','open','closed'].includes(prior.filter)?prior.filter:'all'};
+    render(key);
+    const app=document.getElementById('sp-'+key);
+    app.addEventListener('click',event=>{
+      const b=event.target.closest('button');if(!b||b.disabled)return;
+      const s=states[key];let changed=true;
+      if(b.dataset.mode){s.mode=b.dataset.mode;s.filter='all';if(s.mode==='simple'&&s.test==='replay')s.test='valid';}
+      else if(b.dataset.page){s.page=b.dataset.page;}
+      else if(b.dataset.order!==undefined){s.order=Number(b.dataset.order);s.page='orders';}
+      else if(b.dataset.filter){s.filter=b.dataset.filter;}
+      else if(b.dataset.case){s.test=b.dataset.case;}
+      else changed=false;
+      if(changed){render(key);save();}
+    });
+    if(globalThis.Tweak){
+      const style={appearance:'inherit',radius:12};
+      const tweak=new Tweak({container:app,onChange:()=>{app.style.colorScheme=style.appearance;app.style.setProperty('--sp-radius',style.radius+'px');}});
+      tweak.addSelect(style,'appearance',{label:'Görünüm',options:[{label:'Sistem',value:'inherit'},{label:'Açık',value:'light'},{label:'Koyu',value:'dark'}]});
+      tweak.addSlider(style,'radius',{label:'Köşe yumuşaklığı',min:2,max:18,step:2,unit:'px'});
+    }
+  });
+  window.addEventListener('openai:set_globals',event=>{
+    const incoming=event.detail&&event.detail.globals&&event.detail.globals.widgetState&&event.detail.globals.widgetState.modelContent&&event.detail.globals.widgetState.modelContent.supplierpulseConcepts;
+    if(!incoming)return;
+    Object.keys(states).forEach(key=>{
+      const next=incoming[key];if(!next)return;
+      const s=states[key];s.mode=next.mode==='complex'?'complex':'simple';s.page=next.page==='lab'?'lab':'orders';
+      s.order=orders.some(o=>o.id===next.order)?next.order:0;s.test=cases.some(c=>c.key===next.test)?next.test:'valid';s.filter=['all','open','closed'].includes(next.filter)?next.filter:'all';render(key);
+    });
+  });
+})();
+</script>

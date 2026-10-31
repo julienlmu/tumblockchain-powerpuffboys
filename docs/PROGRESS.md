@@ -66,6 +66,12 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 
 ## Log
 
+### 2026-10-31 · Orhun / Codex · UI design handoff
+- Added `design/ui-concepts/`: separate Ledger and Control Room specifications, a combined Ledger + Control Room proposal, shared code/data requirements and a copyable implementation prompt for another AI.
+- Eight genuine browser screenshots show Simple/Complex views and illustrative verification outcomes. An interactive local preview and editable design sources are included. Orhun confirmed Ledger and Control Room are the preferred directions; the combined direction is a requested proposal, not a completed production integration.
+- Validation: JavaScript syntax, local Markdown/image links, screenshot format and desktop interactions; combined Simple/Complex narrow-layout fixture checked at 320 px. All displayed order states are illustrative. No dashboard/contract/ABI/agent/dependency/deployment changes, paid calls or transactions.
+- Next: choose the implementation direction, reconcile current UI/recovery feature branches, then connect the chosen layout to existing real sample/live and judge logic. See `design/ui-concepts/README.md`.
+
 ```md
 ### YYYY-MM-DD · Name
 - Changed:
