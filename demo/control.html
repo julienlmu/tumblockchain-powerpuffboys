@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SupplierPulse+ Control Room</title>
+<title>SupplierPulse Control Room</title>
 <!-- Control Room: Orhun's design (codex/ui-design-concepts, design/ui-concepts/CONTROL_ROOM.md), layout and look unchanged,
-     with SupplierPulse+'s real data and actions. Live: ?contract=0x…&rpc=…; sample: ?sample=1. -->
+     with SupplierPulse's real data and actions. Live: ?contract=0x…&rpc=…; sample: ?sample=1. -->
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
 <script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
 <script src="common.js"></script>
@@ -256,6 +256,13 @@
 /* the screen navigation, larger than the design's 11 px so the screens are easy to find (user request) */
 #supplierpulse-selected-ui-concepts .sp-control-nav button { font-size:13.5px; font-weight:500; padding:6px 0; }
 @media(max-width:620px) { #supplierpulse-selected-ui-concepts .sp-control-nav { flex-wrap:wrap; gap:6px 16px; } }
+#supplierpulse-selected-ui-concepts .sp-faq { padding-top:6px; padding-bottom:6px; }
+#supplierpulse-selected-ui-concepts .sp-faq-item { border-bottom:1px solid var(--sp-line); padding:13px 0; }
+#supplierpulse-selected-ui-concepts .sp-faq-item:last-child { border-bottom:0; }
+#supplierpulse-selected-ui-concepts .sp-faq-item > summary { font-weight:500; font-size:13px; cursor:pointer; }
+#supplierpulse-selected-ui-concepts .sp-faq-body { padding:10px 0 2px 18px; font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-faq-limits { margin:10px 0 0; padding-left:18px; display:grid; gap:8px; font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-faq-table td { vertical-align:top; min-width:160px; }
 #supplierpulse-selected-ui-concepts .sp-app button.sp-guide { border:0; cursor:pointer; font-size:11px; font-weight:500; }
 #supplierpulse-selected-ui-concepts .sp-guide:hover { color:var(--sp-ink); }
 #supplierpulse-selected-ui-concepts textarea.sp-record { width:100%; min-height:110px; margin-top:12px; border:1px solid var(--sp-line); color:var(--sp-ink); resize:vertical; display:block; }
@@ -284,7 +291,7 @@
   <div class="sp-app sp-stage sp-control" id="sp-control" aria-label="Control Room operations workspace"></div>
 </div>
 <script>
-// Control Room for SupplierPulse+: Orhun's design (design/ui-concepts, codex/ui-design-concepts) with the project's real
+// Control Room for SupplierPulse: Orhun's design (design/ui-concepts, codex/ui-design-concepts) with the project's real
 // data and actions. The markup and styles are the design's own; the values come from the live contract (or sample mode)
 // through the same view functions and events as index.html, and the Verification lab runs the real tamper test
 // (eth_call of submitEvidence from 0x…dEaD, as judge.html). Screens: Operations, Verification lab, Agent, Judge kit,
@@ -323,6 +330,26 @@
       'gleif:391200JI69LS8L648F30': 'gleif-391200JI69LS8L648F30-202610301607.json', 'gleif:52990092KBQJF8QBGJ50': 'gleif-52990092KBQJF8QBGJ50-202610301607.json' },
     other: { ch: ['ch-07418033-202610301910.json', 'ch-03778796-202610301910.json'], gleif: ['gleif-52990092KBQJF8QBGJ50-202610301607.json', 'gleif-391200JI69LS8L648F30-202610301910.json'] },
   };
+  // Ulaş's trust FAQ (docs/FAQ.md on ulas/plus-story, 174cee5), word for word: scenario, what the service does, trust signal
+  const FAQ = [
+    ['Fresh signed evidence passes the buyer’s rules', 'Pay only the approved, due milestone amount. Show the registry, fields checked, evidence time, and transaction.', 'Every payment has its own verifiable basis; approval does not exceed the agreed stage.'],
+    ['Buyer has not approved the milestone', 'Do not pay, even if the registry check passes.', 'Registry status is not treated as proof of delivery or buyer acceptance.'],
+    ['Fresh signed evidence fails a configured rule', 'Hold the order; explain exactly which rule failed. Let the buyer claim the remaining escrow immediately. Do not label the supplier fraudulent.', 'A rule-based hold is visible and actionable without making claims beyond the evidence.'],
+    ['A valid record is challenged as wrong or misleading', 'Freeze any unpaid milestone. Mark the case “contested—not a finding of fault.” Under the agreed policy, let the buyer trigger an immediate refund of the remaining escrow and close the order.', 'The agent and contract do not pretend to decide who is legally right. The refund is an agreed exit, not a judgment against the supplier.', true],
+    ['Signature, supplier, request, timestamp, or replay check fails', 'Reject that record and do not pay against it. Log the rejection reason and seek fresh evidence. A bad submission alone should not automatically move funds.', 'Invalid evidence cannot force a refund; rejection is not evidence that the supplier failed.'],
+    ['Registry/API data is unavailable or incomplete', 'Report “no verified data,” not “supplier failed.” Do not pay without a valid permit. Retry within the spending policy; if data remains unavailable through the agreed grace period, refund the remaining escrow.', 'Separates a service/data outage from an adverse supplier finding.'],
+    ['Evidence is later corrected or contradicted', 'Preserve the original record in the audit trail. Require new, valid evidence for any future order; do not silently rewrite history or reopen a refunded order.', 'Customers can see what the contract knew at the time and what changed later.'],
+    ['Permit expires before payment', 'Do not release funds on the expired permit. Require fresh evidence and buyer approval; use the no-data exit if evidence does not arrive within the agreed period.', 'Old approval cannot quietly authorize a later payment.'],
+    ['Supplier status fails on another order', 'Stop unpaid milestones for that supplier when the new signed failure applies; show the source and time. Let each buyer decide what to do with their remaining escrow under the agreed terms.', 'A verified failure is acted on consistently, while each buyer retains control of their own order.'],
+    ['Delivery or contract performance is disputed', 'Do not claim the registry resolves the dispute. Keep payment subject to buyer milestone approval; handle any disagreement under the buyer-supplier agreement.', 'SupplierPulse checks configured registry conditions; it does not pretend to verify physical delivery or decide legal disputes.'],
+    ['Agent, Cardano job, or network fails', 'Do not report a successful check or payment without proof. Keep funds in escrow, show the error, and follow the no-data policy if it persists.', 'No success-shaped fallback: every claimed result is backed by evidence or a transaction.'],
+  ];
+  const FAQ_LIMITS = [
+    '<b>A refund means the remaining escrow goes back to the buyer.</b> It cannot reverse milestones already paid.',
+    'A refund does not establish that the supplier did anything wrong or resolve a dispute over goods already delivered.',
+    '“Contested = immediate refund” is a proposed policy. The current contract supports an immediate buyer refund after a valid adverse record puts an order on hold, but it does not provide a general immediate refund for a contested record while an order is active. Invalid evidence is rejected, and the active-order no-data path has a grace period.',
+    'SupplierPulse checks configured registry conditions. A signed registry response proves what the source returned, not that the data is complete, current in the real world, or proof of delivery or future performance.',
+  ];
   const nameOf = P.orderNamer();
   const dayClock = P.dayClock;
 
@@ -397,7 +424,7 @@
       explorer = P.EXPLORERS[chainId] || null;
       if (!cfg.contract) {
         const found = await P.discoverV2(provider);
-        if (!found) throw new Error('No SupplierPulse+ contract found on this network. Enter its address in Settings.');
+        if (!found) throw new Error('No SupplierPulse contract found on this network. Enter its address in Settings.');
         cfg.contract = found;
       }
       if ((await provider.getCode(cfg.contract)) === '0x') throw new Error(`no contract at ${cfg.contract} on chain ${chainId}`);
@@ -484,7 +511,7 @@
   const openKeys = new Set(); // disclosures stay open across the 12 s refresh
   const opened = (k) => (openKeys.has(k) ? ' open' : '');
   const selected = () => (orders || []).find((o) => o.id === s.order) || (orders || [])[0];
-  const brand = () => `<div class="sp-brand"><span class="sp-brandmark">${icon('activity')}</span>SupplierPulse<span class="sp-plus">+</span></div>`;
+  const brand = () => `<div class="sp-brand"><span class="sp-brandmark">${icon('activity')}</span>SupplierPulse</div>`;
   const network = () => (mode === 'sample' ? 'Sample' : chainId === 31337 ? 'Local chain' : chainId === 11155111 ? 'Sepolia' : chainId ? `Chain ${chainId}` : 'Connecting');
   const top = () => `<header class="sp-control-top">${brand()}<nav class="sp-control-nav" aria-label="Main navigation">${PAGES.map(([k, l]) => `<button class="cursor-interaction" data-page="${k}" ${s.page === k ? 'aria-current="page"' : ''}>${l}</button>`).join('')}</nav><div class="sp-row" style="gap:8px"><button class="sp-pill sp-guide cursor-interaction" data-guide aria-label="Guide: a short walk through the Control Room">${icon('circle-help')}Guide</button><span class="sp-pill">${icon('hexagon')}${network()}</span></div></header>`;
   const preview = () => mode === 'sample'
@@ -611,13 +638,24 @@
     return `<article class="sp-task ${x.id === s.order ? 'sp-focus' : ''}"><div class="sp-row sp-between"><span class="sp-task-number">${esc(x.ref)} / ${x.source}</span>${icon('radar')}</div><h2>${esc(x.name)}</h2><p class="sp-small sp-muted">${esc(r.detail)}</p><div class="sp-path"><span>${icon(x.approved[x.next] ? 'check' : 'clock-3')}${x.approved[x.next] ? 'Buyer approved' : 'Awaiting approval'}</span>${icon('arrow-right')}<span>${icon(st.icon)}${second}</span></div><div class="sp-row sp-between"><span class="sp-small"><strong>${money(x.remaining)}</strong> still in escrow</span><button class="sp-button cursor-interaction" data-order="${x.id}">Inspect ${icon('arrow-up-right')}</button></div></article>`;
   }
 
+  // The FAQ on the home screen. Simple: one line per question, the answer on demand. Complex: the full table.
+  function faq() {
+    const proposed = `<span class="sp-pill sp-wait" style="margin-left:8px">${icon('flask-conical')}Proposed policy</span>`;
+    const limits = `<ul class="sp-faq-limits">${FAQ_LIMITS.map((x) => `<li>${x}</li>`).join('')}</ul>`;
+    const head = `<div class="sp-row sp-between" style="margin:28px 0 14px"><h2>What happens when…</h2><span class="sp-mono">${String(FAQ.length).padStart(2, '0')} questions</span></div>`;
+    if (s.mode === 'complex') {
+      return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet"><div class="sp-table-wrap"><table class="sp-table sp-faq-table"><thead><tr><th>Scenario</th><th>What the service does</th><th>Trust signal</th></tr></thead><tbody>${FAQ.map(([q, a, t, prop]) => `<tr><td><strong style="font-weight:600">${q}</strong>${prop ? `<div style="margin-top:6px">${proposed}</div>` : ''}</td><td>${a}</td><td class="sp-muted">${t}</td></tr>`).join('')}</tbody></table></div></div><div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Important limits</h3>${limits}</div></section>`;
+    }
+    return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet sp-padding sp-faq">${FAQ.map(([q, a, t, prop], i) => `<details class="sp-faq-item" data-key="faq-${i}"${opened('faq-' + i)}><summary class="cursor-interaction">${q}${prop ? proposed : ''}</summary><div class="sp-faq-body"><p>${a}</p><p class="sp-small sp-muted sp-row" style="margin-top:8px;align-items:flex-start">${icon('shield-check')}<span>${t}</span></p></div></details>`).join('')}<details class="sp-faq-item" data-key="faq-limits"${opened('faq-limits')}><summary class="cursor-interaction">Important limits</summary><div class="sp-faq-body">${limits}</div></details></div></section>`;
+  }
+
   function operations(o) {
     const open = orders.filter((x) => !closed(x));
     const needs = open.filter((x) => x.state === 0 && !permitValid(x)).length;
     const nRefunded = orders.filter(refunded).length, nPaid = orders.filter((x) => closed(x) && !refunded(x)).length;
     const regs = [...new Set(orders.map((x) => x.registry))];
     const escrow = open.reduce((a, x) => a + x.remaining, 0n);
-    return `<div class="sp-control-head"><div><div class="sp-overline">Supplier monitoring</div><h1 style="margin-top:10px">Know why money moves.</h1></div>${needs ? `<span class="sp-pill sp-wait">${icon('clock-3')}${needs} check${needs === 1 ? '' : 's'} needed</span>` : `<span class="sp-pill sp-positive">${icon('circle-check')}No checks needed</span>`}</div><div class="sp-control-stats"><div><div class="sp-overline">Escrow remaining</div><div class="sp-metric">${money(escrow)}</div><div class="sp-small sp-muted">Tokens across open orders</div></div><div><div class="sp-overline">Open / total</div><div class="sp-metric">${open.length} <small>/ ${orders.length}</small></div><div class="sp-small sp-muted">${nRefunded} order${nRefunded === 1 ? '' : 's'} refunded</div></div><div><div class="sp-overline">Registries</div><div class="sp-metric">${regs.length}</div><div class="sp-small sp-muted">${regs.join(' + ') || 'None yet'}</div></div></div><div class="sp-control-grid"><section>${s.mode === 'complex' ? `<div class="sp-row sp-between sp-wrap" style="margin-bottom:14px"><h2>Order monitor</h2>${filters()}</div><div class="sp-sheet">${table()}</div>${evidence(o)}` : `<div class="sp-row sp-between" style="margin-bottom:14px"><h2>Next decisions</h2><span class="sp-mono">${String(open.length).padStart(2, '0')} pending</span></div>${open.map(task).join('') || `<p class="sp-small sp-muted">No open orders.</p>`}<p class="sp-small sp-muted" style="margin-top:14px">${nRefunded} order${nRefunded === 1 ? ' was' : 's were'} closed after refunds to the buyer${nPaid ? `; ${nPaid} ${nPaid === 1 ? 'was' : 'were'} fully paid` : ''}.</p>`}</section><aside>${closed(o) ? details(o, s.mode === 'complex') : checks(o)}${policy(o)}${s.mode === 'complex' ? `<div style="margin-top:16px">${eventLog(o)}</div>` : ''}</aside></div>`;
+    return `<div class="sp-control-head"><div><div class="sp-overline">Supplier monitoring</div><h1 style="margin-top:10px">Know why money moves.</h1></div>${needs ? `<span class="sp-pill sp-wait">${icon('clock-3')}${needs} check${needs === 1 ? '' : 's'} needed</span>` : `<span class="sp-pill sp-positive">${icon('circle-check')}No checks needed</span>`}</div><div class="sp-control-stats"><div><div class="sp-overline">Escrow remaining</div><div class="sp-metric">${money(escrow)}</div><div class="sp-small sp-muted">Tokens across open orders</div></div><div><div class="sp-overline">Open / total</div><div class="sp-metric">${open.length} <small>/ ${orders.length}</small></div><div class="sp-small sp-muted">${nRefunded} order${nRefunded === 1 ? '' : 's'} refunded</div></div><div><div class="sp-overline">Registries</div><div class="sp-metric">${regs.length}</div><div class="sp-small sp-muted">${regs.join(' + ') || 'None yet'}</div></div></div><div class="sp-control-grid"><section>${s.mode === 'complex' ? `<div class="sp-row sp-between sp-wrap" style="margin-bottom:14px"><h2>Order monitor</h2>${filters()}</div><div class="sp-sheet">${table()}</div>${evidence(o)}` : `<div class="sp-row sp-between" style="margin-bottom:14px"><h2>Next decisions</h2><span class="sp-mono">${String(open.length).padStart(2, '0')} pending</span></div>${open.map(task).join('') || `<p class="sp-small sp-muted">No open orders.</p>`}<p class="sp-small sp-muted" style="margin-top:14px">${nRefunded} order${nRefunded === 1 ? ' was' : 's were'} closed after refunds to the buyer${nPaid ? `; ${nPaid} ${nPaid === 1 ? 'was' : 'were'} fully paid` : ''}.</p>`}</section><aside>${closed(o) ? details(o, s.mode === 'complex') : checks(o)}${policy(o)}${s.mode === 'complex' ? `<div style="margin-top:16px">${eventLog(o)}</div>` : ''}</aside></div>${faq()}`;
   }
 
   // ---------------------------------------------------------------- Agent: every transaction the agent sent, on its own
@@ -666,12 +704,12 @@
     const qs = q.toString() ? `?${q}` : '';
     const link = (href, title, sub) => `<a class="sp-line-item cursor-interaction" href="${href}" style="color:inherit;text-decoration:none"><span><strong style="font-weight:500">${title}</strong><br><span class="sp-small sp-muted">${sub}</span></span>${icon('arrow-up-right')}</a>`;
     const others = `<div class="sp-sheet sp-padding"${s.mode === 'complex' ? ' style="margin-top:16px"' : ''}><h3>Other screens</h3><div style="margin-top:6px">${link(`index.html${qs}`, 'Buyer dashboard', 'Every order as a card, Simple or Detailed')}${link(`simple.html${qs}`, 'Try to break it · Simple', 'The tamper test in one click')}${link(`judge.html${qs}`, 'Try to break it · Detailed', 'Every attack, checklist and scoreboard')}</div></div>`;
-    const head = heading('Settings', 'Choose what to watch.', 'A contract on any network. Without an address, the page finds the newest SupplierPulse+ on Sepolia.');
+    const head = heading('Settings', 'Choose what to watch.', 'A contract on any network. Without an address, the page finds the newest SupplierPulse on Sepolia.');
     const live = mode !== 'sample' && !params.get('contract');
     const custom = mode !== 'sample' && !!params.get('contract');
     const choice = (key, ic, name, sub, on) => `<button class="sp-case cursor-interaction" data-goto="${key}" aria-pressed="${on}">${icon(ic)}<div><span>${name}</span><small>${sub}</small></div></button>`;
     if (s.mode === 'simple') {
-      return `${head}<div class="sp-control-grid"><section><div class="sp-sheet sp-padding"><h3>Data</h3><div class="sp-cases" style="margin-bottom:0">${choice('live', 'radio', 'Live Sepolia', 'The newest SupplierPulse+ contract', live)}${choice('sample', 'flask-conical', 'Sample data', 'Every state, nothing can be sent', mode === 'sample')}</div><form id="sp-settings" style="margin-top:16px"><label class="sp-field" style="margin-top:0">Or another contract on ${esc(P.NETWORKS[chainId] || 'this network')}<input class="sp-input" name="contract" value="${custom ? esc(cfg.contract) : ''}" placeholder="0x…" spellcheck="false" autocomplete="off"></label><input type="hidden" name="rpc" value="${esc(cfg.rpc)}"><input type="hidden" name="from" value="${esc(cfg.from || '')}"><p class="sp-small" id="sp-settings-msg" role="status" style="margin-top:10px;color:var(--sp-red)"></p><div class="sp-row sp-wrap" style="margin-top:8px"><button class="sp-button sp-primary cursor-interaction" type="submit">${icon('plug')}Load contract</button><button class="sp-button sp-quiet cursor-interaction" data-mode="complex">Network and history ${icon('arrow-right')}</button></div></form></div></section><aside>${others}</aside></div>`;
+      return `${head}<div class="sp-control-grid"><section><div class="sp-sheet sp-padding"><h3>Data</h3><div class="sp-cases" style="margin-bottom:0">${choice('live', 'radio', 'Live Sepolia', 'The newest SupplierPulse contract', live)}${choice('sample', 'flask-conical', 'Sample data', 'Every state, nothing can be sent', mode === 'sample')}</div><form id="sp-settings" style="margin-top:16px"><label class="sp-field" style="margin-top:0">Or another contract on ${esc(P.NETWORKS[chainId] || 'this network')}<input class="sp-input" name="contract" value="${custom ? esc(cfg.contract) : ''}" placeholder="0x…" spellcheck="false" autocomplete="off"></label><input type="hidden" name="rpc" value="${esc(cfg.rpc)}"><input type="hidden" name="from" value="${esc(cfg.from || '')}"><p class="sp-small" id="sp-settings-msg" role="status" style="margin-top:10px;color:var(--sp-red)"></p><div class="sp-row sp-wrap" style="margin-top:8px"><button class="sp-button sp-primary cursor-interaction" type="submit">${icon('plug')}Load contract</button><button class="sp-button sp-quiet cursor-interaction" data-mode="complex">Network and history ${icon('arrow-right')}</button></div></form></div></section><aside>${others}</aside></div>`;
     }
     const det = consts ? kv([['Network', `${esc(P.NETWORKS[chainId] || network())}${chainId ? ` · ${chainId}` : ''}`], ['Contract', cfg.contract ? (explorer ? `<a href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">${short(cfg.contract)}</a>` : short(cfg.contract)) : '–'], ['Max record age', `${consts.maxAge} s`], ['Refund grace', `${consts.refundGrace} s`], ['Companies House Airnode', `<span class="sp-mono">${short(consts.airnodes[0])}</span>`], ['GLEIF Airnode', `<span class="sp-mono">${short(consts.airnodes[1])}</span>`], ['Agent wallet', agentAddr ? `<span class="sp-mono">${short(agentAddr)}</span>` : 'Unknown'], ['Events loaded from', mode === 'sample' ? 'Sample' : cfg.from ? `block ${cfg.from}` : `the last ${LOG_CHUNK.toLocaleString('en-GB')} blocks`]]) : '<p class="sp-small sp-muted" style="margin-top:9px">Not connected.</p>';
     return `${head}<div class="sp-control-grid"><section><form class="sp-sheet sp-padding" id="sp-settings"><h3>Contract</h3><label class="sp-field">Contract address<input class="sp-input" name="contract" value="${esc(cfg.contract)}" placeholder="0x…" spellcheck="false" autocomplete="off"></label><label class="sp-field">RPC URL<input class="sp-input" name="rpc" value="${esc(cfg.rpc)}" spellcheck="false" autocomplete="off" inputmode="url"></label><label class="sp-field">Events from block (optional)<input class="sp-input" name="from" value="${esc(cfg.from || '')}" placeholder="the deploy block; default the last 9000 blocks" inputmode="numeric" autocomplete="off"></label><p class="sp-small" id="sp-settings-msg" role="status" style="margin-top:10px;color:var(--sp-red)"></p><div class="sp-row sp-wrap" style="margin-top:12px"><button class="sp-button sp-primary cursor-interaction" type="submit">${icon('plug')}Load contract</button><button class="sp-button cursor-interaction" data-goto="live">${icon('radio')}Live Sepolia</button><button class="sp-button cursor-interaction" data-goto="sample">${icon('flask-conical')}Sample data</button></div></form></section><aside><div class="sp-sheet sp-padding"><h3>Contract details</h3>${det}</div>${others}</aside></div>`;
@@ -935,7 +973,7 @@
   function guide(from) {
     const pg = s.page;
     const steps = [
-      { title: 'The Control Room', text: 'SupplierPulse+ pays a supplier only against a fresh, signed company-register record (Companies House or GLEIF, signed by API3’s Airnode). This screen shows why money moves, or why it waits.' },
+      { title: 'The Control Room', text: 'SupplierPulse pays a supplier only against a fresh, signed company-register record (Companies House or GLEIF, signed by API3’s Airnode). This screen shows why money moves, or why it waits.' },
       { el: '.sp-control-nav', title: 'Five screens', text: '<b>Operations</b> for the orders, <b>Verification lab</b> for the tamper test, <b>Agent</b> for what the agent did on its own, <b>Judge kit</b> for the terminal commands, <b>Settings</b> for the contract and the other screens.' },
       { el: '.sp-mode', title: 'Simple or Complex', text: 'Simple shows the orders that need a decision. Complex adds the order monitor, the signed evidence, the milestone schedule and the decision trail.' },
     ];
@@ -943,7 +981,8 @@
       { el: '.sp-control-stats', title: 'The money', text: 'Tokens still locked in escrow, open orders, refunds and the registries in use: read from the contract.' },
       { el: '.sp-control-grid > section', title: 'Next decisions', text: 'Each open order, with the reason it pays or waits. <b>Inspect</b> selects it on the right.' },
       { el: '.sp-control-grid > aside > .sp-sheet', title: 'Release conditions', text: 'The four facts the contract checks: buyer approval, registry rules, a valid payment permit and the due date. The button acts only when the contract would accept it: release a milestone, or refund the buyer.' },
-      { el: '.sp-control-grid > aside > .sp-sheet:nth-of-type(2)', title: 'Agent policy', text: 'The agent’s settings and its last on-chain action. The Agent screen lists every transaction it sent.' });
+      { el: '.sp-control-grid > aside > .sp-sheet:nth-of-type(2)', title: 'Agent policy', text: 'The agent’s settings and its last on-chain action. The Agent screen lists every transaction it sent.' },
+      { el: '#faq-h', title: 'What happens when…', text: 'Eleven situations, from a passed check to a disputed delivery: what the service does and why you can trust it. Complex shows them as one table.' });
     if (pg === 'lab') steps.push(
       { el: '.sp-cases', title: 'Six scenarios', text: 'The real record and the forgeries of the API3 track. Each press asks the live contract; the answer appears under the scenario.' },
       { el: '[data-runall]', title: 'The whole test', text: 'The valid record and the four forgeries in one press, with one verdict: passed, not tested or broken.' },
@@ -962,7 +1001,7 @@
     if (mode === 'sample' || reading) return;
     reading = true;
     try { await loadLive(); }
-    catch (e) { const f = P.friendlyError(e, { reading: true, contract: cfg.contract, rpc: cfg.rpc }); readFailed = e.message && e.message.startsWith('No SupplierPulse+') ? e.message : f.text; }
+    catch (e) { const f = P.friendlyError(e, { reading: true, contract: cfg.contract, rpc: cfg.rpc }); readFailed = e.message && e.message.startsWith('No SupplierPulse') ? e.message : f.text; }
     finally { reading = false; }
     if (orders && !orders.some((x) => x.id === s.order)) s.order = (orders.find((x) => !closed(x)) || orders[0] || { id: 0 }).id;
     // never re-render under a running suite or while typing in Settings
