@@ -1,0 +1,77 @@
+/* Selected Paper visual theme. Keep data, verification and wallet behavior in control.html. */
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/ibm-plex-sans/IBMPlexSans-400.ttf") format("truetype")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:500;font-display:swap;src:url("fonts/ibm-plex-sans/IBMPlexSans-500.ttf") format("truetype")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/ibm-plex-sans/IBMPlexSans-600.ttf") format("truetype")}
+:root{color-scheme:light;--paper-page:#f1eee7;--paper-ink:#242c27;--paper-muted:#62685e;--paper-line:#d0cec5;--paper-accent:#365840;}
+:root #supplierpulse-selected-ui-concepts .sp-app{--sp-page:#f1eee7;--sp-panel:#faf8f1;--sp-subtle:#e9e7df;--sp-ink:#242c27;--sp-muted:#62685e;--sp-line:#d0cec5;--sp-accent:#365840;--sp-on-accent:#faf9f3;--sp-accent-bg:#e1e6d8;--sp-good:#365b40;--sp-good-bg:#e0e8d9;--sp-warn:#7d5b1e;--sp-warn-bg:#eee5ce;--sp-red:#9a4035;--sp-red-bg:#f2e2db;}
+
+html,body{background:var(--paper-page);color:var(--paper-ink)}body{padding:0;margin:0;-webkit-font-smoothing:antialiased}
+#supplierpulse-selected-ui-concepts{max-width:1600px;margin:0 auto}
+#supplierpulse-selected-ui-concepts .sp-app{border:0;border-radius:0;font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--sp-radius:6px;--sp-space:32px}
+#supplierpulse-selected-ui-concepts .sp-stage{min-height:100svh}
+#supplierpulse-selected-ui-concepts .sp-control-top{background:var(--sp-page);padding:19px 3.7%;gap:24px}
+#supplierpulse-selected-ui-concepts .sp-control-main{padding:25px 3.7%}
+#supplierpulse-selected-ui-concepts .sp-brand{font-weight:500;letter-spacing:-.4px;font-size:17px;gap:8px}
+#supplierpulse-selected-ui-concepts .sp-brandmark{background:transparent;color:var(--sp-accent);border-radius:0;width:21px;height:27px}
+#supplierpulse-selected-ui-concepts .sp-brandmark svg{width:20px;height:20px}
+#supplierpulse-selected-ui-concepts .sp-control-nav{gap:25px}
+#supplierpulse-selected-ui-concepts .sp-control-nav button{font-family:inherit;font-size:13px;font-weight:400;padding:7px 0;position:relative}
+#supplierpulse-selected-ui-concepts .sp-control-nav button[aria-current=page]{font-weight:500}
+#supplierpulse-selected-ui-concepts .sp-control-nav button[aria-current=page]:after{content:"";position:absolute;height:1px;background:var(--sp-accent);left:0;right:0;bottom:-20px}
+#supplierpulse-selected-ui-concepts .sp-app h1{font-family:"IBM Plex Sans",sans-serif;font-size:31px;line-height:1.22;font-weight:400;letter-spacing:-.75px}
+#supplierpulse-selected-ui-concepts .sp-app h2{font-weight:500;letter-spacing:-.25px}
+#supplierpulse-selected-ui-concepts .sp-app h3{font-weight:500}
+#supplierpulse-selected-ui-concepts .sp-overline{font-size:10px;letter-spacing:.8px;font-weight:400}
+#supplierpulse-selected-ui-concepts .sp-small{font-size:12px;line-height:1.65}
+#supplierpulse-selected-ui-concepts .sp-mono,#supplierpulse-selected-ui-concepts .sp-task-number,#supplierpulse-selected-ui-concepts .sp-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:400}
+#supplierpulse-selected-ui-concepts .sp-control-head{margin-top:17px;margin-bottom:27px}
+#supplierpulse-selected-ui-concepts .sp-control-stats{background:transparent;border:0;border-top:1px solid var(--sp-line);border-bottom:1px solid var(--sp-line);border-radius:0;margin:22px 0 29px}
+#supplierpulse-selected-ui-concepts .sp-control-stats>div{padding:21px 25px 22px 0;border-right:0}
+#supplierpulse-selected-ui-concepts .sp-control-stats>div+div{padding-left:25px;border-left:1px solid var(--sp-line)}
+#supplierpulse-selected-ui-concepts .sp-control-stats .sp-metric{font-family:"IBM Plex Sans",sans-serif;font-weight:400;font-size:41px;letter-spacing:-1.4px;margin:7px 0;color:var(--sp-ink)}
+#supplierpulse-selected-ui-concepts .sp-control-grid{grid-template-columns:minmax(0,1fr) 265px;gap:32px}
+#supplierpulse-selected-ui-concepts .sp-sheet{border-radius:5px;border-color:var(--sp-line);box-shadow:none}
+#supplierpulse-selected-ui-concepts .sp-task{border:0;border-top:1px solid var(--sp-line);border-radius:0;background:transparent;padding:22px 0;margin:0}
+#supplierpulse-selected-ui-concepts .sp-task.sp-focus{background:var(--sp-panel);border-top-color:var(--sp-line);border-left:2px solid var(--sp-accent);padding:22px 20px;margin:0 0 0 -2px;border-radius:0}
+#supplierpulse-selected-ui-concepts .sp-task h2{font-size:21px;font-weight:500;letter-spacing:-.4px;margin:9px 0}
+#supplierpulse-selected-ui-concepts .sp-task-number{font-size:11px;letter-spacing:0}
+#supplierpulse-selected-ui-concepts .sp-mode{border-radius:4px;background:transparent;padding:2px;border-color:var(--sp-line)}
+#supplierpulse-selected-ui-concepts .sp-mode button{border-radius:2px;font-size:11px;font-weight:400}
+#supplierpulse-selected-ui-concepts .sp-mode button[aria-pressed=true]{background:var(--sp-accent-bg);color:var(--sp-ink);box-shadow:none}
+#supplierpulse-selected-ui-concepts .sp-button{border-radius:4px;font-weight:400;font-size:12px;padding:8px 11px;background:transparent}
+#supplierpulse-selected-ui-concepts .sp-button.sp-primary{background:var(--sp-accent);color:var(--sp-on-accent);border-color:var(--sp-accent)}
+#supplierpulse-selected-ui-concepts .sp-pill{border-radius:3px;background:var(--sp-subtle);font-size:11px;font-weight:400;padding:4px 7px}
+#supplierpulse-selected-ui-concepts .sp-path span{background:transparent;border:1px solid var(--sp-line);border-radius:3px;padding:4px 7px;font-size:11px}
+#supplierpulse-selected-ui-concepts .sp-path{margin:15px 0;gap:9px}
+#supplierpulse-selected-ui-concepts .sp-check{padding:10px 0;font-size:12px;line-height:1.6}
+#supplierpulse-selected-ui-concepts .sp-check span:last-child{font-size:11px}
+#supplierpulse-selected-ui-concepts .sp-table th{font-weight:400;font-size:11px;padding-top:13px;padding-bottom:13px}
+#supplierpulse-selected-ui-concepts .sp-table td{font-size:13px;padding-top:15px;padding-bottom:15px}
+#supplierpulse-selected-ui-concepts .sp-table tr[data-selected=true] td{background:var(--sp-accent-bg)}
+#supplierpulse-selected-ui-concepts .sp-case{border-radius:4px;padding:14px;background:var(--sp-panel)}
+#supplierpulse-selected-ui-concepts .sp-case[aria-pressed=true]{background:var(--sp-accent-bg);border-color:var(--sp-line);box-shadow:inset 2px 0 var(--sp-accent)}
+#supplierpulse-selected-ui-concepts .sp-case span{font-size:12px;font-weight:500}
+#supplierpulse-selected-ui-concepts .sp-case small{font-size:11px;font-weight:400;line-height:1.6}
+#supplierpulse-selected-ui-concepts .sp-result{border-radius:4px;padding:24px;border-left:2px solid var(--sp-good);background:var(--sp-good-bg)}
+#supplierpulse-selected-ui-concepts .sp-result.sp-rejected{border-left-color:var(--sp-red);background:var(--sp-red-bg)}
+#supplierpulse-selected-ui-concepts .sp-result h2{font-size:24px;letter-spacing:-.5px;font-weight:500}
+#supplierpulse-selected-ui-concepts .sp-lab-grid{grid-template-columns:minmax(0,1fr) 265px;gap:32px}
+#supplierpulse-selected-ui-concepts .sp-faq-item>summary{font-weight:500}
+#supplierpulse-selected-ui-concepts .sp-faq-limits,#supplierpulse-selected-ui-concepts .sp-faq-body{line-height:1.7}
+#supplierpulse-selected-ui-concepts .sp-note,#supplierpulse-selected-ui-concepts .sp-code{border-radius:4px}
+#supplierpulse-selected-ui-concepts .sp-code{font-size:11px;line-height:1.9}
+#supplierpulse-selected-ui-concepts .sp-footer{margin-top:30px;font-size:11px}
+#supplierpulse-selected-ui-concepts :is(button,input,textarea,select,a,summary):focus-visible{outline:2px solid var(--sp-accent);outline-offset:4px}
+@media(max-width:1050px){#supplierpulse-selected-ui-concepts .sp-control-nav{gap:17px}#supplierpulse-selected-ui-concepts .sp-control-top{gap:18px}}
+@media(max-width:900px){#supplierpulse-selected-ui-concepts .sp-control-grid,#supplierpulse-selected-ui-concepts .sp-lab-grid{grid-template-columns:minmax(0,1fr)}#supplierpulse-selected-ui-concepts .sp-control-nav button[aria-current=page]:after{bottom:-13px}}
+@media(max-width:620px){#supplierpulse-selected-ui-concepts .sp-control-top{padding:17px 4%;gap:15px}#supplierpulse-selected-ui-concepts .sp-control-nav{gap:8px 17px}#supplierpulse-selected-ui-concepts .sp-control-nav button{font-size:12px}#supplierpulse-selected-ui-concepts .sp-control-nav button[aria-current=page]:after{bottom:0}#supplierpulse-selected-ui-concepts .sp-control-main{padding:24px 4%}#supplierpulse-selected-ui-concepts .sp-app h1{font-size:29px}#supplierpulse-selected-ui-concepts .sp-control-stats>div,#supplierpulse-selected-ui-concepts .sp-control-stats>div+div{padding:17px 0;border-left:0}#supplierpulse-selected-ui-concepts .sp-control-stats .sp-metric{font-size:38px}#supplierpulse-selected-ui-concepts .sp-task.sp-focus{padding:19px 15px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* The guide is mounted outside .sp-app. Share the same Paper surface and type. */
+.tour-ring{box-shadow:0 0 0 2px var(--paper-accent),0 0 0 200vmax rgba(24,30,26,.55);border-radius:5px}
+.tour-card{background:#faf8f1;color:var(--paper-ink);border-color:var(--paper-line);border-radius:5px;box-shadow:0 8px 28px #242c271f;font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.tour-step{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--paper-muted)}
+.tour-btns button{font-family:inherit;border-color:var(--paper-line);background:#faf8f1;border-radius:4px}
+.tour-btns button.primary{background:var(--paper-accent);border-color:var(--paper-accent);color:#faf9f3}
+.tour-btns .tour-close{color:var(--paper-muted)}
+.tour-btns button:focus-visible{outline:2px solid var(--paper-accent);outline-offset:3px}

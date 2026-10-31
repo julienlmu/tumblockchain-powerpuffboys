@@ -1,6 +1,8 @@
 # SupplierPulse screens
 
-Two static pages for `api3/src/SupplierPulsePlus.sol` (spec: `docs/SUPPLIERPULSE_PLUS.md` v1.1, §6.4). No build step: HTML plus ethers 6.13.5.
+**Control Room:** `control.html` combines Operations, Verification lab, Agent, Judge kit and Settings, each with Simple and Complex views. The selected [Paper visual treatment](../docs/ui/paper/README.md) uses locally hosted IBM Plex Sans and a warm light palette. Run the server below and open `/control.html?sample=1` for sample data, or `/control.html` for the existing live-data flow.
+
+Static pages for `api3/src/SupplierPulsePlus.sol` (spec: `docs/SUPPLIERPULSE_PLUS.md` v1.1, §6.4). No build step: HTML plus ethers 6.13.5.
 
 | Page | For | What it does |
 |---|---|---|
