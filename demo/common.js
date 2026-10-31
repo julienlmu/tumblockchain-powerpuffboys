@@ -412,8 +412,10 @@
     for (const [e] of behind) e.inert = true;
     document.body.append(ring, card);
     let i = 0, timer = null;
+    // a page that redraws (a periodic refresh) replaces the highlighted element: find it again by its selector
+    const nodeOf = (st) => { if (st.el && (!st.node || !st.node.isConnected)) st.node = pick(st); return st.node; };
     function place() {
-      const n = list[i].node, vw = innerWidth, vh = innerHeight, pad = 6, gap = 12, m = 16;
+      const n = nodeOf(list[i]), vw = innerWidth, vh = innerHeight, pad = 6, gap = 12, m = 16;
       const cw = card.offsetWidth, ch = card.offsetHeight;
       if (!n) {
         ring.style.cssText = "display:none";
@@ -434,7 +436,8 @@
       const s = list[i], last = i === list.length - 1;
       card.innerHTML = `<div class="tour-step">${i + 1} of ${list.length}</div><h2 id="tour-t" tabindex="-1">${esc(s.title)}</h2><p id="tour-x">${s.text}</p>
         <div class="tour-btns"><button type="button" class="tour-close" data-tour="end">Close</button><span></span>${i ? `<button type="button" data-tour="back">Back</button>` : ""}<button type="button" class="primary" data-tour="next">${last ? "Done" : "Next"}</button></div>`;
-      if (s.node) s.node.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      const node = nodeOf(s);
+      if (node) node.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
       place();
       clearTimeout(timer); timer = setTimeout(place, reduce ? 0 : 400); // again once a smooth scroll has settled
       card.querySelector("#tour-t").focus({ preventScroll: true });
