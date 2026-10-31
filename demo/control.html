@@ -330,24 +330,20 @@
       'gleif:391200JI69LS8L648F30': 'gleif-391200JI69LS8L648F30-202610301607.json', 'gleif:52990092KBQJF8QBGJ50': 'gleif-52990092KBQJF8QBGJ50-202610301607.json' },
     other: { ch: ['ch-07418033-202610301910.json', 'ch-03778796-202610301910.json'], gleif: ['gleif-52990092KBQJF8QBGJ50-202610301607.json', 'gleif-391200JI69LS8L648F30-202610301910.json'] },
   };
-  // Ulaş's trust FAQ (docs/FAQ.md on ulas/plus-story, 174cee5), word for word: scenario, what the service does, trust signal
+  // Ulaş's trust FAQ (docs/FAQ.md on ulas/plus-story, 174cee5), word for word: scenario, what the service does, trust signal.
+  // The seven most frequent of his eleven scenarios (user request: less content); the rest stay in his document.
   const FAQ = [
     ['Fresh signed evidence passes the buyer’s rules', 'Pay only the approved, due milestone amount. Show the registry, fields checked, evidence time, and transaction.', 'Every payment has its own verifiable basis; approval does not exceed the agreed stage.'],
     ['Buyer has not approved the milestone', 'Do not pay, even if the registry check passes.', 'Registry status is not treated as proof of delivery or buyer acceptance.'],
     ['Fresh signed evidence fails a configured rule', 'Hold the order; explain exactly which rule failed. Let the buyer claim the remaining escrow immediately. Do not label the supplier fraudulent.', 'A rule-based hold is visible and actionable without making claims beyond the evidence.'],
-    ['A valid record is challenged as wrong or misleading', 'Freeze any unpaid milestone. Mark the case “contested—not a finding of fault.” Under the agreed policy, let the buyer trigger an immediate refund of the remaining escrow and close the order.', 'The agent and contract do not pretend to decide who is legally right. The refund is an agreed exit, not a judgment against the supplier.', true],
     ['Signature, supplier, request, timestamp, or replay check fails', 'Reject that record and do not pay against it. Log the rejection reason and seek fresh evidence. A bad submission alone should not automatically move funds.', 'Invalid evidence cannot force a refund; rejection is not evidence that the supplier failed.'],
     ['Registry/API data is unavailable or incomplete', 'Report “no verified data,” not “supplier failed.” Do not pay without a valid permit. Retry within the spending policy; if data remains unavailable through the agreed grace period, refund the remaining escrow.', 'Separates a service/data outage from an adverse supplier finding.'],
-    ['Evidence is later corrected or contradicted', 'Preserve the original record in the audit trail. Require new, valid evidence for any future order; do not silently rewrite history or reopen a refunded order.', 'Customers can see what the contract knew at the time and what changed later.'],
     ['Permit expires before payment', 'Do not release funds on the expired permit. Require fresh evidence and buyer approval; use the no-data exit if evidence does not arrive within the agreed period.', 'Old approval cannot quietly authorize a later payment.'],
     ['Supplier status fails on another order', 'Stop unpaid milestones for that supplier when the new signed failure applies; show the source and time. Let each buyer decide what to do with their remaining escrow under the agreed terms.', 'A verified failure is acted on consistently, while each buyer retains control of their own order.'],
-    ['Delivery or contract performance is disputed', 'Do not claim the registry resolves the dispute. Keep payment subject to buyer milestone approval; handle any disagreement under the buyer-supplier agreement.', 'SupplierPulse checks configured registry conditions; it does not pretend to verify physical delivery or decide legal disputes.'],
-    ['Agent, Cardano job, or network fails', 'Do not report a successful check or payment without proof. Keep funds in escrow, show the error, and follow the no-data policy if it persists.', 'No success-shaped fallback: every claimed result is backed by evidence or a transaction.'],
   ];
   const FAQ_LIMITS = [
     '<b>A refund means the remaining escrow goes back to the buyer.</b> It cannot reverse milestones already paid.',
     'A refund does not establish that the supplier did anything wrong or resolve a dispute over goods already delivered.',
-    '“Contested = immediate refund” is a proposed policy. The current contract supports an immediate buyer refund after a valid adverse record puts an order on hold, but it does not provide a general immediate refund for a contested record while an order is active. Invalid evidence is rejected, and the active-order no-data path has a grace period.',
     'SupplierPulse checks configured registry conditions. A signed registry response proves what the source returned, not that the data is complete, current in the real world, or proof of delivery or future performance.',
   ];
   const nameOf = P.orderNamer();
@@ -640,13 +636,12 @@
 
   // The FAQ on the home screen. Simple: one line per question, the answer on demand. Complex: the full table.
   function faq() {
-    const proposed = `<span class="sp-pill sp-wait" style="margin-left:8px">${icon('flask-conical')}Proposed policy</span>`;
     const limits = `<ul class="sp-faq-limits">${FAQ_LIMITS.map((x) => `<li>${x}</li>`).join('')}</ul>`;
     const head = `<div class="sp-row sp-between" style="margin:28px 0 14px"><h2>What happens when…</h2><span class="sp-mono">${String(FAQ.length).padStart(2, '0')} questions</span></div>`;
     if (s.mode === 'complex') {
-      return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet"><div class="sp-table-wrap"><table class="sp-table sp-faq-table"><thead><tr><th>Scenario</th><th>What the service does</th><th>Trust signal</th></tr></thead><tbody>${FAQ.map(([q, a, t, prop]) => `<tr><td><strong style="font-weight:600">${q}</strong>${prop ? `<div style="margin-top:6px">${proposed}</div>` : ''}</td><td>${a}</td><td class="sp-muted">${t}</td></tr>`).join('')}</tbody></table></div></div><div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Important limits</h3>${limits}</div></section>`;
+      return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet"><div class="sp-table-wrap"><table class="sp-table sp-faq-table"><thead><tr><th>Scenario</th><th>What the service does</th><th>Trust signal</th></tr></thead><tbody>${FAQ.map(([q, a, t]) => `<tr><td><strong style="font-weight:600">${q}</strong></td><td>${a}</td><td class="sp-muted">${t}</td></tr>`).join('')}</tbody></table></div></div><div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Important limits</h3>${limits}</div></section>`;
     }
-    return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet sp-padding sp-faq">${FAQ.map(([q, a, t, prop], i) => `<details class="sp-faq-item" data-key="faq-${i}"${opened('faq-' + i)}><summary class="cursor-interaction">${q}${prop ? proposed : ''}</summary><div class="sp-faq-body"><p>${a}</p><p class="sp-small sp-muted sp-row" style="margin-top:8px;align-items:flex-start">${icon('shield-check')}<span>${t}</span></p></div></details>`).join('')}<details class="sp-faq-item" data-key="faq-limits"${opened('faq-limits')}><summary class="cursor-interaction">Important limits</summary><div class="sp-faq-body">${limits}</div></details></div></section>`;
+    return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet sp-padding sp-faq">${FAQ.map(([q, a, t], i) => `<details class="sp-faq-item" data-key="faq-${i}"${opened('faq-' + i)}><summary class="cursor-interaction">${q}</summary><div class="sp-faq-body"><p>${a}</p><p class="sp-small sp-muted sp-row" style="margin-top:8px;align-items:flex-start">${icon('shield-check')}<span>${t}</span></p></div></details>`).join('')}<details class="sp-faq-item" data-key="faq-limits"${opened('faq-limits')}><summary class="cursor-interaction">Important limits</summary><div class="sp-faq-body">${limits}</div></details></div></section>`;
   }
 
   function operations(o) {
@@ -982,7 +977,7 @@
       { el: '.sp-control-grid > section', title: 'Next decisions', text: 'Each open order, with the reason it pays or waits. <b>Inspect</b> selects it on the right.' },
       { el: '.sp-control-grid > aside > .sp-sheet', title: 'Release conditions', text: 'The four facts the contract checks: buyer approval, registry rules, a valid payment permit and the due date. The button acts only when the contract would accept it: release a milestone, or refund the buyer.' },
       { el: '.sp-control-grid > aside > .sp-sheet:nth-of-type(2)', title: 'Agent policy', text: 'The agent’s settings and its last on-chain action. The Agent screen lists every transaction it sent.' },
-      { el: '#faq-h', title: 'What happens when…', text: 'Eleven situations, from a passed check to a disputed delivery: what the service does and why you can trust it. Complex shows them as one table.' });
+      { el: '#faq-h', title: 'What happens when…', text: 'The most frequent situations, from a passed check to missing data: what the service does and why you can trust it. Complex shows them as one table.' });
     if (pg === 'lab') steps.push(
       { el: '.sp-cases', title: 'Six scenarios', text: 'The real record and the forgeries of the API3 track. Each press asks the live contract; the answer appears under the scenario.' },
       { el: '[data-runall]', title: 'The whole test', text: 'The valid record and the four forgeries in one press, with one verdict: passed, not tested or broken.' },
