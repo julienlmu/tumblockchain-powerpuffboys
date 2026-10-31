@@ -78,8 +78,8 @@ Speak the quoted lines in your own words. Each **Click** cue says what to show a
 | Time | Say | Click |
 |---|---|---|
 | 0:00–0:25 | "Last year, one in 190 companies in England and Wales became insolvent. Buyers check a supplier once, at onboarding, then keep paying it for months. If it fails in between, the next advance is gone. Your supplier was approved last month; that should not approve today's payment." | Operations, Simple. "Supplier payments" headline. |
-| 0:25–0:55 | "SupplierPulse locks the order in a smart contract. Before every instalment, our agent buys a fresh company-register record from API3 AirnodeHub, signed by the Airnode, for one cent. The contract checks the signature, the company, the age and that it was never used, and only then releases the money." | Point at **Release conditions** on the right: Buyer approval, Registry rules, Payment permit, Milestone due. |
-| 0:55–1:35 | **Live orders** (§5 Plan A or B): "This supplier is active in Companies House: the signed record passed, the buyer approved, and the contract paid the moment it fell due. This one is in liquidation: the contract held the order; the money can only go back to the buyer." | Next decisions: a **Paid / Permit valid** order, then a **Held** one. Open one payment on Etherscan from the **Agent** screen (↗). |
+| 0:25–0:55 | "SupplierPulse locks the order in a smart contract. Before every instalment, our agent buys a fresh company-register record from API3 AirnodeHub, signed by the Airnode, for one cent. The contract checks the signature, the company, the age and that it was never used, and only then releases the money." | Point at **Release conditions** in the open card: Buyer approval, Registry rules, Payment permit, Milestone due. |
+| 0:55–1:35 | **Live orders** (§5 Plan A or B): "This supplier is active in Companies House: the signed record passed, the buyer approved, and the contract paid the moment it fell due. This one is in liquidation: the contract held the order; the money can only go back to the buyer." | Next decisions: a **Paid / Permit valid** order, then a **Held** one (**Inspect** opens its conditions in the card). Open one payment on Etherscan from the **Agent** screen (↗). |
 | 1:35–2:25 | **Tamper test:** "Can you fool it? Let's forge records." Fresh record → permit. Edited value → `WrongSigner`. Genuine old record → `StaleResponse`. Other company → `WrongRequest`. Wrong signing key → `WrongSigner`. "Each answer is the live contract's own." | **Verification lab**. Press the scenarios, or **Run the tamper test** → 4/4 rejected. † Optionally type `active` → `liquidation` in **Edit the signed data yourself** and show **Where the contract stopped**. |
 | 2:25–2:50 | "Nobody pressed a button for any of this. The agent has run on its own since Friday evening: over a thousand cycles, paying one cent per record. Here are its data payments." | **Agent** screen → **Data it buys ↗** (BaseScan). |
 | 2:50–3:00 | "A signature proves what the register said, not that the goods arrive; that stays the buyer's approval. SupplierPulse makes sure you never pay a supplier that has already failed." | Back to Operations. |
@@ -96,7 +96,10 @@ The main page is the **Control Room** (`control.html`), in Orhun's light "Paper"
 - the SupplierPulse logo;
 - five screens: **Operations · Verification lab · Agent · Judge kit · Settings**;
 - **Guide**: a guided tour of the current screen, with Back and Next. Use it if a judge wants to explore alone;
+- **Dark**: dark colours until the page is reloaded (every load starts light);
 - the network pill (**Sepolia**, **Local** or **Sample**).
+
+The logo (top left) always returns to Operations.
 
 **Under the bar:** the source strip ("Live contract · read 10:42") and the **Simple / Complex** switch, available on every screen. Simple shows what needs a decision; Complex adds the details.
 
@@ -122,8 +125,8 @@ The main page is the **Control Room** (`control.html`), in Orhun's light "Paper"
   | **Refund to buyer** | A refund is possible now |
   | **Fully paid** / **Refunded** | The order is closed |
 
-  **Inspect** selects the order on the right.
-- **Release conditions** (right): the four facts the contract needs, each with its state:
+  **Inspect** opens the order's release conditions inside its card, right under the button; **Hide details** closes them. The first order starts open.
+- **Release conditions** (inside the card after Inspect; in Complex, the panel on the right, named by order): the four facts the contract needs, each with its state:
   - **Buyer approval**;
   - **Registry rules** ("Last check passed");
   - **Payment permit** ("Valid until 10:57");
