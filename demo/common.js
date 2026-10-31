@@ -390,6 +390,44 @@
     }
   }
 
+  // ---------------------------------------------------------------- safety checks (security review, 31 Oct)
+
+  /** A contract address from a link: used only if it is an address, else null. */
+  const safeAddress = (v) => (typeof v === "string" && ethers.isAddress(v) ? v : null);
+  /** An RPC URL from a link: http(s) only, no credentials, no #fragment, and none of the characters a shell or HTML
+      would treat specially, since the URL is shown in copyable commands. Anything else: null. */
+  function safeRpc(v) {
+    if (typeof v !== "string" || !v || /[\s'"`$\\<>#]/.test(v)) return null; // quotes, $ and backslash could leave a quoted shell word
+    try { const u = new URL(v); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? v : null; } catch { return null; }
+  }
+  /** A supplier id as the contract itself allows it (Companies House: 1-10 of [0-9A-Z]; GLEIF LEI: 20), else null.
+      A malicious contract or RPC can return any string; only this shape goes into a command or a request. */
+  const SUPPLIER_ID = [/^[0-9A-Z]{1,10}$/, /^[0-9A-Z]{20}$/];
+  const safeSupplierId = (source, id) => ((SUPPLIER_ID[source] || SUPPLIER_ID[0]).test(String(id)) ? String(id) : null);
+  /** One shell word, single-quoted: a value pasted into a terminal can never run as code. */
+  const shq = (v) => `'${String(v).replace(/'/g, `'\\''`)}'`;
+  const isLocalRpc = (rpc) => { try { return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(rpc).hostname); } catch { return false; } };
+  /** Why the page must not ask for a transaction here, or null. Testnets only (Sepolia; the local test chain only
+      through a local RPC, so a remote RPC cannot claim to be it), and never inside another site's frame. */
+  function writeBlocked(chainId, rpc) {
+    if (window.top !== window.self) return "This page is shown inside another site. Open it directly to send a transaction.";
+    if (chainId === 11155111) return null;
+    if (chainId === 31337 && isLocalRpc(rpc)) return null;
+    return `Transactions are sent only on Ethereum Sepolia or a local test chain; this RPC reports chain ${chainId}.`;
+  }
+  /** A browser wallet on the page's chain, switched if needed and checked again after the switch. */
+  async function walletSigner(chainId, rpc) {
+    const why = writeBlocked(chainId, rpc);
+    if (why) throw Object.assign(new Error(why), { blocked: true });
+    if (!window.ethereum) throw Object.assign(new Error("No browser wallet found. Install MetaMask to send this transaction."), { blocked: true });
+    const bp = new ethers.BrowserProvider(window.ethereum);
+    await bp.send("eth_requestAccounts", []);
+    if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
+    const fresh = new ethers.BrowserProvider(window.ethereum);
+    if (Number((await fresh.getNetwork()).chainId) !== chainId) throw Object.assign(new Error(`The wallet is not on chain ${chainId}. Switch it there, then try again.`), { blocked: true });
+    return fresh.getSigner();
+  }
+
   // ---------------------------------------------------------------- starter guide (presentation only)
 
   /** A short guided walk through a page: one step at a time, the element ringed and the rest dimmed, with Back, Next
@@ -549,6 +587,7 @@
   window.PULSE = {
     wireSettings, markField,
     copyBtn, copyText, flashLabel, tour,
+    safeAddress, safeRpc, safeSupplierId, shq, isLocalRpc, writeBlocked, walletSigner,
     icon, hydrateIcons,
     ABI, ABI_V1, V2_DEPLOYER, V11_VECTOR, V1_SEPOLIA, discoverV2, requestHashV1, DEFAULT_RPC, DEAD, EXPLORERS, NETWORKS, DEFAULT_AGENT, STATE, OUTCOME, TIERS,
     SOURCES, sourceIndex, KNOWN_SIGNERS, BASE_FAILED, BASE, RULES,

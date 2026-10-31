@@ -7,7 +7,7 @@
 <!-- The simple view of "Try to break it" (judge.html is the detailed view). One signed record, the four tamper cases
      of the API3 track and the replay, each judged by the live contract: an eth_call of submitEvidence from 0x…dEaD,
      exactly as in judge.html. No wallet and no gas, except the one real send of the replay step. -->
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js" integrity="sha384-NRAZj94DQk3dgtsOZzVYHbYVV1DFkF5QhL5RRxF0ILZLi6OQ7CsMlun748D42JbO" crossorigin="anonymous"></script>
 <script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
 <script src="common.js"></script>
 <link rel="stylesheet" href="base.css">
@@ -233,7 +233,8 @@
 
   try { localStorage.setItem("pulse-view", "simple"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
-  const cfg = { contract: params.get("contract") || "", rpc: params.get("rpc") || P.DEFAULT_RPC, order: params.get("order") };
+  // link parameters only in the expected shape (the RPC URL also reaches a copyable command)
+  const cfg = { contract: P.safeAddress(params.get("contract")) || "", rpc: P.safeRpc(params.get("rpc")) || P.DEFAULT_RPC, order: params.get("order") };
 
   // ---------------------------------------------------------------- theme (shared with the other pages)
 
@@ -353,7 +354,8 @@
     }
     const age = nowSec() - Number(record.timestamp);
     if (record.supplierId && String(record.supplierId).toUpperCase() !== String(order.info.supplierId).toUpperCase()) {
-      const k = allOrders.findIndex((o) => o.state === 0 && String(o.supplierId).toUpperCase() === String(record.supplierId).toUpperCase());
+      const hit = allOrders.find((o) => o.state === 0 && String(o.supplierId).toUpperCase() === String(record.supplierId).toUpperCase());
+      const k = hit ? hit.id : -1;
       recLine("warn", `This record is for ${who}, not this order.
         ${k >= 0 ? `<button type="button" class="link" data-switch="${k}">Switch to order #${k}</button>` : ""}`, "The record is for another company than this order.");
     }
@@ -450,8 +452,10 @@
 
   function howToGet() {
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
-    const id = order.info ? order.info.supplierId : "09729896";
-    const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
+    // a supplier id goes into a copyable command only in the contract's format, single-quoted
+    const id = P.safeSupplierId(order.info ? order.info.source : 0, order.info ? order.info.supplierId : "09729896");
+    if (!id) { $("how-body").innerHTML = `<p style="margin:0">No command shown: this order's supplier id is not in a registry's format.</p>`; return; }
+    const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${P.shq(id)}` : `api3/scripts/fetch-evidence.sh ${s.key} ${P.shq(id)} response.json`;
     $("how-body").innerHTML = `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>
       <p style="margin:0">From a checkout of this repo, with Node 22 or newer and <span class="mono">PAYER_PRIVATE_KEY</span> set to a Base Sepolia
       wallet holding aUSD (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>).
@@ -702,16 +706,12 @@
   }
   async function sendForReal(r) {
     let signer;
-    if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
-    else {
-      if (!window.ethereum) throw new Error(`No browser wallet found. Install MetaMask, or send it from a terminal: api3/scripts/plus-submit.sh ${order.id} response.json --send`);
-      const bp = new ethers.BrowserProvider(window.ethereum);
-      await bp.send("eth_requestAccounts", []);
-      if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
-      signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
-    }
+    // Sepolia through the wallet, the local chain only through a local RPC, never inside another site's frame
+    if (chainId === 31337 && !P.writeBlocked(chainId, cfg.rpc)) signer = new ethers.Wallet(LOCAL.agent, provider);
+    else signer = await P.walletSigner(chainId, cfg.rpc);
     const c = new ethers.Contract(cfg.contract, version === 2 ? P.ABI : P.ABI_V1, signer);
-    const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature);
+    // the agent's gas limit: a record's cost depends on the block it lands in, so an estimate can run out
+    const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature, { gasLimit: 2000000n });
     setRow("replay", "running", `sent ${txLink(tx.hash)}, waiting for the block…`);
     let rc;
     try { rc = await tx.wait(); } catch (e) { rc = e.receipt || null; if (!rc) throw e; } // ethers 6 throws on a reverted receipt
@@ -739,7 +739,7 @@
       setRow("replay", "", REPLAY.check);
       setBusy(false); $("run").disabled = false; runLabel();
       keepReplay(err ? `Not sent: the contract refuses it with <span class="mono">${esc(err.name)}</span>. ${esc(P.explain(err.name, err.args))}`
-        : e.message && e.message.startsWith("No browser wallet") ? esc(e.message) : errHtml(e));
+        : e.blocked ? esc(e.message) : errHtml(e));
       return;
     }
     if (s.status !== 1) {
@@ -876,14 +876,17 @@
     const count = Number(await contract.ordersLength());
     if (!count) { $("order").innerHTML = "<option>No orders yet</option>"; recLine("warn", "This contract has no orders yet: there is nothing to attack. The buyer creates one with api3/scripts/plus-create-order.sh."); return; }
     recLine("wait", `Reading ${count} order${count === 1 ? "" : "s"}…`);
-    const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
+    // the newest 50 orders: anyone can create orders, and a malicious contract can claim any count
+    const first = Math.max(0, count - 50), ids = [...Array(count - first).keys()].map((k) => k + first);
+    const infos = await Promise.all(ids.map((i) => readOrder(i)));
+    infos.forEach((o, k) => { o.id = ids[k]; });
     allOrders = infos;
     // the state first: it decides whether the contract accepts any record for the order
-    $("order").innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">${P.STATE[o.state]} · #${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)}</option>`; }).join("");
+    $("order").innerHTML = infos.map((o) => { const i = o.id; const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">${P.STATE[o.state]} · #${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)}</option>`; }).join("");
     if (!isLocal() && !$("resp").value) { const d = loadDraft(); if (d) { $("resp").value = d; $("clear-rec").disabled = false; } }
     // a held or closed order refuses every record: start on the first active one unless the URL names an order
-    const asked = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : -1;
-    const want = asked >= 0 ? asked : Math.max(0, infos.findIndex((o) => o.state === 0));
+    const asked = cfg.order !== null && ids.includes(Number(cfg.order)) ? Number(cfg.order) : -1;
+    const want = asked >= 0 ? asked : (infos.find((o) => o.state === 0) || infos[0]).id;
     $("order").value = String(want);
     $("order").disabled = false;
     await selectOrder(want);
