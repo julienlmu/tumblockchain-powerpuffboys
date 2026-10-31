@@ -6,12 +6,12 @@
 <title>SupplierPulse Control Room</title>
 <!-- Control Room: Orhun's design (codex/ui-design-concepts, design/ui-concepts/CONTROL_ROOM.md), layout and look unchanged,
      with SupplierPulse's real data and actions. Live: ?contract=0x…&rpc=…; sample: ?sample=1. -->
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js" integrity="sha384-NRAZj94DQk3dgtsOZzVYHbYVV1DFkF5QhL5RRxF0ILZLi6OQ7CsMlun748D42JbO" crossorigin="anonymous"></script>
 <script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
 <script src="common.js"></script>
 <script src="sample/sample.js"></script>
 <script src="sample/responses.js"></script>
-<script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js" integrity="sha384-mB5yN6ht29opTeLuaWk+os1xURIPXV1kaH+TrwgB4vDhbgo4HasARHOtSjMaavQn" crossorigin="anonymous"></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23345a35' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2'/%3E%3C/svg%3E">
 <!-- the preview's page frame (design/ui-concepts/preview.html) -->
 <style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}</style>
@@ -309,7 +309,10 @@
   const UNIT = 10n ** 12n; // 1 token = 10^12 wei (§2.5)
   const money = (wei) => P.tokens(wei, UNIT);
   const params = new URLSearchParams(location.search);
-  const cfg = { contract: params.get('contract') || '', rpc: params.get('rpc') || P.DEFAULT_RPC, sample: params.has('sample'), from: params.get('from') };
+  const link = { contract: params.get('contract'), rpc: params.get('rpc'), from: params.get('from') };
+  const cfg = { contract: P.safeAddress(link.contract) || '', rpc: P.safeRpc(link.rpc) || P.DEFAULT_RPC, sample: params.has('sample'), from: /^\d{1,10}$/.test(link.from || '') ? link.from : null };
+  const ignored = [['contract', link.contract && !cfg.contract], ['rpc', link.rpc && cfg.rpc !== link.rpc], ['from', link.from && !cfg.from]].filter(([, bad]) => bad).map(([k]) => k);
+  const MAX_ORDERS = 50; // the newest orders only: anyone can create orders, and a malicious contract can claim any count
   const REFRESH_MS = 12000, LOG_CHUNK = 9000, MAX_CHUNKS = 30;
   // Public anvil test keys (§4.8), the same as judge.html: used only on the local test chain (chain id 31337).
   const LOCAL = {
@@ -382,8 +385,8 @@
     let from = evState.next;
     if (from === null) { // first read: the deploy block if given, else the last 9000 blocks; at most ~270k blocks
       from = cfg.from ? Number(cfg.from) : Math.max(0, latest - LOG_CHUNK);
-      from = Math.max(from, latest - LOG_CHUNK * MAX_CHUNKS);
     }
+    from = Math.max(from, latest - LOG_CHUNK * MAX_CHUNKS);
     while (from <= latest) {
       const to = Math.min(latest, from + LOG_CHUNK - 1);
       const logs = await provider.getLogs({ address: cfg.contract, fromBlock: from, toBlock: to });
@@ -437,7 +440,8 @@
     const count = Number(await contract.ordersLength());
     try { await loadEvents(latest); } catch { /* the trail shows what is loaded */ }
     const evBy = eventsByOrder();
-    orders = await Promise.all([...Array(count).keys()].map(async (id) => {
+    const first = Math.max(0, count - MAX_ORDERS);
+    orders = await Promise.all([...Array(count - first).keys()].map((k) => k + first).map(async (id) => {
       const [info, milestones, status, schedule] = await Promise.all([contract.orderInfo(id), contract.orderMilestones(id), contract.orderStatus(id), contract.orderSchedule(id)]);
       const supplier = await contract.supplierRecord(P.supplierKeyOf(Number(info.source), info.supplierId));
       return norm({ id, info, milestones, status, schedule, supplier, events: evBy[id] || [] });
@@ -514,13 +518,13 @@
   const brand = () => `<div class="sp-brand"><span class="sp-brandmark">${icon('activity')}</span>SupplierPulse</div>`;
   const network = () => (mode === 'sample' ? 'Sample' : chainId === 31337 ? 'Local chain' : chainId === 11155111 ? 'Sepolia' : chainId ? `Chain ${chainId}` : 'Connecting');
   const top = () => `<header class="sp-control-top">${brand()}<nav class="sp-control-nav" aria-label="Main navigation">${PAGES.map(([k, l]) => `<button class="cursor-interaction" data-page="${k}" ${s.page === k ? 'aria-current="page"' : ''}>${l}</button>`).join('')}</nav><div class="sp-row" style="gap:8px"><button class="sp-pill sp-guide cursor-interaction" data-guide aria-label="Guide: a short walk through the Control Room">${icon('circle-help')}Guide</button><span class="sp-pill">${icon('hexagon')}${network()}</span></div></header>`;
-  const preview = () => mode === 'sample'
+  const preview = () => ignored.length ? `<span class="sp-preview">${icon('shield-alert')}Ignored an invalid ${ignored.join(', ')} in the link</span>` : mode === 'sample'
     ? `<span class="sp-preview">${icon('flask-conical')}Sample data · not read from a chain</span>`
     : readFailed ? `<span class="sp-preview">${icon('triangle-alert')}${esc(readFailed)} · retrying</span>`
     : orders ? `<span class="sp-preview">${icon('radio')}Live contract · read ${dayClock(readAt)}</span>`
     : `<span class="sp-preview">${icon('loader')}Reading the contract…</span>`;
   const modeSwitch = () => `<div class="sp-mode" role="group" aria-label="Information density"><button class="cursor-interaction" data-mode="simple" aria-pressed="${s.mode === 'simple'}">Simple</button><button class="cursor-interaction" data-mode="complex" aria-pressed="${s.mode === 'complex'}">Complex</button></div>`;
-  const footer = () => `<footer class="sp-footer"><span class="sp-row">${icon('hexagon')}${mode === 'sample' ? 'Sample data' : esc(P.NETWORKS[chainId] || 'Ethereum Sepolia')} · tokens (1 token = 10¹² wei)</span><span>${mode === 'sample' ? 'Nothing can be sent in sample mode' : 'Read-only until you press Release, Refund or Replay'}</span></footer>`;
+  const footer = () => `<footer class="sp-footer"><span class="sp-row">${icon('hexagon')}${mode === 'sample' ? 'Sample data' : esc(P.NETWORKS[chainId] || (chainId ? `Chain ${chainId} (unknown network)` : 'Connecting'))} · tokens (1 token = 10¹² wei)</span><span>${mode === 'sample' ? 'Nothing can be sent in sample mode' : 'Read-only until you press Release, Refund or Replay'}</span></footer>`;
   const kv = (pairs) => `<dl class="sp-kv">${pairs.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('')}</dl>`;
   const heading = (over, title, sub) => `<div class="sp-lab-heading"><div class="sp-overline">${over}</div><h1 style="margin-top:10px">${title}</h1><p class="sp-muted" style="margin-top:9px">${sub}</p></div>`;
   const orderChips = () => `<div class="sp-filters" role="group" aria-label="Order" style="margin:-8px 0 20px">${orders.map((x) => `<button class="cursor-interaction" data-pick="${x.id}" aria-pressed="${x.id === s.order}">${esc(x.ref)}</button>`).join('')}</div>`;
@@ -677,13 +681,16 @@
   // ---------------------------------------------------------------- Judge kit: everything to repeat the test outside the page
 
   function kitPage(o) {
-    const id = o.supplier, fetch = `api3/scripts/fetch-evidence.sh ${o.key} ${id} response.json`;
-    const env = `export EVM_RPC_URL=${cfg.rpc} PULSE_PLUS_ADDRESS=${cfg.contract}`;
+    // every value pasted into a terminal is one single-quoted word; a supplier id appears only in the contract's format
+    const q = P.shq, id = P.safeSupplierId(o.sourceIndex, o.supplier);
+    const fetch = id ? `api3/scripts/fetch-evidence.sh ${o.key} ${q(id)} response.json` : '';
+    const env = `export EVM_RPC_URL=${q(cfg.rpc)} PULSE_PLUS_ADDRESS=${q(cfg.contract)}`;
     const attacks = [`cd api3 && ${env}`, `scripts/plus-submit.sh ${o.id} response.json            # valid -> ACCEPTED`, `scripts/plus-submit.sh ${o.id} response.json value      # (a)   -> WrongSigner`, `scripts/plus-submit.sh ${o.id} response.json stale      # (b)   -> StaleResponse`, `scripts/plus-submit.sh ${o.id} response.json request    # (c)   -> WrongRequest`, `scripts/plus-submit.sh ${o.id} response.json key        # (d)   -> WrongSigner`, `scripts/plus-submit.sh ${o.id} response.json --send     # real tx; then again -> Replayed`].join('\n');
-    const oldFx = FIXTURES.old[`${o.key}:${id}`], otherFx = (FIXTURES.other[o.key] || []).find((f) => !f.includes(id));
+    const oldFx = id && FIXTURES.old[`${o.key}:${id}`], otherFx = id && (FIXTURES.other[o.key] || []).find((f) => !f.includes(id));
     const fixtures = chainId === 11155111 && (oldFx || otherFx) ? [`cd api3 && ${env}`, oldFx ? `scripts/plus-submit.sh ${o.id} fixtures/${oldFx}   # genuine, old -> StaleResponse` : '', otherFx ? `scripts/plus-submit.sh ${o.id} fixtures/${otherFx}   # genuine, other company -> WrongRequest` : ''].filter(Boolean).join('\n') : '';
     const src = P.SOURCES[o.sourceIndex] || P.SOURCES[0], signer = consts.airnodes[o.sourceIndex] || '';
     const contractRow = ['Address', `${explorer ? `<a href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">${short(cfg.contract)}</a>` : short(cfg.contract)} ${copyBtn(cfg.contract)}`];
+    const badId = `<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Get a fresh signed record</h3><p class="sp-small sp-muted" style="margin-top:8px">No command shown: this order's supplier id is not in a registry's format, so it could not be a real Companies House or GLEIF record.</p></div>`;
     const proves = `<div class="sp-sheet sp-padding"><h3>What a pass proves</h3><p class="sp-small sp-muted" style="margin-top:9px">The register said it, unaltered and recently: the signer, the request and the time all check out. It does not prove that the supplier will deliver; that stays the buyer's approval.</p></div>`;
     const fetchSheet = (title) => `<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>${title}</h3><p class="sp-small sp-muted" style="margin-top:8px">$0.01 in test aUSD over x402 on Base Sepolia (free from <a href="https://api3dao.github.io/airnodehub-hackathon/faucet/" target="_blank" rel="noopener">API3's faucet</a>); valid ${consts.maxAge} s. Needs a checkout of this repo, Node 22 or newer and PAYER_PRIVATE_KEY.</p>${code(fetch)}</div>`;
     const head = `${heading('Judge kit', 'Check it yourself.', `Everything to repeat the test outside this page, for order ${esc(o.ref)} · ${esc(o.name)}.`)}${orderChips()}`;
@@ -691,9 +698,9 @@
       const quick = fixtures
         ? `<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Quickest: no cost, no keys</h3><p class="sp-small sp-muted" style="margin-top:8px">Two untouched records signed by the real Airnodes, already in the repo.</p>${code(fixtures)}</div>`
         : `<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Quickest: in this page</h3><p class="sp-small sp-muted" style="margin-top:8px">Open the Verification lab and press Run the tamper test: the valid record and four forgeries, one verdict.</p><button class="sp-button sp-quiet cursor-interaction" data-page="lab" style="margin-top:10px">Verification lab ${icon('arrow-right')}</button></div>`;
-      return `${head}<div class="sp-control-grid"><section><div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>The contract</h3><span class="sp-pill">${network()}</span></div>${kv([contractRow, ['Order', `${esc(o.ref)} · #${o.id}`]])}</div>${quick}${fetchSheet('With your own record')}<button class="sp-button sp-quiet cursor-interaction" data-mode="complex" style="margin-top:12px">Every command and the request itself ${icon('arrow-right')}</button></section><aside>${proves}</aside></div>`;
+      return `${head}<div class="sp-control-grid"><section><div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>The contract</h3><span class="sp-pill">${network()}</span></div>${kv([contractRow, ['Order', `${esc(o.ref)} · #${o.id}`]])}</div>${quick}${id ? fetchSheet('With your own record') : badId}<button class="sp-button sp-quiet cursor-interaction" data-mode="complex" style="margin-top:12px">Every command and the request itself ${icon('arrow-right')}</button></section><aside>${proves}</aside></div>`;
     }
-    return `${head}<div class="sp-control-grid"><section><div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>The contract</h3><span class="sp-pill">${network()}</span></div>${kv([contractRow, [`Order ${esc(o.ref)} expects`, `<span class="sp-mono">${short(o.requestHash)}</span> ${copyBtn(o.requestHash)}`], ['Trusted signer', `${esc(P.KNOWN_SIGNERS[signer.toLowerCase()] || 'Airnode')} <span class="sp-mono">${short(signer)}</span>`], ['Max record age', `${consts.maxAge} seconds`], ['Gas for --send', '2,000,000 (as the agent)']])}</div>${fetchSheet('1 · Get a fresh signed record')}<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>2 · The tamper test from a terminal</h3><p class="sp-small sp-muted" style="margin-top:8px">Each line is an eth_call simulation; --send sends a real transaction. Or paste the file in the Verification lab.</p>${code(attacks)}</div>${fixtures ? `<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>No cost: genuine records in the repo</h3><p class="sp-small sp-muted" style="margin-top:8px">Untouched records signed by the real Airnodes on 30 Oct, in api3/fixtures/.</p>${code(fixtures)}</div>` : ''}</section><aside>${proves}<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Build the request yourself</h3><p class="sp-small sp-muted" style="margin-top:10px">AirnodeHub body (MCP call-operation, or POST with x402):</p>${code(src.body(id))}<p class="sp-small sp-muted" style="margin-top:10px">The request hash is keccak256 of this string; the contract builds it on chain:</p>${code(src.request(id))}</div></aside></div>`;
+    return `${head}<div class="sp-control-grid"><section><div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>The contract</h3><span class="sp-pill">${network()}</span></div>${kv([contractRow, [`Order ${esc(o.ref)} expects`, `<span class="sp-mono">${short(o.requestHash)}</span> ${copyBtn(o.requestHash)}`], ['Trusted signer', `${esc(P.KNOWN_SIGNERS[signer.toLowerCase()] || 'Airnode')} <span class="sp-mono">${short(signer)}</span>`], ['Max record age', `${consts.maxAge} seconds`], ['Gas for --send', '2,000,000 (as the agent)']])}</div>${id ? fetchSheet('1 · Get a fresh signed record') : badId}<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>2 · The tamper test from a terminal</h3><p class="sp-small sp-muted" style="margin-top:8px">Each line is an eth_call simulation; --send sends a real transaction. Or paste the file in the Verification lab.</p>${code(attacks)}</div>${fixtures ? `<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>No cost: genuine records in the repo</h3><p class="sp-small sp-muted" style="margin-top:8px">Untouched records signed by the real Airnodes on 30 Oct, in api3/fixtures/.</p>${code(fixtures)}</div>` : ''}</section><aside>${proves}<div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Build the request yourself</h3>${id ? `<p class="sp-small sp-muted" style="margin-top:10px">AirnodeHub body (MCP call-operation, or POST with x402):</p>${code(src.body(id))}<p class="sp-small sp-muted" style="margin-top:10px">The request hash is keccak256 of this string; the contract builds it on chain:</p>${code(src.request(id))}` : `<p class="sp-small sp-muted" style="margin-top:10px">Not shown: this order's supplier id is not in a registry's format.</p>`}</div></aside></div>`;
   }
 
   // ---------------------------------------------------------------- Settings: what to watch, contract details, the other screens
@@ -710,7 +717,7 @@
     if (s.mode === 'simple') {
       return `${head}<div class="sp-control-grid"><section><div class="sp-sheet sp-padding"><h3>Data</h3><div class="sp-cases" style="margin-bottom:0">${choice('live', 'radio', 'Live Sepolia', 'The newest SupplierPulse contract', live)}${choice('sample', 'flask-conical', 'Sample data', 'Every state, nothing can be sent', mode === 'sample')}</div><form id="sp-settings" style="margin-top:16px"><label class="sp-field" style="margin-top:0">Or another contract on ${esc(P.NETWORKS[chainId] || 'this network')}<input class="sp-input" name="contract" value="${custom ? esc(cfg.contract) : ''}" placeholder="0x…" spellcheck="false" autocomplete="off"></label><input type="hidden" name="rpc" value="${esc(cfg.rpc)}"><input type="hidden" name="from" value="${esc(cfg.from || '')}"><p class="sp-small" id="sp-settings-msg" role="status" style="margin-top:10px;color:var(--sp-red)"></p><div class="sp-row sp-wrap" style="margin-top:8px"><button class="sp-button sp-primary cursor-interaction" type="submit">${icon('plug')}Load contract</button><button class="sp-button sp-quiet cursor-interaction" data-mode="complex">Network and history ${icon('arrow-right')}</button></div></form></div></section><aside>${others}</aside></div>`;
     }
-    const det = consts ? kv([['Network', `${esc(P.NETWORKS[chainId] || network())}${chainId ? ` · ${chainId}` : ''}`], ['Contract', cfg.contract ? (explorer ? `<a href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">${short(cfg.contract)}</a>` : short(cfg.contract)) : '–'], ['Max record age', `${consts.maxAge} s`], ['Refund grace', `${consts.refundGrace} s`], ['Companies House Airnode', `<span class="sp-mono">${short(consts.airnodes[0])}</span>`], ['GLEIF Airnode', `<span class="sp-mono">${short(consts.airnodes[1])}</span>`], ['Agent wallet', agentAddr ? `<span class="sp-mono">${short(agentAddr)}</span>` : 'Unknown'], ['Events loaded from', mode === 'sample' ? 'Sample' : cfg.from ? `block ${cfg.from}` : `the last ${LOG_CHUNK.toLocaleString('en-GB')} blocks`]]) : '<p class="sp-small sp-muted" style="margin-top:9px">Not connected.</p>';
+    const det = consts ? kv([['Network', `${esc(P.NETWORKS[chainId] || network())}${chainId ? ` · ${chainId}` : ''}`], ['Contract', cfg.contract ? (explorer ? `<a href="${explorer}/address/${cfg.contract}" target="_blank" rel="noopener">${short(cfg.contract)}</a>` : short(cfg.contract)) : '–'], ['Max record age', `${consts.maxAge} s`], ['Refund grace', `${consts.refundGrace} s`], ['Companies House Airnode', `<span class="sp-mono">${short(consts.airnodes[0])}</span>`], ['GLEIF Airnode', `<span class="sp-mono">${short(consts.airnodes[1])}</span>`], ['Agent wallet', agentAddr ? `<span class="sp-mono">${short(agentAddr)}</span>` : 'Unknown'], ['Events loaded from', mode === 'sample' ? 'Sample' : cfg.from ? `block ${esc(cfg.from)}` : `the last ${LOG_CHUNK.toLocaleString('en-GB')} blocks`]]) : '<p class="sp-small sp-muted" style="margin-top:9px">Not connected.</p>';
     return `${head}<div class="sp-control-grid"><section><form class="sp-sheet sp-padding" id="sp-settings"><h3>Contract</h3><label class="sp-field">Contract address<input class="sp-input" name="contract" value="${esc(cfg.contract)}" placeholder="0x…" spellcheck="false" autocomplete="off"></label><label class="sp-field">RPC URL<input class="sp-input" name="rpc" value="${esc(cfg.rpc)}" spellcheck="false" autocomplete="off" inputmode="url"></label><label class="sp-field">Events from block (optional)<input class="sp-input" name="from" value="${esc(cfg.from || '')}" placeholder="the deploy block; default the last 9000 blocks" inputmode="numeric" autocomplete="off"></label><p class="sp-small" id="sp-settings-msg" role="status" style="margin-top:10px;color:var(--sp-red)"></p><div class="sp-row sp-wrap" style="margin-top:12px"><button class="sp-button sp-primary cursor-interaction" type="submit">${icon('plug')}Load contract</button><button class="sp-button cursor-interaction" data-goto="live">${icon('radio')}Live Sepolia</button><button class="sp-button cursor-interaction" data-goto="sample">${icon('flask-conical')}Sample data</button></div></form></section><aside><div class="sp-sheet sp-padding"><h3>Contract details</h3>${det}</div>${others}</aside></div>`;
   }
 
@@ -767,12 +774,8 @@
     } catch (e) { const err = P.decodeRevert(iface, e); if (!err) throw e; return { accepted: false, err }; }
   }
   async function signerFor() {
-    if (chainId === 31337) return new ethers.Wallet(LOCAL.agent, provider);
-    if (!window.ethereum) throw new Error('No browser wallet found. Install MetaMask to send this transaction.');
-    const bp = new ethers.BrowserProvider(window.ethereum);
-    await bp.send('eth_requestAccounts', []);
-    if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send('wallet_switchEthereumChain', [{ chainId: '0x' + chainId.toString(16) }]);
-    return new ethers.BrowserProvider(window.ethereum).getSigner();
+    if (chainId === 31337 && !P.writeBlocked(chainId, cfg.rpc)) return new ethers.Wallet(LOCAL.agent, provider);
+    return P.walletSigner(chainId, cfg.rpc);
   }
   async function runCase(o, c, { quiet = false, base = null } = {}) {
     const k = `${o.id}:${c.key}`;
@@ -803,8 +806,8 @@
       const what = c.mode === 'realOld' ? `An untouched record of ${o.supplier}, signed ${dayClock(Number(record.timestamp))}.` : c.mode === 'realOther' ? `An untouched record of another company (${record.supplierId}).` : c.mode === 'replay' ? 'The valid record, sent once for real, submitted a second time.' : c.mode === 'asis' ? 'The record as the Airnode signed it.' : tampered && tampered.what;
       results[k] = { state: 'done', ans, got, what, pass: got === c.expect, record, sent: c.mode === 'replay' ? sentDigests.get(P.digestOf(record.requestHash, record.timestamp, record.data).toLowerCase()) : null };
     } catch (e) {
-      const f = e.needRecord ? { text: e.message } : P.friendlyError(e, { rpc: cfg.rpc });
-      results[k] = { state: 'error', text: e.needRecord || !f.text ? e.message : f.text, needRecord: !!e.needRecord };
+      const f = e.needRecord || e.blocked ? { text: e.message } : P.friendlyError(e, { rpc: cfg.rpc });
+      results[k] = { state: 'error', text: f.text || e.message, needRecord: !!e.needRecord };
     }
     if (!quiet) render();
     if (c.mode === 'replay') refresh(); // the send changed the order
@@ -962,7 +965,7 @@
       await refresh();
     } catch (e) {
       const err = P.decodeRevert(iface, e);
-      sendMsg = { id: o.id, busy: false, html: err ? `Not sent: the contract refuses it with ${esc(err.name)}. ${esc(P.explain(err.name, err.args))}` : esc(P.friendlyError(e, { rpc: cfg.rpc }).text) };
+      sendMsg = { id: o.id, busy: false, html: e.blocked ? esc(e.message) : err ? `Not sent: the contract refuses it with ${esc(err.name)}. ${esc(P.explain(err.name, err.args))}` : esc(P.friendlyError(e, { rpc: cfg.rpc }).text) };
       render();
     }
   }

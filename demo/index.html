@@ -7,7 +7,7 @@
 <!-- Dashboard v2 for api3/src/SupplierPulsePlus.sol (docs/SUPPLIERPULSE_PLUS.md §6.4). Read-only by default:
      view functions and eth_getLogs. The only write is the optional "Refund to buyer (MetaMask)" through the buyer's MetaMask.
      Usage: demo/README.md. v1 (SupplierPulse.sol) is demo/v1.html. -->
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js" integrity="sha384-NRAZj94DQk3dgtsOZzVYHbYVV1DFkF5QhL5RRxF0ILZLi6OQ7CsMlun748D42JbO" crossorigin="anonymous"></script>
 <script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
 <script src="common.js"></script>
 <script src="sample/sample.js"></script>
@@ -430,9 +430,9 @@
   const params = new URLSearchParams(location.search);
   const cfg = {
     contract: params.get("contract") || "",
-    rpc: params.get("rpc") || P.DEFAULT_RPC,
+    rpc: P.safeRpc(params.get("rpc")) || P.DEFAULT_RPC, // only an http(s) URL in a safe shape
     orders: params.get("orders") || "",
-    agent: params.get("agent") || "",
+    agent: P.safeAddress(params.get("agent")) || "",
     from: params.get("from") || "",
     unit: params.get("unit") || "",
     names: params.get("names") || "",
@@ -1196,6 +1196,8 @@
       if (latest - from > LOG_CHUNK * MAX_CHUNKS) { from = latest - LOG_CHUNK * MAX_CHUNKS; note = ` · history limited to the last ${LOG_CHUNK * MAX_CHUNKS} blocks`; }
       evState.from = from;
     }
+    // at most MAX_CHUNKS chunks per read, also after the first one: a lying RPC can report any block number
+    if (latest - from > LOG_CHUNK * MAX_CHUNKS) from = latest - LOG_CHUNK * MAX_CHUNKS;
     const fresh = [];
     while (from <= latest) {
       const to = Math.min(latest, from + LOG_CHUNK - 1);
@@ -1257,7 +1259,8 @@
     const latest = await provider.getBlockNumber();
     const count = Number(await contract.ordersLength());
     const asked = cfg.orders ? cfg.orders.split(",").map((x) => x.trim()).filter((x) => /^\d+$/.test(x)).map(Number) : null;
-    const ids = asked ? asked.filter((n) => n < count) : [...Array(count).keys()];
+    // at most the newest 50 orders: anyone can create orders, and a malicious contract can claim any count
+    const ids = asked ? asked.filter((n) => n < count).slice(0, 50) : [...Array(Math.min(count, 50)).keys()].map((k) => k + Math.max(0, count - 50));
     const missing = asked ? asked.filter((n) => n >= count) : [];
 
     try { eventsNote = await loadEvents(latest); }
@@ -1322,11 +1325,8 @@
     claimMsg[id] = "";
     rerender();
     try {
-      const bp = new ethers.BrowserProvider(window.ethereum);
-      await bp.send("eth_requestAccounts", []);
-      const net = await bp.getNetwork();
-      if (Number(net.chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
-      const signer = await (new ethers.BrowserProvider(window.ethereum)).getSigner();
+      // Sepolia (or a local chain through a local RPC) only, never inside another site's frame; the chain checked after the switch
+      const signer = await P.walletSigner(chainId, cfg.rpc);
       const c = new ethers.Contract(cfg.contract, P.ABI, signer);
       try { await c.refundRemaining.staticCall(id); }
       catch (e) {
@@ -1342,7 +1342,7 @@
       say(`Refunded in ${txLink(tx.hash)}.`);
       tick();
     } catch (e) {
-      say(notSent(e, id));
+      say(e.blocked ? esc(e.message) : notSent(e, id));
     } finally {
       delete claimState[id];
       rerender();

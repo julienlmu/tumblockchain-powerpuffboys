@@ -7,7 +7,7 @@
 <!-- "Try to break it" for SupplierPulse (docs/SUPPLIERPULSE_PLUS.md §6.4). Judges paste a signed register record, tamper
      with it in the browser (same semantics as api3/x402/tamper.mjs, §4.7) and get the live contract's verdict from an
      eth_call simulation of submitEvidence sent from 0x…dEaD: no wallet, no gas. Sending for real is optional. -->
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js" integrity="sha384-NRAZj94DQk3dgtsOZzVYHbYVV1DFkF5QhL5RRxF0ILZLi6OQ7CsMlun748D42JbO" crossorigin="anonymous"></script>
 <script>window.ethers || document.write('<script src="vendor/ethers.umd.min.js"><\/script>');</script>
 <script src="common.js"></script>
 <script src="sample/responses.js"></script>
@@ -416,7 +416,7 @@
 
   try { localStorage.setItem("pulse-view", "detailed"); } catch { /* storage blocked */ } // the dashboard opens the same view
   const params = new URLSearchParams(location.search);
-  const cfg = { contract: params.get("contract") || "", rpc: params.get("rpc") || P.DEFAULT_RPC, order: params.get("order") };
+  const cfg = { contract: params.get("contract") || "", rpc: P.safeRpc(params.get("rpc")) || P.DEFAULT_RPC, order: params.get("order") };
 
   // ---------------------------------------------------------------- theme (same as the dashboard)
 
@@ -609,9 +609,11 @@
     }
     sel.disabled = false;
     setNoOrder(false);
-    const infos = await Promise.all([...Array(count).keys()].map((i) => readOrder(i)));
-    sel.innerHTML = infos.map((o, i) => { const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">#${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`; }).join("");
-    const want = cfg.order !== null && Number(cfg.order) < count ? Number(cfg.order) : 0;
+    // the newest 50 orders: anyone can create orders, and a malicious contract can claim any count
+    const first = Math.max(0, count - 50), ids = [...Array(count - first).keys()].map((k) => k + first);
+    const infos = await Promise.all(ids.map((i) => readOrder(i)));
+    sel.innerHTML = infos.map((o, k) => { const i = ids[k]; const n = nameOf(o.orderRef, o.supplierId); return `<option value="${i}">#${i}${n ? " " + esc(n) : ""} · ${P.SOURCES[o.source].badge} ${esc(o.supplierId)} · ${P.STATE[o.state]}</option>`; }).join("");
+    const want = cfg.order !== null && ids.includes(Number(cfg.order)) ? Number(cfg.order) : ids[0];
     sel.value = String(want);
     await selectOrder(want);
   }
@@ -887,17 +889,14 @@
     out.innerHTML = `${spin} ${chainId === 31337 ? "Sending with the local agent key…" : "Confirm in MetaMask, or reject there…"}`;
     try {
       let signer;
-      if (chainId === 31337) signer = new ethers.Wallet(LOCAL.agent, provider);
-      else {
-        const bp = new ethers.BrowserProvider(window.ethereum);
-        await bp.send("eth_requestAccounts", []);
-        if (Number((await bp.getNetwork()).chainId) !== chainId) await bp.send("wallet_switchEthereumChain", [{ chainId: "0x" + chainId.toString(16) }]);
-        signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
-      }
+      // Sepolia through the wallet, the local chain only through a local RPC, never inside another site's frame
+      if (chainId === 31337 && !P.writeBlocked(chainId, cfg.rpc)) signer = new ethers.Wallet(LOCAL.agent, provider);
+      else signer = await P.walletSigner(chainId, cfg.rpc);
       const c = new ethers.Contract(cfg.contract, version === 2 ? P.ABI : P.ABI_V1, signer);
       // A rejected attempt is sent with a fixed gas limit: gas estimation would refuse it, and the video needs the
       // failed transaction on the explorer.
-      const overrides = lastCandidate.rejected ? { gasLimit: 400000n } : {};
+      // An accepted record gets the agent's 2,000,000: its cost depends on the block it lands in, so an estimate can run out.
+      const overrides = { gasLimit: lastCandidate.rejected ? 400000n : 2000000n };
       const tx = await c.submitEvidence(order.id, r.requestHash, BigInt(r.timestamp), r.data, r.signature, overrides);
       if (onSent) onSent(tx);
       const link = explorer ? `<a class="mono" href="${explorer}/tx/${tx.hash}" target="_blank" rel="noopener">${short(tx.hash)}</a>` : `<span class="mono">${short(tx.hash)}</span>`;
@@ -1151,19 +1150,21 @@
     Each record costs $0.01. Steps: <a href="https://github.com/julienlmu/tumblockchain-powerpuffgirls/blob/main/demo/README.md" target="_blank" rel="noopener">README</a>.</p></details>`;
   function fetchCode() {
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
-    const id = order.info ? order.info.supplierId : "09729896";
-    const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
+    // a supplier id goes into a copyable command only in the contract's format, single-quoted
+    const id = P.safeSupplierId(order.info ? order.info.source : 0, order.info ? order.info.supplierId : "09729896");
+    if (!id) return `<p class="hint">No command shown: this order's supplier id is not in a registry's format.</p>`;
+    const cmd = version === 1 ? `api3/scripts/supplier-fetch.sh ${P.shq(id)}` : `api3/scripts/fetch-evidence.sh ${s.key} ${P.shq(id)} response.json`;
     return `<div class="cmd-line"><code>${esc(cmd)}</code>${P.copyBtn(cmd)}</div>${version === 1 ? "" : PREREQ}`;
   }
 
   function renderKit() {
     const s = order.info ? P.SOURCES[order.info.source] : P.SOURCES[0];
-    const id = order.info ? order.info.supplierId : "09729896";
+    const id = P.safeSupplierId(order.info ? order.info.source : 0, order.info ? order.info.supplierId : "09729896") || "UNKNOWN";
     const net = chainId ? (P.NETWORKS[chainId] || `chain ${chainId}`) : "not connected";
     const v1 = version === 1;
     const v1Body = `{"operation":"getCompanyProfile","parameters":{"company_number":"${id}"},"responseProjection":{"status":"/company_status"}}`;
     const code = (t) => `<div class="cmd-line"><code>${esc(t)}</code>${P.copyBtn(t)}</div>`;
-    const fetchCmd = v1 ? `api3/scripts/supplier-fetch.sh ${id}` : `api3/scripts/fetch-evidence.sh ${s.key} ${id} response.json`;
+    const fetchCmd = v1 ? `api3/scripts/supplier-fetch.sh ${P.shq(id)}` : `api3/scripts/fetch-evidence.sh ${s.key} ${P.shq(id)} response.json`;
     const body = v1 ? v1Body : s.body(id);
     const reqText = v1 ? `["getCompanyProfile",[["company_number","${id}"]],[["status","/company_status"]]]` : s.request(id);
     $("kit").innerHTML = `
