@@ -1,0 +1,364 @@
+{
+  "canvas": [
+    1920,
+    1080
+  ],
+  "checked_strings": 71,
+  "checks": [
+    [
+      "A supplier check that controls the next payment.",
+      1345.8,
+      1730
+    ],
+    [
+      "Fresh signed evidence \u2192 a limited payment permit \u2192 release only when eligible.",
+      928.0,
+      1730
+    ],
+    [
+      "Company registry",
+      225.0,
+      228
+    ],
+    [
+      "Companies House",
+      178.8,
+      228
+    ],
+    [
+      "or GLEIF",
+      85.8,
+      228
+    ],
+    [
+      "Agent",
+      80.8,
+      228
+    ],
+    [
+      "Fetch via AirnodeHub",
+      211.6,
+      228
+    ],
+    [
+      "Pays x402 \u00b7 submits",
+      199.0,
+      228
+    ],
+    [
+      "SupplierPulse",
+      191.8,
+      268
+    ],
+    [
+      "Authenticates the record",
+      244.5,
+      268
+    ],
+    [
+      "Applies buyer rules",
+      190.0,
+      268
+    ],
+    [
+      "Payment permit",
+      220.0,
+      228
+    ],
+    [
+      "One next milestone",
+      191.6,
+      228
+    ],
+    [
+      "Expires \u00b7 used once",
+      191.6,
+      228
+    ],
+    [
+      "Supplier paid",
+      182.6,
+      260
+    ],
+    [
+      "Buyer approved + due",
+      216.9,
+      260
+    ],
+    [
+      "Valid permit required",
+      208.1,
+      260
+    ],
+    [
+      "API3 Airnode signs the response.",
+      327.6,
+      650
+    ],
+    [
+      "Buyer funds escrow before the workflow.",
+      449.6,
+      610
+    ],
+    [
+      "Funds stay in the contract until a permitted",
+      442.5,
+      625
+    ],
+    [
+      "milestone is released or an eligible refund is called.",
+      526.6,
+      625
+    ],
+    [
+      "Invalid proof",
+      169.5,
+      268
+    ],
+    [
+      "Reject this submission.",
+      217.0,
+      268
+    ],
+    [
+      "It does not trigger a refund.",
+      257.9,
+      268
+    ],
+    [
+      "Authentic record, failed rules",
+      385.9,
+      612
+    ],
+    [
+      "Hold the unpaid balance. Buyer can refund while held;",
+      532.3,
+      612
+    ],
+    [
+      "other callers must wait for the grace period.",
+      429.8,
+      612
+    ],
+    [
+      "The agent brings evidence. The contract decides whether money can move.",
+      1042.2,
+      1728
+    ],
+    [
+      "A valid signature authenticates the source and bytes; it does not guarantee delivery or real-world truth.",
+      919.6,
+      1728
+    ],
+    [
+      "Data off chain. Payment rules on chain.",
+      1080.9,
+      1730
+    ],
+    [
+      "Two separate rails: buying authenticated evidence and releasing supplier escrow.",
+      943.7,
+      1730
+    ],
+    [
+      "Company registry",
+      257.1,
+      320
+    ],
+    [
+      "Company status and filings",
+      265.3,
+      320
+    ],
+    [
+      "API3 Airnode",
+      196.3,
+      320
+    ],
+    [
+      "Signs exact response bytes",
+      267.4,
+      320
+    ],
+    [
+      "Agent",
+      86.2,
+      320
+    ],
+    [
+      "Fetch \u00b7 pay x402 \u00b7 submit",
+      249.9,
+      320
+    ],
+    [
+      "Data purchase",
+      165.3,
+      335
+    ],
+    [
+      "x402 \u00b7 aUSD",
+      128.1,
+      335
+    ],
+    [
+      "Base Sepolia",
+      133.0,
+      335
+    ],
+    [
+      "SupplierPulse contract",
+      344.4,
+      588
+    ],
+    [
+      "Request \u00b7 timing \u00b7 replay \u00b7 signer",
+      346.9,
+      588
+    ],
+    [
+      "Buyer rules + known supplier failure",
+      387.6,
+      588
+    ],
+    [
+      "Buyer-funded escrow",
+      324.7,
+      586
+    ],
+    [
+      "Milestone amounts and due dates",
+      363.5,
+      586
+    ],
+    [
+      "Buyer approves each milestone",
+      337.6,
+      586
+    ],
+    [
+      "Release",
+      112.6,
+      264
+    ],
+    [
+      "Valid permit",
+      124.7,
+      264
+    ],
+    [
+      "+ approved + due",
+      180.0,
+      264
+    ],
+    [
+      "\u2192 supplier payout",
+      184.6,
+      264
+    ],
+    [
+      "Invalid evidence \u2192 reject",
+      309.9,
+      560
+    ],
+    [
+      "Failed rules \u2192 hold",
+      233.7,
+      550
+    ],
+    [
+      "The x402 data purchase and the supplier payout are separate transactions on separate testnets.",
+      904.5,
+      1728
+    ],
+    [
+      "Protect the payments still ahead.",
+      915.8,
+      1730
+    ],
+    [
+      "Illustrative customer journey \u00b7 \u20ac240,000 order \u00b7 30% / 40% / 30% milestones.",
+      915.8,
+      1730
+    ],
+    [
+      "\u20ac72,000 paid",
+      282.8,
+      470
+    ],
+    [
+      "Fresh permit + buyer approval + due",
+      357.4,
+      470
+    ],
+    [
+      "This payment has already left escrow.",
+      371.5,
+      470
+    ],
+    [
+      "\u20ac96,000 held",
+      283.4,
+      470
+    ],
+    [
+      "An authentic negative status arrives.",
+      358.2,
+      470
+    ],
+    [
+      "The contract holds this order.",
+      288.0,
+      470
+    ],
+    [
+      "\u20ac72,000 retained",
+      343.5,
+      422
+    ],
+    [
+      "Still part of the unpaid balance.",
+      306.9,
+      422
+    ],
+    [
+      "No further milestone is released.",
+      322.2,
+      422
+    ],
+    [
+      "\u20ac168,000",
+      305.8,
+      450
+    ],
+    [
+      "unpaid balance remains in escrow",
+      380.6,
+      560
+    ],
+    [
+      "Hold \u2192 refund to buyer",
+      368.1,
+      1000
+    ],
+    [
+      "Buyer can call the refund immediately while held.",
+      552.4,
+      1000
+    ],
+    [
+      "Other callers can do so after the configured grace period.",
+      635.8,
+      1000
+    ],
+    [
+      "Previously paid funds are not recovered.",
+      412.7,
+      560
+    ],
+    [
+      "Scenario illustration, not a recorded supplier transition. EUR amounts are fictional; demo escrow uses testnet ETH.",
+      1023.6,
+      1728
+    ]
+  ]
+}

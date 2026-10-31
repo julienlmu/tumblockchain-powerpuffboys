@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SupplierPulse — Pitch pipeline designs</title>
+<style>
+:root{color-scheme:light;--page:#f1eee7;--ink:#242c27;--muted:#62685e;--line:#d0cec5;--green:#365840}
+*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font:16px/1.6 system-ui,sans-serif}
+main{max-width:1450px;margin:auto;padding:34px 4% 50px}header{display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap}h1{font-weight:450;font-size:30px;letter-spacing:-1px;margin:0}header p{margin:0;color:var(--muted);font-size:13px}
+nav{display:flex;gap:12px 28px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-top:24px}button{font:inherit;color:var(--muted);border:0;background:transparent;padding:12px 0;cursor:pointer;border-bottom:2px solid transparent}button[aria-selected=true]{color:var(--ink);border-color:var(--green)}:focus-visible{outline:2px solid var(--green);outline-offset:5px}
+[hidden]{display:none!important}figure{margin:24px 0 0}figure img{display:block;width:100%;height:auto;border:1px solid var(--line)}figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;padding-top:14px}figcaption p{max-width:80ch;margin:0;font-size:14px}a{color:var(--green);text-underline-offset:4px}.downloads{display:flex;gap:20px;font-size:14px;white-space:nowrap}details{margin-top:22px;border-top:1px solid var(--line);padding-top:16px;font-size:14px}summary{cursor:pointer}details p{max-width:100ch}footer{font-size:12px;color:var(--muted);margin-top:30px}@media(max-width:650px){main{padding:24px 5%}h1{font-size:24px}nav{gap:16px}button{font-size:13px}figure{margin-top:18px}}
+</style>
+</head>
+<body><main>
+<header><h1>How should we explain the flow?</h1><p>SupplierPulse · Paper visual language · 16:9 pitch diagrams</p></header>
+<nav role="tablist" aria-label="Pipeline design">
+<button id="tab-gate" role="tab" aria-controls="panel-gate" aria-selected="true" type="button">The payment gate</button>
+<button id="tab-architecture" role="tab" aria-controls="panel-architecture" aria-selected="false" type="button">Evidence &amp; settlement</button>
+<button id="tab-story" role="tab" aria-controls="panel-story" aria-selected="false" type="button">The milestone story</button>
+</nav>
+<section id="panel-gate" role="tabpanel" aria-labelledby="tab-gate">
+<figure><img src="payment-gate.svg" width="1920" height="1080" alt="Registry, agent, contract, permit and supplier payout. Invalid proof is rejected; authentic negative evidence holds unpaid funds."><figcaption><p><strong>Recommended for the main pitch.</strong> Source → agent → contract → permit → payment. Shows who enforces the decision and when funds can move.</p><div class="downloads"><a href="payment-gate.png" download>PNG · 1080p</a><a href="payment-gate.svg" download>SVG · vector</a></div></figcaption></figure>
+<details><summary>20-second speaker note</summary><p>“The buyer funds escrow. Our agent obtains signed company-registry evidence through API3 AirnodeHub. The contract verifies the evidence and applies the buyer’s rules. A clean record creates a time-limited permit for only the next milestone. Payment also needs buyer approval and the due date. Forged evidence is rejected; authentic negative evidence holds the unpaid balance.”</p></details>
+</section>
+<section id="panel-architecture" role="tabpanel" aria-labelledby="tab-architecture" hidden>
+<figure><img src="evidence-and-settlement.svg" width="1920" height="1080" alt="Off-chain evidence retrieval is separate from escrow enforcement on Ethereum Sepolia; x402 data purchases use Base Sepolia."><figcaption><p><strong>For technical explanation and judge Q&A.</strong> Separates API3, the agent and the contract. Distinguishes the data purchase from the supplier payout across the two testnets.</p><div class="downloads"><a href="evidence-and-settlement.png" download>PNG · 1080p</a><a href="evidence-and-settlement.svg" download>SVG · vector</a></div></figcaption></figure>
+<details><summary>25-second speaker note</summary><p>“The upper rail is the evidence flow: the source registry, API3 Airnode and our agent. Signed data is purchased over x402 on Base Sepolia. The lower rail is the escrow contract on Ethereum Sepolia. The agent brings the evidence; the contract checks the request, timing, replay, signer and policy. Release also needs approval and the due date. These are two separate payments.”</p></details>
+</section>
+<section id="panel-story" role="tabpanel" aria-labelledby="tab-story" hidden>
+<figure><img src="milestone-story.svg" width="1920" height="1080" alt="Fictional EUR 240,000 order: EUR 72,000 paid, EUR 96,000 and EUR 72,000 unpaid. Authentic negative evidence holds the remaining EUR 168,000."><figcaption><p><strong>For explaining customer value.</strong> Answers “which funds are protected?” The EUR 240,000 example is fictional; it does not claim recovery of amounts already paid.</p><div class="downloads"><a href="milestone-story.png" download>PNG · 1080p</a><a href="milestone-story.svg" download>SVG · vector</a></div></figcaption></figure>
+<details><summary>20-second speaker note</summary><p>“This fictional EUR 240,000 order has three milestones. The first EUR 72,000 has been paid. If the next check brings an authentically signed negative status, the remaining EUR 168,000 stays in escrow. The buyer can call a refund while held. Previously paid funds are not recovered. This is a scenario, not evidence of a supplier transition in the real demo order B.”</p></details>
+</section>
+<footer>Diagrams illustrate the product flow; they are not live transaction results. The application and existing pitch are unchanged.</footer>
+</main>
+<script>
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function select(tab){for(const item of tabs){const selected=item===tab;item.setAttribute('aria-selected',String(selected));document.getElementById(item.getAttribute('aria-controls')).hidden=!selected}}
+for(const tab of tabs){tab.addEventListener('click',()=>select(tab));tab.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();let n=tabs.indexOf(tab);n=e.key==='Home'?0:e.key==='End'?tabs.length-1:(n+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;select(tabs[n]);tabs[n].focus()})}
+</script>
+</body></html>

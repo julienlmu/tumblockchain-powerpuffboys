@@ -1,0 +1,14 @@
+[
+  {
+    "weight": "400",
+    "file": "IBMPlexSans-400.ttf",
+    "url": "https://fonts.gstatic.com/s/ibmplexsans/v23/zYXGKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1swZSAXcomDVmadSD6llzAA.ttf",
+    "format": "truetype"
+  },
+  {
+    "weight": "500",
+    "file": "IBMPlexSans-500.ttf",
+    "url": "https://fonts.gstatic.com/s/ibmplexsans/v23/zYXGKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1swZSAXcomDVmadSD2FlzAA.ttf",
+    "format": "truetype"
+  }
+]
