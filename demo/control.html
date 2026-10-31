@@ -289,6 +289,56 @@
 .tour-btns .tour-close { border:0; background:transparent; padding-left:0; color:light-dark(#596c5d,#9eafa1); }
 @media (prefers-reduced-motion: reduce) { .tour-ring { transition:none; } }
 </style>
+<!-- every text one step larger than the design (user request), except the FAQ, which keeps its own sizes -->
+<style>
+#supplierpulse-selected-ui-concepts .sp-app { font-size:14px; }
+#supplierpulse-selected-ui-concepts .sp-app h2 { font-size:18px; }
+#supplierpulse-selected-ui-concepts .sp-app h3 { font-size:14px; }
+#supplierpulse-selected-ui-concepts .sp-control h1 { font-size:35px; }
+#supplierpulse-selected-ui-concepts .sp-small { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-mono { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-overline { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-brand { font-size:17px; }
+#supplierpulse-selected-ui-concepts .sp-mode button { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-pill { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-preview { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-control-stats .sp-metric { font-size:39px; }
+#supplierpulse-selected-ui-concepts .sp-metric small { font-size:14px; }
+#supplierpulse-selected-ui-concepts .sp-filters button { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-table th { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-table td { font-size:13px; }
+#supplierpulse-selected-ui-concepts .sp-code { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-disclosure > summary { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-check { font-size:13px; }
+#supplierpulse-selected-ui-concepts .sp-check span:last-child { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-footer { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-control-nav button { font-size:14.5px; }
+#supplierpulse-selected-ui-concepts .sp-task-number { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-task h2 { font-size:21px; }
+#supplierpulse-selected-ui-concepts .sp-path span { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-log-line > span { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-log-line p { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-case span { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-case small { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-result h2 { font-size:26px; }
+#supplierpulse-selected-ui-concepts .sp-app .sp-result p { font-size:13px; }
+#supplierpulse-selected-ui-concepts .sp-app button.sp-guide { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-field { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-input { font-size:13px; }
+#supplierpulse-selected-ui-concepts .sp-kv dd .sp-button.sp-quiet { font-size:12px; }
+@media(max-width:620px) { #supplierpulse-selected-ui-concepts .sp-control-stats .sp-metric { font-size:31px; } }
+.tour-card { font-size:14px; }
+.tour-card h2 { font-size:18px; }
+.tour-step { font-size:12px; }
+.tour-btns button { font-size:13px; }
+/* the FAQ: the sizes it had before */
+#supplierpulse-selected-ui-concepts .sp-faq-section { font-size:13px; }
+#supplierpulse-selected-ui-concepts .sp-app .sp-faq-section h2 { font-size:17px; }
+#supplierpulse-selected-ui-concepts .sp-app .sp-faq-section h3 { font-size:13px; }
+#supplierpulse-selected-ui-concepts .sp-faq-section .sp-mono { font-size:11px; }
+#supplierpulse-selected-ui-concepts .sp-faq-section .sp-faq-table th { font-size:12px; }
+#supplierpulse-selected-ui-concepts .sp-faq-section .sp-faq-table td { font-size:14px; }
+</style>
 </head>
 <body>
 <div id="supplierpulse-selected-ui-concepts">
@@ -544,7 +594,7 @@
   const notice = (o) => { const r = reason(o); return `<div class="sp-note">${icon(refunded(o) ? 'rotate-ccw' : 'clock-3')}<div><strong>${closed(o) ? 'Order closed' : esc(r.reason)}</strong><p class="sp-small" style="margin-top:4px">${esc(r.detail)}</p></div></div>`; };
   let sendMsg = { id: null, html: '' };
   const sendLine = (o) => (sendMsg.id === o.id && sendMsg.html ? `<p class="sp-small" style="margin-top:12px" role="status">${sendMsg.html}</p>` : '');
-  const details = (o, complex = false) => `<div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>${esc(o.ref)}</h3>${icon('file-check-2')}</div><h2 style="margin-top:8px">${esc(o.name)}</h2><p class="sp-small sp-muted" style="margin:5px 0 18px">${o.registry} · ${esc(o.supplier)}</p><div class="sp-overline">${refunded(o) ? 'Returned to buyer' : closed(o) ? 'Paid to supplier' : 'Next milestone'}</div><div style="font-size:31px;letter-spacing:-1px;margin:5px 0 12px">${money(refunded(o) ? o.total - o.paid : closed(o) ? o.paid : o.amounts[o.next])} <span class="sp-small sp-muted" style="letter-spacing:0">tokens</span></div>${notice(o)}${complex ? `<details class="sp-disclosure" data-key="ms-${o.id}"${opened('ms-' + o.id)}><summary class="cursor-interaction">Milestones and policy</summary>${milestone(o)}${kv([['Permit', closed(o) ? 'None · order closed' : permitValid(o) ? `Valid until ${dayClock(o.permitValidUntil)}` : o.permitValidUntil ? 'Expired' : 'None yet'], ['Submission max age', `${consts.maxAge} seconds`], ['Permit lifetime', `${o.permitTtl.toLocaleString('en-GB')} seconds`], ['History tier', tierName(o.tier)]])}</details>` : `<button class="sp-button sp-quiet cursor-interaction" data-mode="complex" style="margin-top:13px">Review milestones ${icon('arrow-right')}</button>`}${sendLine(o)}</div>`;
+  const details = (o, complex = false) => `<div class="sp-sheet sp-padding"><div class="sp-row sp-between"><h3>${esc(o.ref)}</h3>${icon('file-check-2')}</div><h2 style="margin-top:8px">${esc(o.name)}</h2><p class="sp-small sp-muted" style="margin:5px 0 18px">${o.registry} · ${esc(o.supplier)}</p><div class="sp-overline">${refunded(o) ? 'Returned to buyer' : closed(o) ? 'Paid to supplier' : 'Next milestone'}</div><div style="font-size:32px;letter-spacing:-1px;margin:5px 0 12px">${money(refunded(o) ? o.total - o.paid : closed(o) ? o.paid : o.amounts[o.next])} <span class="sp-small sp-muted" style="letter-spacing:0">tokens</span></div>${notice(o)}${complex ? `<details class="sp-disclosure" data-key="ms-${o.id}"${opened('ms-' + o.id)}><summary class="cursor-interaction">Milestones and policy</summary>${milestone(o)}${kv([['Permit', closed(o) ? 'None · order closed' : permitValid(o) ? `Valid until ${dayClock(o.permitValidUntil)}` : o.permitValidUntil ? 'Expired' : 'None yet'], ['Submission max age', `${consts.maxAge} seconds`], ['Permit lifetime', `${o.permitTtl.toLocaleString('en-GB')} seconds`], ['History tier', tierName(o.tier)]])}</details>` : `<button class="sp-button sp-quiet cursor-interaction" data-mode="complex" style="margin-top:13px">Review milestones ${icon('arrow-right')}</button>`}${sendLine(o)}</div>`;
 
   // Release conditions: the four facts the contract checks, from this order's own reads; one action at the bottom
   function action(o) {
@@ -647,9 +697,9 @@
     const limits = `<ul class="sp-faq-limits">${FAQ_LIMITS.map((x) => `<li>${x}</li>`).join('')}</ul>`;
     const head = `<div class="sp-row sp-between" style="margin:28px 0 14px"><h2>What happens when…</h2><span class="sp-mono">${String(FAQ.length).padStart(2, '0')} questions</span></div>`;
     if (s.mode === 'complex') {
-      return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet"><div class="sp-table-wrap"><table class="sp-table sp-faq-table"><thead><tr><th>Scenario</th><th>What the service does</th><th>Trust signal</th></tr></thead><tbody>${FAQ.map(([q, a, t]) => `<tr><td><strong style="font-weight:600">${q}</strong></td><td>${a}</td><td class="sp-muted">${t}</td></tr>`).join('')}</tbody></table></div></div><div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Important limits</h3>${limits}</div></section>`;
+      return `<section class="sp-faq-section" aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet"><div class="sp-table-wrap"><table class="sp-table sp-faq-table"><thead><tr><th>Scenario</th><th>What the service does</th><th>Trust signal</th></tr></thead><tbody>${FAQ.map(([q, a, t]) => `<tr><td><strong style="font-weight:600">${q}</strong></td><td>${a}</td><td class="sp-muted">${t}</td></tr>`).join('')}</tbody></table></div></div><div class="sp-sheet sp-padding" style="margin-top:16px"><h3>Important limits</h3>${limits}</div></section>`;
     }
-    return `<section aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet sp-padding sp-faq">${FAQ.map(([q, a, t], i) => `<details class="sp-faq-item" data-key="faq-${i}"${opened('faq-' + i)}><summary class="cursor-interaction">${q}</summary><div class="sp-faq-body"><p>${a}</p><p class="sp-small sp-muted sp-row" style="margin-top:8px;align-items:flex-start">${icon('shield-check')}<span>${t}</span></p></div></details>`).join('')}<details class="sp-faq-item" data-key="faq-limits"${opened('faq-limits')}><summary class="cursor-interaction">Important limits</summary><div class="sp-faq-body">${limits}</div></details></div></section>`;
+    return `<section class="sp-faq-section" aria-labelledby="faq-h">${head.replace('<h2>', '<h2 id="faq-h">')}<div class="sp-sheet sp-padding sp-faq">${FAQ.map(([q, a, t], i) => `<details class="sp-faq-item" data-key="faq-${i}"${opened('faq-' + i)}><summary class="cursor-interaction">${q}</summary><div class="sp-faq-body"><p>${a}</p><p class="sp-small sp-muted sp-row" style="margin-top:8px;align-items:flex-start">${icon('shield-check')}<span>${t}</span></p></div></details>`).join('')}<details class="sp-faq-item" data-key="faq-limits"${opened('faq-limits')}><summary class="cursor-interaction">Important limits</summary><div class="sp-faq-body">${limits}</div></details></div></section>`;
   }
 
   function operations(o) {
