@@ -1,0 +1,32 @@
+SupplierPulse video assets, captured Sat 31 Oct ~12:45-12:51 (CET)
+Source: https://julienlmu.github.io/tumblockchain-powerpuffboys/control.html (live Sepolia, contract 0xf25Aae1772326C95294D1923399D55c658493DfC)
+Headless Google Chrome via Playwright, 1920x1080 viewport, deviceScaleFactor 2 (PNG = 3840x2160), light scheme.
+No paid call, no transaction: only page reads and the lab's eth_call simulations.
+
+Operations
+  ops_simple.png          Operations, Simple
+  ops_complex.png         Operations, Complex (viewport)
+  ops_complex_full.png    Operations, Complex (full page)
+  ops_paid_detail.png     Complex, PO-1004 Cable harness (DE) selected: fully paid (order 0 / PO-1001 is NOT fully paid, it is the open order)
+  ops_held_detail.png     Complex, PO-1002 Gearbox selected: refunded
+
+Verification lab (Simple, order PO-1001, no signed record loaded)
+  lab_start.png
+  lab_valid.png, lab_value.png, lab_key.png   show "needs a record" (these cases need a fresh paid record)
+  lab_old.png                                  StaleResponse, as expected (live contract)
+  lab_request.png                              WrongRequest, as expected (live contract)
+  lab_suite.png           "Run the tamper test": Not run; old + other company rejected, the other 3 "could not ask" without a record
+
+Agent / Judge kit
+  agent.png, agent_complex.png, judge.png
+
+Explorer
+  etherscan_*.png         NOT captured: Etherscan showed a Cloudflare bot check ("Just a moment...") to the headless browser; skipped.
+  blockscout_contract.png Blockscout instead: contract address page
+  blockscout_code.png     Blockscout contract tab (source)
+  blockscout_paid_tx.png  tx 0x25a56e9ef8d610373801f1b1e9de75399e084a4f9d967517220de62e31de15bd (agent paid PO-1004 milestone 2, 1,000 tokens, Sat 12:00)
+
+judge-tamper.txt          api3/scripts/judge-tamper.sh on a local anvil chain (no keys, no cost): 6/6 PASS, exit 0
+
+Not done: the live paid-record lab scene (lab_live_*.png, lab_live.webm). The $0.01 x402 fetch was blocked by the
+local permission check on this machine and needs Orhun's own go-ahead.

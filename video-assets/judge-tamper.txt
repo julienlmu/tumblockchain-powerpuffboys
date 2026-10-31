@@ -1,0 +1,11 @@
+Local contract 0xffa7ca1aeeebbc30c874d32c7e22f052bbea0429, order 0, record signed by the local Companies House Airnode
+
+PASS  (a) one value edited               REJECTED WrongSigner(0xD0eE5f98d18518AEB3ac6659e4D74699EFA8E05D)
+PASS  (b) too old (-1 h)                 REJECTED StaleResponse(1793444186, 1793447786)
+PASS  (c) other company's request        REJECTED WrongRequest(0xc54eb83f1a11ccba0b91f71ed163f734220e3953c2350c53d5eb0aa6d3786ecc, 0x3d9bb0fe3c861da695f81743e423225c9cfa3c2bd5a9fa7b0089d06767f60420)
+PASS  (d) signed by another key          REJECTED WrongSigner(0x9C02B1379feFAE9D2491B9b3294f6bE7DFA72409)
+PASS  valid record                       ACCEPTED and paid 500 tokens to 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (tx 0x9aaf6bcfbfc6690cc47168dbaecfaba2b4ee30b7490ca9edadcb23943e8d6405)
+PASS  same record again                  REJECTED Replayed(0x1e41bb9a7187df30b974409d7508c47a2b97292ef246ee6c82586d09db9fc155)
+
+All cases behaved as expected.
+exit 0
