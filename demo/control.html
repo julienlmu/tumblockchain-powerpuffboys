@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SupplierPulse Control Room</title>
-<!-- the viewer's theme choice (Dark button), applied before the first paint so the page does not flash light -->
-<script>try { if (localStorage.getItem('pulse-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch { /* storage blocked */ }</script>
+<!-- every load starts light; the Dark button lasts until the next load. Clears a choice an earlier version stored. -->
+<script>try { localStorage.removeItem('pulse-theme'); } catch { /* storage blocked */ }</script>
 <!-- Control Room with the selected Paper presentation, real data and actions.
      Live: ?contract=0x…&rpc=…; sample: ?sample=1. -->
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js" integrity="sha384-NRAZj94DQk3dgtsOZzVYHbYVV1DFkF5QhL5RRxF0ILZLi6OQ7CsMlun748D42JbO" crossorigin="anonymous"></script>
@@ -1143,8 +1143,7 @@
     else if (b.dataset.goto) { location.href = b.dataset.goto === 'sample' ? 'control.html?sample=1' : 'control.html'; return; }
     else if (b.dataset.guide !== undefined) { guide(b); return; }
     else if (b.dataset.themeToggle !== undefined) {
-      const on = !dark(); if (on) document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme;
-      try { localStorage.setItem('pulse-theme', on ? 'dark' : 'light'); } catch { /* storage blocked */ }
+      if (dark()) delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = 'dark';
     }
     else if (b.dataset.act) { act(b.dataset.act); return; }
     else if (b.dataset.edit) { editAction(b.dataset.edit); return; }
