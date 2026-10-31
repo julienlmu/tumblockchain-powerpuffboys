@@ -73,6 +73,9 @@ Points 1 and 3 are a small change in `agent.py`. Points 2 and 4 are mostly pitch
 - Notes: (tx hashes, addresses, blockers)
 ```
 
+### 2026-10-31 · Orhun · README: order assistant (future work)
+- Changed: added an "Order assistant in the Control Room" subsection to README Future work (a chat panel that answers order questions only from on-chain and signed data). No code or ABI change.
+
 ### 2026-10-31 · Orhun · selected Paper theme for the Control Room
 - Changed: applied the approved Paper presentation to `demo/control.html` through `demo/control-paper.css`; bundled IBM Plex Sans and its OFL license, simplified page headings, and matched the Guide to the same palette. Simple/Complex and the live/sample selection are preserved. Screenshots and validation notes: `docs/ui/paper/README.md`.
 - Checked: all five screens in both densities at 1280 px in sample mode; edited-value illustration; Guide; local fonts; inline JavaScript syntax; behavior equivalence to base after normalizing headings; whitespace checks. No paid fetch, wallet action, contract change or dependency change.

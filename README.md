@@ -189,6 +189,10 @@ Some data stays public by design:
 
 Stronger privacy, such as hiding amounts and counterparties, would need zero-knowledge proofs or a private settlement layer. That is out of scope for this prototype.
 
+### Order assistant in the Control Room
+
+A chat panel in the Control Room where a buyer can ask plain questions such as "when was supplier X last paid?", "how much is this order worth?" or "when is the next payment due?". A language model (GPT 6 Luna) would answer only from data the dashboard already reads: the contract's on-chain state and the signed registry records. If the answer is not in that data, it says "not in the data" instead of guessing.
+
 ## License
 
 MIT
