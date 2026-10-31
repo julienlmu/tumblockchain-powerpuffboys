@@ -30,3 +30,13 @@ judge-tamper.txt          api3/scripts/judge-tamper.sh on a local anvil chain (n
 
 Not done: the live paid-record lab scene (lab_live_*.png, lab_live.webm). The $0.01 x402 fetch was blocked by the
 local permission check on this machine and needs Orhun's own go-ahead.
+
+UPDATE Sat 31 Oct 13:06 (CET): live paid-record scene, approved by Orhun.
+One $0.01 x402 fetch (test aUSD, Base Sepolia) of Companies House 03778796 for PO-1001. No Sepolia transaction; every check is an eth_call.
+  lab_live_record.png       fresh signed record loaded in the lab
+  lab_live_untouched.png    "Ask the contract: untouched record" -> accepted
+  lab_live_edited_text.png  editor close-up: status "active" -> "liquidation", signature kept
+  lab_live_wrongsigner.png  after "Ask the contract: edited record" (the red result card starts at the bottom edge; full answer is in lab_live.webm)
+  lab_live_suite.png        Run the tamper test: PASSED, 4/4 attacks rejected (valid accepted; value WrongSigner, old StaleResponse,
+                            other company WrongRequest, key WrongSigner), all within 36 s of the fetch
+  lab_live.webm             1920x1080 recording of the whole sequence (the first ~10 s is page load and the fetch)
